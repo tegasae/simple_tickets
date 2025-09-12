@@ -2,7 +2,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Dict
 import re
-from hashlib import sha256
+
+import bcrypt
 
 
 @dataclass
@@ -10,7 +11,7 @@ class Admin:
     id: int
     name: str  # UNIQUE constraint
     email: str
-    password_hash: str
+    password: str
     enabled: bool
     date_created: datetime = field(default_factory=datetime.now)
 
@@ -21,32 +22,23 @@ class Admin:
     def __hash__(self):
         return hash(self.name)  # Hash based on unique name
 
-    @classmethod
-    def create(cls, admin_id: int, name: str, email: str, password: str, enabled: bool = True) -> 'Admin':
-        """Factory method with validation"""
-        if not name or not name.strip():
-            raise ValueError("Admin name cannot be empty")
+    def __post_init__(self):
+        if not self.password:
+            raise ValueError("Either 'password must be provided")
+        self.password = bcrypt.hashpw(self.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
-        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            raise ValueError("Invalid email format")
 
-        if len(password) < 8:
-            raise ValueError("Password must be at least 8 characters")
-
-        return cls(
-            id=admin_id,
-            name=name.strip(),
-            email=email,
-            password_hash=cls.hash_password(password),
-            enabled=enabled
-        )
 
     @staticmethod
     def hash_password(password: str) -> str:
-        return sha256(password.encode()).hexdigest()
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+    @staticmethod
+    def verify_str(plain_str: str, hash_str: str):
+        return bcrypt.checkpw(plain_str.encode("utf-8"), hash_str.encode("utf-8"))
 
     def verify_password(self, password: str) -> bool:
-        return self.password_hash == self.hash_password(password)
+        return self.verify_str(password, self.password)
 
 
 class AdminsAggregate:
@@ -56,6 +48,26 @@ class AdminsAggregate:
         if admins:
             for admin in admins:
                 self.add_admin(admin)  # Use add_admin to enforce uniqueness
+
+    def create_admin(self, admin_id: int, name: str, email: str, password: str, enabled: bool = True) -> 'Admin':
+
+        if not name or not name.strip():
+            raise ValueError("Admin name cannot be empty")
+
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            raise ValueError("Invalid email format")
+
+        if len(password) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        admin = Admin(
+            id=admin_id,
+            name=name.strip(),
+            email=email,
+            password=password,
+            enabled=enabled
+        )
+        self.add_admin(admin)
+        return admin
 
     def add_admin(self, admin: Admin):
         if admin.name in self.admins:
@@ -97,10 +109,12 @@ class AdminsAggregate:
         if len(new_password) < 8:
             raise ValueError("Password must be at least 8 characters")
 
-        admin.password_hash = Admin.hash_password(new_password)
+        ########
+        dmin.password_hash = Admin.hash_password(new_password)
+        ##########
         self.version += 1
 
-    def toggle_admin_status(self, name: str, enabled: bool = None):
+    def toggle_admin_status(self, name: str, enabled: bool = False):
         """Enable/disable admin or toggle status"""
         admin = self.get_admin_by_name(name)
         if not admin:
