@@ -8,7 +8,7 @@ import bcrypt
 # Constants
 EMPTY_ADMIN_ID: Final[int] = 0
 MIN_PASSWORD_LENGTH: Final[int] = 8
-
+EMAIL_REGEX: Final[str] = r"[^@]+@[^@]+\.[^@]+"
 
 class AdminAbstract(ABC):
     """Abstract base class for all Admin types"""
@@ -16,73 +16,73 @@ class AdminAbstract(ABC):
     @property
     @abstractmethod
     def admin_id(self) -> int:
-        pass
+        raise NotImplementedError
 
     @admin_id.setter
     @abstractmethod
     def admin_id(self, value: int):
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def name(self) -> str:
-        pass
+        raise NotImplementedError
 
     @name.setter
     @abstractmethod
     def name(self, value: str):
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def email(self) -> str:
-        pass
+        raise NotImplementedError
 
     @email.setter
     @abstractmethod
     def email(self, value: str):
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def enabled(self) -> bool:
-        pass
+        raise NotImplementedError
 
     @enabled.setter
     @abstractmethod
     def enabled(self, value: bool):
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def date_created(self) -> datetime:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def __eq__(self, other) -> bool:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def __bool__(self) -> bool:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def is_empty(self) -> bool:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def verify_password(self, password: str) -> bool:
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def password(self):
-        pass
+        raise NotImplementedError
 
     @password.setter
     @abstractmethod
     def password(self, plain_password: str):
-        pass
+        raise NotImplementedError
 
 
 @dataclass
@@ -99,7 +99,7 @@ class Admin(AdminAbstract):
         self._name = name
         self._email = email
         self._enabled = enabled
-        self._password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        self._password_hash = Admin.str_hash(password)
         self._date_created = datetime.now()
 
     # Property implementations with setters
@@ -164,8 +164,8 @@ class Admin(AdminAbstract):
         self._password_hash = Admin.str_hash(plain_password)
 
     @staticmethod
-    def str_hash(password: str) -> str:
-        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    def str_hash(s: str) -> str:
+        return bcrypt.hashpw(s.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     @staticmethod
     def str_verify(plain_str: str, hash_str: str) -> bool:
@@ -246,42 +246,72 @@ class AdminEmpty(AdminAbstract):
         raise AttributeError(f"Cannot call '{name}' on empty admin")
 
 
+
+
 class AdminsAggregate:
     def __init__(self, admins: List[Admin] = None):
         self.admins: Dict[str, AdminAbstract] = {}
         self.version: int = 0
-        self._empty_admin = AdminEmpty()  # Single instance for all empty returns
+        self._empty_admin = AdminEmpty()
 
         if admins:
             for admin in admins:
                 self.add_admin(admin)
 
-    def create_admin(self, admin_id: int, name: str, email: str, password: str, enabled: bool = True) -> Admin:
+    # Reusable validation methods
+    @staticmethod
+    def _validate_name(name: str) -> str:
+        """Validate and sanitize admin name"""
         if not name or not name.strip():
             raise ValueError("Admin name cannot be empty")
+        return name.strip()
 
-        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+    @staticmethod
+    def _validate_email(email: str) -> str:
+        """Validate email format"""
+        if not re.match(EMAIL_REGEX, email):
             raise ValueError("Invalid email format")
+        return email
 
+    @staticmethod
+    def _validate_password(password: str) -> str:
+        """Validate password strength"""
         if len(password) < MIN_PASSWORD_LENGTH:
             raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+        return password
+
+    def _validate_admin_id_unique(self, admin_id: int):
+        """Validate that admin ID is unique"""
+        if any(a.admin_id == admin_id for a in self.admins.values() if not a.is_empty()):
+            raise ValueError(f"Admin with ID {admin_id} already exists")
+
+    def _validate_admin_name_unique(self, name: str):
+        """Validate that admin name is unique"""
+        if name in self.admins:
+            raise ValueError(f"Admin with name '{name}' already exists")
+
+    def create_admin(self, admin_id: int, name: str, email: str, password: str, enabled: bool = True) -> Admin:
+        """Create a new admin with validation"""
+        validated_name = AdminsAggregate._validate_name(name)
+        validated_email = AdminsAggregate._validate_email(email)
+        validated_password = AdminsAggregate._validate_password(password)
+        self._validate_admin_id_unique(admin_id)
+        self._validate_admin_name_unique(validated_name)
 
         admin = Admin(
             admin_id=admin_id,
-            name=name.strip(),
-            password=password,
-            email=email,
+            name=validated_name,
+            password=validated_password,
+            email=validated_email,
             enabled=enabled
         )
         self.add_admin(admin)
         return admin
 
     def add_admin(self, admin: Admin):
-        if admin.name in self.admins:
-            raise ValueError(f"Admin with name '{admin.name}' already exists")
-
-        if any(a.admin_id == admin.admin_id for a in self.admins.values() if not a.is_empty()):
-            raise ValueError(f"Admin with ID {admin.admin_id} already exists")
+        """Add an existing admin with validation"""
+        self._validate_admin_id_unique(admin.admin_id)
+        self._validate_admin_name_unique(admin.name)
 
         self.admins[admin.name] = admin
         self.version += 1
@@ -290,12 +320,12 @@ class AdminsAggregate:
         """Get admin by unique name - returns AdminEmpty if not found"""
         return self.admins.get(name, self._empty_admin)
 
-    def require_admin_by_name(self, name: str) -> Admin:
+    def require_admin_by_name(self, name: str) -> AdminAbstract:
         """Get admin by name - throws exception if not found"""
         admin = self.admins.get(name)
         if not admin or admin.is_empty():
             raise ValueError(f"Admin '{name}' not found")
-        return admin  # type: ignore
+        return admin
 
     def admin_exists(self, name: str) -> bool:
         """Check if admin with given name exists"""
@@ -304,51 +334,46 @@ class AdminsAggregate:
     def change_admin_email(self, name: str, new_email: str):
         """Change email for specific admin"""
         admin = self.require_admin_by_name(name)
+        validated_email = AdminsAggregate._validate_email(new_email)
 
-        if not re.match(r"[^@]+@[^@]+\.[^@]+", new_email):
-            raise ValueError("Invalid email format")
-
-        admin.email = new_email  # This will work now!
+        admin.email = validated_email
         self.version += 1
 
     def change_admin_password(self, name: str, new_password: str):
         """Change password for specific admin"""
         admin = self.require_admin_by_name(name)
+        validated_password = AdminsAggregate._validate_password(new_password)
 
-        if len(new_password) < MIN_PASSWORD_LENGTH:
-            raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
-
-        admin.password = new_password  # This will work now!
+        admin.password = validated_password
         self.version += 1
 
     def toggle_admin_status(self, name: str):
         """Toggle admin status (enable ↔ disable)"""
         admin = self.require_admin_by_name(name)
-        admin.enabled = not admin.enabled  # This will work now!
+        admin.enabled = not admin.enabled
         self.version += 1
 
     def set_admin_status(self, name: str, enabled: bool):
         """Set specific admin status"""
         admin = self.require_admin_by_name(name)
-        admin.enabled = enabled  # This will work now!
+        admin.enabled = enabled
         self.version += 1
 
     def remove_admin(self, name: str):
         """Remove admin by name"""
         if name not in self.admins:
             raise ValueError(f"Admin '{name}' not found")
-
         del self.admins[name]
         self.version += 1
 
-    def get_all_admins(self) -> List[Admin]:
+    def get_all_admins(self) -> List[AdminAbstract]:
         """Get all real admins (exclude empty ones)"""
-        return [admin for admin in self.admins.values() if not admin.is_empty()]  # type: ignore
+        return [admin for admin in self.admins.values() if not admin.is_empty()]
 
-    def get_enabled_admins(self) -> List[Admin]:
+    def get_enabled_admins(self) -> List[AdminAbstract]:
         return [admin for admin in self.get_all_admins() if admin.enabled]
 
-    def get_disabled_admins(self) -> List[Admin]:
+    def get_disabled_admins(self) -> List[AdminAbstract]:
         return [admin for admin in self.get_all_admins() if not admin.enabled]
 
     def get_admin_count(self) -> int:
@@ -356,7 +381,6 @@ class AdminsAggregate:
 
     def is_empty(self) -> bool:
         return self.get_admin_count() == 0
-
 
 # Test the fix
 if __name__ == "__main__":
