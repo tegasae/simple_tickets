@@ -1,4 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
+
+import bcrypt
+
+from dataclasses import dataclass, field
+from typing import Optional
 import bcrypt
 
 
@@ -6,29 +12,31 @@ import bcrypt
 class Admin:
     id: int
     login: str
-    # store the hash (can also be provided directly); hide from repr
-    # password_hash: Optional[str] = field(default=None, repr=False)
-    # init-only field for a plain password
-    password: str
+    _password_hash: str = field(repr=False)
 
-    # password: str=""
+    def __init__(self, id: int, login: str, password: str):
+        self.id = id
+        self.login = login
+        self._password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
-    def __post_init__(self):
-        # If plain password was passed, hash it and overwrite/produce password_hash
-        # if password is not None:
-        #    self.password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-        if self.password is not None:
-            self.password = bcrypt.hashpw(self.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    @property
+    def password(self):
+        raise AttributeError("password is write-only")
 
-        # If neither provided, error
-        if not self.password:
-            raise ValueError("Either 'password' (plain) or 'password_hash' must be provided")
+    @password.setter
+    def password(self, plain_password: str) -> None:
+        if not plain_password:
+            raise ValueError("Password cannot be empty")
+        self._password_hash = bcrypt.hashpw(plain_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     def verify_password(self, plain: str) -> bool:
-        return bcrypt.checkpw(plain.encode("utf-8"), self.password.encode("utf-8"))
+        return bcrypt.checkpw(plain.encode("utf-8"), self._password_hash.encode("utf-8"))
 
 
-if __name__ == "__main__":
-    admin = Admin(id=1, login="login", password="password")
+if __name__=="__main__":
+    admin = Admin(id=1, login="test", password="initial")
     print(admin.password)
-    print(admin.verify_password("password"))
+    print(admin.verify_password('initial'))
+    admin.password = "new_password"  # This works!
+    print(admin.password)
+    print(admin.verify_password('new_password'))
