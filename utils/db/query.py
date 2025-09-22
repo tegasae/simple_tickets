@@ -1,3 +1,5 @@
+from typing import Dict, Any
+
 from .exceptions import DBOperationError
 
 
@@ -49,17 +51,17 @@ class Query:
         else:
             return list(self.result)
 
-    def get_one_result(self, params=None):
+    def get_one_result(self, params=None) -> Dict[str|int, Any]:
         self._execute(params=params)
         self.result = self.cur.fetchone()
 
         if not self.result:
-            return ()
+            return {}  # Empty dict instead of None
 
         if self.var:
             return dict(zip(self.var, self.result))
         else:
-            return self.result
+            return dict(enumerate(self.result))  # Convert to dict with index keys
 
     def close(self):
         if self.cur:

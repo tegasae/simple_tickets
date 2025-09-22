@@ -112,7 +112,7 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
 
 
 
-        return self.connection_manager.execute_in_transaction(get_version)
+
 
 
 if __name__ == "__main__":
