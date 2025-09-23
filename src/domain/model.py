@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Dict, Final
+from typing import List, Dict, Final, Optional
 from abc import ABC, abstractmethod
 import re
 import bcrypt
@@ -94,15 +94,14 @@ class Admin(AdminAbstract):
     _enabled: bool
     _date_created: datetime = field(default_factory=datetime.now)
 
-    def __init__(self, admin_id: int, name: str, password: str, email: str, enabled: bool):
+    def __init__(self, admin_id: int, name: str, password: str, email: str, enabled: bool,date_created: Optional[datetime] = None):
         self._admin_id = admin_id
         self._name = name
         self._email = email
         self._enabled = enabled
         self._password_hash = Admin.str_hash(password)
-        self._date_created = datetime.now()
-
-    # Property implementations with setters
+        self._date_created = date_created or datetime.now()
+        # Property implementations with setters
     @property
     def admin_id(self) -> int:
         return self._admin_id
@@ -155,7 +154,8 @@ class Admin(AdminAbstract):
 
     @property
     def password(self):
-        raise AttributeError("Password is write-only - use verify_password() to check passwords")
+        #raise AttributeError("Password is write-only - use verify_password() to check passwords")
+        return self._password_hash
 
     @password.setter
     def password(self, plain_password: str) -> None:
@@ -249,9 +249,9 @@ class AdminEmpty(AdminAbstract):
 
 
 class AdminsAggregate:
-    def __init__(self, admins: List[Admin] = None):
+    def __init__(self, admins: List[Admin] = None,version: int = 0):
         self.admins: Dict[str, AdminAbstract] = {}
-        self.version: int = 0
+        self.version: int = version
         self._empty_admin = AdminEmpty()
 
         if admins:
@@ -388,7 +388,7 @@ if __name__ == "__main__":
 
     # Create a real admin
     admin1 = aggregate.create_admin(1, "test", "test@example.com", "password123", True)
-
+    print(admin1.password)
     # Test property setters
     real_admin = aggregate.require_admin_by_name("test")
     print(f"Original email: {real_admin.email}")

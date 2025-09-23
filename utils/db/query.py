@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
 from .exceptions import DBOperationError
 
@@ -62,6 +62,16 @@ class Query:
             return dict(zip(self.var, self.result))
         else:
             return dict(enumerate(self.result))  # Convert to dict with index keys
+
+    def get_one_result_tuple(self, params=None) -> Tuple:
+        """Alternative method that returns empty tuple instead of None"""
+        self._execute(params=params)
+        self.result = self.cur.fetchone()
+
+        if not self.result:
+            return ()  # Empty tuple instead of None
+
+        return self.result
 
     def close(self):
         if self.cur:
