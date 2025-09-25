@@ -11,6 +11,7 @@ class Connection:
         self.connect = connect
         self.engine = engine
         self._is_closed = False
+        self.engine.paramstyle = "named"
 
     @classmethod
     def create_connection(cls, url="", engine=None) -> 'Connection':
@@ -19,6 +20,7 @@ class Connection:
 
         if not hasattr(engine, 'connect'):
             raise DBConnectError("Engine must have a connect method")
+        engine.paramstyle = "named"
 
         try:
             connect = engine.connect(url)
