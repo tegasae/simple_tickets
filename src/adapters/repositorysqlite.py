@@ -131,20 +131,34 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
             # Clear existing admins
             query = self.conn.create_query("DELETE FROM admins")
             query.set_result()
-
-            # Insert all admins from aggregate
-            for admin in aggregate.get_all_admins():
-                query = self.conn.create_query("INSERT INTO admins  (admin_id, name, email, password_hash, enabled, "
+            query_new_admin=self.conn.create_query(
+                        "INSERT INTO admins  (name, email, password_hash, enabled, "
+                        "date_created) VALUES (:name, :email, :password_hash, "
+                        ":enabled, :date_created)")
+            query_exists_admin=self.conn.create_query("INSERT INTO admins  (admin_id, name, email, password_hash, enabled, "
                                                "date_created) VALUES (:admin_id, :name, :email, :password_hash, "
                                                ":enabled, :date_created)")
-                query.set_result(params={
-                    'admin_id': admin.admin_id,
-                    'name': admin.name,
-                    'email': admin.email,
-                    'password_hash': admin.password,
-                    'enabled': 1 if admin.enabled else 0,
-                    'date_created': admin.date_created.isoformat()
-                })
+            # Insert all admins from aggregate
+            for admin in aggregate.get_all_admins():
+                if admin.admin_id==0:
+                    query_new_admin.set_result(params={
+                        'name': admin.name,
+                        'email': admin.email,
+                        'password_hash': admin.password,
+                        'enabled': 1 if admin.enabled else 0,
+                        'date_created': admin.date_created.isoformat()
+                    })
+
+                else:
+
+                    query_exists_admin.set_result(params={
+                        'admin_id': admin.admin_id,
+                        'name': admin.name,
+                        'email': admin.email,
+                        'password_hash': admin.password,
+                        'enabled': 1 if admin.enabled else 0,
+                        'date_created': admin.date_created.isoformat()
+                    })
 
         except Exception as e:
             raise DBOperationError(f"Failed to save admins: {str(e)}")
@@ -168,7 +182,18 @@ if __name__ == "__main__":
     conn1.begin_transaction()
     repository = SQLiteAdminRepository(conn=conn1)
     admins1 = repository.get_list_of_admins()
-    admins1.change_admin_password(name='name', new_password='12345678')
+    print(admins1.get_all_admins())
+
+
+
+    admins1.change_admin_email(name='name',new_email='123@111.ru')
+    admins1.add_admin(Admin(admin_id=0,name='new',email='<EMAIL>',password='1',enabled=True))
+    #admin.email='12345'
+
+    #admins1.change_admin(admin)
     repository.save_admins(admins1)
+    admins1 = repository.get_list_of_admins()
+    print(admins1.get_all_admins())
+
     conn1.commit()
     conn1.close()

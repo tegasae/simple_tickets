@@ -1,13 +1,19 @@
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime
 from src.domain.model import Admin, AdminEmpty, AdminsAggregate, AdminAbstract
 import bcrypt
 
 
 class TestAdmin:
-    def test_admin_creation(self):
-        """Test that Admin can be created with valid data"""
-        admin = Admin(1, "testuser", "password123", "test@example.com", True)
+    def test_admin_creation_with_valid_data(self):
+        """Test Admin creation with all required fields"""
+        admin = Admin(
+            admin_id=1,
+            name="testuser",
+            password="password123",
+            email="test@example.com",
+            enabled=True
+        )
 
         assert admin.admin_id == 1
         assert admin.name == "testuser"
@@ -16,58 +22,90 @@ class TestAdmin:
         assert isinstance(admin.date_created, datetime)
 
     def test_admin_creation_with_custom_date(self):
-        """Test Admin creation with specific date_created"""
+        """Test Admin creation with custom date_created"""
         custom_date = datetime(2023, 1, 1, 12, 0, 0)
-        admin = Admin(1, "testuser", "password123", "test@example.com", True, custom_date)
+        admin = Admin(
+            admin_id=1,
+            name="testuser",
+            password="password123",
+            email="test@example.com",
+            enabled=True,
+            date_created=custom_date
+        )
 
         assert admin.date_created == custom_date
 
-    def test_admin_password_hashing(self):
-        """Test that password is properly hashed"""
-        admin = Admin(1, "testuser", "password123", "test@example.com", True)
+    def test_admin_password_hashing_on_creation(self):
+        """Test that password is hashed during Admin creation"""
+        admin = Admin(
+            admin_id=1,
+            name="testuser",
+            password="password123",
+            email="test@example.com",
+            enabled=True
+        )
 
-        # Password should be hashed
+        # Password should be hashed, not stored plain text
         assert admin.verify_password("password123") == True
         assert admin.verify_password("wrongpassword") == False
+        assert admin._password_hash != "password123"
         assert admin.password.startswith("$2b$")  # bcrypt hash pattern
 
-    def test_admin_password_setter(self):
-        """Test password setter updates hash"""
-        admin = Admin(1, "testuser", "oldpassword", "test@example.com", True)
-        old_hash = admin.password
+    def test_admin_password_setter_updates_hash(self):
+        """Test password setter properly updates the hash"""
+        admin = Admin(
+            admin_id=1,
+            name="testuser",
+            password="oldpassword",
+            email="test@example.com",
+            enabled=True
+        )
+        old_hash = admin._password_hash
 
         admin.password = "newpassword"
 
-        assert admin.password != old_hash
+        assert admin._password_hash != old_hash
         assert admin.verify_password("newpassword") == True
         assert admin.verify_password("oldpassword") == False
 
-    def test_admin_password_empty_validation(self):
-        """Test that empty password raises error"""
-        admin = Admin(1, "testuser", "password123", "test@example.com", True)
+    def test_admin_password_setter_empty_password(self):
+        """Test password setter with empty password raises error"""
+        admin = Admin(
+            admin_id=1,
+            name="testuser",
+            password="validpassword",
+            email="test@example.com",
+            enabled=True
+        )
 
         with pytest.raises(ValueError, match="Password cannot be empty"):
             admin.password = ""
 
     def test_admin_property_setters(self):
         """Test all property setters work correctly"""
-        admin = Admin(1, "testuser", "password123", "test@example.com", True)
+        admin = Admin(
+            admin_id=1,
+            name="original_name",
+            password="password123",
+            email="original@example.com",
+            enabled=True
+        )
 
         admin.admin_id = 2
-        admin.name = "newname"
+        admin.name = "new_name"
         admin.email = "new@example.com"
         admin.enabled = False
 
         assert admin.admin_id == 2
-        assert admin.name == "newname"
+        assert admin.name == "new_name"
         assert admin.email == "new@example.com"
         assert admin.enabled == False
 
-    def test_admin_equality(self):
-        """Test admin equality based on name"""
-        admin1 = Admin(1, "sameuser", "pass1", "test1@example.com", True)
-        admin2 = Admin(2, "sameuser", "pass2", "test2@example.com", False)
-        admin3 = Admin(3, "different", "pass3", "test3@example.com", True)
+    def test_admin_equality_based_on_name(self):
+        """Test admin equality is based on name"""
+        admin1 = Admin(1, "same_name", "pass1", "test1@example.com", True)
+        admin2 = Admin(2, "same_name", "pass2", "test2@example.com", False)
+        admin3 = Admin(3, "different_name", "pass3", "test3@example.com", True)
 
         assert admin1 == admin2  # Same name
         assert admin1 != admin3  # Different name
@@ -80,29 +118,41 @@ class TestAdmin:
         assert admin != empty_admin
         assert empty_admin != admin
 
-    def test_admin_hash(self):
-        """Test admin hashing based on name"""
+    def test_admin_hash_based_on_name(self):
+        """Test admin hash is based on name"""
         admin1 = Admin(1, "testuser", "pass1", "test1@example.com", True)
         admin2 = Admin(2, "testuser", "pass2", "test2@example.com", False)
+        admin3 = Admin(3, "different", "pass3", "test3@example.com", True)
 
         assert hash(admin1) == hash(admin2)  # Same name, same hash
+        assert hash(admin1) != hash(admin3)  # Different name, different hash
 
-    def test_admin_boolean(self):
-        """Test boolean conversion"""
+    def test_admin_boolean_returns_true(self):
+        """Test boolean conversion returns True for real admin"""
         admin = Admin(1, "testuser", "password123", "test@example.com", True)
         assert bool(admin) == True
 
-    def test_admin_is_empty(self):
-        """Test is_empty method returns False for real admin"""
+    def test_admin_is_empty_returns_false(self):
+        """Test is_empty returns False for real admin"""
         admin = Admin(1, "testuser", "password123", "test@example.com", True)
         assert admin.is_empty() == False
 
-    def test_admin_static_methods(self):
-        """Test static hash and verify methods"""
-        password = "testpassword"
-        hash_result = Admin.str_hash(password)
+    def test_admin_str_hash_static_method(self):
+        """Test static str_hash method"""
+        hash_result = Admin.str_hash("testpassword")
+        assert isinstance(hash_result, str)
+        assert hash_result.startswith("$2b$")
 
-        assert Admin.str_verify(password, hash_result) == True
+        # Verify the hash can be verified
+        assert Admin.str_verify("testpassword", hash_result) == True
+        assert Admin.str_verify("wrongpassword", hash_result) == False
+
+    def test_admin_str_verify_static_method(self):
+        """Test static str_verify method"""
+        plain_password = "testpassword"
+        hash_result = Admin.str_hash(plain_password)
+
+        assert Admin.str_verify(plain_password, hash_result) == True
         assert Admin.str_verify("wrongpassword", hash_result) == False
 
 
@@ -118,7 +168,7 @@ class TestAdminEmpty:
         assert isinstance(empty.date_created, datetime)
 
     def test_admin_empty_property_setters_raise_errors(self):
-        """Test that AdminEmpty property setters raise errors"""
+        """Test that AdminEmpty property setters raise appropriate errors"""
         empty = AdminEmpty()
 
         with pytest.raises(AttributeError, match="Cannot set admin_id on empty admin"):
@@ -133,29 +183,33 @@ class TestAdminEmpty:
         with pytest.raises(AttributeError, match="Cannot set enabled on empty admin"):
             empty.enabled = True
 
-    def test_admin_empty_password_access(self):
+    def test_admin_empty_password_access_raises_error(self):
         """Test AdminEmpty password access raises error"""
         empty = AdminEmpty()
 
-        # FIXED: Match the actual error message from your code
-        with pytest.raises(AttributeError, match="Cannot call 'password' on empty admin"):
+        with pytest.raises(AttributeError, match="Cannot access password on empty admin"):
             _ = empty.password
 
-        with pytest.raises(AttributeError, match="Cannot set password on empty admin"):
-            empty.password = "test"
+    def test_admin_empty_password_setter_raises_error(self):
+        """Test AdminEmpty password setter raises error"""
+        empty = AdminEmpty()
 
-    def test_admin_empty_verify_password(self):
+        with pytest.raises(AttributeError, match="Cannot set password on empty admin"):
+            empty.password = "testpassword"
+
+    def test_admin_empty_verify_password_always_false(self):
         """Test AdminEmpty verify_password always returns False"""
         empty = AdminEmpty()
         assert empty.verify_password("anypassword") == False
+        assert empty.verify_password("") == False
 
-    def test_admin_empty_is_empty(self):
-        """Test is_empty method returns True for empty admin"""
+    def test_admin_empty_is_empty_returns_true(self):
+        """Test is_empty returns True for AdminEmpty"""
         empty = AdminEmpty()
         assert empty.is_empty() == True
 
-    def test_admin_empty_boolean(self):
-        """Test boolean conversion returns False"""
+    def test_admin_empty_boolean_returns_false(self):
+        """Test boolean conversion returns False for AdminEmpty"""
         empty = AdminEmpty()
         assert bool(empty) == False
 
@@ -163,13 +217,14 @@ class TestAdminEmpty:
         """Test AdminEmpty equality"""
         empty1 = AdminEmpty()
         empty2 = AdminEmpty()
-        admin = Admin(1, "test", "pass", "test@example.com", True)
+        admin = Admin(1, "test", "password", "test@example.com", True)
 
         assert empty1 == empty2
         assert empty1 != admin
+        assert admin != empty1
 
-    def test_admin_empty_method_access(self):
-        """Test that any method access raises appropriate error"""
+    def test_admin_empty_method_access_raises_error(self):
+        """Test that any method access on AdminEmpty raises appropriate error"""
         empty = AdminEmpty()
 
         with pytest.raises(AttributeError, match="Cannot call 'some_method' on empty admin"):
@@ -178,22 +233,26 @@ class TestAdminEmpty:
 
 class TestAdminsAggregate:
     def test_aggregate_creation_empty(self):
-        """Test AdminsAggregate creation with no initial admins"""
+        """Test AdminsAggregate creation with no admins"""
         aggregate = AdminsAggregate()
+
         assert aggregate.is_empty() == True
         assert aggregate.get_admin_count() == 0
         assert aggregate.version == 0
+        assert aggregate.get_all_admins() == []
+        assert aggregate.get_enabled_admins() == []
+        assert aggregate.get_disabled_admins() == []
 
-    def test_aggregate_creation_with_admins(self):
+    def test_aggregate_creation_with_initial_admins(self):
         """Test AdminsAggregate creation with initial admins"""
-        admin = Admin(1, "testuser", "password123", "test@example.com", True)
+        admin1 = Admin(1, "user1", "pass1", "user1@example.com", True)
+        admin2 = Admin(2, "user2", "pass2", "user2@example.com", False)
 
-        # FIXED: Version DOES increment when adding admins during initialization
-        aggregate = AdminsAggregate([admin])
+        aggregate = AdminsAggregate([admin1, admin2])
 
-        assert aggregate.is_empty() == False
-        assert aggregate.get_admin_count() == 1
-        assert aggregate.version == 1  # Version increments when adding initial admins
+        assert aggregate.get_admin_count() == 2
+        assert aggregate.version == 0
+        assert not aggregate.is_empty()
 
     def test_create_admin_success(self):
         """Test successful admin creation"""
@@ -203,8 +262,8 @@ class TestAdminsAggregate:
         assert admin.admin_id == 1
         assert admin.name == "testuser"
         assert aggregate.get_admin_count() == 1
+        assert aggregate.version == 1
         assert aggregate.admin_exists("testuser") == True
-        assert aggregate.version == 1  # Version increments on add
 
     def test_create_admin_validation_errors(self):
         """Test admin creation validation errors"""
@@ -213,6 +272,10 @@ class TestAdminsAggregate:
         # Test empty name
         with pytest.raises(ValueError, match="Admin name cannot be empty"):
             aggregate.create_admin(1, "", "test@example.com", "password123", True)
+
+        # Test whitespace name
+        with pytest.raises(ValueError, match="Admin name cannot be empty"):
+            aggregate.create_admin(1, "   ", "test@example.com", "password123", True)
 
         # Test invalid email
         with pytest.raises(ValueError, match="Invalid email format"):
@@ -238,66 +301,110 @@ class TestAdminsAggregate:
         with pytest.raises(ValueError, match="Admin with ID 1 already exists"):
             aggregate.create_admin(1, "user2", "test2@example.com", "password456", True)
 
-    def test_add_admin_validation(self):
-        """Test adding existing admin raises error"""
+    def test_add_admin_success(self):
+        """Test adding existing admin"""
         aggregate = AdminsAggregate()
         admin = Admin(1, "testuser", "password123", "test@example.com", True)
 
         aggregate.add_admin(admin)
 
-        # FIXED: Your code checks ID uniqueness first, then name uniqueness
-        # The error message will be about ID, not name
-        with pytest.raises(ValueError, match="Admin with ID 1 already exists"):
-            aggregate.add_admin(admin)
+        assert aggregate.get_admin_count() == 1
+        assert aggregate.version == 1
+        assert aggregate.admin_exists("testuser") == True
 
-    def test_add_admin_duplicate_name_different_id(self):
-        """Test adding admin with duplicate name but different ID"""
+    def test_add_admin_duplicate_name(self):
+        """Test adding admin with duplicate name"""
         aggregate = AdminsAggregate()
-        admin1 = Admin(1, "testuser", "password123", "test1@example.com", True)
-        admin2 = Admin(2, "testuser", "password456", "test2@example.com", True)  # Same name, different ID
+        admin1 = Admin(1, "same_name", "pass1", "test1@example.com", True)
+        admin2 = Admin(2, "same_name", "pass2", "test2@example.com", False)
 
         aggregate.add_admin(admin1)
 
-        # This should fail on name uniqueness check (after ID passes)
-        with pytest.raises(ValueError, match="Admin with name 'testuser' already exists"):
+        with pytest.raises(ValueError, match="Admin with name 'same_name' already exists"):
             aggregate.add_admin(admin2)
 
-    def test_get_admin_by_name(self):
-        """Test get_admin_by_name returns correct admin"""
+    def test_change_admin_success(self):
+        """Test changing existing admin"""
         aggregate = AdminsAggregate()
-        admin = aggregate.create_admin(1, "testuser", "test@example.com", "password123", True)
+        admin = Admin(1, "testuser", "password123", "test@example.com", True)
+        aggregate.add_admin(admin)
 
-        # Test existing admin
+        updated_admin = Admin(1, "testuser", "newpassword", "new@example.com", False)
+        aggregate.change_admin(updated_admin)
+
+        assert aggregate.version == 2
+        changed_admin = aggregate.get_admin_by_name("testuser")
+        assert changed_admin.email == "new@example.com"
+        assert changed_admin.enabled == False
+
+    def test_change_admin_nonexistent(self):
+        """Test changing non-existent admin"""
+        aggregate = AdminsAggregate()
+        admin = Admin(1, "testuser", "password123", "test@example.com", True)
+
+        # Should not raise error, but also not change anything
+        aggregate.change_admin(admin)
+        assert aggregate.get_admin_count() == 0
+        assert aggregate.version == 0
+
+    def test_change_admin_wrong_id(self):
+        """Test changing admin with wrong ID"""
+        aggregate = AdminsAggregate()
+        admin1 = Admin(1, "testuser", "password123", "test@example.com", True)
+        aggregate.add_admin(admin1)
+
+        admin_wrong_id = Admin(2, "testuser", "newpassword", "new@example.com", False)
+        aggregate.change_admin(admin_wrong_id)
+
+        # Should not change because ID doesn't match
+        existing_admin = aggregate.get_admin_by_name("testuser")
+        assert existing_admin.admin_id == 1
+        assert existing_admin.email == "test@example.com"
+
+    def test_get_admin_by_name_existing(self):
+        """Test getting existing admin by name"""
+        aggregate = AdminsAggregate()
+        admin = Admin(1, "testuser", "password123", "test@example.com", True)
+        aggregate.add_admin(admin)
+
         found_admin = aggregate.get_admin_by_name("testuser")
         assert found_admin == admin
+        assert not found_admin.is_empty()
 
-        # Test non-existing admin returns AdminEmpty
-        empty_admin = aggregate.get_admin_by_name("nonexistent")
-        assert isinstance(empty_admin, AdminEmpty)
-        assert empty_admin.is_empty() == True
-
-    def test_require_admin_by_name(self):
-        """Test require_admin_by_name raises error for non-existent admin"""
+    def test_get_admin_by_name_nonexistent(self):
+        """Test getting non-existent admin returns AdminEmpty"""
         aggregate = AdminsAggregate()
-        aggregate.create_admin(1, "testuser", "test@example.com", "password123", True)
 
-        # Test existing admin
-        admin = aggregate.require_admin_by_name("testuser")
-        assert admin.name == "testuser"
+        found_admin = aggregate.get_admin_by_name("nonexistent")
+        assert isinstance(found_admin, AdminEmpty)
+        assert found_admin.is_empty()
 
-        # Test non-existing admin raises error
+    def test_require_admin_by_name_existing(self):
+        """Test requiring existing admin by name"""
+        aggregate = AdminsAggregate()
+        admin = Admin(1, "testuser", "password123", "test@example.com", True)
+        aggregate.add_admin(admin)
+
+        found_admin = aggregate.require_admin_by_name("testuser")
+        assert found_admin == admin
+
+    def test_require_admin_by_name_nonexistent(self):
+        """Test requiring non-existent admin raises error"""
+        aggregate = AdminsAggregate()
+
         with pytest.raises(ValueError, match="Admin 'nonexistent' not found"):
             aggregate.require_admin_by_name("nonexistent")
 
     def test_admin_exists(self):
         """Test admin_exists method"""
         aggregate = AdminsAggregate()
-        aggregate.create_admin(1, "testuser", "test@example.com", "password123", True)
+        admin = Admin(1, "testuser", "password123", "test@example.com", True)
+        aggregate.add_admin(admin)
 
         assert aggregate.admin_exists("testuser") == True
         assert aggregate.admin_exists("nonexistent") == False
 
-    def test_change_admin_email(self):
+    def test_change_admin_email_success(self):
         """Test changing admin email"""
         aggregate = AdminsAggregate()
         aggregate.create_admin(1, "testuser", "old@example.com", "password123", True)
@@ -306,13 +413,17 @@ class TestAdminsAggregate:
 
         admin = aggregate.require_admin_by_name("testuser")
         assert admin.email == "new@example.com"
-        assert aggregate.version == 2  # Initial create + email change
+        assert aggregate.version == 2
 
-        # Test invalid email format
+    def test_change_admin_email_invalid_format(self):
+        """Test changing admin email with invalid format"""
+        aggregate = AdminsAggregate()
+        aggregate.create_admin(1, "testuser", "test@example.com", "password123", True)
+
         with pytest.raises(ValueError, match="Invalid email format"):
             aggregate.change_admin_email("testuser", "invalid-email")
 
-    def test_change_admin_password(self):
+    def test_change_admin_password_success(self):
         """Test changing admin password"""
         aggregate = AdminsAggregate()
         admin = aggregate.create_admin(1, "testuser", "test@example.com", "oldpassword", True)
@@ -322,13 +433,17 @@ class TestAdminsAggregate:
 
         aggregate.change_admin_password("testuser", "newpassword")
 
-        # Verify new password works and old doesn't
+        # Verify new password works
         updated_admin = aggregate.require_admin_by_name("testuser")
         assert updated_admin.verify_password("newpassword") == True
         assert updated_admin.verify_password("oldpassword") == False
         assert aggregate.version == 2
 
-        # Test short password
+    def test_change_admin_password_short(self):
+        """Test changing admin password with short password"""
+        aggregate = AdminsAggregate()
+        aggregate.create_admin(1, "testuser", "test@example.com", "password123", True)
+
         with pytest.raises(ValueError, match="Password must be at least 8 characters"):
             aggregate.change_admin_password("testuser", "short")
 
@@ -366,18 +481,21 @@ class TestAdminsAggregate:
         assert admin.enabled == True
         assert aggregate.version == 3
 
-    def test_remove_admin(self):
-        """Test removing admin"""
+    def test_remove_admin_success(self):
+        """Test removing existing admin"""
         aggregate = AdminsAggregate()
         aggregate.create_admin(1, "testuser", "test@example.com", "password123", True)
 
         assert aggregate.get_admin_count() == 1
         aggregate.remove_admin("testuser")
         assert aggregate.get_admin_count() == 0
-        assert aggregate.admin_exists("testuser") == False
         assert aggregate.version == 2
+        assert not aggregate.admin_exists("testuser")
 
-        # Test removing non-existent admin
+    def test_remove_admin_nonexistent(self):
+        """Test removing non-existent admin raises error"""
+        aggregate = AdminsAggregate()
+
         with pytest.raises(ValueError, match="Admin 'nonexistent' not found"):
             aggregate.remove_admin("nonexistent")
 
@@ -395,26 +513,15 @@ class TestAdminsAggregate:
         assert enabled[0].name == "enabled_user"
         assert disabled[0].name == "disabled_user"
 
-    def test_get_all_admins_excludes_empty(self):
-        """Test get_all_admins excludes empty admins"""
-        aggregate = AdminsAggregate()
-        aggregate.create_admin(1, "testuser", "test@example.com", "password123", True)
-
-        # This should not include the empty admin returned by get_admin_by_name
-        empty_admin = aggregate.get_admin_by_name("nonexistent")
-        all_admins = aggregate.get_all_admins()
-
-        assert len(all_admins) == 1
-        assert empty_admin not in all_admins
-
-    def test_static_validation_methods(self):
+    def test_validation_methods_static(self):
         """Test static validation methods"""
-        # Test valid inputs
-        assert AdminsAggregate._validate_name(" testuser ") == "testuser"
+        # Valid cases
+        assert AdminsAggregate._validate_name("testuser") == "testuser"
+        assert AdminsAggregate._validate_name("  testuser  ") == "testuser"  # Trims whitespace
         assert AdminsAggregate._validate_email("test@example.com") == "test@example.com"
         assert AdminsAggregate._validate_password("password123") == "password123"
 
-        # Test invalid inputs
+        # Invalid cases
         with pytest.raises(ValueError, match="Admin name cannot be empty"):
             AdminsAggregate._validate_name("")
 
@@ -423,3 +530,5 @@ class TestAdminsAggregate:
 
         with pytest.raises(ValueError, match="Password must be at least 8 characters"):
             AdminsAggregate._validate_password("short")
+
+

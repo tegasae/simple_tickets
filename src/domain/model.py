@@ -308,13 +308,21 @@ class AdminsAggregate:
         self.add_admin(admin)
         return admin
 
-    def add_admin(self, admin: Admin):
+    def add_admin(self, admin: AdminAbstract):
         """Add an existing admin with validation"""
-        self._validate_admin_id_unique(admin.admin_id)
-        self._validate_admin_name_unique(admin.name)
+        if isinstance(admin,Admin):
+            #self._validate_admin_id_unique(admin.admin_id)
+            self._validate_admin_name_unique(admin.name)
 
-        self.admins[admin.name] = admin
-        self.version += 1
+            self.admins[admin.name] = admin
+            self.version += 1
+
+    def change_admin(self, admin: AdminAbstract):
+        """Change an existing admin with validation"""
+        if isinstance(admin,Admin):
+            if admin.name in self.admins and self.admins[admin.name].admin_id==admin.admin_id:
+                self.admins[admin.name] = admin
+                self.version += 1
 
     def get_admin_by_name(self, name: str) -> AdminAbstract:
         """Get admin by unique name - returns AdminEmpty if not found"""

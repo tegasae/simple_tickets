@@ -1,0 +1,6 @@
+.vanv/
+.idea/
+*.pyc
+*.iml
+.coverage
+db/
