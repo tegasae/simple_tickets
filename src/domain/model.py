@@ -10,6 +10,7 @@ EMPTY_ADMIN_ID: Final[int] = 0
 MIN_PASSWORD_LENGTH: Final[int] = 8
 EMAIL_REGEX: Final[str] = r"[^@]+@[^@]+\.[^@]+"
 
+
 class AdminAbstract(ABC):
     """Abstract base class for all Admin types"""
 
@@ -94,7 +95,8 @@ class Admin(AdminAbstract):
     _enabled: bool
     _date_created: datetime = field(default_factory=datetime.now)
 
-    def __init__(self, admin_id: int, name: str, password: str, email: str, enabled: bool,date_created: Optional[datetime] = None):
+    def __init__(self, admin_id: int, name: str, password: str, email: str, enabled: bool,
+                 date_created: Optional[datetime] = None):
         self._admin_id = admin_id
         self._name = name
         self._email = email
@@ -102,6 +104,7 @@ class Admin(AdminAbstract):
         self._password_hash = Admin.str_hash(password)
         self._date_created = date_created or datetime.now()
         # Property implementations with setters
+
     @property
     def admin_id(self) -> int:
         return self._admin_id
@@ -154,7 +157,7 @@ class Admin(AdminAbstract):
 
     @property
     def password(self):
-        #raise AttributeError("Password is write-only - use verify_password() to check passwords")
+        # raise AttributeError("Password is write-only - use verify_password() to check passwords")
         return self._password_hash
 
     @password.setter
@@ -237,6 +240,7 @@ class AdminEmpty(AdminAbstract):
     def password(self):
         raise AttributeError("Cannot access password on empty admin")
 
+
     @password.setter
     def password(self, plain_password: str):
         raise AttributeError("Cannot set password on empty admin")
@@ -246,10 +250,8 @@ class AdminEmpty(AdminAbstract):
         raise AttributeError(f"Cannot call '{name}' on empty admin")
 
 
-
-
 class AdminsAggregate:
-    def __init__(self, admins: List[Admin] = None,version: int = 0):
+    def __init__(self, admins: List[Admin] = None, version: int = 0):
         self.admins: Dict[str, AdminAbstract] = {}
         self.version: int = version
         self._empty_admin = AdminEmpty()
@@ -310,8 +312,11 @@ class AdminsAggregate:
 
     def add_admin(self, admin: AdminAbstract):
         """Add an existing admin with validation"""
-        if isinstance(admin,Admin):
-            #self._validate_admin_id_unique(admin.admin_id)
+        #todo При добавлении созданого admin не валидируется имя, email, пароль.
+        # Это связано с порнографией добавления уже хешированного пароля
+
+        if isinstance(admin, Admin):
+            # self._validate_admin_id_unique(admin.admin_id)
             self._validate_admin_name_unique(admin.name)
 
             self.admins[admin.name] = admin
@@ -319,8 +324,10 @@ class AdminsAggregate:
 
     def change_admin(self, admin: AdminAbstract):
         """Change an existing admin with validation"""
-        if isinstance(admin,Admin):
-            if admin.name in self.admins and self.admins[admin.name].admin_id==admin.admin_id:
+        # todo При изменении admin не валидируется имя, email, пароль.
+        #  Это связано с порнографией добавления уже хешированного пароля
+        if isinstance(admin, Admin):
+            if admin.name in self.admins and self.admins[admin.name].admin_id == admin.admin_id:
                 self.admins[admin.name] = admin
                 self.version += 1
 
@@ -389,6 +396,7 @@ class AdminsAggregate:
 
     def is_empty(self) -> bool:
         return self.get_admin_count() == 0
+
 
 # Test the fix
 if __name__ == "__main__":

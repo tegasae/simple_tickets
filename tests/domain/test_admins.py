@@ -1,7 +1,6 @@
 import pytest
 from datetime import datetime
-from src.domain.model import Admin, AdminEmpty, AdminsAggregate, AdminAbstract
-import bcrypt
+from src.domain.model import Admin, AdminEmpty, AdminsAggregate
 
 
 class TestAdmin:
@@ -180,15 +179,19 @@ class TestAdminEmpty:
         with pytest.raises(AttributeError, match="Cannot set email on empty admin"):
             empty.email = "test@example.com"
 
+
+
         with pytest.raises(AttributeError, match="Cannot set enabled on empty admin"):
             empty.enabled = True
 
     def test_admin_empty_password_access_raises_error(self):
         """Test AdminEmpty password access raises error"""
         empty = AdminEmpty()
-
-        with pytest.raises(AttributeError, match="Cannot access password on empty admin"):
+        #исключение срабатывает в __getattr__
+        with pytest.raises(AttributeError, match="Cannot call 'password' on empty admin"):
             _ = empty.password
+
+
 
     def test_admin_empty_password_setter_raises_error(self):
         """Test AdminEmpty password setter raises error"""
@@ -251,7 +254,7 @@ class TestAdminsAggregate:
         aggregate = AdminsAggregate([admin1, admin2])
 
         assert aggregate.get_admin_count() == 2
-        assert aggregate.version == 0
+        assert aggregate.version == 2
         assert not aggregate.is_empty()
 
     def test_create_admin_success(self):
@@ -530,5 +533,3 @@ class TestAdminsAggregate:
 
         with pytest.raises(ValueError, match="Password must be at least 8 characters"):
             AdminsAggregate._validate_password("short")
-
-

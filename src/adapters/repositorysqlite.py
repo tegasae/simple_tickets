@@ -109,6 +109,9 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
                     date_created=datetime.fromisoformat(row['date_created'])
                 )
                 # Set date from database
+                #todo убрать эту порнографию.
+                # Связано с тем, что при установке пароля в admin, он автоматически хешируется.
+                # убрать надо в src/domain/models/Admin
                 admin._password_hash = row['password_hash']
                 admins.append(admin)
 
@@ -131,16 +134,17 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
             # Clear existing admins
             query = self.conn.create_query("DELETE FROM admins")
             query.set_result()
-            query_new_admin=self.conn.create_query(
-                        "INSERT INTO admins  (name, email, password_hash, enabled, "
-                        "date_created) VALUES (:name, :email, :password_hash, "
-                        ":enabled, :date_created)")
-            query_exists_admin=self.conn.create_query("INSERT INTO admins  (admin_id, name, email, password_hash, enabled, "
-                                               "date_created) VALUES (:admin_id, :name, :email, :password_hash, "
-                                               ":enabled, :date_created)")
+            query_new_admin = self.conn.create_query(
+                "INSERT INTO admins  (name, email, password_hash, enabled, "
+                "date_created) VALUES (:name, :email, :password_hash, "
+                ":enabled, :date_created)")
+            query_exists_admin = self.conn.create_query(
+                "INSERT INTO admins  (admin_id, name, email, password_hash, enabled, "
+                "date_created) VALUES (:admin_id, :name, :email, :password_hash, "
+                ":enabled, :date_created)")
             # Insert all admins from aggregate
             for admin in aggregate.get_all_admins():
-                if admin.admin_id==0:
+                if admin.admin_id == 0:
                     query_new_admin.set_result(params={
                         'name': admin.name,
                         'email': admin.email,
@@ -165,10 +169,7 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
 
 
 if __name__ == "__main__":
-    # conn1 = Connection.create_connection(
-    #    url=":memory:",  # or "admins.db" for file-based
-    #    engine=sqlite3
-    # )
+    # conn1 = Connection.create_connection(url=":memory:", engine=sqlite3)
 
     conn1 = Connection.create_connection(
         url='../../db/admins.db',  # or "admins.db" for file-based
@@ -184,13 +185,11 @@ if __name__ == "__main__":
     admins1 = repository.get_list_of_admins()
     print(admins1.get_all_admins())
 
+    admins1.change_admin_email(name='name', new_email='123@111.ru')
+    admins1.add_admin(Admin(admin_id=0, name='new', email='<EMAIL>', password='1', enabled=True))
+    # admin.email='12345'
 
-
-    admins1.change_admin_email(name='name',new_email='123@111.ru')
-    admins1.add_admin(Admin(admin_id=0,name='new',email='<EMAIL>',password='1',enabled=True))
-    #admin.email='12345'
-
-    #admins1.change_admin(admin)
+    # admins1.change_admin(admin)
     repository.save_admins(admins1)
     admins1 = repository.get_list_of_admins()
     print(admins1.get_all_admins())
