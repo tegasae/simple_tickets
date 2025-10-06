@@ -1,3 +1,4 @@
+import sqlite3
 from abc import ABC, abstractmethod
 from typing import ContextManager
 import logging
@@ -8,7 +9,7 @@ from utils.db.connect import Connection
 logger = logging.getLogger(__name__)
 
 
-class AbstractUnitOfWork(ABC, ContextManager):
+class AbstractUnitOfWork(ContextManager,ABC):
     admins_repository: repository.AdminRepositoryAbstract
     """
     Abstract base class that combines ABC and ContextManager
@@ -71,7 +72,7 @@ class SqliteUnitOfWork(AbstractUnitOfWork):
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
         """Handle SQLite transaction completion"""
-        self._active = False
+
 
         try:
             if exc_type is not None:
@@ -87,7 +88,7 @@ class SqliteUnitOfWork(AbstractUnitOfWork):
             # Don't mask original exception
             if exc_type is None:
                 raise
-
+        self._active = False
         return False  # Re-raise original exception
 
     # ========== Business Methods ==========
@@ -119,3 +120,18 @@ class SqliteUnitOfWork(AbstractUnitOfWork):
     def is_active(self) -> bool:
         """Check if SQLite transaction is active"""
         return self._active
+if __name__=='__main__':
+    # conn1 = Connection.create_connection(url=":memory:", engine=sqlite3)
+
+    conn1 = Connection.create_connection(
+        url='../../../db/admins.db',  # or "admins.db" for file-based
+        engine=sqlite3
+    )
+    #db_creator = CreateDB(conn1)
+    uow=SqliteUnitOfWork(connection=conn1)
+    with uow:
+        admins=uow.admins.get_list_of_admins()
+        #raise ValueError()
+        print(admins)
+        uow.commit()
+    conn1.close()
