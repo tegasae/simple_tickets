@@ -1,34 +1,33 @@
 import pytest
 import tempfile
 import os
-from datetime import datetime
-from typing import List
+
 
 from src.services.service_layer.admins import AdminService
 from src.services.service_layer.data import CreateAdminData
 from src.services.service_layer.factory import ServiceFactory
 from src.services.uow.uowsqlite import SqliteUnitOfWork
-from src.adapters.repositorysqlite import SQLiteAdminRepository, CreateDB
+from src.adapters.repositorysqlite import CreateDB
 from utils.db.connect import Connection
 import sqlite3
 
-from src.domain.model import Admin, AdminsAggregate, AdminEmpty
+from src.domain.model import Admin
 
-
-class TestAdminServiceIntegration:
-    """Integration tests for AdminService with real database"""
-
-    @pytest.fixture
-    def temp_db(self):
-        """Create a temporary SQLite database for testing"""
-        with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
-            temp_db_path = f.name
+@pytest.fixture
+def temp_db():
+    """Create a temporary SQLite database for testing"""
+    with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+        temp_db_path = f.name
 
         yield temp_db_path
 
         # Cleanup
         if os.path.exists(temp_db_path):
             os.unlink(temp_db_path)
+
+
+class TestAdminServiceIntegration:
+    """Integration tests for AdminService with real database"""
 
     @pytest.fixture
     def db_connection(self, temp_db):
@@ -237,6 +236,8 @@ class TestAdminServiceIntegration:
 
 
 class TestAdminServiceMultipleOperations:
+
+
     """Integration tests for multiple operations in sequence"""
 
     @pytest.fixture
@@ -308,6 +309,8 @@ class TestAdminServiceMultipleOperations:
 class TestAdminServiceEdgeCases:
     """Integration tests for edge cases and error conditions"""
 
+
+
     @pytest.fixture
     def admin_service(self, temp_db):
         """Create fresh AdminService for each test"""
@@ -366,6 +369,7 @@ class TestAdminServiceEdgeCases:
 
 class TestServiceFactoryIntegration:
     """Integration tests for ServiceFactory"""
+
 
     @pytest.fixture
     def service_factory(self, temp_db):
