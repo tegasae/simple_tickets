@@ -28,7 +28,7 @@ class CreateDB:
             # Create admins table
             query = self.conn.create_query("""
                 CREATE TABLE IF NOT EXISTS admins (
-                    admin_id INTEGER PRIMARY KEY,
+                    admin_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
                     email TEXT NOT NULL,
                     password_hash TEXT NOT NULL,

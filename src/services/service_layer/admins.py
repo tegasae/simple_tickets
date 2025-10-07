@@ -11,7 +11,7 @@ class AdminService(BaseService[Admin]):
     Handles business logic and coordinates with UoW
     """
 
-    def execute(self, operation: str, **kwargs) -> Admin:
+    def execute(self, operation: str, **kwargs) -> AdminAbstract:
         """
         Main entry point for admin operations
         Uses a command pattern for different operations
@@ -21,9 +21,11 @@ class AdminService(BaseService[Admin]):
         operation_methods = {
             'create': self._create_admin,
             'get_by_name': self._get_admin_by_name,
+            'get_by_id': self._get_admin_by_id,
             'update_email': self._update_admin_email,
             'toggle_status': self._toggle_admin_status,
             'change_password': self._change_admin_password,
+            'remove_by_id': self._remove_admin_by_id,
         }
 
         if operation not in operation_methods:
@@ -43,9 +45,9 @@ class AdminService(BaseService[Admin]):
                 if aggregate.admin_exists(create_admin_data.name):
                     raise ValueError(f"Admin with name '{create_admin_data.name}' already exists")
 
-                # Create admin through aggregate (enforces business rules)
-                admin = aggregate.create_admin(
-                    admin_id=0,
+                # Create admin through aggregate
+                aggregate.create_admin(
+                    admin_id=0,  # Let database generate ID
                     name=create_admin_data.name,
                     email=create_admin_data.email,
                     password=create_admin_data.password,
@@ -54,16 +56,17 @@ class AdminService(BaseService[Admin]):
 
                 # Persist changes
                 self.uow.admins.save_admins(aggregate)
-                admin_aggregate = self.uow.admins.get_list_of_admins()
-                created_admin = admin_aggregate.get_admin_by_name(name=create_admin_data.name)
-                if not isinstance(admin, Admin):
-                    raise ValueError(f"Admin didn't create successfully: {create_admin_data.name}")
-                if created_admin.admin_id == 0:
-                    raise ValueError("Admin was created but ID wasn't properly generated")
                 self.uow.commit()
 
-                self.logger.info(f"Admin created successfully: {create_admin_data.name}")
-                return created_admin
+                # Reload to get database-generated ID
+                fresh_admin = self._get_admin_by_name(create_admin_data.name)
+
+                if fresh_admin.admin_id == 0:
+                    raise ValueError("Admin was created but ID wasn't properly generated")
+
+                self.logger.info(f"Admin created successfully: {create_admin_data.name} (ID: {fresh_admin.admin_id})")
+                return fresh_admin
+
         except ValueError as e:
             self.logger.error(f"Failed to create admin: {e}")
             raise
@@ -77,8 +80,27 @@ class AdminService(BaseService[Admin]):
 
         with self.uow:
             aggregate = self.uow.admins.get_list_of_admins()
-            admin = aggregate.require_admin_by_name(name)
+            return aggregate.require_admin_by_name(name)
+
+    def _get_admin_by_id(self, admin_id: int) -> AdminAbstract:
+        """Get admin by ID - throws exception if not found"""
+        self._log_operation("get_admin_by_id", admin_id=admin_id)
+
+        with self.uow:
+            aggregate = self.uow.admins.get_list_of_admins()
+            admin = self._find_admin_by_id(admin_id, aggregate)
+
+            if not admin:
+                raise ValueError(f"Admin with ID {admin_id} not found")
+
             return admin
+
+    def _find_admin_by_id(self, admin_id: int, aggregate: AdminsAggregate) -> AdminAbstract:
+        """Helper method to find admin by ID - throws exception if not found"""
+        for admin in aggregate.get_all_admins():
+            if admin.admin_id == admin_id:
+                return admin
+        raise ValueError(f"Admin with ID {admin_id} not found in aggregate")
 
     def _update_admin_email(self, name: str, new_email: str) -> AdminAbstract:
         """Update admin email with validation"""
@@ -87,17 +109,13 @@ class AdminService(BaseService[Admin]):
         with self.uow:
             aggregate = self.uow.admins.get_list_of_admins()
 
-            if not aggregate.admin_exists(name):
-                raise ValueError(f"Admin '{name}' not found")
+            # This already throws if admin doesn't exist
+            aggregate.require_admin_by_name(name)
 
-            # Update through aggregate (enforces business rules)
             aggregate.change_admin_email(name, new_email)
-
-            # Persist changes
             self.uow.admins.save_admins(aggregate)
             self.uow.commit()
 
-            # Return updated admin
             return aggregate.require_admin_by_name(name)
 
     def _toggle_admin_status(self, name: str) -> AdminAbstract:
@@ -109,12 +127,10 @@ class AdminService(BaseService[Admin]):
             admin = aggregate.require_admin_by_name(name)
 
             aggregate.toggle_admin_status(name)
-
-            # Persist changes
             self.uow.admins.save_admins(aggregate)
             self.uow.commit()
 
-            new_status = "enabled" if admin.enabled else "disabled"
+            new_status = "enabled" if not admin.enabled else "disabled"
             self.logger.info(f"Admin {name} status toggled to {new_status}")
             return aggregate.require_admin_by_name(name)
 
@@ -124,36 +140,54 @@ class AdminService(BaseService[Admin]):
 
         with self.uow:
             aggregate = self.uow.admins.get_list_of_admins()
+            aggregate.require_admin_by_name(name)  # Validate existence
 
-            if not aggregate.admin_exists(name):
-                raise ValueError(f"Admin '{name}' not found")
-
-            # Update through aggregate
             aggregate.change_admin_password(name, new_password)
-
-            # Persist changes
             self.uow.admins.save_admins(aggregate)
             self.uow.commit()
 
             self.logger.info(f"Password changed for admin: {name}")
             return aggregate.require_admin_by_name(name)
 
-        # Bulk operations
+    def _remove_admin_by_id(self, admin_id: int) -> None:
+        """Remove admin by ID"""
+        self._log_operation("remove_admin_by_id", admin_id=admin_id)
 
-    def list_all_admins(self) -> List[AdminAbstract]:
+        with self.uow:
+            aggregate = self.uow.admins.get_list_of_admins()
+            admin = self._find_admin_by_id(admin_id, aggregate)  # This throws if not found
+
+            aggregate.remove_admin(admin.name)
+            self.uow.admins.save_admins(aggregate)
+            self.uow.commit()
+
+            self.logger.info(f"Admin removed: {admin.name} (ID: {admin_id})")
+
+    # Bulk operations
+    def list_all_admins(self) -> List[Admin]:
         """Get all admins"""
         with self.uow:
             aggregate = self.uow.admins.get_list_of_admins()
-            return aggregate.get_all_admins()
+            return [admin for admin in aggregate.get_all_admins() if isinstance(admin, Admin)]
 
-    def list_enabled_admins(self) -> List[AdminAbstract]:
+    def list_enabled_admins(self) -> List[Admin]:
         """Get only enabled admins"""
         with self.uow:
             aggregate = self.uow.admins.get_list_of_admins()
-            return aggregate.get_enabled_admins()
+            return [admin for admin in aggregate.get_enabled_admins() if isinstance(admin, Admin)]
 
     def admin_exists(self, name: str) -> bool:
         """Check if admin exists"""
         with self.uow:
             aggregate = self.uow.admins.get_list_of_admins()
             return aggregate.admin_exists(name)
+
+    def admin_exists_by_id(self, admin_id: int) -> bool:
+        """Check if admin exists by ID"""
+        try:
+            with self.uow:
+                aggregate = self.uow.admins.get_list_of_admins()
+                self._find_admin_by_id(admin_id, aggregate)  # This throws if not found
+                return True
+        except ValueError:
+            return False

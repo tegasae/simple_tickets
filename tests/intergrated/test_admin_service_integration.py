@@ -25,46 +25,33 @@ def temp_db():
         if os.path.exists(temp_db_path):
             os.unlink(temp_db_path)
 
+@pytest.fixture
+def admin_service(temp_db):
+    """Create fresh AdminService for each test"""
+    connection = Connection.create_connection(url=temp_db, engine=sqlite3)
+    create_db = CreateDB(connection)
+    create_db.init_data()
+    create_db.create_indexes()
+
+    uow = SqliteUnitOfWork(connection)
+    return AdminService(uow)
+
+@pytest.fixture
+def sample_admin_data():
+    """Sample admin data for testing"""
+    return CreateAdminData(
+        name="integration_admin",
+        password="securepassword123",
+        email="integration@example.com",
+        enabled=True
+    )
+
+
 
 class TestAdminServiceIntegration:
     """Integration tests for AdminService with real database"""
 
-    @pytest.fixture
-    def db_connection(self, temp_db):
-        """Create a real database connection"""
-        connection = Connection.create_connection(url=temp_db, engine=sqlite3)
 
-        # Initialize database schema
-        create_db = CreateDB(connection)
-        create_db.init_data()
-        create_db.create_indexes()
-
-        return connection
-
-    @pytest.fixture
-    def uow(self, db_connection):
-        """Create real Unit of Work"""
-        return SqliteUnitOfWork(db_connection)
-
-    @pytest.fixture
-    def service_factory(self, uow):
-        """Create service factory with real UoW"""
-        return ServiceFactory(uow)
-
-    @pytest.fixture
-    def admin_service(self, service_factory):
-        """Create AdminService with real dependencies"""
-        return service_factory.get_admin_service()
-
-    @pytest.fixture
-    def sample_admin_data(self):
-        """Sample admin data for testing"""
-        return CreateAdminData(
-            name="integration_admin",
-            password="securepassword123",
-            email="integration@example.com",
-            enabled=True
-        )
 
     def test_create_admin_integration(self, admin_service, sample_admin_data):
         """Integration test: Create admin and verify persistence"""
@@ -240,43 +227,28 @@ class TestAdminServiceMultipleOperations:
 
     """Integration tests for multiple operations in sequence"""
 
-    @pytest.fixture
-    def admin_service(self, temp_db):
-        """Create fresh AdminService for each test"""
-        connection = Connection.create_connection(url=temp_db, engine=sqlite3)
-        create_db = CreateDB(connection)
-        create_db.init_data()
-
-        uow = SqliteUnitOfWork(connection)
-        return AdminService(uow)
-
-    def test_complete_admin_lifecycle(self, admin_service):
+    def test_complete_admin_lifecycle(self, admin_service,sample_admin_data):
         """Test complete admin lifecycle: create → update → toggle → verify"""
         # Create admin
-        create_data = CreateAdminData(
-            name="lifecycle_admin",
-            password="initialpass",
-            email="initial@example.com",
-            enabled=True
-        )
-        admin = admin_service.execute('create', create_admin_data=create_data)
+
+        admin = admin_service.execute('create', create_admin_data=sample_admin_data)
         assert admin.enabled is True
-        assert admin.email == "initial@example.com"
+        assert admin.email == sample_admin_data.email
 
         # Update email
-        admin = admin_service.execute('update_email', name="lifecycle_admin", new_email="updated@example.com")
+        admin = admin_service.execute('update_email', name=sample_admin_data.name, new_email="updated@example.com")
         assert admin.email == "updated@example.com"
 
         # Toggle status
-        admin = admin_service.execute('toggle_status', name="lifecycle_admin")
+        admin = admin_service.execute('toggle_status', name=sample_admin_data.name)
         assert admin.enabled is False
 
         # Change password
-        admin = admin_service.execute('change_password', name="lifecycle_admin", new_password="newpass123")
+        admin = admin_service.execute('change_password', name=sample_admin_data.name, new_password="newpass123")
         assert admin.verify_password("newpass123") is True
 
         # Verify all changes persisted
-        final_admin = admin_service.execute('get_by_name', name="lifecycle_admin")
+        final_admin = admin_service.execute('get_by_name', name=sample_admin_data.name)
         assert final_admin.email == "updated@example.com"
         assert final_admin.enabled is False
         assert final_admin.verify_password("newpass123") is True
@@ -285,7 +257,7 @@ class TestAdminServiceMultipleOperations:
         """Test operations with multiple admins"""
         # Create multiple admins
         admins_data = [
-            CreateAdminData(name=f"admin_{i}", password=f"pass_{i}", email=f"admin{i}@example.com")
+            CreateAdminData(name=f"admin_{i}", password=f"pass01234567890_{i}", email=f"admin{i}@example.com")
             for i in range(3)
         ]
 
@@ -317,6 +289,7 @@ class TestAdminServiceEdgeCases:
         connection = Connection.create_connection(url=temp_db, engine=sqlite3)
         create_db = CreateDB(connection)
         create_db.init_data()
+        create_db.create_indexes()
 
         uow = SqliteUnitOfWork(connection)
         return AdminService(uow)
@@ -355,8 +328,8 @@ class TestAdminServiceEdgeCases:
 
     def test_case_sensitive_admin_names(self, admin_service):
         """Test that admin names are case-sensitive"""
-        admin1_data = CreateAdminData(name="Admin", password="pass1", email="admin1@example.com")
-        admin2_data = CreateAdminData(name="admin", password="pass2", email="admin2@example.com")
+        admin1_data = CreateAdminData(name="Admin", password="pass101234567890", email="admin1@example.com")
+        admin2_data = CreateAdminData(name="admin", password="pass201234567890", email="admin2@example.com")
 
         # These should be treated as different admins
         admin1 = admin_service.execute('create', create_admin_data=admin1_data)
@@ -377,6 +350,7 @@ class TestServiceFactoryIntegration:
         connection = Connection.create_connection(url=temp_db, engine=sqlite3)
         create_db = CreateDB(connection)
         create_db.init_data()
+        create_db.create_indexes()
 
         uow = SqliteUnitOfWork(connection)
         return ServiceFactory(uow)
@@ -401,6 +375,354 @@ class TestServiceFactoryIntegration:
         assert service1 is not service3  # Should be new instance after clear
 
 
+
+class TestAdminServiceRemoveIntegration:
+    """Integration tests for remove_admin functionality"""
+
+
+    @pytest.fixture
+    def populated_admin_service(self, admin_service, sample_admin_data):
+        """Create AdminService with pre-populated admins"""
+        # Create multiple admins for testing
+        admin1_data = CreateAdminData(
+            name="admin1",
+            password="password1",
+            email="admin1@example.com",
+            enabled=True
+        )
+        admin2_data = CreateAdminData(
+            name="admin2",
+            password="password2",
+            email="admin2@example.com",
+            enabled=False
+        )
+        admin3_data = CreateAdminData(
+            name="admin3",
+            password="password3",
+            email="admin3@example.com",
+            enabled=True
+        )
+
+        admin_service.execute('create', create_admin_data=admin1_data)
+        admin_service.execute('create', create_admin_data=admin2_data)
+        admin_service.execute('create', create_admin_data=admin3_data)
+
+        return admin_service
+
+    def test_remove_admin_by_id_success(self, populated_admin_service):
+        """Integration test: Remove admin by ID and verify persistence"""
+        # Get initial state
+        admins_before = populated_admin_service.list_all_admins()
+        initial_count = len(admins_before)
+        admin_to_remove = admins_before[0]  # Get first admin
+
+        # Verify admin exists before removal
+        assert populated_admin_service.admin_exists(admin_to_remove.name) is True
+        assert populated_admin_service.admin_exists_by_id(admin_to_remove.admin_id) is True
+
+        # Remove admin by ID
+        populated_admin_service.execute('remove_by_id', admin_id=admin_to_remove.admin_id)
+
+        # Verify removal
+        admins_after = populated_admin_service.list_all_admins()
+        assert len(admins_after) == initial_count - 1
+
+        # Verify the removed admin no longer exists
+        assert populated_admin_service.admin_exists(admin_to_remove.name) is False
+        assert populated_admin_service.admin_exists_by_id(admin_to_remove.admin_id) is False
+
+        # Verify we can't get the removed admin by name
+        with pytest.raises(ValueError, match=f"Admin '{admin_to_remove.name}' not found"):
+            populated_admin_service.execute('get_by_name', name=admin_to_remove.name)
+
+        # Verify we can't get the removed admin by ID
+        with pytest.raises(ValueError, match=f"Admin with ID {admin_to_remove.admin_id} not found"):
+            populated_admin_service.execute('get_by_id', admin_id=admin_to_remove.admin_id)
+
+        # Verify remaining admins are intact
+        remaining_names = [admin.name for admin in admins_after]
+        assert admin_to_remove.name not in remaining_names
+
+    def test_remove_admin_by_id_nonexistent(self, admin_service):
+        """Integration test: Try to remove admin by non-existent ID"""
+        with pytest.raises(ValueError, match="Admin with ID 9999 not found"):
+            admin_service.execute('remove_by_id', admin_id=9999)
+
+    def test_remove_multiple_admins_sequentially(self, populated_admin_service):
+        """Integration test: Remove multiple admins sequentially"""
+        # Get initial admins
+        admins = populated_admin_service.list_all_admins()
+        initial_count = len(admins)
+
+        # Remove first admin
+        admin1 = admins[0]
+        populated_admin_service.execute('remove_by_id', admin_id=admin1.admin_id)
+
+        # Verify first removal
+        admins_after_first = populated_admin_service.list_all_admins()
+        assert len(admins_after_first) == initial_count - 1
+        assert populated_admin_service.admin_exists_by_id(admin1.admin_id) is False
+
+        # Remove second admin
+        admin2 = admins_after_first[0]
+        populated_admin_service.execute('remove_by_id', admin_id=admin2.admin_id)
+
+        # Verify second removal
+        admins_after_second = populated_admin_service.list_all_admins()
+        assert len(admins_after_second) == initial_count - 2
+        assert populated_admin_service.admin_exists_by_id(admin2.admin_id) is False
+
+        # Verify final state
+        final_admins = populated_admin_service.list_all_admins()
+        assert len(final_admins) == initial_count - 2
+
+    def test_remove_admin_persistence(self, admin_service):
+        """Integration test: Verify removal persists across service instances"""
+        # Create admin
+        admin_data = CreateAdminData(
+            name="persistence_test",
+            password="password123",
+            email="persistence@example.com"
+        )
+        created_admin = admin_service.execute('create', create_admin_data=admin_data)
+        admin_id = created_admin.admin_id
+
+        # Verify admin exists
+        assert admin_service.admin_exists("persistence_test") is True
+
+        # Remove admin
+        admin_service.execute('remove_by_id', admin_id=admin_id)
+
+        # Create new service instance (simulating new request/transaction)
+        connection = admin_service.uow.connection
+        new_uow = SqliteUnitOfWork(connection)
+        new_admin_service = AdminService(new_uow)
+
+        # Verify removal persists in new service instance
+        assert new_admin_service.admin_exists("persistence_test") is False
+        with pytest.raises(ValueError, match=f"Admin with ID {admin_id} not found"):
+            new_admin_service.execute('get_by_id', admin_id=admin_id)
+
+    def test_remove_admin_after_other_operations(self, admin_service):
+        """Integration test: Remove admin after performing other operations"""
+        # Create multiple admins
+        admin1_data = CreateAdminData(name="admin_a", password="pass101234567890", email="a@example.com")
+        admin2_data = CreateAdminData(name="admin_b", password="pass201234567890", email="b@example.com")
+        admin3_data = CreateAdminData(name="admin_c", password="pass301234567890", email="c@example.com")
+
+        admin1 = admin_service.execute('create', create_admin_data=admin1_data)
+        admin2 = admin_service.execute('create', create_admin_data=admin2_data)
+        admin3 = admin_service.execute('create', create_admin_data=admin3_data)
+
+        # Perform various operations before removal
+        admin_service.execute('update_email', name="admin_b", new_email="b_updated@example.com")
+        admin_service.execute('toggle_status', name="admin_c")
+        admin_service.execute('change_password', name="admin_a", new_password="newpass1")
+
+        # Remove one admin
+        admin_service.execute('remove_by_id', admin_id=admin2.admin_id)
+
+        # Verify state after removal
+        remaining_admins = admin_service.list_all_admins()
+        assert len(remaining_admins) == 2
+
+        remaining_names = [admin.name for admin in remaining_admins]
+        assert "admin_b" not in remaining_names
+        assert "admin_a" in remaining_names
+        assert "admin_c" in remaining_names
+
+        # Verify remaining admins still have their updated data
+        admin_a = admin_service.execute('get_by_name', name="admin_a")
+        assert admin_a.verify_password("newpass1") is True
+
+        admin_c = admin_service.execute('get_by_name', name="admin_c")
+        assert admin_c.enabled is False  # Was toggled from default True
+
+    def test_remove_admin_and_verify_aggregate_state(self, populated_admin_service):
+        """Integration test: Verify aggregate state after removal"""
+        # Get initial aggregate state
+        with populated_admin_service.uow:
+            initial_aggregate = populated_admin_service.uow.admins.get_list_of_admins()
+            initial_version = initial_aggregate.version
+            initial_admin_count = len(initial_aggregate.get_all_admins())
+
+        # Remove an admin
+        admins = populated_admin_service.list_all_admins()
+        admin_to_remove = admins[0]
+        populated_admin_service.execute('remove_by_id', admin_id=admin_to_remove.admin_id)
+
+        # Verify aggregate state after removal
+        with populated_admin_service.uow:
+            updated_aggregate = populated_admin_service.uow.admins.get_list_of_admins()
+            updated_version = updated_aggregate.version
+            updated_admin_count = len(updated_aggregate.get_all_admins())
+
+            # Version should be incremented
+            assert updated_version > initial_version
+
+            # Admin count should be reduced
+            assert updated_admin_count == initial_admin_count - 1
+
+            # Removed admin should not be in aggregate
+            assert not updated_aggregate.admin_exists(admin_to_remove.name)
+
+    def test_remove_admin_transaction_rollback(self, admin_service):
+        """Integration test: Verify transaction rollback on removal failure"""
+        # Create an admin
+        admin_data = CreateAdminData(
+            name="rollback_test",
+            password="password123",
+            email="rollback@example.com"
+        )
+        created_admin = admin_service.execute('create', create_admin_data=admin_data)
+
+        # Try to remove non-existent admin (should fail and rollback)
+        with pytest.raises(ValueError, match="Admin with ID 9999 not found"):
+            admin_service.execute('remove_by_id', admin_id=9999)
+
+        # Verify original admin still exists (transaction was rolled back)
+        assert admin_service.admin_exists("rollback_test") is True
+        assert admin_service.admin_exists_by_id(created_admin.admin_id) is True
+
+        # Verify we can still retrieve the admin
+        retrieved_admin = admin_service.execute('get_by_name', name="rollback_test")
+        assert retrieved_admin.admin_id == created_admin.admin_id
+
+    def test_remove_all_admins_sequentially(self, populated_admin_service):
+        """Integration test: Remove all admins one by one"""
+        admins = populated_admin_service.list_all_admins()
+        initial_count = len(admins)
+
+        # Remove all admins
+        for admin in admins:
+            populated_admin_service.execute('remove_by_id', admin_id=admin.admin_id)
+
+        # Verify all admins are removed
+        final_admins = populated_admin_service.list_all_admins()
+        assert len(final_admins) == 0
+
+        # Verify admin_exists returns False for all removed admins
+        for admin in admins:
+            assert populated_admin_service.admin_exists(admin.name) is False
+            assert populated_admin_service.admin_exists_by_id(admin.admin_id) is False
+
+    def test_remove_admin_and_recreate_same_name(self, admin_service):
+        """Integration test: Remove admin and recreate with same name"""
+        # Create and remove admin
+        admin_data = CreateAdminData(
+            name="recreate_test",
+            password="password1",
+            email="test1@example.com"
+        )
+        first_admin = admin_service.execute('create', create_admin_data=admin_data)
+        first_id = first_admin.admin_id
+
+        # Remove the admin
+        admin_service.execute('remove_by_id', admin_id=first_id)
+
+        # Recreate admin with same name but different data
+        new_admin_data = CreateAdminData(
+            name="recreate_test",  # Same name
+            password="different_password",  # Different password
+            email="test2@example.com",  # Different email
+            enabled=False  # Different status
+        )
+        new_admin = admin_service.execute('create', create_admin_data=new_admin_data)
+
+
+
+        # Verify new admin has the new data
+        assert new_admin.name == "recreate_test"
+        assert new_admin.email == "test2@example.com"
+        assert new_admin.enabled is False
+        assert new_admin.verify_password("different_password") is True
+
+        # Verify old password doesn't work
+        assert new_admin.verify_password("password1") is False
+
+
+class TestAdminServiceRemoveEdgeCases:
+    """Integration tests for edge cases in remove_admin functionality"""
+
+    @pytest.fixture
+    def admin_service(self, temp_db):
+        """Create fresh AdminService for each test"""
+        connection = Connection.create_connection(url=temp_db, engine=sqlite3)
+        create_db = CreateDB(connection)
+        create_db.init_data()
+
+        uow = SqliteUnitOfWork(connection)
+        return AdminService(uow)
+
+    def test_remove_admin_twice(self, admin_service):
+        """Integration test: Try to remove same admin twice"""
+        # Create admin
+        admin_data = CreateAdminData(
+            name="duplicate_remove_test",
+            password="password123",
+            email="duplicate@example.com"
+        )
+        created_admin = admin_service.execute('create', create_admin_data=admin_data)
+
+        # Remove first time (should succeed)
+        admin_service.execute('remove_by_id', admin_id=created_admin.admin_id)
+
+        # Remove second time (should fail)
+        with pytest.raises(ValueError, match=f"Admin with ID {created_admin.admin_id} not found"):
+            admin_service.execute('remove_by_id', admin_id=created_admin.admin_id)
+
+    def test_remove_admin_with_special_characters(self, admin_service):
+        """Integration test: Remove admin with special characters in name"""
+        special_name_data = CreateAdminData(
+            name="admin-with-dash_123",
+            password="password123",
+            email="special@example.com"
+        )
+
+        admin = admin_service.execute('create', create_admin_data=special_name_data)
+
+        # Remove by ID
+        admin_service.execute('remove_by_id', admin_id=admin.admin_id)
+
+        # Verify removal
+        assert admin_service.admin_exists("admin-with-dash_123") is False
+        with pytest.raises(ValueError, match=f"Admin with ID {admin.admin_id} not found"):
+            admin_service.execute('get_by_id', admin_id=admin.admin_id)
+
+    def test_remove_admin_and_verify_database_cleanup(self, admin_service):
+        """Integration test: Verify database is properly cleaned up after removal"""
+        # Create multiple admins
+        admin1_data = CreateAdminData(name="db_cleanup1", password="pass101234567890", email="clean1@example.com")
+        admin2_data = CreateAdminData(name="db_cleanup2", password="pass201234567890", email="clean2@example.com")
+
+        admin1 = admin_service.execute('create', create_admin_data=admin1_data)
+        admin2 = admin_service.execute('create', create_admin_data=admin2_data)
+
+        # Verify admins exist in database
+        with admin_service.uow:
+            aggregate = admin_service.uow.admins.get_list_of_admins()
+            assert aggregate.admin_exists("db_cleanup1") is True
+            assert aggregate.admin_exists("db_cleanup2") is True
+
+        # Remove one admin
+        admin_service.execute('remove_by_id', admin_id=admin1.admin_id)
+
+        # Verify database state
+        with admin_service.uow:
+            updated_aggregate = admin_service.uow.admins.get_list_of_admins()
+            assert updated_aggregate.admin_exists("db_cleanup1") is False
+            assert updated_aggregate.admin_exists("db_cleanup2") is True
+
+            # Check specific admin records
+            admins = updated_aggregate.get_all_admins()
+            admin_names = [admin.name for admin in admins]
+            assert "db_cleanup1" not in admin_names
+            assert "db_cleanup2" in admin_names
+
+
+
+
+
 # Test configuration
 pytestmark = pytest.mark.integration
 
@@ -410,6 +732,7 @@ def test_database_schema_initialization(temp_db):
     connection = Connection.create_connection(url=temp_db, engine=sqlite3)
     create_db = CreateDB(connection)
     create_db.init_data()
+    create_db.create_indexes()
 
     # Verify tables exist
     with connection.create_query("SELECT name FROM sqlite_master WHERE type='table'") as query:

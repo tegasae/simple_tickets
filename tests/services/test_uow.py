@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import logging
 from typing import ContextManager
 
