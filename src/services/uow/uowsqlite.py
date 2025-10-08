@@ -72,13 +72,12 @@ class SqliteUnitOfWork(AbstractUnitOfWork):
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
         """Handle SQLite transaction completion"""
-
-
         try:
             if exc_type is not None:
                 # Exception occurred - auto rollback
                 self.rollback()
                 logger.debug("Auto-rollback due to exception")
+                raise
             elif not self._committed:
                 # No explicit commit - safety rollback
                 self.rollback()
@@ -88,7 +87,9 @@ class SqliteUnitOfWork(AbstractUnitOfWork):
             # Don't mask original exception
             if exc_type is None:
                 raise
-        self._active = False
+        finally:  # ✅ Add this to ensure _active is always set to False
+            self._active = False
+
         return False  # Re-raise original exception
 
     # ========== Business Methods ==========

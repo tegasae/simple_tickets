@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from typing import Optional
 import bcrypt
 
+from src.domain.model import AdminEmpty
+
 
 @dataclass
 class Admin:
@@ -34,9 +36,12 @@ class Admin:
 
 
 if __name__=="__main__":
-    admin = Admin(id=1, login="test", password="initial")
-    print(admin.password)
-    print(admin.verify_password('initial'))
-    admin.password = "new_password"  # This works!
-    print(admin.password)
-    print(admin.verify_password('new_password'))
+#    admin = Admin(id=1, login="test", password="initial")
+#    print(admin.password)
+#    print(admin.verify_password('initial'))
+#    admin.password = "new_password"  # This works!
+#    print(admin.password)
+#    print(admin.verify_password('new_password'))
+
+    empty_admin=AdminEmpty()
+    print(empty_admin.password)
