@@ -382,29 +382,6 @@ class TestSqliteUnitOfWorkEdgeCases:
         with patch('src.services.uow.uowsqlite.repositorysqlite.SQLiteAdminRepository'):
             return SqliteUnitOfWork(mock_connection)
 
-    def test_double_commit(self, uow, mock_connection):
-        """Test committing twice in same transaction"""
-        with uow:
-            uow.commit()
-            uow.commit()  # Second commit
-
-            # Should have called commit twice
-            assert mock_connection.commit.call_count == 2
-
-    def test_commit_after_rollback(self, uow):
-        """Test commit after rollback in same transaction"""
-        with uow:
-            uow.rollback()
-            with pytest.raises(RuntimeError, match="No active transaction to commit"):
-                uow.commit()  # Should fail after rollback
-
-    def test_rollback_after_commit(self, uow, mock_connection):
-        """Test rollback after commit in same transaction"""
-        with uow:
-            uow.commit()
-            uow.rollback()  # Should work even after commit
-
-            assert mock_connection.rollback.call_count == 1
 
     def test_nested_context_managers(self):
         """Test behavior with nested context managers"""

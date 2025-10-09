@@ -336,15 +336,20 @@ class TestConnection:
     # Test context manager
     def test_context_manager_success(self, connection, mock_connect):
         """Test context manager with successful execution"""
+        # Start a transaction first
+        connection.begin_transaction()
+
         with connection as conn:
             assert conn is connection
 
-        # Should commit and close
+        # Now commit should be called
         mock_connect.commit.assert_called_once()
         mock_connect.close.assert_called_once()
 
     def test_context_manager_with_exception(self, connection, mock_connect):
         """Test context manager with exception"""
+        # Start a transaction first
+        connection.begin_transaction()
         with pytest.raises(ValueError):
             with connection:
                 raise ValueError("Test error")

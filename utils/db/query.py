@@ -26,42 +26,49 @@ class Query:
             raise DBOperationError(str(e))
 
     def set_result(self, params: dict = None):
-        self.last_row_id = 0
-        self.count = 0
-
         try:
+
+            self.last_row_id = 0
+            self.count = 0
+
             self._execute(params=params)
             self.count = self.cur.rowcount
             if self.cur.lastrowid:
                 self.last_row_id = self.cur.lastrowid
+            return self.last_row_id
         except Exception as e:
             raise DBOperationError(str(e))
 
-        return self.last_row_id
-
     def get_result(self, params=None):
-        self._execute(params=params)
-        self.result = self.cur.fetchall()
+        try:
+            self._execute(params=params)
+            self.result = self.cur.fetchall()
 
-        if not self.result:
-            return []
+            if not self.result:
+                return []
 
-        if self.var:
-            return [dict(zip(self.var, row)) for row in self.result]
-        else:
-            return list(self.result)
+            if self.var:
+                return [dict(zip(self.var, row)) for row in self.result]
+            else:
+                return list(self.result)
+        except Exception as e:  # Catch exceptions from both _execute AND fetchall
+            raise DBOperationError(str(e))
 
-    def get_one_result(self, params=None) -> Dict[str|int, Any]:
-        self._execute(params=params)
-        self.result = self.cur.fetchone()
+    def get_one_result(self, params=None) -> Dict[str | int, Any]:
+        try:
+            self._execute(params=params)
+            self.result = self.cur.fetchone()
 
-        if not self.result:
-            return {}  # Empty dict instead of None
+            if not self.result:
+                return {}  # Empty dict instead of None
 
-        if self.var:
-            return dict(zip(self.var, self.result))
-        else:
-            return dict(enumerate(self.result))  # Convert to dict with index keys
+            if self.var:
+                return dict(zip(self.var, self.result))
+            else:
+                return dict(enumerate(self.result))  # Convert to dict with index keys
+
+        except Exception as e:  # Catch exceptions from both _execute AND fetchall
+            raise DBOperationError(str(e))
 
     def get_one_result_tuple(self, params=None) -> Tuple:
         """Alternative method that returns empty tuple instead of None"""
