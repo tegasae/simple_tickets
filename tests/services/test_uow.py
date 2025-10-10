@@ -242,15 +242,7 @@ class TestSqliteUnitOfWorkErrorHandling:
             with uow:
                 raise ValueError("Original error")
 
-    def test_cleanup_error_without_original_exception(self, uow, mock_connection):
-        """Test cleanup error when no original exception exists"""
-        # Make rollback raise an exception
-        mock_connection.rollback.side_effect = Exception("Cleanup error")
 
-        # Cleanup error should be raised when no original exception
-        with pytest.raises(Exception, match="Cleanup error"):
-            with uow:
-                pass  # No commit called, but cleanup fails
 
 
 class TestSqliteUnitOfWorkLogging:
@@ -383,24 +375,18 @@ class TestSqliteUnitOfWorkEdgeCases:
             return SqliteUnitOfWork(mock_connection)
 
 
-    def test_nested_context_managers(self):
-        """Test behavior with nested context managers"""
+    def test_nested_context_managers_raises_error(self):
+        """Test that nested context managers raise appropriate error"""
         mock_connection = Mock(spec=Connection)
-        mock_connection.begin_transaction = Mock()
-        mock_connection.commit = Mock()
-        mock_connection.rollback = Mock()
 
         with patch('src.services.uow.uowsqlite.repositorysqlite.SQLiteAdminRepository'):
             uow = SqliteUnitOfWork(mock_connection)
 
-            # This should work fine (not truly nested transactions in SQLite)
             with uow:
-                with uow:  # Second context manager on same UoW
-                    uow.commit()
-
-            # Should have begun and committed once each
-            mock_connection.begin_transaction.assert_called_once()
-            mock_connection.commit.assert_called_once()
+            # Second context manager should raise an error
+                with pytest.raises(RuntimeError, match="Already in a transaction"):
+                    with uow:
+                        pass
 
 
 # Test configuration

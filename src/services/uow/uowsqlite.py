@@ -64,6 +64,8 @@ class SqliteUnitOfWork(AbstractUnitOfWork):
     # ========== ContextManager Methods ==========
     def __enter__(self) -> 'SqliteUnitOfWork':
         """Start SQLite transaction"""
+        if self._active:
+            raise RuntimeError("Already in a transaction - cannot nest context managers")
         self.connection.begin_transaction()
         self._active = True
         self._committed = False

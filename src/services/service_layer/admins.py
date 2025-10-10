@@ -37,9 +37,10 @@ class AdminService(BaseService[Admin]):
 
     def _create_admin(self, create_admin_data: CreateAdminData) -> AdminAbstract:
         """Create a new admin with validation"""
-        try:
-            self._log_operation("create_admin", name=create_admin_data.name, email=create_admin_data.email)
+        self._log_operation("create_admin", name=create_admin_data.name, email=create_admin_data.email)
 
+
+        try:
             with self.uow:
                 aggregate = self.uow.admins.get_list_of_admins()
 
@@ -56,17 +57,18 @@ class AdminService(BaseService[Admin]):
                 self.uow.admins.save_admins(aggregate)
                 self.uow.commit()
 
-                # Reload to get database-generated ID
+                # ✅ GOOD: Reload to get database-generated ID and ensure consistency
                 fresh_admin = self._get_admin_by_name(create_admin_data.name)
 
                 if fresh_admin.admin_id == 0:
                     raise AdminOperationError("Admin was created but ID wasn't properly generated")
 
-                self.logger.info(f"Admin created successfully: {create_admin_data.name} (ID: {fresh_admin.admin_id})")
                 return fresh_admin
+        except AdminOperationError:
+            raise  # Re-raise domain exceptions
         except Exception as e:
             self.logger.error(f"Unexpected error creating admin: {e}")
-            raise RuntimeError("Failed to create admin") from e
+            raise AdminOperationError("Failed to create admin") from e
 
     def _get_admin_by_name(self, name: str) -> AdminAbstract:
         """Get admin by name - throws exception if not found"""
