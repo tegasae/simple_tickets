@@ -1,3 +1,7 @@
+import hashlib
+import os
+import secrets
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Dict, Final, Optional
@@ -99,12 +103,15 @@ class Admin(AdminAbstract):
 
     def __init__(self, admin_id: int, name: str, password: str, email: str, enabled: bool,
                  date_created: Optional[datetime] = None):
+
         self._admin_id = admin_id
         self._name = name
         self._email = email
         self._enabled = enabled
         self._password_hash = Admin.str_hash(password)
         self._date_created = date_created or datetime.now()
+
+
         # Property implementations with setters
 
     @property
@@ -170,11 +177,45 @@ class Admin(AdminAbstract):
 
     @staticmethod
     def str_hash(s: str) -> str:
-        return bcrypt.hashpw(s.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        #return "1"
+        #return bcrypt.hashpw(s.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        #salt = os.urandom(32)
+        #return hashlib.sha256(salt + s.encode()).hexdigest()
+        """Hash password with SHA-256 and random salt"""
+        # Generate a cryptographically secure random salt
+        salt = secrets.token_bytes(32)
+
+        # Hash the password with the salt
+        hash_obj = hashlib.sha256()
+        hash_obj.update(salt + s.encode('utf-8'))
+        hashed_password = hash_obj.hexdigest()
+
+        # Return salt + hash in a format that can be stored
+        # Encode salt as hex for storage
+        salt_hex = salt.hex()
+        return f"{salt_hex}:{hashed_password}"
 
     @staticmethod
     def str_verify(plain_str: str, hash_str: str) -> bool:
-        return bcrypt.checkpw(plain_str.encode("utf-8"), hash_str.encode("utf-8"))
+        #return bcrypt.checkpw(plain_str.encode("utf-8"), hash_str.encode("utf-8"))
+        """Verify password against stored hash"""
+        try:
+            # Split the stored hash into salt and hash
+            salt_hex, original_hash = hash_str.split(':')
+
+            # Convert hex salt back to bytes
+            salt = bytes.fromhex(salt_hex)
+
+            # Hash the provided password with the same salt
+            hash_obj = hashlib.sha256()
+            hash_obj.update(salt + plain_str.encode('utf-8'))
+            computed_hash = hash_obj.hexdigest()
+
+            # Compare the computed hash with the stored hash
+            return secrets.compare_digest(computed_hash, original_hash)
+
+        except (ValueError, AttributeError):
+            return False
 
     def verify_password(self, password: str) -> bool:
         return self.str_verify(password, self._password_hash)

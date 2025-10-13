@@ -39,9 +39,9 @@ class AdminService(BaseService[Admin]):
         """Create a new admin with validation"""
         self._log_operation("create_admin", name=create_admin_data.name, email=create_admin_data.email)
 
-
         try:
             with self.uow:
+
                 aggregate = self.uow.admins.get_list_of_admins()
 
                 # Create admin through aggregate
@@ -54,7 +54,9 @@ class AdminService(BaseService[Admin]):
                 )
 
                 # Persist changes
+
                 self.uow.admins.save_admins(aggregate)
+
                 self.uow.commit()
 
                 # ✅ GOOD: Reload to get database-generated ID and ensure consistency
@@ -74,9 +76,8 @@ class AdminService(BaseService[Admin]):
         """Get admin by name - throws exception if not found"""
         self._log_operation("get_admin_by_name", name=name)
 
-        with self.uow:
-            aggregate = self.uow.admins.get_list_of_admins()
-            return aggregate.require_admin_by_name(name)
+        aggregate = self.uow.admins.get_list_of_admins()
+        return aggregate.require_admin_by_name(name)
 
     def _get_admin_by_id(self, admin_id: int) -> AdminAbstract:
         """Get admin by ID - throws exception if not found"""

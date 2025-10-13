@@ -1,5 +1,6 @@
 # connection_manager.py
 import sqlite3
+
 from datetime import datetime
 
 from src.adapters.repository import AdminRepositoryAbstract
@@ -86,7 +87,9 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
         self.saved_version = 0
 
     def get_list_of_admins(self) -> AdminsAggregate:
+
         try:
+
             # Get current version
             query = self.conn.create_query("SELECT version FROM admins_aggregate", var=['version'])
             version_result = query.get_one_result()
@@ -96,9 +99,11 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
             query = self.conn.create_query("SELECT admin_id,name,password_hash,email,enabled,date_created FROM admins",
                                            var=['admin_id', 'name', 'password_hash', 'email', 'enabled',
                                                 'date_created'])
+
             admins_data = query.get_result()
 
             admins = []
+
             for row in admins_data:
                 admin = Admin(
                     admin_id=row['admin_id'],
@@ -108,11 +113,14 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
                     enabled=bool(row['enabled']),
                     date_created=datetime.fromisoformat(row['date_created'])
                 )
+
                 # Set date from database
-                #todo убрать эту порнографию.
+                # todo убрать эту порнографию.
                 # Связано с тем, что при установке пароля в admin, он автоматически хешируется.
                 # убрать надо в src/domain/models/Admin
+
                 admin._password_hash = row['password_hash']
+
                 admins.append(admin)
 
             return AdminsAggregate(admins, version=self.saved_version)

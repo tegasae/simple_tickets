@@ -1,3 +1,4 @@
+import time
 from typing import Dict, Any, Tuple
 
 from .exceptions import DBOperationError
@@ -41,6 +42,7 @@ class Query:
 
     def get_result(self, params=None):
         try:
+            #start_time=time.time()
             self._execute(params=params)
             self.result = self.cur.fetchall()
 
@@ -48,9 +50,14 @@ class Query:
                 return []
 
             if self.var:
-                return [dict(zip(self.var, row)) for row in self.result]
+                r=[dict(zip(self.var, row)) for row in self.result]
             else:
-                return list(self.result)
+                r=list(self.result)
+            #end_time = time.time()
+            #print(end_time - start_time)
+            return r
+
+
         except Exception as e:  # Catch exceptions from both _execute AND fetchall
             raise DBOperationError(str(e))
 

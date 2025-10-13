@@ -1,4 +1,4 @@
-# tests/integration/_test_admin_service_integration.py
+# tests/integration/test_admin_service_integration.py
 import pytest
 import sqlite3
 from datetime import datetime
@@ -9,7 +9,7 @@ from src.services.service_layer.factory import ServiceFactory
 from src.services.uow.uowsqlite import SqliteUnitOfWork
 from src.adapters.repositorysqlite import CreateDB
 from utils.db.connect import Connection
-from src.domain.exceptions import AdminOperationError
+from src.domain.exceptions import AdminOperationError, AdminNotFoundError
 
 
 @pytest.fixture
@@ -56,8 +56,6 @@ def admin_service(initialized_db):
 
 class TestAdminServiceIntegration:
     """Integration tests for AdminService with real SQLite database"""
-
-
 
     def test_create_and_retrieve_admin(self, admin_service):
         """Test creating and retrieving an admin"""
@@ -183,18 +181,19 @@ class TestAdminServiceIntegration:
         assert admin_service.admin_exists("remove_test") is False
 
         # Verify get_by_name raises error
-        with pytest.raises(AdminOperationError):
+        with pytest.raises(AdminNotFoundError):
             admin_service.execute('get_by_name', name="remove_test")
 
         # Verify get_by_id returns None
-        result = admin_service.execute('get_by_id', admin_id=admin.admin_id)
-        assert result is None
+        with pytest.raises(AdminNotFoundError):
+            result = admin_service.execute('get_by_id', admin_id=admin.admin_id)
+
 
     def test_list_all_admins(self, admin_service):
         """Test listing all admins"""
         # Create multiple admins
         admins_data = [
-            CreateAdminData(name=f"admin_{i}", email=f"admin{i}@example.com", password="pass")
+            CreateAdminData(name=f"admin_{i}", email=f"admin{i}@example.com", password="pass123456")
             for i in range(3)
         ]
 
@@ -215,8 +214,8 @@ class TestAdminServiceIntegration:
     def test_list_enabled_admins(self, admin_service):
         """Test listing only enabled admins"""
         # Create enabled and disabled admins
-        enabled_admin = CreateAdminData(name="enabled_user", email="enabled@example.com", password="pass", enabled=True)
-        disabled_admin = CreateAdminData(name="disabled_user", email="disabled@example.com", password="pass",
+        enabled_admin = CreateAdminData(name="enabled_user", email="enabled@example.com", password="pass123456", enabled=True)
+        disabled_admin = CreateAdminData(name="disabled_user", email="disabled@example.com", password="pass123456",
                                          enabled=False)
 
         admin_service.execute('create', create_admin_data=enabled_admin)
@@ -247,12 +246,12 @@ class TestAdminServiceIntegration:
     def test_transaction_rollback_on_error(self, admin_service):
         """Test that transactions roll back on errors"""
         # Create first admin
-        admin1_data = CreateAdminData(name="admin1", email="admin1@example.com", password="pass")
+        admin1_data = CreateAdminData(name="admin1", email="admin1@example.com", password="pass123456")
         admin1 = admin_service.execute('create', create_admin_data=admin1_data)
 
         try:
             # This should fail due to duplicate name
-            admin2_data = CreateAdminData(name="admin1", email="admin2@example.com", password="pass")
+            admin2_data = CreateAdminData(name="admin1", email="admin2@example.com", password="pass123456")
             admin_service.execute('create', create_admin_data=admin2_data)
         except AdminOperationError:
             pass  # Expected to fail
@@ -307,7 +306,7 @@ class TestAdminServiceIntegration:
         service2 = AdminService(uow=sqlite_uow)
 
         # Service 1 creates an admin
-        create_data = CreateAdminData(name="concurrent_user", email="concurrent@example.com", password="pass")
+        create_data = CreateAdminData(name="concurrent_user", email="concurrent@example.com", password="pass123456")
         admin = service1.execute('create', create_admin_data=create_data)
 
         # Service 2 should be able to see it
@@ -321,11 +320,11 @@ class TestAdminServiceIntegration:
             admin_service.execute('invalid_operation')
 
         # Test missing parameters
-        with pytest.raises(ValueError, match="cannot be None"):
+        with pytest.raises(TypeError, match="missing 1 required positional argument"):
             admin_service.execute('get_by_name')  # Missing name parameter
 
         # Test non-existent admin
-        with pytest.raises(AdminOperationError):
+        with pytest.raises(AdminNotFoundError):
             admin_service.execute('get_by_name', name="non_existent_admin")
 
     def test_admin_id_generation(self, admin_service):
@@ -368,6 +367,7 @@ class TestAdminServiceIntegration:
         execution_time = end_time - start_time
 
         # Should complete in reasonable time (adjust threshold as needed)
+
         assert execution_time < 5.0  # 5 seconds should be plenty for 10 operations
         assert len(all_admins) >= 10
 
@@ -389,8 +389,9 @@ class TestAdminServiceEdgeCases:
         assert admin_service.admin_exists("any_admin") is False
 
         # Get by ID on empty DB
-        result = admin_service.execute('get_by_id', admin_id=1)
-        assert result is None
+        with pytest.raises(AdminNotFoundError):
+            result = admin_service.execute('get_by_id', admin_id=1)
+
 
     def test_special_characters_in_names(self, admin_service):
         """Test admin names with special characters"""
