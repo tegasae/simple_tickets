@@ -1,5 +1,6 @@
 import sqlite3
 from contextlib import asynccontextmanager
+from typing import List
 
 from fastapi import FastAPI, Depends, HTTPException
 
@@ -9,6 +10,7 @@ from config import settings
 from routers import admins
 from src.services.service_layer.factory import ServiceFactory
 from src.services.uow.uowsqlite import SqliteUnitOfWork
+from src.web.models import AdminView
 from tests.intergrated.test_admin_service_integration import admin_service
 from utils.db.connect import Connection  # Add this import
 from src.adapters.repositorysqlite import CreateDB  # Fixed import path
@@ -60,7 +62,10 @@ app.include_router(admins.router)
 async def root(sf: ServiceFactory = Depends(get_service_factory)):
     admin_service = sf.get_admin_service()
     all_admins = admin_service.list_all_admins()
-    return {"admins": all_admins}
+    admins_view:List[AdminView]=[]
+    for admin in all_admins:
+        admins_view.append(AdminView(admin_id=admin.admin_id,name=admin.name,email=admin.email,enabled=admin.enabled,date_created=admin.date_created))
+    return {"admins": admins_view}
 
 
 @app.get("/health")

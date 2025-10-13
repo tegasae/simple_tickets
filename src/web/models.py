@@ -8,6 +8,14 @@ class AdminBase(BaseModel):
     email: EmailStr
 
 
+class AdminView(BaseModel):
+    admin_id:int
+    name: str
+    email: str
+    enabled: bool
+    date_created: datetime
+
+
 class AdminCreate(AdminBase):
     password: str
     enabled: bool = True
