@@ -105,13 +105,19 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
             admins = []
 
             for row in admins_data:
+                #todo переделать это. Дата может быть не в формате, тогда выаодить значение по умолчанию
+
+                try:
+                    date_created=datetime.fromisoformat(row['date_created'])
+                except ValueError:
+                    date_created=datetime.now()
                 admin = Admin(
                     admin_id=row['admin_id'],
                     name=row['name'],
                     password=row['password_hash'],  # Already hashed
                     email=row['email'],
                     enabled=bool(row['enabled']),
-                    date_created=datetime.fromisoformat(row['date_created'])
+                    date_created=date_created
                 )
 
                 # Set date from database

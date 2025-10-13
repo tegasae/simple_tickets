@@ -23,7 +23,8 @@ class Connection:
         engine.paramstyle = "named"
 
         try:
-            connect = engine.connect(url)
+            #todo сделвть потом нормальное решение с  check_same_thread=False
+            connect = engine.connect(url, check_same_thread=False)
             return cls(connect=connect, engine=engine)
         except Exception as e:
             raise DBConnectError(f"Failed to connect to {url}: {str(e)}")
