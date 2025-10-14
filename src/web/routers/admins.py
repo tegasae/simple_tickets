@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from src.services.service_layer.data import CreateAdminData
 from src.services.service_layer.factory import ServiceFactory
 from src.web.dependicies import get_service_factory
+from src.web.exception_handlers import with_exception_handling, handle_exceptions
 from src.web.models import AdminView, AdminCreate, AdminUpdate
 
 router = APIRouter(
@@ -13,8 +14,7 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-
-
+#router = with_exception_handling(router)
 
 # CREATE - Create new admin (no authorization for now)
 @router.post(
@@ -24,6 +24,7 @@ router = APIRouter(
     summary="Create a new admin",
     description="Create a new admin account."
 )
+
 async def create_admin(
         admin_create: AdminCreate,
         sf: ServiceFactory = Depends(get_service_factory)
@@ -36,8 +37,8 @@ async def create_admin(
     - **password**: Admin password (min 8 characters)
     - **enabled**: Whether the admin is active (default: True)
     """
-    try:
-        admin_service = sf.get_admin_service()
+    #try:
+    admin_service = sf.get_admin_service()
 
         # Check if admin already exists
         #if admin_service.admin_exists(admin_create.name):
@@ -47,26 +48,26 @@ async def create_admin(
         #    )
 
         # Convert to service layer data
-        create_data = CreateAdminData(
-            name=admin_create.name,
-            email=admin_create.email,
-            password=admin_create.password,
-            enabled=admin_create.enabled
-        )
+    create_data = CreateAdminData(
+        name=admin_create.name,
+        email=admin_create.email,
+        password=admin_create.password,
+        enabled=admin_create.enabled
+    )
 
         # Create admin
-        admin = admin_service.execute('create', create_admin_data=create_data)
+    admin = admin_service.execute('create', create_admin_data=create_data)
 
         # Convert to view model
-        return AdminView.from_admin(admin)
+    return AdminView.from_admin(admin)
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to create admin: {str(e)}"
-        )
+    #except HTTPException:
+    #    raise
+    #except Exception as e:
+    #    raise HTTPException(
+    #        status_code=status.HTTP_400_BAD_REQUEST,
+    #        detail=f"Failed to create admin: {str(e)}"
+    #    )
 
 
 # READ - Get all admins (no authorization for now)
@@ -105,6 +106,7 @@ async def read_admins(
     summary="Get admin by ID",
     description="Retrieve specific admin by ID."
 )
+
 async def read_admin(
         admin_id: int,
         sf: ServiceFactory = Depends(get_service_factory)
@@ -114,25 +116,25 @@ async def read_admin(
 
     - **admin_id**: The unique identifier of the admin
     """
-    try:
-        admin_service = sf.get_admin_service()
-        admin = admin_service.execute('get_by_id', admin_id=admin_id)
+    #try:
+    admin_service = sf.get_admin_service()
+    admin = admin_service.execute('get_by_id', admin_id=admin_id)
 
-        if not admin or admin.is_empty():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Admin with ID {admin_id} not found"
-            )
+    #if not admin or admin.is_empty():
+    #    raise HTTPException(
+    #        status_code=status.HTTP_404_NOT_FOUND,
+    #        detail=f"Admin with ID {admin_id} not found"
+    #    )
 
-        return AdminView.from_admin(admin)
+    return AdminView.from_admin(admin)
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve admin: {str(e)}"
-        )
+    #except HTTPException:
+    #    raise
+    #except Exception as e:
+    #    raise HTTPException(
+    #        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    #        detail=f"Failed to retrieve admin: {str(e)}"
+    #    )
 
 
 # READ - Get admin by name (no authorization for now)

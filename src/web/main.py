@@ -1,17 +1,21 @@
+import logging
 from contextlib import asynccontextmanager
 from typing import List
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 
 import uvicorn
 
 from config import settings
+from src.domain.exceptions import AdminAlreadyExistsError
 
 from src.services.service_layer.factory import ServiceFactory
 
 from src.web.models import AdminView
 from src.web.routers import admins
 
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -32,6 +36,32 @@ app = FastAPI(
 )
 
 app.include_router(admins.router)
+
+#@app.exception_handler(Exception)
+#async def global_exception_handler(request: Request, exc: Exception):
+#    logger.error(f"Unexpected error: {str(exc)}")
+#
+#    return JSONResponse(
+#        status_code=500,
+#        content={
+#            "detail": "An unexpected error occurred",
+#            "path": request.url.path
+#        }
+#    )
+
+@app.exception_handler(AdminAlreadyExistsError)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unexpected error: {str(exc)}")
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "An unexpected error occurred",
+            "path": request.url.path
+        }
+    )
+
+
 
 @app.get("/")
 def root():
