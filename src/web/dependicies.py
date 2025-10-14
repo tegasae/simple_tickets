@@ -10,26 +10,20 @@ from utils.db.connect import Connection
 
 
 def get_db_connection():
-    """Get database connection"""
+    """Create connection in the same thread that uses it"""
     conn = None
     try:
-        conn = Connection.create_connection(
-            url="admins.db",  # Fixed path
-            engine=sqlite3
-        )
+        # This will be called in the worker thread
+        conn = Connection.create_connection(url=settings.DATABASE_URL, engine=sqlite3)
         yield conn
     finally:
         if conn:
             conn.close()
 
-
+# The rest of your dependencies stay the same
 def get_uow(conn: Connection = Depends(get_db_connection)):
-    """Get Unit of Work"""
     return SqliteUnitOfWork(connection=conn)
 
-
 def get_service_factory(uow: SqliteUnitOfWork = Depends(get_uow)):
-    """Get service factory"""
     return ServiceFactory(uow=uow)
-
 

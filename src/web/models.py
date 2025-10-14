@@ -2,10 +2,13 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 
+from src.domain.model import Admin
+from src.domain.model import AdminAbstract
+
 
 class AdminBase(BaseModel):
     name: str
-    email: EmailStr
+    email: str
 
 
 class AdminView(BaseModel):
@@ -14,6 +17,20 @@ class AdminView(BaseModel):
     email: str
     enabled: bool
     date_created: datetime
+
+    @classmethod
+    def from_admin(cls, admin: 'AdminAbstract'):
+        """Simple conversion with configurable date format"""
+
+
+        return cls(
+            admin_id=admin.admin_id,
+            name=admin.name,
+            email=admin.email,
+            enabled=admin.enabled,
+            date_created=admin.date_created
+        )
+
 
 
 class AdminCreate(AdminBase):

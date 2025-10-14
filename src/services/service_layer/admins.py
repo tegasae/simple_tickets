@@ -70,7 +70,8 @@ class AdminService(BaseService[Admin]):
             raise  # Re-raise domain exceptions
         except Exception as e:
             self.logger.error(f"Unexpected error creating admin: {e}")
-            raise AdminOperationError("Failed to create admin") from e
+            #raise AdminOperationError("Failed to create admin") from e
+            raise
 
     def _get_admin_by_name(self, name: str) -> AdminAbstract:
         """Get admin by name - throws exception if not found"""
