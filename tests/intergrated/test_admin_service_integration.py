@@ -9,7 +9,7 @@ from src.services.service_layer.factory import ServiceFactory
 from src.services.uow.uowsqlite import SqliteUnitOfWork
 from src.adapters.repositorysqlite import CreateDB
 from utils.db.connect import Connection
-from src.domain.exceptions import AdminOperationError, AdminNotFoundError
+from src.domain.exceptions import AdminOperationError, AdminNotFoundError, AdminAlreadyExistsError
 
 
 @pytest.fixture
@@ -99,7 +99,7 @@ class TestAdminServiceIntegration:
         admin_service.execute('create', create_admin_data=create_data)
 
         # Second creation should fail
-        with pytest.raises(AdminOperationError):
+        with pytest.raises(AdminAlreadyExistsError):
             admin_service.execute('create', create_admin_data=create_data)
 
     def test_update_admin_email(self, admin_service):
@@ -253,7 +253,7 @@ class TestAdminServiceIntegration:
             # This should fail due to duplicate name
             admin2_data = CreateAdminData(name="admin1", email="admin2@example.com", password="pass123456")
             admin_service.execute('create', create_admin_data=admin2_data)
-        except AdminOperationError:
+        except AdminAlreadyExistsError:
             pass  # Expected to fail
 
         # Verify admin1 still exists (transaction rolled back)

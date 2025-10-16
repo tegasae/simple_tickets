@@ -14,7 +14,7 @@ class Connection:
         self.engine.paramstyle = "named"
 
     @classmethod
-    def create_connection(cls, url="", engine=None) -> 'Connection':
+    def create_connection(cls, url="", engine=None, check_same_thread=False) -> 'Connection':
         if not url or not engine:
             raise DBConnectError("URL and engine must be provided")
 
@@ -24,7 +24,7 @@ class Connection:
 
         try:
             #todo сделвть потом нормальное решение с  check_same_thread=False
-            connect = engine.connect(url, check_same_thread=False)
+            connect = engine.connect(url, check_same_thread=check_same_thread)
             return cls(connect=connect, engine=engine)
         except Exception as e:
             raise DBConnectError(f"Failed to connect to {url}: {str(e)}")
