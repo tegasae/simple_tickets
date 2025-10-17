@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 from functools import lru_cache
 
-
+#
 class Settings(BaseSettings):
     """Application settings using Pydantic"""
     APP_NAME: str = "Admin Management API"
