@@ -1,9 +1,9 @@
 import os
-from typing import Optional
 
 from pydantic_settings import BaseSettings
-from typing import Optional
+
 from functools import lru_cache
+
 
 #
 class Settings(BaseSettings):
@@ -34,6 +34,7 @@ class TestSettings(Settings):
 
 @lru_cache()
 def get_settings(environment: str = "production") -> Settings:
+    environment='testing'
     """Factory function to get settings based on environment"""
     if environment == "testing":
         return TestSettings()
@@ -42,4 +43,4 @@ def get_settings(environment: str = "production") -> Settings:
 
 
 # Default instance (for backward compatibility)
-settings = get_settings()
+#settings = get_settings()

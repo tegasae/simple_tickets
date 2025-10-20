@@ -12,7 +12,7 @@ class AdminBase(BaseModel):
 
 
 class AdminView(BaseModel):
-    admin_id:int
+    admin_id: int
     name: str
     email: str
     enabled: bool
@@ -22,7 +22,6 @@ class AdminView(BaseModel):
     def from_admin(cls, admin: 'AdminAbstract'):
         """Simple conversion with configurable date format"""
 
-
         return cls(
             admin_id=admin.admin_id,
             name=admin.name,
@@ -30,7 +29,6 @@ class AdminView(BaseModel):
             enabled=admin.enabled,
             date_created=admin.date_created
         )
-
 
 
 class AdminCreate(AdminBase):
@@ -60,4 +58,3 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
-

@@ -2,40 +2,40 @@ import logging
 import sqlite3
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
-
+from fastapi import FastAPI, HTTPException, Depends
 
 import uvicorn
 from starlette import status
 
-from config import settings
-
+# from config import settings
+from src.web.config import Settings, get_settings
 from src.adapters.repositorysqlite import CreateDB
-
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
 
 from src.web.routers import admins
 
-
 from utils.db.connect import Connection
 
 logger = logging.getLogger(__name__)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-
     print("Starting lifespan")
     yield
     print("Finishing lifespan")
 
 
+# Dependency for settings
+def get_app_settings() -> Settings:
+    return get_settings(environment='testing')
 
 
 # Create FastAPI app
 app = FastAPI(
-    title=settings.APP_NAME,
-    version=settings.APP_VERSION,
+    title=get_app_settings().APP_NAME,
+    version=get_app_settings().APP_VERSION,
     description="Admin Management API with FastAPI",
     lifespan=lifespan
 )
@@ -43,15 +43,13 @@ app = FastAPI(
 app.include_router(admins.router)
 
 registry = ExceptionHandlerRegistry(app)
-#registry.add_handler(
+# registry.add_handler(
 #    AdminAlreadyExistsError,
 #    lambda request, exc: JSONResponse(status_code=409, content={"error": str(exc)})
-#)
+# )
 
-registry.add_all_handler('src.domain.exceptions',admins.handlers)
+registry.add_all_handler('src.domain.exceptions', admins.handlers)
 registry.register_all()
-
-
 
 
 @app.get("/")
@@ -59,15 +57,14 @@ def root():
     return {"message": "Welcome to Admin Management API"}
 
 
-
 @app.get("/health")
-async def health_check():
+async def health_check(settings: Settings = Depends(get_app_settings)):
     """Health check endpoint"""
     return {"status": "healthy", "service": settings.APP_NAME}
 
 
 @app.get("/info")
-async def app_info():
+async def app_info(settings: Settings = Depends(get_app_settings)):
     """Application information"""
     return {
         "app_name": settings.APP_NAME,
@@ -76,10 +73,8 @@ async def app_info():
     }
 
 
-
-
 @app.post("/create-db", status_code=status.HTTP_201_CREATED)
-async def create_database():
+async def create_database(settings: Settings = Depends(get_app_settings)):
     """
     Initialize the database schema and tables.
 
@@ -108,7 +103,6 @@ async def create_database():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create database: {str(e)}"
         )
-
 
 
 if __name__ == "__main__":

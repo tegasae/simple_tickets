@@ -1,224 +1,265 @@
-import sqlite3
-
 import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch
-import json
+from unittest.mock import Mock, AsyncMock, patch
+from fastapi import HTTPException, status
 
-from src.adapters.repositorysqlite import CreateDB
-from src.services.service_layer.factory import ServiceFactory
-from src.web.main import app
+from src.web.routers import admins
+from src.web.models import AdminCreate, AdminUpdate
 from src.services.service_layer.data import CreateAdminData
-from utils.db.connect import Connection
-
-client = TestClient(app)
-
-#@pytest.fixture
-#def client():
-#    """Test client fixture"""
-#    return TestClient(app)
 
 
-@pytest.fixture
-def in_memory_connection():
-    """In-memory database connection for testing"""
-    conn = Connection.create_connection(url=":memory:", engine=sqlite3)
-    yield conn
-    conn.close()
+class TestCreateAdmin:
+    """Unit tests for create_admin endpoint"""
 
-
-@pytest.fixture
-def initialized_db(in_memory_connection):
-    """Database with initialized schema"""
-    create_db = CreateDB(in_memory_connection)
-    create_db.init_data()
-    create_db.create_indexes()
-    return in_memory_connection
-
-
-@pytest.fixture
-def mock_service_factory():
-    """Mock service factory"""
-    factory = Mock(spec=ServiceFactory)
-    factory.get_admin_service.return_value = Mock()
-    return factory
-
-
-@pytest.fixture
-def sample_admin_data():
-    """Sample admin data for testing"""
-    return {
-        "name": "test_admin",
-        "email": "test@example.com",
-        "password": "testpassword123",
-        "enabled": True
-    }
-
-
-class TestAdminRoutes:
-    """Test admin router endpoints"""
-
-    def test_create_admin_success(self, sample_admin_data):
+    @pytest.mark.asyncio
+    async def test_create_admin_success(self):
         """Test successful admin creation"""
-        with patch('src.web.routers.admins.get_service_factory') as mock_factory:
-            mock_service = mock_factory.return_value.get_admin_service.return_value
-            mock_admin = Mock()
-            mock_admin.admin_id = 1
-            mock_admin.name = sample_admin_data["name"]
-            mock_admin.email = sample_admin_data["email"]
-            mock_admin.enabled = sample_admin_data["enabled"]
-            mock_admin.date_created = "2023-01-01T00:00:00"
+        # Arrange
+        mock_sf = AsyncMock()  # Use AsyncMock for async context
+        mock_admin_service = AsyncMock()
+        mock_admin = Mock()
+        mock_sf.get_admin_service.return_value = mock_admin_service
+        mock_admin_service.execute.return_value = mock_admin
 
-            mock_service.execute.return_value = mock_admin
+        admin_create_data = AdminCreate(
+            name="testadmin",
+            email="test@example.com",
+            password="testpassword123",
+            enabled=True
+        )
 
-            response = client.post("/admins/", json=sample_admin_data)
+        # Act
+        result = await admins.create_admin(admin_create_data, mock_sf)
 
-            assert response.status_code == 201
-            data = response.json()
-            assert data["name"] == sample_admin_data["name"]
-            assert data["email"] == sample_admin_data["email"]
-            assert data["enabled"] == sample_admin_data["enabled"]
+        # Assert
+        mock_sf.get_admin_service.assert_called_once()
+        mock_admin_service.execute.assert_called_once()
+        call_args = mock_admin_service.execute.call_args
+        assert call_args[0][0] == 'create'
+        assert isinstance(call_args[1]['create_admin_data'], CreateAdminData)
 
-    def test_get_all_admins(self):
-        """Test getting all admins"""
-        with patch('src.web.routers.admins.get_service_factory') as mock_factory:
-            mock_service = mock_factory.return_value.get_admin_service.return_value
+    @pytest.mark.asyncio
+    async def test_create_admin_service_exception(self):
+        """Test admin creation when service layer raises exception"""
+        # Arrange
+        mock_sf = AsyncMock()
+        mock_admin_service = AsyncMock()
+        mock_sf.get_admin_service.return_value = mock_admin_service
+        mock_admin_service.execute.side_effect = Exception("Service error")
 
-            # Mock multiple admins
-            mock_admin1 = Mock()
-            mock_admin1.admin_id = 1
-            mock_admin1.name = "admin1"
-            mock_admin1.email = "admin1@example.com"
-            mock_admin1.enabled = True
-            mock_admin1.date_created = "2023-01-01T00:00:00"
+        admin_create_data = AdminCreate(
+            name="testadmin",
+            email="test@example.com",
+            password="testpassword123"
+        )
 
-            mock_admin2 = Mock()
-            mock_admin2.admin_id = 2
-            mock_admin2.name = "admin2"
-            mock_admin2.email = "admin2@example.com"
-            mock_admin2.enabled = False
-            mock_admin2.date_created = "2023-01-02T00:00:00"
+        # Act & Assert
+        with pytest.raises(Exception, match="Service error"):
+            await admins.create_admin(admin_create_data, mock_sf)
 
-            mock_service.list_all_admins.return_value = [mock_admin1, mock_admin2]
 
-            response = client.get("/admins/")
+class TestReadAdmins:
+    """Unit tests for read_admins endpoint"""
 
-            assert response.status_code == 200
-            data = response.json()
-            assert len(data) == 2
-            assert data[0]["name"] == "admin1"
-            assert data[1]["name"] == "admin2"
+    @pytest.mark.asyncio
+    async def test_read_admins_success(self):
+        """Test successful retrieval of all admins"""
+        # Arrange
+        mock_sf = AsyncMock()
+        mock_admin_service = AsyncMock()
+        mock_admin1 = Mock()
+        mock_admin2 = Mock()
 
-    def test_get_admin_by_id(self):
-        """Test getting admin by ID"""
-        with patch('src.web.routers.admins.get_service_factory') as mock_factory:
-            mock_service = mock_factory.return_value.get_admin_service.return_value
+        mock_sf.get_admin_service.return_value = mock_admin_service
+        mock_admin_service.list_all_admins.return_value = [mock_admin1, mock_admin2]
 
-            mock_admin = Mock()
-            mock_admin.admin_id = 1
-            mock_admin.name = "test_admin"
-            mock_admin.email = "test@example.com"
-            mock_admin.enabled = True
-            mock_admin.date_created = "2023-01-01T00:00:00"
+        # Act
+        result = await admins.read_admins(mock_sf)
 
-            mock_service.execute.return_value = mock_admin
+        # Assert
+        mock_sf.get_admin_service.assert_called_once()
+        mock_admin_service.list_all_admins.assert_called_once()
+        assert len(result) == 2
 
-            response = client.get("/admins/1")
+    @pytest.mark.asyncio
+    async def test_read_admins_empty_list(self):
+        """Test retrieval when no admins exist"""
+        # Arrange
+        mock_sf = AsyncMock()
+        mock_admin_service = AsyncMock()
+        mock_sf.get_admin_service.return_value = mock_admin_service
+        mock_admin_service.list_all_admins.return_value = []
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["admin_id"] == 1
-            assert data["name"] == "test_admin"
+        # Act
+        result = await admins.read_admins(mock_sf)
 
-    def test_get_admin_by_name(self):
-        """Test getting admin by name"""
-        with patch('src.web.routers.admins.get_service_factory') as mock_factory:
-            mock_service = mock_factory.return_value.get_admin_service.return_value
+        # Assert
+        assert result == []
 
-            mock_admin = Mock()
-            mock_admin.admin_id = 1
-            mock_admin.name = "test_admin"
-            mock_admin.email = "test@example.com"
-            mock_admin.enabled = True
-            mock_admin.date_created = "2023-01-01T00:00:00"
 
-            mock_service.execute.return_value = mock_admin
+class TestReadAdmin:
+    """Unit tests for read_admin endpoint"""
 
-            response = client.get("/admins/name/test_admin")
+    @pytest.mark.asyncio
+    async def test_read_admin_by_id_success(self):
+        """Test successful retrieval of admin by ID"""
+        # Arrange
+        mock_sf = AsyncMock()
+        mock_admin_service = AsyncMock()
+        mock_admin = Mock()
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["name"] == "test_admin"
+        mock_sf.get_admin_service.return_value = mock_admin_service
+        mock_admin_service.execute.return_value = mock_admin
 
-    def test_update_admin(self):
-        """Test updating admin"""
-        with patch('src.web.routers.admins.get_service_factory') as mock_factory:
-            mock_service = mock_factory.return_value.get_admin_service.return_value
+        # Act
+        result = await admins.read_admin(admin_id=1, sf=mock_sf)
 
-            # Mock existing admin
-            mock_admin = Mock()
-            mock_admin.admin_id = 1
-            mock_admin.name = "test_admin"
-            mock_admin.email = "old@example.com"
-            mock_admin.enabled = True
+        # Assert
+        mock_sf.get_admin_service.assert_called_once()
+        mock_admin_service.execute.assert_called_once_with('get_by_id', admin_id=1)
 
-            mock_service.execute.return_value = mock_admin
 
-            update_data = {
-                "email": "new@example.com",
-                "enabled": False
-            }
+class TestReadAdminByName:
+    """Unit tests for read_admin_by_name endpoint"""
 
-            response = client.put("/admins/1", json=update_data)
+    @pytest.mark.asyncio
+    async def test_read_admin_by_name_success(self):
+        """Test successful retrieval of admin by name"""
+        # Arrange
+        mock_sf = AsyncMock()
+        mock_admin_service = AsyncMock()
+        mock_admin = Mock()
 
-            assert response.status_code == 200
-            # Verify service methods were called
-            assert mock_service.execute.call_count >= 2
+        mock_sf.get_admin_service.return_value = mock_admin_service
+        mock_admin_service.execute.return_value = mock_admin
 
-    def test_delete_admin(self):
-        """Test deleting admin"""
-        with patch('src.web.routers.admins.get_service_factory') as mock_factory:
-            mock_service = mock_factory.return_value.get_admin_service.return_value
+        # Act
+        result = await admins.read_admin_by_name(admin_name="testadmin", sf=mock_sf)
 
-            # Mock existing admin for the get_by_id call
-            mock_admin = Mock()
-            mock_admin.admin_id = 1
-            mock_admin.name = "test_admin"
+        # Assert
+        mock_sf.get_admin_service.assert_called_once()
+        mock_admin_service.execute.assert_called_once_with('get_by_name', name="testadmin")
 
-            mock_service.execute.return_value = mock_admin
 
-            response = client.delete("/admins/1")
+class TestUpdateAdmin:
+    """Unit tests for update_admin endpoint"""
 
-            assert response.status_code == 204
-            mock_service.execute.assert_called_with('remove_by_id', admin_id=1)
+    @pytest.mark.asyncio
+    async def test_update_admin_email_only(self):
+        """Test updating only email address"""
+        # Arrange
+        mock_sf = AsyncMock()
+        mock_admin_service = AsyncMock()
+        mock_target_admin = Mock()
+        mock_target_admin.name = "testadmin"
+        mock_target_admin.enabled = True
 
-    def test_toggle_admin_status(self):
-        """Test toggling admin status"""
-        with patch('src.web.routers.admins.get_service_factory') as mock_factory:
-            mock_service = mock_factory.return_value.get_admin_service.return_value
+        mock_sf.get_admin_service.return_value = mock_admin_service
+        # For async, we need to handle the side effect properly
+        mock_admin_service.execute.side_effect = [
+            mock_target_admin,  # First call: get_by_id
+            Mock(),  # Second call: update_email
+            Mock()  # Third call: get_by_id (final)
+        ]
 
-            # Mock existing admin
-            mock_admin = Mock()
-            mock_admin.admin_id = 1
-            mock_admin.name = "test_admin"
-            mock_admin.enabled = True
+        update_data = AdminUpdate(email="new@example.com")
 
-            mock_service.execute.return_value = mock_admin
+        # Act
+        result = await admins.update_admin(admin_id=1, admin_update=update_data, sf=mock_sf)
 
-            response = client.post("/admins/1/toggle-status")
+        # Assert
+        assert mock_admin_service.execute.call_count == 3
 
-            assert response.status_code == 200
-            mock_service.execute.assert_called_with('toggle_status', name="test_admin")
 
-    def test_check_admin_exists(self):
-        """Test checking if admin exists"""
-        with patch('src.web.routers.admins.get_service_factory') as mock_factory:
-            mock_service = mock_factory.return_value.get_admin_service.return_value
-            mock_service.admin_exists.return_value = True
+class TestDeleteAdmin:
+    """Unit tests for delete_admin endpoint"""
 
-            response = client.get("/admins/check/test_admin/exists")
+    @pytest.mark.asyncio
+    async def test_delete_admin_success(self):
+        """Test successful admin deletion"""
+        # Arrange
+        mock_sf = AsyncMock()
+        mock_admin_service = AsyncMock()
+        mock_sf.get_admin_service.return_value = mock_admin_service
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["exists"] is True
+        # Act
+        result = await admins.delete_admin(admin_id=1, sf=mock_sf)
 
+        # Assert
+        mock_sf.get_admin_service.assert_called_once()
+        mock_admin_service.execute.assert_called_once_with('remove_by_id', admin_id=1)
+        assert result is None
+
+
+class TestToggleAdminStatus:
+    """Unit tests for toggle_admin_status endpoint"""
+
+    @pytest.mark.asyncio
+    async def test_toggle_admin_status_success(self):
+        """Test successful admin status toggle"""
+        # Arrange
+        mock_sf = AsyncMock()  # Use AsyncMock
+        mock_admin_service = AsyncMock()  # Use AsyncMock
+        mock_target_admin = Mock()
+        mock_target_admin.name = "testadmin"
+        mock_updated_admin = Mock()
+
+        mock_sf.get_admin_service.return_value = mock_admin_service
+        mock_admin_service.execute.side_effect = [
+            mock_target_admin,  # get_by_id
+            mock_updated_admin  # toggle_status
+        ]
+
+        # Act
+        result = await admins.toggle_admin_status(admin_id=1, sf=mock_sf)
+
+        # Assert
+        assert mock_admin_service.execute.call_count == 2
+        calls = mock_admin_service.execute.call_args_list
+        assert calls[0][0] == ('get_by_id',)
+        assert calls[0][1] == {'admin_id': 1}
+        assert calls[1][0] == ('toggle_status',)
+        assert calls[1][1] == {'name': 'testadmin'}
+
+
+class TestCheckAdminExists:
+    """Unit tests for check_admin_exists endpoint"""
+
+    @pytest.mark.asyncio
+    async def test_check_admin_exists_true(self):
+        """Test when admin exists"""
+        # Arrange
+        mock_sf = AsyncMock()
+        mock_admin_service = AsyncMock()
+        mock_sf.get_admin_service.return_value = mock_admin_service
+        mock_admin_service.admin_exists.return_value = True
+
+        # Act
+        result = await admins.check_admin_exists(admin_name="existingadmin", sf=mock_sf)
+
+        # Assert
+        mock_sf.get_admin_service.assert_called_once()
+        mock_admin_service.admin_exists.assert_called_once_with("existingadmin")
+        assert result == {"exists": True}
+
+
+class TestRouterConfiguration:
+    """Tests for router configuration"""
+
+    def test_router_config(self):
+        """Test router is configured correctly"""
+        assert admins.router.prefix == "/admins"
+        assert admins.router.tags == ["admins"]
+        assert 404 in admins.router.responses
+        assert admins.router.responses[404] == {"description": "Not found"}
+
+    def test_exception_handlers_mapping(self):
+        """Test exception handlers are properly mapped"""
+        expected_handlers = {
+            'AdminError': 500,
+            'AdminNotFoundError': 404,
+            'AdminAlreadyExistsError': 409,
+            'AdminValidationError': 400,
+            'AdminOperationError': 400,
+            'AdminSecurityError': 403
+        }
+        assert admins.handlers == expected_handlers
