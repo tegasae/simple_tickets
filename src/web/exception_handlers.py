@@ -79,3 +79,6 @@ class ExceptionHandlerRegistry:
                 logger.error(f"Failed to register handler for {class_name}")
 
         logger.info(f"Exception handlers: {successful} successful, {failed} failed")
+
+
+

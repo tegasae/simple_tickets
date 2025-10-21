@@ -1,18 +1,24 @@
 import logging
 import sqlite3
 from contextlib import asynccontextmanager
+from datetime import timedelta, datetime, timezone
 from typing import Annotated
 
+import jwt
 from fastapi import FastAPI, HTTPException, Depends
 
 import uvicorn
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jwt import InvalidTokenError
 from pydantic import BaseModel
 from starlette import status
 
+from src.domain.model import Admin, AdminEmpty
+from src.services.service_layer.factory import ServiceFactory
 # from config import settings
 from src.web.config import Settings, get_settings
 from src.adapters.repositorysqlite import CreateDB
+from src.web.dependicies import get_service_factory
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
 
@@ -22,6 +28,10 @@ from utils.db.connect import Connection
 
 logger = logging.getLogger(__name__)
 
+
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+ALGORITHM = "HS256"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,71 +45,64 @@ def get_app_settings() -> Settings:
     return get_settings()
 
 
-fake_users_db = {
-    "johndoe": {
-        "username": "johndoe",
-        "full_name": "John Doe",
-        "email": "johndoe@example.com",
-        "hashed_password": "fakehashedsecret",
-        "disabled": False,
-    },
-    "alice": {
-        "username": "alice",
-        "full_name": "Alice Wonderson",
-        "email": "alice@example.com",
-        "hashed_password": "fakehashedsecret2",
-        "disabled": False,
-    },
-}
 
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
-def fake_hash_password(password: str):
-    return "fakehashed" + password
+
+class TokenData(BaseModel):
+    username: str | None = None
+
+
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-class User(BaseModel):
-    username: str
-    email: str | None = None
-    full_name: str | None = None
-    disabled: bool | None = None
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
 
-class UserInDB(User):
-    hashed_password: str
 
 
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)
 
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],sf: ServiceFactory = Depends(get_service_factory)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
 
-def fake_decode_token(token):
-    # This doesn't provide any security at all
-    # Check the next version
-    user = get_user(fake_users_db, token)
-    return user
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
 
+        if username is None:
+            raise credentials_exception
+        token_data = TokenData(username=username)
+    except InvalidTokenError:
+        raise credentials_exception
+    admin_service = sf.get_admin_service()
+    admin = admin_service.execute('get_by_name', name=username)
+    if admin is AdminEmpty:
+        raise credentials_exception
+    return admin
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-    user = fake_decode_token(token)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user
 
 
 async def get_current_active_user(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[Admin, Depends(get_current_user)],
 ):
-    if current_user.disabled:
+    if not current_user.enabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
@@ -125,6 +128,7 @@ registry = ExceptionHandlerRegistry(app)
 # )
 
 registry.add_all_handler('src.domain.exceptions', admins.handlers)
+registry.add_standard_handler(Exception,500)
 registry.register_all()
 
 
@@ -150,22 +154,25 @@ async def app_info(token: Annotated[str, Depends(oauth2_scheme)],settings: Setti
 
 
 @app.post("/token")
-async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    user_dict = fake_users_db.get(form_data.username)
-    if not user_dict:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-    user = UserInDB(**user_dict)
-    hashed_password = fake_hash_password(form_data.password)
-    if not hashed_password == user.hashed_password:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
+async def login_for_access_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],sf: ServiceFactory = Depends(get_service_factory)
+) -> Token:
+    admin_service = sf.get_admin_service()
+    admin = admin_service.execute('get_by_name', name=form_data.username)
 
-    return {"access_token": user.username, "token_type": "bearer"}
+
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": admin.name}, expires_delta=access_token_expires
+    )
+    return Token(access_token=access_token, token_type="bearer")
 
 
 
 
 @app.get("/users/me")
-async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
+async def read_users_me(current_user: Annotated[Admin, Depends(get_current_user)]):
     return current_user
 
 
