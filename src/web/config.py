@@ -34,7 +34,6 @@ class TestSettings(Settings):
 
 @lru_cache()
 def get_settings(environment: str = "production") -> Settings:
-    environment='testing'
     """Factory function to get settings based on environment"""
     if environment == "testing":
         return TestSettings()

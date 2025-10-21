@@ -27,3 +27,7 @@ def get_uow(conn: Connection = Depends(get_db_connection)):
 
 def get_service_factory(uow: SqliteUnitOfWork = Depends(get_uow)):
     return ServiceFactory(uow=uow)
+
+
+
+
