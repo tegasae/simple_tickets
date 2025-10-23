@@ -27,6 +27,25 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: str | None = None
 
+
+class UserVerifier:
+    def __init__(self, sf: ServiceFactory = Depends(get_service_factory)):
+        self.sf = sf
+        self.credentials_exception: HTTPException = Depends(unauthorized)
+
+    def __call__(self, username: str, password: str):
+        admin_service = self.sf.get_admin_service()
+        admin = admin_service.execute('get_by_name', name=username)
+        if admin.verify_password(password=password) and admin.enabled:
+            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            access_token = create_access_token(
+                data={"sub": admin.name}, expires_delta=access_token_expires
+            )
+            return Token(access_token=access_token, token_type="bearer")
+        else:
+            raise self.credentials_exception
+
+
 def unauthorized():
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -36,6 +55,9 @@ def unauthorized():
     )
 
 
+# Dependency to create UserVerifier instance
+def get_user_verifier(sf: ServiceFactory = Depends(get_service_factory)):
+    return UserVerifier(sf)
 
 
 def create_access_token(data: dict, expires_delta: timedelta = 0):
@@ -50,7 +72,7 @@ def create_access_token(data: dict, expires_delta: timedelta = 0):
 
 
 def check_login(sf: ServiceFactory = Depends(get_service_factory),
-                credentials_exception:HTTPException=Depends(unauthorized)):
+                credentials_exception: HTTPException = Depends(unauthorized)):
     admin_service = sf.get_admin_service()
     admin = admin_service.execute('get_by_name', name=username)
     if admin.verify_password(password=password) and admin.enabled:
@@ -62,12 +84,14 @@ def check_login(sf: ServiceFactory = Depends(get_service_factory),
     else:
         raise credentials_exception
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
-                           sf: ServiceFactory = Depends(get_service_factory), credentials_exception:HTTPException=Depends(unauthorized)):
 
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
+                           sf: ServiceFactory = Depends(get_service_factory),
+                           credentials_exception: HTTPException = Depends(unauthorized)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
+         #= timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
         if username is None:
             raise credentials_exception
