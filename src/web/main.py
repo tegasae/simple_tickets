@@ -1,24 +1,23 @@
 import logging
 import sqlite3
 from contextlib import asynccontextmanager
-from datetime import timedelta, datetime, timezone
+from datetime import timedelta
 from typing import Annotated
 
-import jwt
 from fastapi import FastAPI, HTTPException, Depends
 
 import uvicorn
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jwt import InvalidTokenError
-from pydantic import BaseModel
+from fastapi.security import OAuth2PasswordRequestForm
 from starlette import status
 
-from src.domain.model import Admin, AdminEmpty
+from src.domain.model import Admin
 from src.services.service_layer.factory import ServiceFactory
-# from config import settings
-from src.web.config import Settings, get_settings
+
+from src.web.config import Settings
 from src.adapters.repositorysqlite import CreateDB
-from src.web.dependicies import get_service_factory
+from src.web.dependicies import get_service_factory, get_app_settings
+from src.web.dependicies_auth import Token, oauth2_scheme, ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, \
+    get_current_user, unauthorized, check_login
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
 
@@ -29,86 +28,11 @@ from utils.db.connect import Connection
 logger = logging.getLogger(__name__)
 
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
-ALGORITHM = "HS256"
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Starting lifespan")
     yield
     print("Finishing lifespan")
-
-
-# Dependency for settings
-def get_app_settings() -> Settings:
-    return get_settings()
-
-
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    username: str | None = None
-
-
-
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-
-
-
-
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],sf: ServiceFactory = Depends(get_service_factory)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-
-        if username is None:
-            raise credentials_exception
-        token_data = TokenData(username=username)
-    except InvalidTokenError:
-        raise credentials_exception
-    admin_service = sf.get_admin_service()
-    admin = admin_service.execute('get_by_name', name=username)
-    if admin is AdminEmpty:
-        raise credentials_exception
-    return admin
-
-
-
-async def get_current_active_user(
-    current_user: Annotated[Admin, Depends(get_current_user)],
-):
-    if not current_user.enabled:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
-
-
-
-
 
 
 # Create FastAPI app
@@ -122,13 +46,9 @@ app = FastAPI(
 app.include_router(admins.router)
 
 registry = ExceptionHandlerRegistry(app)
-# registry.add_handler(
-#    AdminAlreadyExistsError,
-#    lambda request, exc: JSONResponse(status_code=409, content={"error": str(exc)})
-# )
 
 registry.add_all_handler('src.domain.exceptions', admins.handlers)
-registry.add_standard_handler(Exception,500)
+registry.add_standard_handler(Exception, 500)
 registry.register_all()
 
 
@@ -144,7 +64,7 @@ async def health_check(settings: Settings = Depends(get_app_settings)):
 
 
 @app.get("/info")
-async def app_info(token: Annotated[str, Depends(oauth2_scheme)],settings: Settings = Depends(get_app_settings)):
+async def app_info(token: Annotated[str, Depends(oauth2_scheme)], settings: Settings = Depends(get_app_settings)):
     """Application information"""
     return {
         "app_name": settings.APP_NAME,
@@ -155,20 +75,12 @@ async def app_info(token: Annotated[str, Depends(oauth2_scheme)],settings: Setti
 
 @app.post("/token")
 async def login_for_access_token(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],sf: ServiceFactory = Depends(get_service_factory)
+        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],cl=Depends(check_login)
 ) -> Token:
-    admin_service = sf.get_admin_service()
-    admin = admin_service.execute('get_by_name', name=form_data.username)
+    username=form_data.username
+    password=form_data.password
 
-
-
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": admin.name}, expires_delta=access_token_expires
-    )
-    return Token(access_token=access_token, token_type="bearer")
-
-
+    return check_login()
 
 
 @app.get("/users/me")

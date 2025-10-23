@@ -4,7 +4,7 @@ import sqlite3
 
 from src.services.service_layer.factory import ServiceFactory  # Fixed import
 from src.services.uow.uowsqlite import SqliteUnitOfWork  # Add this import
-from src.web.config import get_settings
+from src.web.config import get_settings, Settings
 from utils.db.connect import Connection
 
 
@@ -29,5 +29,5 @@ def get_service_factory(uow: SqliteUnitOfWork = Depends(get_uow)):
     return ServiceFactory(uow=uow)
 
 
-
-
+def get_app_settings() -> Settings:
+    return get_settings()
