@@ -17,7 +17,7 @@ from src.web.config import Settings
 from src.adapters.repositorysqlite import CreateDB
 from src.web.dependicies import get_service_factory, get_app_settings
 from src.web.dependicies_auth import Token, oauth2_scheme, ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, \
-    get_current_user, unauthorized, check_login, UserVerifier, get_user_verifier
+    get_current_user, UserVerifier, get_user_verifier
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
 

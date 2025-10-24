@@ -70,7 +70,7 @@ def create_access_token(data: dict, expires_delta: timedelta = 0):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-
+"""
 def check_login(sf: ServiceFactory = Depends(get_service_factory),
                 credentials_exception: HTTPException = Depends(unauthorized)):
     admin_service = sf.get_admin_service()
@@ -83,7 +83,7 @@ def check_login(sf: ServiceFactory = Depends(get_service_factory),
         return Token(access_token=access_token, token_type="bearer")
     else:
         raise credentials_exception
-
+"""
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
                            sf: ServiceFactory = Depends(get_service_factory),
