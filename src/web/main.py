@@ -16,8 +16,8 @@ from src.services.service_layer.factory import ServiceFactory
 from src.web.config import Settings
 from src.adapters.repositorysqlite import CreateDB
 from src.web.dependicies import get_service_factory, get_app_settings
-from src.web.dependicies_auth import Token, oauth2_scheme, ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, \
-    get_current_user, unauthorized, check_login, UserVerifier, get_user_verifier
+from src.web.dependicies_auth import Token, oauth2_scheme, ACCESS_TOKEN_EXPIRE_MINUTES, \
+    get_current_user, UserVerifier, get_user_verifier
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
 
@@ -75,12 +75,13 @@ async def app_info(token: Annotated[str, Depends(oauth2_scheme)], settings: Sett
 
 @app.post("/token")
 async def login_for_access_token(
-        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],user_verifier: UserVerifier = Depends(get_user_verifier)
+        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+        user_verifier: UserVerifier = Depends(get_user_verifier)
 ) -> Token:
     username=form_data.username
     password=form_data.password
 
-    return user_verifier(username=username,password=password)
+    return user_verifier.authenticate(username=username,password=password)
 
 
 @app.get("/users/me")

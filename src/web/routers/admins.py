@@ -14,7 +14,7 @@ router = APIRouter(
     prefix="/admins",
     tags=["admins"],
     responses={404: {"description": "Not found"}},
-    dependencies=[Depends(get_current_user)]
+    #dependencies=[Depends(get_current_user)]
 )
 
 handlers = {

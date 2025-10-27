@@ -8,7 +8,7 @@ from jwt import InvalidTokenError
 from pydantic import BaseModel
 from starlette import status
 
-from src.domain.model import AdminEmpty, Admin
+from src.domain.model import AdminEmpty
 from src.services.service_layer.factory import ServiceFactory
 from dependicies import get_service_factory
 
@@ -30,29 +30,47 @@ class TokenData(BaseModel):
 
 class UserVerifier:
     def __init__(self, sf: ServiceFactory = Depends(get_service_factory)):
-        self.sf = sf
-        self.credentials_exception: HTTPException = Depends(unauthorized)
+        self.admin_service=sf.get_admin_service()
+        self.credentials_exception = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        self.admin = AdminEmpty()
 
-    def __call__(self, username: str, password: str):
-        admin_service = self.sf.get_admin_service()
-        admin = admin_service.execute('get_by_name', name=username)
+    def authenticate(self, username: str, password: str):
+        admin = self.admin_service.execute('get_by_name', name=username)
+        self.admin = admin
         if admin.verify_password(password=password) and admin.enabled:
-            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-            access_token = create_access_token(
-                data={"sub": admin.name}, expires_delta=access_token_expires
-            )
-            return Token(access_token=access_token, token_type="bearer")
+            return self.create_access_token(expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
         else:
             raise self.credentials_exception
 
+    def create_access_token(self, expires_delta: timedelta = 0):
+        if expires_delta:
+            expire = datetime.now(timezone.utc) + expires_delta
+        else:
+            expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        encoded_jwt = jwt.encode({"sub": self.admin.name, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
+        return Token(access_token=encoded_jwt, token_type="bearer")
 
-def unauthorized():
-    return HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-
-    )
+    def check(self, token: Annotated[str, Depends(oauth2_scheme)]):
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            username = payload.get("sub")
+            expires=payload.get("exp")
+            if (datetime.fromtimestamp(expires) - timedelta(minutes=30) > datetime.now()
+                    or not username):
+                raise self.credentials_exception
+            TokenData(username=username)
+            admin = self.admin_service.execute('get_by_name', name=username)
+            if admin is AdminEmpty:
+                raise self.credentials_exception
+        except InvalidTokenError:
+            raise self.credentials_exception
+        except Exception:
+            raise self.credentials_exception
+        return admin
 
 
 # Dependency to create UserVerifier instance
@@ -60,46 +78,6 @@ def get_user_verifier(sf: ServiceFactory = Depends(get_service_factory)):
     return UserVerifier(sf)
 
 
-def create_access_token(data: dict, expires_delta: timedelta = 0):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-
-def check_login(sf: ServiceFactory = Depends(get_service_factory),
-                credentials_exception: HTTPException = Depends(unauthorized)):
-    admin_service = sf.get_admin_service()
-    admin = admin_service.execute('get_by_name', name=username)
-    if admin.verify_password(password=password) and admin.enabled:
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": admin.name}, expires_delta=access_token_expires
-        )
-        return Token(access_token=access_token, token_type="bearer")
-    else:
-        raise credentials_exception
-
-
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)],
-                           sf: ServiceFactory = Depends(get_service_factory),
-                           credentials_exception: HTTPException = Depends(unauthorized)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-         #= timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-
-        if username is None:
-            raise credentials_exception
-        token_data = TokenData(username=username)
-    except InvalidTokenError:
-        raise credentials_exception
-    admin_service = sf.get_admin_service()
-    admin = admin_service.execute('get_by_name', name=username)
-    if admin is AdminEmpty:
-        raise credentials_exception
-    return admin
+                           sf: ServiceFactory = Depends(get_service_factory)):
+    return UserVerifier(sf).check(token=token)
