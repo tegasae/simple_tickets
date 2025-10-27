@@ -15,7 +15,7 @@ from src.services.service_layer.factory import ServiceFactory
 
 from src.web.config import Settings
 from src.adapters.repositorysqlite import CreateDB
-from src.web.dependicies import get_service_factory, get_app_settings
+from src.web.dependencies import get_service_factory, get_app_settings
 from src.web.dependicies_auth import Token, oauth2_scheme, ACCESS_TOKEN_EXPIRE_MINUTES, \
     get_current_user, UserVerifier, get_user_verifier
 
