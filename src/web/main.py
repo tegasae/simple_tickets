@@ -1,7 +1,6 @@
 import logging
 import sqlite3
 from contextlib import asynccontextmanager
-from datetime import timedelta
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Depends
@@ -11,13 +10,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 from starlette import status
 
 from src.domain.model import Admin
-from src.services.service_layer.factory import ServiceFactory
+
 
 from src.web.config import Settings
 from src.adapters.repositorysqlite import CreateDB
-from src.web.dependencies import get_service_factory, get_app_settings
-from src.web.dependicies_auth import Token, oauth2_scheme, ACCESS_TOKEN_EXPIRE_MINUTES, \
-    get_current_user, UserVerifier, get_user_verifier
+from src.web.dependencies import get_app_settings
+from src.web.dependicies_auth import Token, oauth2_scheme, get_current_user, UserVerifier, get_user_verifier
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
 
@@ -43,7 +41,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-app.include_router(admins.router)
+#app.include_router(admins.router)
 
 registry = ExceptionHandlerRegistry(app)
 
