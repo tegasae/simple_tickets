@@ -1,12 +1,12 @@
-from typing import List, Annotated
+from typing import List
 
 from fastapi import APIRouter, Depends, status
 
-from src.domain.model import Admin
+
 from src.services.service_layer.data import CreateAdminData
 from src.services.service_layer.factory import ServiceFactory
-from src.web.dependicies import get_service_factory
-from src.web.dependicies_auth import get_current_user
+from src.web.dependencies import get_service_factory
+
 
 from src.web.models import AdminView, AdminCreate, AdminUpdate
 
