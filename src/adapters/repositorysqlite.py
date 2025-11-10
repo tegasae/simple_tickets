@@ -144,7 +144,8 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
                 params={'new_version': aggregate.version, 'saved_version': self.saved_version}
             )
             query.set_result()
-
+            if not query.count:
+                raise DBOperationError(f"The version is wrong")
             # Clear existing admins
             query = self.conn.create_query("DELETE FROM admins")
             query.set_result()
@@ -177,7 +178,6 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
                         'enabled': 1 if admin.enabled else 0,
                         'date_created': admin.date_created.isoformat()
                     })
-
         except Exception as e:
             raise DBOperationError(f"Failed to save admins: {str(e)}")
 

@@ -41,7 +41,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-#app.include_router(admins.router)
+app.include_router(admins.router)
 
 registry = ExceptionHandlerRegistry(app)
 
@@ -125,5 +125,6 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         reload=True,  # Enable auto-reload during development
-        log_level="info"
+        log_level="info",
+        workers=4
     )

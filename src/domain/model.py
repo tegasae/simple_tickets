@@ -349,6 +349,7 @@ class AdminsAggregate:
             email=validated_email,
             enabled=enabled
         )
+        self.version+=1
         self.add_admin(admin)
         return admin
 
@@ -362,7 +363,7 @@ class AdminsAggregate:
             self._validate_admin_name_unique(admin.name)
 
             self.admins[admin.name] = admin
-            self.version += 1
+            #self.version += 1
 
     def change_admin(self, admin: Admin):
         """Change an existing admin with validation"""
