@@ -15,7 +15,8 @@ from src.domain.model import Admin
 from src.web.config import Settings
 from src.adapters.repositorysqlite import CreateDB
 from src.web.dependencies import get_app_settings
-from src.web.dependicies_auth import Token, oauth2_scheme, get_current_user, UserVerifier, get_user_verifier
+from src.web.dependicies_auth import Token, oauth2_scheme, get_current_user, UserVerifier, get_user_verifier, \
+    TokenRefresh
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
 
@@ -81,6 +82,28 @@ async def login_for_access_token(
 
     return user_verifier.authenticate(username=username,password=password)
 
+
+@app.post("/refresh", response_model=Token)
+async def refresh_access_token(
+    refresh_data: str,
+    user_verifier: UserVerifier = Depends(get_user_verifier)
+):
+    """
+    Refresh access token using refresh token
+    """
+    return user_verifier.verify_refresh_token(refresh_token=refresh_data)
+
+
+@app.post("/logout")
+async def logout(
+    current_user: Annotated[Admin, Depends(get_current_user)]
+):
+    """
+    Logout endpoint - could be used to blacklist tokens
+    In a real implementation, you might want to blacklist the current token
+    """
+    # In production, you might want to blacklist the current access token
+    return {"message": "Successfully logged out"}
 
 @app.get("/users/me")
 async def read_users_me(current_user: Annotated[Admin, Depends(get_current_user)]):
