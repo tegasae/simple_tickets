@@ -1,13 +1,13 @@
 import secrets
 
 from datetime import timedelta, datetime, timezone
-from typing import Annotated, Dict, Optional
+from typing import Annotated, Optional, List
 
 import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jwt import InvalidTokenError
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette import status
 
 from src.domain.model import AdminEmpty
@@ -32,7 +32,22 @@ class Token(BaseModel):
 class TokenRefresh(BaseModel):
     token_id: str
     username: str
+    scopes: List[str] = Field(default_factory=list)
+    created_at: datetime
     expires_at: datetime
+    used: bool = False
+
+    @classmethod
+    def create(cls, username: str, scopes: List[str] = None) -> 'TokenRefresh':
+        """Factory method for creating new refresh tokens"""
+        now = datetime.now(timezone.utc)
+        return cls(
+            token_id=secrets.token_urlsafe(32),
+            username=username,
+            scopes=scopes or [],
+            created_at=now,
+            expires_at=now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        )
 
 
 class TokenData(BaseModel):
@@ -41,13 +56,14 @@ class TokenData(BaseModel):
 
 class TokenStorage:
     _instance = None
-    #_lock = Lock()
+
+    # _lock = Lock()
 
     def __init__(self):
         self._refresh_tokens = {}
 
     def __new__(cls, *args, **kwargs):
-        #with cls._lock:
+        # with cls._lock:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
