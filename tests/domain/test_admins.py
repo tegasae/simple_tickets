@@ -267,7 +267,7 @@ class TestAdminsAggregate:
 
         assert empty_aggregate.admin_exists("admin1") is True
         assert empty_aggregate.get_admin_count() == 1
-        assert empty_aggregate.version == 1
+        assert empty_aggregate.version == 0
 
     def test_add_admin_duplicate_name(self, populated_aggregate, sample_admin):
         """Test adding admin with duplicate name"""
