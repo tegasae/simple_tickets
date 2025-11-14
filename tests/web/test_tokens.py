@@ -5,7 +5,7 @@ import jwt
 from pydantic.v1 import ValidationError
 
 from src.web.auth.tokens import AccessToken, RefreshToken, JWTToken
-from src.web.dependicies_auth import SECRET_KEY, ALGORITHM
+from src.web.config import SECRET_KEY, ALGORITHM
 
 
 class TestAccessToken:

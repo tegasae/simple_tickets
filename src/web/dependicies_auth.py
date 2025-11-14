@@ -13,11 +13,6 @@ from src.web.auth.storage import TokenStorageMemory, TokenNotFoundError
 from src.web.auth.tokens import AccessToken, RefreshToken, JWTToken
 from src.web.dependencies import get_service_factory
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-REFRESH_TOKEN_EXPIRE_DAYS = 1
-SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
-ALGORITHM = "HS256"
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
@@ -49,7 +44,7 @@ class UserVerifier:
             access_token=AccessToken(sub=admin.name,scope=scope)
             refresh_token = RefreshToken(user_id=admin.admin_id,username=admin.name)
             self.token_storage.put(refresh_token=refresh_token)
-            jwt_token=JWTToken(access_token=access_token.access_token,refresh_token=refresh_token)
+            jwt_token=JWTToken(access_token=access_token,refresh_token=refresh_token)
             return jwt_token.encode()
         else:
             raise self.credentials_exception
@@ -83,6 +78,17 @@ class UserVerifier:
         except Exception as e:
             # Log the actual error for debugging
             print(f"Token validation error: {e}")
+            raise self.credentials_exception
+
+    def revoke_refresh_token(self, token_id:str):
+        try:
+            self.token_storage.delete(token_id=token_id)
+
+
+        except TokenNotFoundError:
+            raise self.credentials_exception
+        except Exception as e:
+            # Log the actual error for debugging
             raise self.credentials_exception
 
 # Dependency to create UserVerifier instance

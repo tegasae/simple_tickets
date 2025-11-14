@@ -5,14 +5,15 @@ from typing import Optional
 import jwt
 from pydantic import BaseModel, Field
 
-from src.web.dependicies_auth import ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY, ALGORITHM, REFRESH_TOKEN_EXPIRE_DAYS
+from src.web.config import get_settings
+
 
 class AccessToken(BaseModel):
     # ✅ REQUIRED: Subject (user identifier)
     sub: str
     # ✅ REQUIRED: Expiration time
     exp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+        default_factory=lambda: datetime.now(timezone.utc) + timedelta(minutes=get_settings().ACCESS_TOKEN_EXPIRE_MINUTES))
     # ✅ REQUIRED: Issued at
     #iat: datetime = Field(default_factory=datetime.now(timezone.utc))
     iat: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -51,7 +52,7 @@ class AccessToken(BaseModel):
             elif value not in [None, "", []]:  # Include empty lists
                 payload[key] = value
 
-        return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        return jwt.encode(payload, get_settings().SECRET_KEY, algorithm=get_settings().ALGORITHM)
 
     @classmethod
     def decode(cls, token: str) -> 'AccessToken':
@@ -59,8 +60,8 @@ class AccessToken(BaseModel):
         try:
             payload = jwt.decode(
                 token,
-                SECRET_KEY,
-                algorithms=[ALGORITHM]
+                get_settings().SECRET_KEY,
+                algorithms=[get_settings().ALGORITHM]
             )
 
             # Convert scope string back to list
@@ -92,7 +93,7 @@ class RefreshToken(BaseModel):
     # ✅ REQUIRED: Timing information
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        default_factory=lambda: datetime.now(timezone.utc) + timedelta(days=get_settings().REFRESH_TOKEN_EXPIRE_DAYS)
     )
     # ✅ REQUIRED: Usage tracking
     used: bool = False
@@ -137,7 +138,6 @@ class JWTToken(BaseModel):
         return {
             "access_token": self.access_token.encode(),
             "token_type": "bearer",
-            "scope": self.access_token.scope2str(),
             "expires_in": max(expires_in, 0),  # Ensure non-negative
             "refresh_token": self.refresh_token.token_id  # Standard field name
         }

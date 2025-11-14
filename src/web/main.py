@@ -1,7 +1,7 @@
 import logging
 import sqlite3
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, Dict
 
 from fastapi import FastAPI, HTTPException, Depends
 
@@ -15,8 +15,8 @@ from src.domain.model import Admin
 from src.web.config import Settings
 from src.adapters.repositorysqlite import CreateDB
 from src.web.dependencies import get_app_settings
-from src.web.dependicies_auth import Token, oauth2_scheme, get_current_user, UserVerifier, get_user_verifier, \
-    TokenRefresh
+from src.web.dependicies_auth import oauth2_scheme, get_current_user, UserVerifier, get_user_verifier
+
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
 
@@ -76,34 +76,34 @@ async def app_info(token: Annotated[str, Depends(oauth2_scheme)], settings: Sett
 async def login_for_access_token(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
         user_verifier: UserVerifier = Depends(get_user_verifier)
-) -> Token:
+) -> Dict[str, str]:
     username=form_data.username
     password=form_data.password
-
-    return user_verifier.authenticate(username=username,password=password)
-
-
-@app.post("/refresh", response_model=Token)
-async def refresh_access_token(
-    refresh_data: str,
-    user_verifier: UserVerifier = Depends(get_user_verifier)
-):
-    """
-    Refresh access token using refresh token
-    """
-    return user_verifier.verify_refresh_token(refresh_token=refresh_data)
+    jwt=user_verifier.authenticate(username=username,password=password,scope=[])
+    return jwt
 
 
-@app.post("/logout")
-async def logout(
-    current_user: Annotated[Admin, Depends(get_current_user)]
-):
-    """
-    Logout endpoint - could be used to blacklist tokens
-    In a real implementation, you might want to blacklist the current token
-    """
-    # In production, you might want to blacklist the current access token
-    return {"message": "Successfully logged out"}
+#@app.post("/refresh", response_model=Token)
+#async def refresh_access_token(
+#    refresh_data: str,
+#    user_verifier: UserVerifier = Depends(get_user_verifier)
+#):
+#    """
+#    Refresh access token using refresh token
+#    """
+#    return user_verifier.verify_refresh_token(refresh_token=refresh_data)
+
+
+#@app.post("/logout")
+#async def logout(
+#    current_user: Annotated[Admin, Depends(get_current_user)]
+#):
+#    """
+#    Logout endpoint - could be used to blacklist tokens
+#    In a real implementation, you might want to blacklist the current token
+#    """
+#    # In production, you might want to blacklist the current access token
+#    return {"message": "Successfully logged out"}
 
 @app.get("/users/me")
 async def read_users_me(current_user: Annotated[Admin, Depends(get_current_user)]):
