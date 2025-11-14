@@ -76,7 +76,7 @@ class AccessToken(BaseModel):
         """Check if token is valid"""
         if not self.sub:
             return False
-        if self.exp > datetime.now(timezone.utc):
+        if self.exp < datetime.now(timezone.utc):
             return False
         return True
 
@@ -111,7 +111,7 @@ class RefreshToken(BaseModel):
             return False
 
         # Check if expired
-        if self.expires_at > datetime.now(timezone.utc):
+        if self.expires_at <= datetime.now(timezone.utc):
             return False
 
         # Check if already used

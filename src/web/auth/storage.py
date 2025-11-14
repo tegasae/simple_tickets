@@ -47,7 +47,7 @@ class TokenNotFoundError(Exception):
         super().__init__(f"Refresh token '{token_id}' not found")
 
 
-class TokenStoreMemory(TokenStorage):
+class TokenStorageMemory(TokenStorage):
     _instance = None
     _lock = Lock()
 

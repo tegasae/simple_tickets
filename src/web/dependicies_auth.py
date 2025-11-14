@@ -1,17 +1,16 @@
-import secrets
+from typing import Annotated
 
-from datetime import timedelta, datetime, timezone
-from typing import Annotated, Optional, List
 
-import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jwt import InvalidTokenError
-from pydantic import BaseModel, Field
+
 from starlette import status
 
 from src.domain.model import AdminEmpty
 from src.services.service_layer.factory import ServiceFactory
+from src.web.auth.storage import TokenStorageMemory, TokenNotFoundError
+from src.web.auth.tokens import AccessToken, RefreshToken, JWTToken
 from src.web.dependencies import get_service_factory
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -22,65 +21,8 @@ ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-    expires_in: int
-    refresh_token: Optional[str] = None  # Add refresh token
 
 
-class TokenRefresh(BaseModel):
-    token_id: str
-    username: str
-    scopes: List[str] = Field(default_factory=list)
-    created_at: datetime
-    expires_at: datetime
-    used: bool = False
-
-    @classmethod
-    def create(cls, username: str, scopes: List[str] = None) -> 'TokenRefresh':
-        """Factory method for creating new refresh tokens"""
-        now = datetime.now(timezone.utc)
-        return cls(
-            token_id=secrets.token_urlsafe(32),
-            username=username,
-            scopes=scopes or [],
-            created_at=now,
-            expires_at=now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-        )
-
-
-class TokenData(BaseModel):
-    username: str | None = None
-
-
-class TokenStorage:
-    _instance = None
-
-    # _lock = Lock()
-
-    def __init__(self):
-        self._refresh_tokens = {}
-
-    def __new__(cls, *args, **kwargs):
-        # with cls._lock:
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
-    def store_refresh_token(self, refresh_token: TokenRefresh):
-        self._refresh_tokens[refresh_token.token_id] = refresh_token
-        self._refresh_tokens["used"] = False
-
-    def is_valid_refresh_token(self, token_id: str) -> bool:
-        refresh_token = self._refresh_tokens.get(token_id)
-        return (refresh_token and
-                not refresh_token["used"] and
-                refresh_token["expires_at"] > datetime.now(timezone.utc))
-
-    def mark_token_used(self, token_id: str):
-        if token_id in self._refresh_tokens:
-            self._refresh_tokens[token_id]["used"] = True
 
 
 class UserVerifier:
@@ -92,9 +34,9 @@ class UserVerifier:
             headers={"WWW-Authenticate": "Bearer"},
         )
         self.admin = AdminEmpty()
-        self.token_storage = TokenStorage()
+        self.token_storage = TokenStorageMemory()
 
-    def authenticate(self, username: str, password: str):
+    def authenticate(self, username: str, password: str,scope:list[str]) -> dict:
         admin = self.admin_service.execute('get_by_name', name=username)
         self.admin = admin
 
@@ -103,69 +45,34 @@ class UserVerifier:
                 not isinstance(admin, AdminEmpty) and
                 admin.verify_password(password=password) and
                 admin.enabled):
-            refresh_token = self.create_refresh_token(admin.name)
-            access_token = self.create_access_token(expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
 
-            return self.create_access_token(expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+            access_token=AccessToken(sub=admin.name,scope=scope)
+            refresh_token = RefreshToken(user_id=admin.admin_id,username=admin.name)
+            self.token_storage.put(refresh_token=refresh_token)
+            jwt_token=JWTToken(access_token=access_token.access_token,refresh_token=refresh_token)
+            return jwt_token.encode()
         else:
             raise self.credentials_exception
 
-    def create_access_token(self, expires_delta: timedelta | None = None):
-        if expires_delta:
-            expire = datetime.now(timezone.utc) + expires_delta
-        else:
-            expire = datetime.now(timezone.utc) + timedelta(minutes=15)
 
-        to_encode = {"sub": self.admin.name, "exp": expire}
-        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-        return Token(access_token=encoded_jwt, token_type="bearer")
-
-    def create_refresh_token(self, username: str) -> str:
-        refresh_token_id = secrets.token_urlsafe(32)
-        refresh_token = TokenRefresh(token_id=refresh_token_id, username=username,
-                                     expires_at=datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
-        # Store in external storage
-        self.token_storage.store_refresh_token(refresh_token=refresh_token)
-
-        to_encode = {
-            "sub": username,
-            "exp": datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
-            "type": "refresh",
-            "jti": refresh_token_id
-        }
-        return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-    def verify_refresh_token(self, refresh_token: str) -> str:
+    def verify_refresh_token(self, token_id: str):
         try:
-            payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
-            token_id = payload.get("jti")
-
+            #payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+            #token_id = payload.get("jti")
+            refresh_token = self.token_storage.get(token_id=token_id)
+            if not refresh_token.is_valid():
+                raise self.credentials_exception
             # Check external storage
-            if not self.token_storage.is_valid_refresh_token(token_id):
-                raise self.credentials_exception
 
-            # Mark as used in external storage
-            self.token_storage.mark_token_used(token_id)
-
-            return payload.get("sub")
-        except InvalidTokenError:
+        except (InvalidTokenError,TokenNotFoundError):
             raise self.credentials_exception
 
-    def check(self, token: Annotated[str, Depends(oauth2_scheme)]):
+    def verify_access_token(self, token: Annotated[str, Depends(oauth2_scheme)]):
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            username: str = payload.get("sub")
-            expires: int = payload.get("exp")
-
-            # Check if token is expired or username is missing
-            if not username or datetime.fromtimestamp(expires, tz=timezone.utc) < datetime.now(timezone.utc):
+            access_token=AccessToken.decode(token=token)
+            if not access_token.is_valid():
                 raise self.credentials_exception
-
-            # Validate token data
-            token_data = TokenData(username=username)
-
-            # Get admin from database
-            admin = self.admin_service.execute('get_by_name', name=token_data.username)
+            admin = self.admin_service.execute('get_by_name', name=access_token.sub)
 
             # Check if admin exists and is valid
             if not admin or isinstance(admin, AdminEmpty):
@@ -178,9 +85,6 @@ class UserVerifier:
             print(f"Token validation error: {e}")
             raise self.credentials_exception
 
-        return admin
-
-
 # Dependency to create UserVerifier instance
 async def get_user_verifier(sf: ServiceFactory = Depends(get_service_factory)):
     return UserVerifier(sf)
@@ -191,4 +95,4 @@ async def get_current_user(
         user_verifier: UserVerifier = Depends(get_user_verifier)
 ):
     """Get current user from token - simplified version"""
-    return user_verifier.check(token=token)
+    return user_verifier.verify_access_token(token=token)

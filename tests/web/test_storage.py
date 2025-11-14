@@ -5,7 +5,7 @@ from threading import Thread
 import concurrent.futures
 
 from src.web.auth.tokens import RefreshToken
-from src.web.auth.storage import TokenStoreMemory, TokenNotFoundError
+from src.web.auth.storage import TokenStorageMemory, TokenNotFoundError
 from src.web.auth.tokens import REFRESH_TOKEN_EXPIRE_DAYS
 
 
@@ -14,22 +14,22 @@ class TestTokenStoreMemory:
 
     def test_singleton_pattern(self):
         """Test that TokenStoreMemory follows singleton pattern"""
-        store1 = TokenStoreMemory()
-        store2 = TokenStoreMemory()
+        store1 = TokenStorageMemory()
+        store2 = TokenStorageMemory()
 
         assert store1 is store2
         assert id(store1) == id(store2)
 
     def test_initial_state(self):
         """Test initial state of token store"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()  # Ensure clean state
 
         assert store.count() == 0
 
     def test_put_and_get_token(self):
         """Test storing and retrieving a token"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
         token = RefreshToken(username="john", user_id=123)
@@ -44,7 +44,7 @@ class TestTokenStoreMemory:
 
     def test_get_nonexistent_token_raises_error(self):
         """Test getting non-existent token raises TokenNotFoundError"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
         with pytest.raises(TokenNotFoundError) as exc_info:
@@ -55,7 +55,7 @@ class TestTokenStoreMemory:
 
     def test_delete_token(self):
         """Test token deletion"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
         token = RefreshToken(username="john", user_id=123)
@@ -71,7 +71,7 @@ class TestTokenStoreMemory:
 
     def test_delete_nonexistent_token_raises_error(self):
         """Test deleting non-existent token raises TokenNotFoundError"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
         with pytest.raises(TokenNotFoundError) as exc_info:
@@ -81,7 +81,7 @@ class TestTokenStoreMemory:
 
     def test_cleanup_expired_tokens(self):
         """Test cleaning up expired tokens"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
         # Valid token (not expired, not used)
@@ -124,7 +124,7 @@ class TestTokenStoreMemory:
 
     def test_cleanup_no_tokens_to_remove(self):
         """Test cleanup when no tokens need removal"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
         valid_token1 = RefreshToken(username="john", user_id=123)
@@ -139,7 +139,7 @@ class TestTokenStoreMemory:
 
     def test_get_user_tokens(self):
         """Test retrieving tokens by username"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
         token1 = RefreshToken(username="john", user_id=123)
@@ -164,7 +164,7 @@ class TestTokenStoreMemory:
 
     def test_get_user_tokens_empty_store(self):
         """Test getting user tokens from empty store"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
         result = store.get_user_tokens("anyuser")
@@ -172,17 +172,17 @@ class TestTokenStoreMemory:
 
     def setup_method(self):
         """Clear token store before each test"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
     def teardown_method(self):
         """Clean up after each test"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
     def test_revoke_user_tokens(self):
         """Test revoking all tokens for a user"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
         token1 = RefreshToken(username="john", user_id=123)
@@ -211,7 +211,7 @@ class TestTokenStoreMemory:
 
     def test_revoke_user_with_no_tokens(self):
         """Test revoking tokens for user with no tokens"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
         # Add tokens for different user
@@ -224,7 +224,7 @@ class TestTokenStoreMemory:
 
     def test_count_method(self):
         """Test token counting"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
         assert store.count() == 0
@@ -242,7 +242,7 @@ class TestTokenStoreMemory:
 
     def test_clear_method(self):
         """Test clearing all tokens"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
         # Add tokens
@@ -261,7 +261,7 @@ class TestTokenStoreMemory:
 
     def test_thread_safety_basic_operations(self):
         """Basic test for thread safety in operations"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
         token = RefreshToken(username="john", user_id=123)
@@ -276,7 +276,7 @@ class TestTokenStoreMemory:
 
     def test_concurrent_operations(self):
         """Test concurrent operations from multiple threads"""
-        store = TokenStoreMemory()
+        store = TokenStorageMemory()
         store.clear()
 
         num_tokens = 100
@@ -333,14 +333,14 @@ class TestTokenStoreMemory:
 
     def test_token_persistence_in_singleton(self):
         """Test that tokens persist across singleton instances"""
-        store1 = TokenStoreMemory()
+        store1 = TokenStorageMemory()
         store1.clear()
 
         token = RefreshToken(username="john", user_id=123)
         store1.put(token)
 
         # Get another instance (should be same singleton)
-        store2 = TokenStoreMemory()
+        store2 = TokenStorageMemory()
 
         # Token should be accessible from both instances
         assert store1.get(token.token_id) == token

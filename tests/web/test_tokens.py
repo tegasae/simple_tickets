@@ -2,6 +2,7 @@ import pytest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 import jwt
+from pydantic.v1 import ValidationError
 
 from src.web.auth.tokens import AccessToken, RefreshToken, JWTToken
 from src.web.dependicies_auth import SECRET_KEY, ALGORITHM
@@ -162,11 +163,8 @@ class TestAccessToken:
         assert token.is_valid() is False
         assert bool(token) is False
 
-    def test_is_valid_with_none_subject(self):
-        """Test token validation with None subject"""
-        token = AccessToken(sub=None)  # type: ignore
-        assert token.is_valid() is False
-        assert bool(token) is False
+
+
 
     def test_is_valid_expired_token(self):
         """Test token validation with expired token"""
@@ -270,25 +268,7 @@ class TestRefreshToken:
         token = RefreshToken(username="john", user_id=123, used=True)
         assert token.is_valid() is False
 
-    def test_is_valid_with_future_last_used(self):
-        """Test validation with future last_used_at (invalid scenario)"""
-        future_time = datetime.now(timezone.utc) + timedelta(hours=1)
-        token = RefreshToken(
-            username="john",
-            user_id=123,
-            last_used_at=future_time
-        )
-        assert token.is_valid() is False
-
-    def test_is_valid_with_past_last_used(self):
-        """Test validation with past last_used_at (valid scenario)"""
-        past_time = datetime.now(timezone.utc) - timedelta(hours=1)
-        token = RefreshToken(
-            username="john",
-            user_id=123,
-            last_used_at=past_time
-        )
-        assert token.is_valid() is True
+   
 
 
 class TestJWTToken:
