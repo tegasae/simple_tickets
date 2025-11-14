@@ -1,3 +1,4 @@
+import json
 import logging
 import sqlite3
 from contextlib import asynccontextmanager
@@ -76,7 +77,7 @@ async def app_info(token: Annotated[str, Depends(oauth2_scheme)], settings: Sett
 async def login_for_access_token(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
         user_verifier: UserVerifier = Depends(get_user_verifier)
-) -> Dict[str, str]:
+):
     username=form_data.username
     password=form_data.password
     jwt=user_verifier.authenticate(username=username,password=password,scope=[])
