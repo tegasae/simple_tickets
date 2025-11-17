@@ -140,8 +140,8 @@ async def get_current_user(
 
 async def set_user_in_state(
     request: Request,
-    current_user: Admin = Depends(get_current_user)  # Your existing OAuth2 dependency
+    user_verifier: UserVerifier = Depends(get_user_verifier) # Your existing OAuth2 dependency
 ):
     """Store the authenticated user in request state for middleware access"""
-    request.state.user = current_user
-    return current_user
+    request.headers['1']=1
+    return ""

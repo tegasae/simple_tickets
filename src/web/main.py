@@ -41,7 +41,7 @@ app = FastAPI(
     version=get_app_settings().APP_VERSION,
     description="Admin Management API with FastAPI",
     lifespan=lifespan,
-    #dependencies=[Depends(set_user_in_state)]
+
 )
 
 app.include_router(admins.router)
