@@ -1,14 +1,11 @@
 # core/exception_handlers.py
 import importlib
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from functools import wraps
-from typing import Callable, Any, Dict, Optional
+from typing import Dict
 import logging
 
-from src.domain.exceptions import AdminError
 
 logger = logging.getLogger(__name__)
 

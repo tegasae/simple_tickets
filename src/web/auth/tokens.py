@@ -101,6 +101,7 @@ class RefreshToken(BaseModel):
     use_count: int = 0
     # ✅ RECOMMENDED: Security context
     client_id: str = ""
+    scope: list[str] = []
 
     def is_valid(self) -> bool:
         """Check if refresh token is valid"""
@@ -139,7 +140,8 @@ class JWTToken(BaseModel):
             "access_token": self.access_token.encode(),
             "token_type": "bearer",
             "expires_in": max(expires_in, 0),  # Ensure non-negative
-            "refresh_token": self.refresh_token.token_id  # Standard field name
+            "refresh_token": self.refresh_token.token_id,  # Standard field name
+            "scope": self.access_token.scope2str()  # ✅ Add scope field
         }
 
     def is_valid(self) -> bool:
