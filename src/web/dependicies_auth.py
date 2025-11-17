@@ -8,11 +8,13 @@ from pydantic import BaseModel
 
 from starlette import status
 
-from src.domain.model import AdminEmpty
+from src.domain.model import AdminEmpty, Admin
 from src.services.service_layer.factory import ServiceFactory
 from src.web.auth.storage import TokenStorageMemory, TokenNotFoundError
 from src.web.auth.tokens import AccessToken, RefreshToken, JWTToken
 from src.web.dependencies import get_service_factory
+from fastapi import Request
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token",scopes={
         "read": "Read access to user data",
@@ -133,5 +135,13 @@ async def get_current_user(
         user_verifier: UserVerifier = Depends(get_user_verifier)
 ):
     """Get current user from token - simplified version"""
-    
+
     return user_verifier.verify_access_token(token=token)
+
+async def set_user_in_state(
+    request: Request,
+    current_user: Admin = Depends(get_current_user)  # Your existing OAuth2 dependency
+):
+    """Store the authenticated user in request state for middleware access"""
+    request.state.user = current_user
+    return current_user

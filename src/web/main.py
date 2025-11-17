@@ -16,9 +16,10 @@ from src.web.config import Settings
 from src.adapters.repositorysqlite import CreateDB
 from src.web.dependencies import get_app_settings
 from src.web.dependicies_auth import oauth2_scheme, get_current_user, UserVerifier, get_user_verifier, \
-    RefreshTokenRequest
+    RefreshTokenRequest, set_user_in_state
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
+from src.web.middleware.middleware import LoggingMiddleware
 
 from src.web.routers import admins
 
@@ -39,11 +40,12 @@ app = FastAPI(
     title=get_app_settings().APP_NAME,
     version=get_app_settings().APP_VERSION,
     description="Admin Management API with FastAPI",
-    lifespan=lifespan
+    lifespan=lifespan,
+    #dependencies=[Depends(set_user_in_state)]
 )
 
 app.include_router(admins.router)
-
+app.add_middleware(LoggingMiddleware)
 registry = ExceptionHandlerRegistry(app)
 
 registry.add_all_handler('src.domain.exceptions', admins.handlers)
