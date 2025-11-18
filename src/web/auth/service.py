@@ -112,7 +112,6 @@ class AuthManager:
 
         return self.token_service.renew_tokens(refresh_token_id)
 
-
     def logout(self, refresh_token_id: str = None, username: str = None):
         """Logout by revoking tokens"""
         self.token_service.revoke_tokens(token_id=refresh_token_id, username=username)

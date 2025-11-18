@@ -54,8 +54,6 @@ class LoggingMiddlewareOld(BaseHTTPMiddleware):
             return "invalid_token"
 
 
-
-
 class LoggingMiddleware:
     def __init__(self, app):
         self.app = app
@@ -105,5 +103,3 @@ class LoggingMiddleware:
             return payload.get("sub", "token_without_username")
         except Exception:
             return "invalid_token"
-
-
