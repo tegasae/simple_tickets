@@ -1,5 +1,6 @@
 import logging
 import sqlite3
+import traceback
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -9,13 +10,14 @@ import uvicorn
 from fastapi.security import OAuth2PasswordRequestForm
 from starlette import status
 
-from src.web.auth.service import AuthManager
+from src.web.auth.services import AuthManager
 
 from src.web.config import Settings
 from src.adapters.repositorysqlite import CreateDB
 from src.web.dependencies import get_app_settings
 from src.web.dependicies_auth import oauth2_scheme, \
-    get_auth_manager, RefreshRequest, LogoutRequest, get_current_user_new
+    get_auth_manager, get_current_user_new
+from src.web.auth.tokens import RefreshRequest, LogoutRequest
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
 from src.web.middleware.middleware import LoggingMiddleware
@@ -78,8 +80,17 @@ async def login(
         form_data: OAuth2PasswordRequestForm = Depends(),
         auth_manager: AuthManager = Depends(get_auth_manager)
 ):
-    scopes = form_data.scopes if form_data.scopes else []
-    return auth_manager.login(form_data.username, form_data.password, scopes)
+    #scopes = form_data.scopes if form_data.scopes else []
+    #return auth_manager.login(form_data.username, form_data.password, scopes)
+    try:
+        scopes = form_data.scopes if form_data.scopes else []
+        #result = auth_manager.login(form_data.username, form_data.password, scopes)
+        #return result
+        print(auth_manager)
+    except Exception as e:
+        print(f"Login error: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/refresh")

@@ -1,3 +1,5 @@
+
+
 from jwt import InvalidTokenError
 
 from src.domain.model import AdminEmpty, AdminAbstract
@@ -8,7 +10,7 @@ from src.web.auth.tokens import AccessToken, RefreshToken, JWTToken
 
 
 class TokenService:
-    def __init__(self, token_storage: TokenStorage = TokenStorageMemory()):
+    def __init__(self, token_storage: TokenStorage):
         self.token_storage = token_storage
 
     def create_token_pair(self, username: str, user_id: int, scope: list[str]) -> dict:

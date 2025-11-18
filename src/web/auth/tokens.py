@@ -8,14 +8,22 @@ from pydantic import BaseModel, Field
 from src.web.config import get_settings
 
 
+class AuthUser(BaseModel):
+    id: int
+    login: str
+    enabled: bool = True
+    scope: list[str] = []
+
+
 class AccessToken(BaseModel):
     # ✅ REQUIRED: Subject (user identifier)
     sub: str
     # ✅ REQUIRED: Expiration time
     exp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc) + timedelta(minutes=get_settings().ACCESS_TOKEN_EXPIRE_MINUTES))
+        default_factory=lambda: datetime.now(timezone.utc) + timedelta(
+            minutes=get_settings().ACCESS_TOKEN_EXPIRE_MINUTES))
     # ✅ REQUIRED: Issued at
-    #iat: datetime = Field(default_factory=datetime.now(timezone.utc))
+    # iat: datetime = Field(default_factory=datetime.now(timezone.utc))
     iat: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     # ✅ RECOMMENDED: Issuer (your app)
     iss: str = ""
@@ -151,3 +159,25 @@ class JWTToken(BaseModel):
     def __bool__(self) -> bool:
         """Boolean representation of token pair validity"""
         return self.is_valid()
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    refresh_token: str
+    scope: str = ""
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+    scope: Optional[list[str]] = None
