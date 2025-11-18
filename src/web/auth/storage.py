@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from abc import ABC, abstractmethod
 from typing import Optional
 
+from src.web.auth.exceptions import TokenNotFoundError
 from src.web.auth.tokens import RefreshToken
 
 
@@ -39,12 +40,6 @@ class TokenStorage(ABC):
     @abstractmethod
     def clear(self):
         raise NotImplementedError
-
-class TokenNotFoundError(Exception):
-    """Custom exception for token not found"""
-    def __init__(self, token_id: str):
-        self.token_id = token_id
-        super().__init__(f"Refresh token '{token_id}' not found")
 
 
 class TokenStorageMemory(TokenStorage):

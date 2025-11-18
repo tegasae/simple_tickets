@@ -5,7 +5,8 @@ from threading import Thread
 import concurrent.futures
 
 from src.web.auth.tokens import RefreshToken
-from src.web.auth.storage import TokenStorageMemory, TokenNotFoundError
+from src.web.auth.storage import TokenStorageMemory
+from src.web.auth.exceptions import TokenNotFoundError
 from src.web.config import REFRESH_TOKEN_EXPIRE_DAYS
 
 
