@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, status
 from src.services.service_layer.data import CreateAdminData
 from src.services.service_layer.factory import ServiceFactory
 from src.web.dependencies import get_service_factory
-
+from src.web.dependicies_auth import get_current_user_new
 
 from src.web.models import AdminView, AdminCreate, AdminUpdate
 
@@ -14,7 +14,7 @@ router = APIRouter(
     prefix="/admins",
     tags=["admins"],
     responses={404: {"description": "Not found"}},
-    #dependencies=[Depends(get_current_user)]
+    dependencies=[Depends(get_current_user_new)]
 )
 
 handlers = {

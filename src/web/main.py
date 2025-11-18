@@ -9,14 +9,13 @@ import uvicorn
 from fastapi.security import OAuth2PasswordRequestForm
 from starlette import status
 
-from src.domain.model import Admin
-
+from src.web.auth.service import AuthManager
 
 from src.web.config import Settings
 from src.adapters.repositorysqlite import CreateDB
 from src.web.dependencies import get_app_settings
-from src.web.dependicies_auth import oauth2_scheme, get_current_user, UserVerifier, get_user_verifier, \
-    RefreshTokenRequest, set_user_in_state
+from src.web.dependicies_auth import oauth2_scheme, \
+    get_auth_manager, RefreshRequest, LogoutRequest, get_current_user_new
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
 from src.web.middleware.middleware import LoggingMiddleware
@@ -45,7 +44,7 @@ app = FastAPI(
 )
 
 app.include_router(admins.router)
-app.add_middleware(LoggingMiddleware)
+LoggingMiddleware(app)
 registry = ExceptionHandlerRegistry(app)
 
 registry.add_all_handler('src.domain.exceptions', admins.handlers)
@@ -74,52 +73,37 @@ async def app_info(token: Annotated[str, Depends(oauth2_scheme)], settings: Sett
     }
 
 
-@app.post("/token", response_model=dict)
-async def login_for_access_token(
-        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-        user_verifier: UserVerifier = Depends(get_user_verifier)
+@app.post("/token")
+async def login(
+        form_data: OAuth2PasswordRequestForm = Depends(),
+        auth_manager: AuthManager = Depends(get_auth_manager)
 ):
-    username=form_data.username
-    password=form_data.password
-    scopes=form_data.scopes if form_data.scopes else []
-    jwt=user_verifier.authenticate(username=username,password=password,scope=scopes)
-    return jwt
+    scopes = form_data.scopes if form_data.scopes else []
+    return auth_manager.login(form_data.username, form_data.password, scopes)
 
 
-@app.post("/refresh", response_model=dict)
-async def refresh_access_token(
-    refresh_token_request: RefreshTokenRequest,
-    user_verifier: UserVerifier = Depends(get_user_verifier)
+@app.post("/refresh")
+async def refresh(
+        refresh_request: RefreshRequest,
+        auth_manager: AuthManager = Depends(get_auth_manager)
 ):
-    """
-    Refresh access token using refresh token
-    """
-    if user_verifier.verify_refresh_token(token_id=refresh_token_request.refresh_token):
-        return user_verifier.renew_all_tokens(token_id=refresh_token_request.refresh_token)
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid refresh token"
-        )
-
+    return auth_manager.refresh(refresh_request.refresh_token)
 
 
 @app.post("/logout")
 async def logout(
-    current_user: Annotated[str, Depends(get_current_user)],user_verifier: UserVerifier = Depends(get_user_verifier)
+        logout_request: LogoutRequest,
+        auth_manager: AuthManager = Depends(get_auth_manager)
 ):
-    """
-    Logout endpoint - could be used to blacklist tokens
-    In a real implementation, you might want to blacklist the current token
-    """
-    # In production, you might want to blacklist the current access token
+    auth_manager.logout(refresh_token_id=logout_request.refresh_token)
+    return {"message": "Logged out successfully"}
 
-    user_verifier.revoke_user_tokens(username=current_user)
-    return {"message": "Successfully logged out"}
 
 @app.get("/users/me")
-async def read_users_me(current_user: Annotated[Admin, Depends(get_current_user)]):
-    return current_user
+async def read_current_user(
+        username: str = Depends(get_current_user_new)
+):
+    return {"username": username}
 
 
 @app.post("/create-db", status_code=status.HTTP_201_CREATED)

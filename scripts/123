@@ -1,4 +1,3 @@
-Response:
-{"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJuYW1lIiwiZXhwIjoxNzYzMzgyNDgxLCJpYXQiOjE3NjMzODA2ODF9.3CIPJaifAJhdpws9q_eVY5sHpAnxbcD4ms9sTdR4Igw",
+{"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0X2FkbWluIiwiZXhwIjoxNzYzNDc0NTMwLCJpYXQiOjE3NjM0NzI3MzAsInNjb3BlIjoicmVhZCB3cml0ZSJ9.VRckX83HrfgmrMfc-qnB-m7_9SygJ0YgFLpEnDl0nnU",
 "token_type":"bearer","expires_in":1799,
-"refresh_token":"N_c48XRstDiVRpbwGd8AF5ZMDdEB537BxbOdBb3__XA","scope":""}
+"refresh_token":"T44anpjpZ2B2Z8pRMhEVDlGLXG3IT0CMO-oT1KE565Q","scope":"read write"}
