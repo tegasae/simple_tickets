@@ -1,12 +1,9 @@
-from typing import Optional
-
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel
 
 from src.services.service_layer.admins import AdminService
 from src.services.service_layer.factory import ServiceFactory
-from src.web.auth.service import AuthService, TokenService, AuthManager
+from src.web.auth.services import AuthService, TokenService, AuthManager
 from src.web.dependencies import get_service_factory
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", scopes={
@@ -14,28 +11,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", scopes={
     "write": "Write access to user data",
     "admin": "Administrator access"
 })
-
-
-class RefreshRequest(BaseModel):
-    refresh_token: str
-
-
-class LogoutRequest(BaseModel):
-    refresh_token: str
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    expires_in: int
-    refresh_token: str
-    scope: str = ""
-
-
-class LoginRequest(BaseModel):
-    username: str
-    password: str
-    scope: Optional[list[str]] = None
 
 
 def get_token_service() -> TokenService:
