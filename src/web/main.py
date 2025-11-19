@@ -45,7 +45,7 @@ app = FastAPI(
 )
 
 app.include_router(admins.router)
-LoggingMiddleware(app)
+#LoggingMiddleware(app)
 registry = ExceptionHandlerRegistry(app)
 
 registry.add_all_handler('src.domain.exceptions', admins.handlers)

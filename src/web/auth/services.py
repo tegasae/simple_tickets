@@ -2,13 +2,13 @@ from jwt import InvalidTokenError
 
 from src.domain.model import AdminEmpty, AdminAbstract
 from src.services.service_layer.admins import AdminService
-from src.web.auth.storage import TokenStorage, TokenStorageMemory
+from src.web.auth.storage import TokenStorage
 from src.web.auth.exceptions import TokenNotFoundError, TokenExpiredError, TokenError, UserNotValidError
 from src.web.auth.tokens import AccessToken, RefreshToken, JWTToken
 
 
 class TokenService:
-    def __init__(self, token_storage: TokenStorage = TokenStorageMemory()):
+    def __init__(self, token_storage: TokenStorage):
         self.token_storage = token_storage
 
     def create_token_pair(self, username: str, user_id: int, scope: list[str]) -> dict:
@@ -94,11 +94,11 @@ class AuthService:
 class AuthManager:
     def __init__(
             self,
-            auth_service: AuthService,
-            token_service: TokenService
+            admin_service: AdminService,
+            token_storage:TokenStorage
     ):
-        self.auth_service = auth_service
-        self.token_service = token_service
+        self.auth_service = AuthService(admin_service=admin_service)
+        self.token_service = TokenService(token_storage=token_storage)
 
     def login(self, username: str, password: str, scope: list[str]) -> dict:
         """Complete login flow"""
