@@ -1,9 +1,8 @@
-
+from abc import ABC, abstractmethod
 
 from jwt import InvalidTokenError
 
-from src.domain.model import AdminEmpty, AdminAbstract
-from src.services.service_layer.admins import AdminService
+from src.web.auth.models import UserAuth
 from src.web.auth.storage import TokenStorage
 from src.web.auth.exceptions import TokenNotFoundError, TokenExpiredError, TokenError, UserNotValidError
 from src.web.auth.tokens import AccessToken, RefreshToken, JWTToken
@@ -67,51 +66,40 @@ class TokenService:
             self.token_storage.revoke_user_tokens(username)
 
 
-class AuthService:
-    def __init__(self, admin_service: AdminService):
-        self.admin_service = admin_service
+class AuthServiceAbstract(ABC):
+    @abstractmethod
+    def authenticate_user(self, username: str, password: str) -> UserAuth:
+        raise NotImplementedError
 
-    def authenticate_user(self, username: str, password: str) -> AdminAbstract:
-        """Authenticate user credentials"""
-        admin = self.admin_service.execute('get_by_name', name=username)
-
-        if (admin and
-                not isinstance(admin, AdminEmpty) and
-                admin.verify_password(password=password) and
-                admin.enabled):
-            return admin
-        else:
-            raise UserNotValidError(username)
-
-    def validate_user_exists(self, username: str) -> AdminAbstract:
-        """Validate user exists and is enabled"""
-        admin = self.admin_service.execute('get_by_name', name=username)
-
-        if not admin or isinstance(admin, AdminEmpty) or not admin.enabled:
-            raise UserNotValidError(username)
-
-        return admin
+    @abstractmethod
+    def validate_user_exists(self, username: str) -> bool:
+        raise NotImplementedError
 
 
 class AuthManager:
     def __init__(
             self,
-            admin_service: AdminService,
-            token_storage:TokenStorage
+            auth_service_abstract: AuthServiceAbstract,
+            token_storage: TokenStorage
     ):
-        self.auth_service = AuthService(admin_service=admin_service)
+        self.token_storage = token_storage
+        self.auth_service_abstract = auth_service_abstract
+        # self.auth_service = AuthService(admin_service=admin_service)
         self.token_service = TokenService(token_storage=token_storage)
 
     def login(self, username: str, password: str, scope: list[str]) -> dict:
         """Complete login flow"""
-        admin = self.auth_service.authenticate_user(username, password)
-        return self.token_service.create_token_pair(admin.name, admin.admin_id, scope)
+        user_auth = self.auth_service_abstract.authenticate_user(username, password)
+        ###check scope later
+        return self.token_service.create_token_pair(username=user_auth.username, user_id=user_auth.id, scope=user_auth.scope)
 
     def refresh(self, refresh_token_id: str) -> dict:
         """Complete token refresh flow"""
+        refresh_token = self.token_storage.get(token_id=refresh_token_id)
+        if not self.auth_service_abstract.validate_user_exists(refresh_token.username):
+            raise UserNotValidError(user=refresh_token.username)
         if not self.token_service.verify_refresh_token(refresh_token_id):
             raise TokenError(refresh_token_id)
-
         return self.token_service.renew_tokens(refresh_token_id)
 
     def logout(self, refresh_token_id: str = None, username: str = None):

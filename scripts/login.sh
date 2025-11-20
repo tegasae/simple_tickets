@@ -13,8 +13,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Global variables to store tokens
-ACCESS_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0X2FkbWluIiwiZXhwIjoxNzYzNDc0NTMwLCJpYXQiOjE3NjM0NzI3MzAsInNjb3BlIjoicmVhZCB3cml0ZSJ9.VRckX83HrfgmrMfc-qnB-m7_9SygJ0YgFLpEnDl0nnU"
-REFRESH_TOKEN="T44anpjpZ2B2Z8pRMhEVDlGLXG3IT0CMO-oT1KE565Q"
+ACCESS_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0X2FkbWluIiwiZXhwIjoxNzYzNjQxMjMyLCJpYXQiOjE3NjM2Mzk0MzJ9.99ewXY56zOJM7BShF9pk3LgFO15mXxbwWBwRz2pGXBM"
+REFRESH_TOKEN="Y6HyXH_67ZHonbhr9gungTi_h0Nc3_YbxLLNzmO4JYk"
 SCOPE="read write"
 print_header() {
     echo -e "${BLUE}=== $1 ===${NC}"
