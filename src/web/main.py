@@ -16,7 +16,7 @@ from src.adapters.repositorysqlite import CreateDB
 from src.web.dependencies import get_app_settings
 from src.web.dependicies_auth import oauth2_scheme, \
     get_auth_manager, get_current_user_new
-from src.web.auth.tokens import RefreshRequest, LogoutRequest
+from src.web.auth.models import RefreshRequest, LogoutRequest
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
 from src.web.middleware.middleware import LoggingMiddleware

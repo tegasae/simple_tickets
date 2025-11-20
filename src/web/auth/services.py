@@ -95,7 +95,7 @@ class AuthManager:
     def __init__(
             self,
             admin_service: AdminService,
-            token_storage:TokenStorage
+            token_storage: TokenStorage
     ):
         self.auth_service = AuthService(admin_service=admin_service)
         self.token_service = TokenService(token_storage=token_storage)
