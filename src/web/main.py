@@ -1,6 +1,5 @@
 import logging
 import sqlite3
-import traceback
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -80,17 +79,9 @@ async def login(
         form_data: OAuth2PasswordRequestForm = Depends(),
         auth_manager: AuthManager = Depends(get_auth_manager)
 ):
-    #scopes = form_data.scopes if form_data.scopes else []
-    #return auth_manager.login(form_data.username, form_data.password, scopes)
-    try:
-        scopes = form_data.scopes if form_data.scopes else []
-        #result = auth_manager.login(form_data.username, form_data.password, scopes)
-        #return result
-        print(auth_manager)
-    except Exception as e:
-        print(f"Login error: {e}")
-        print(traceback.format_exc())
-        raise HTTPException(status_code=400, detail=str(e))
+    #
+    scopes = form_data.scopes if form_data.scopes else []
+    return auth_manager.login(form_data.username, form_data.password, scopes)
 
 
 @app.post("/refresh")
