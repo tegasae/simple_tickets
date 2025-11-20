@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, status
 
 from src.services.service_layer.data import CreateAdminData
 from src.services.service_layer.factory import ServiceFactory
-from src.web.dependencies import get_service_factory
-from src.web.dependicies_auth import get_current_user_new
+from src.web.dependicies.dependencies import get_service_factory
+from src.web.dependicies.dependicies_auth import get_current_user_new
 
 from src.web.models import AdminView, AdminCreate, AdminUpdate
 
@@ -93,7 +93,6 @@ async def read_admins(
     """
     admin_service = sf.get_admin_service()
     all_admins = admin_service.list_all_admins()
-
     # Convert to view models
     return [AdminView.from_admin(admin) for admin in all_admins]
 
@@ -115,6 +114,7 @@ async def read_admin(
 
     - **admin_id**: The unique identifier of the admin
     """
+
     # try:
     admin_service = sf.get_admin_service()
     admin = admin_service.execute('get_by_id', admin_id=admin_id)

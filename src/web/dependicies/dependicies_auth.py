@@ -9,7 +9,7 @@ from src.web.auth.exceptions import UserNotValidError
 from src.web.auth.models import UserAuth
 from src.web.auth.services import AuthManager, AuthServiceAbstract
 from src.web.auth.storage import TokenStorageMemory, TokenStorage
-from src.web.dependencies import get_service_factory
+from src.web.dependicies.dependencies import get_service_factory
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", scopes={
     "read": "Read access to user data",

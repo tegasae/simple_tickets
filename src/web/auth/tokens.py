@@ -5,6 +5,7 @@ from typing import Optional
 import jwt
 from pydantic import BaseModel, Field
 
+from src.web.auth.exceptions import TokenError
 from src.web.config import get_settings
 
 
@@ -79,7 +80,7 @@ class AccessToken(BaseModel):
 
             return cls(**payload)
         except jwt.InvalidTokenError as e:
-            raise ValueError(f"Invalid token: {e}")
+            raise TokenError(f"Invalid token: {str(e)}") from e
 
     def is_valid(self) -> bool:
         """Check if token is valid"""
@@ -159,5 +160,3 @@ class JWTToken(BaseModel):
     def __bool__(self) -> bool:
         """Boolean representation of token pair validity"""
         return self.is_valid()
-
-

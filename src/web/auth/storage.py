@@ -69,7 +69,6 @@ class TokenStorageMemory(TokenStorage):
                 raise TokenNotFoundError(token_id)
             return token
 
-
     def delete(self, token_id: str):
         """Delete token by ID, raises exception if not found"""
         with self._lock:

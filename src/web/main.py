@@ -13,13 +13,12 @@ from src.web.auth.services import AuthManager
 
 from src.web.config import Settings
 from src.adapters.repositorysqlite import CreateDB
-from src.web.dependencies import get_app_settings
-from src.web.dependicies_auth import oauth2_scheme, \
+from src.web.dependicies.dependencies import get_app_settings
+from src.web.dependicies.dependicies_auth import oauth2_scheme, \
     get_auth_manager, get_current_user_new
 from src.web.auth.models import RefreshRequest, LogoutRequest
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
-from src.web.middleware.middleware import LoggingMiddleware
 
 from src.web.routers import admins
 
@@ -45,10 +44,12 @@ app = FastAPI(
 )
 
 app.include_router(admins.router)
-#LoggingMiddleware(app)
+# LoggingMiddleware(app)
 registry = ExceptionHandlerRegistry(app)
 
 registry.add_all_handler('src.domain.exceptions', admins.handlers)
+registry.add_all_handler('src.web.auth.exceptions', {'TokenError': 401, 'TokenNotFoundError': 401,
+                                                     'TokenExpiredError': 401, 'UserNotValidError': 401})
 registry.add_standard_handler(Exception, 500)
 registry.register_all()
 
