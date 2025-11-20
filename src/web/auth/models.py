@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class RefreshRequest(BaseModel):
@@ -23,3 +23,9 @@ class LoginRequest(BaseModel):
     username: str
     password: str
     scope: Optional[list[str]] = None
+
+
+class UserAuth(BaseModel):
+    id: int = 0
+    username: str
+    scope: Optional[list[str]] = Field(default_factory=list)
