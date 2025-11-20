@@ -67,7 +67,6 @@ class TokenService:
 
 
 class AuthServiceAbstract(ABC):
-
     @abstractmethod
     def authenticate_user(self, username: str, password: str) -> UserAuth:
         raise NotImplementedError
@@ -92,12 +91,12 @@ class AuthManager:
         """Complete login flow"""
         user_auth = self.auth_service_abstract.authenticate_user(username, password)
         ###check scope later
-        return self.token_service.create_token_pair(user_auth.name, user_auth.admin_id, user_auth.scope)
+        return self.token_service.create_token_pair(username=user_auth.username, user_id=user_auth.id, scope=user_auth.scope)
 
     def refresh(self, refresh_token_id: str) -> dict:
         """Complete token refresh flow"""
         refresh_token = self.token_storage.get(token_id=refresh_token_id)
-        if self.auth_service_abstract.validate_user_exists(refresh_token.username):
+        if not self.auth_service_abstract.validate_user_exists(refresh_token.username):
             raise UserNotValidError(user=refresh_token.username)
         if not self.token_service.verify_refresh_token(refresh_token_id):
             raise TokenError(refresh_token_id)

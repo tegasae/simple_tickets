@@ -1,5 +1,4 @@
-{"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0X2FkbWluIiwiZXhwIjoxNzYzNjMwNjk4LCJpYXQiOjE3NjM2Mjg4OTgsInNjb3BlIjoicmVhZCB3cml0ZSJ9.w1Oxi4rKtzWES9c0ojT-GnyHR6IuI5NVlF8y2Q--n74",
+Response:
+{"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0X2FkbWluIiwiZXhwIjoxNzYzNjQxMjMyLCJpYXQiOjE3NjM2Mzk0MzJ9.99ewXY56zOJM7BShF9pk3LgFO15mXxbwWBwRz2pGXBM",
 "token_type":"bearer","expires_in":1799,
-"refresh_token":"_1jqlCngcsUA9CC2c5MpqHShhkDWXJMG3VjuHEFeU6k",
-"scope":"read write"}
-
+"refresh_token":"Y6HyXH_67ZHonbhr9gungTi_h0Nc3_YbxLLNzmO4JYk","scope":""}
