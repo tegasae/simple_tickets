@@ -79,6 +79,7 @@ async def login(
         form_data: OAuth2PasswordRequestForm = Depends(),
         auth_manager: AuthManager = Depends(get_auth_manager)
 ):
+    #
     scopes = form_data.scopes if form_data.scopes else []
     return auth_manager.login(form_data.username, form_data.password, scopes)
 
