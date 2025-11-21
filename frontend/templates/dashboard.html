@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Admin Dashboard</h1>
+            <div class="user-info">
+                Welcome, {{ current_user.username }}!
+                <form action="/logout" method="post" style="display: inline;">
+                    <button type="submit" class="btn-logout">Logout</button>
+                </form>
+            </div>
+        </header>
+
+        <nav>
+            <a href="/dashboard" class="nav-link active">Dashboard</a>
+            <a href="/admins" class="nav-link">Manage Admins</a>
+        </nav>
+
+        <main>
+            <h2>All Admins</h2>
+            <div class="admin-grid">
+                {% for admin in admins %}
+                <div class="admin-card">
+                    <h3>{{ admin.name }}</h3>
+                    <p>Email: {{ admin.email }}</p>
+                    <p>Status:
+                        <span class="status-{{ 'enabled' if admin.enabled else 'disabled' }}">
+                            {{ 'Enabled' if admin.enabled else 'Disabled' }}
+                        </span>
+                    </p>
+                    <p>Created: {{ admin.date_created }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </main>
+    </div>
+</body>
+</html>
