@@ -1,9 +1,11 @@
+import json
+
 from fastapi import FastAPI, Request, Depends, HTTPException, status, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import httpx
-from typing import Optional
+from typing import Optional, Any
 
 app = FastAPI(title="Admin Management Web App")
 
@@ -27,21 +29,24 @@ async def get_current_user(request: Request):
 
 
 async def api_request(method: str, endpoint: str, token: Optional[str] = None,
-                      data: Optional[dict] = None, params: Optional[dict] = None):
+                      form_data: Optional[dict] = None, json_data: Optional[Any] = None, params: Optional[dict] = None,
+                      headers_data:Optional[dict] = None):
     """Helper function to make API requests to the backend"""
     headers = {}
     if token:
         headers["Authorization"] = f"Bearer {token}"
+    if headers_data:
+        headers.update(headers_data)
 
+    arguments = {'headers': headers, 'params': params}
+
+    if json_data:
+        arguments['json'] = json_data
+    if form_data:
+        arguments['data'] = form_data
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.request(
-                method=method,
-                url=f"{API_BASE_URL}{endpoint}",
-                headers=headers,
-                data=data,
-                params=params
-            )
+            response = await client.request(method, f"{API_BASE_URL}{endpoint}", **arguments)
             return response
         except httpx.ConnectError:
             raise HTTPException(status_code=500, detail="Cannot connect to API server")
@@ -70,15 +75,8 @@ async def login(request: Request, username: str = Form(...), password: str = For
         "grant_type": "password"
     }
 
+    response = await api_request("POST", "/token", form_data=form_data)
 
-
-
-    response = await api_request("POST", "/token", data=form_data)
-    #response = await api_request(
-    #    method="POST",
-    #
-    #    data=form_data,  # This automatically sets Content-Type to application/x-www-form-urlencoded
-    #)
     if response.status_code == 200:
         token_data = response.json()
         access_token = token_data["access_token"]
@@ -173,7 +171,8 @@ async def create_admin(
         "enabled": enabled
     }
 
-    response = await api_request("POST", "/admins/", current_user["access_token"], admin_data)
+    response = await api_request("POST", "/admins/", current_user["access_token"], json_data=admin_data,
+                                 headers_data={'Content-Type': 'application/json'})
 
     if response.status_code == 201:
         return RedirectResponse(url="/admins", status_code=status.HTTP_302_FOUND)
@@ -220,8 +219,9 @@ async def edit_admin(
     if email: admin_data["email"] = email
     if password: admin_data["password"] = password
     if enabled is not None: admin_data["enabled"] = enabled
-
-    response = await api_request("PUT", f"/admins/{admin_id}", current_user["access_token"], admin_data)
+    #json_data=json.dumps(admin_data)
+    response = await api_request("PUT", f"/admins/{admin_id}", current_user["access_token"],
+                                 json_data=admin_data, headers_data={'Content-Type': 'application/json'})
 
     if response.status_code == 200:
         return RedirectResponse(url="/admins", status_code=status.HTTP_302_FOUND)
@@ -267,7 +267,7 @@ async def logout(request: Request):
         # Call API logout if needed
         refresh_token = user_sessions[token].get("refresh_token")
         if refresh_token:
-            await api_request("POST", "/logout", data={"refresh_token": refresh_token})
+            await api_request("POST", "/logout", json_data={"refresh_token": refresh_token})
 
         # Remove session
         del user_sessions[token]

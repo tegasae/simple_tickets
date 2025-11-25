@@ -2,7 +2,6 @@ from typing import List
 
 from fastapi import APIRouter, Depends, status
 
-
 from src.services.service_layer.data import CreateAdminData
 from src.services.service_layer.factory import ServiceFactory
 from src.web.dependicies.dependencies import get_service_factory
@@ -18,15 +17,13 @@ router = APIRouter(
 )
 
 handlers = {
-    'AdminError':500,
-    'AdminNotFoundError':404,
+    'AdminError': 500,
+    'AdminNotFoundError': 404,
     'AdminAlreadyExistsError': 409,
     'AdminValidationError': 400,
     'AdminOperationError': 400,
-    'AdminSecurityError':403
+    'AdminSecurityError': 403
 }
-
-
 
 
 # CREATE - Create new admin (no authorization for now)
@@ -74,8 +71,6 @@ async def create_admin(
     return AdminView.from_admin(admin)
 
 
-
-
 # READ - Get all admins (no authorization for now)
 @router.get(
     "/",
@@ -95,7 +90,6 @@ async def read_admins(
     all_admins = admin_service.list_all_admins()
     # Convert to view models
     return [AdminView.from_admin(admin) for admin in all_admins]
-
 
 
 # READ - Get admin by ID (no authorization for now)
@@ -119,11 +113,7 @@ async def read_admin(
     admin_service = sf.get_admin_service()
     admin = admin_service.execute('get_by_id', admin_id=admin_id)
 
-
-
     return AdminView.from_admin(admin)
-
-
 
 
 # READ - Get admin by name (no authorization for now)
@@ -169,9 +159,8 @@ async def update_admin(
     - **password**: New password (optional)
     """
     admin_service = sf.get_admin_service()
-   # Get the target admin
+    # Get the target admin
     target_admin = admin_service.execute('get_by_id', admin_id=admin_id)
-
 
     updated_admin = None
 
@@ -186,9 +175,9 @@ async def update_admin(
     # Update password if provided
     if admin_update.password is not None:
         updated_admin = admin_service.execute(
-       'change_password',
-        name=target_admin.name,
-        new_password=admin_update.password
+            'change_password',
+            name=target_admin.name,
+            new_password=admin_update.password
         )
 
     # Update enabled status if provided
@@ -200,7 +189,6 @@ async def update_admin(
     final_admin = admin_service.execute('get_by_id', admin_id=admin_id)
 
     return AdminView.from_admin(final_admin)
-
 
 
 # DELETE - Delete admin (no authorization for now)
@@ -222,9 +210,8 @@ async def delete_admin(
     admin_service = sf.get_admin_service()
     # Check if admin exists
 
-    admin_service.execute('remove_by_id',admin_id=admin_id)
+    admin_service.execute('remove_by_id', admin_id=admin_id)
     return None
-
 
 
 # Toggle admin status (no authorization for now)
@@ -249,7 +236,7 @@ async def toggle_admin_status(
     # Get admin to ensure they exist
     target_admin = admin_service.execute('get_by_id', admin_id=admin_id)
 
-        # Toggle status
+    # Toggle status
     updated_admin = admin_service.execute('toggle_status', name=target_admin.name)
 
     return AdminView.from_admin(updated_admin)
@@ -274,5 +261,3 @@ async def check_admin_exists(
     exists = admin_service.admin_exists(admin_name)
 
     return {"exists": exists}
-
-
