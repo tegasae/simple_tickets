@@ -20,17 +20,33 @@ API_BASE_URL = "http://127.0.0.1:8000"
 user_sessions = {}
 
 
-async def get_current_user(request: Request):
-    """Dependency to get current user from session"""
+async def require_auth(request: Request) -> dict:
+    """Dependency that automatically redirects to login if not authenticated"""
     token = request.cookies.get("access_token")
     if not token or token not in user_sessions:
-        return None
+        # Redirect to login if not authenticated
+        raise HTTPException(
+            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+            headers={"Location": "/login"}
+        )
+    return user_sessions[token]
+
+
+# Alternative version that returns the user directly
+async def get_current_user_required(request: Request) -> dict:
+    """Dependency that returns the current user or redirects to login"""
+    token = request.cookies.get("access_token")
+    if not token or token not in user_sessions:
+        raise HTTPException(
+            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+            headers={"Location": "/login"}
+        )
     return user_sessions[token]
 
 
 async def api_request(method: str, endpoint: str, token: Optional[str] = None,
                       form_data: Optional[dict] = None, json_data: Optional[Any] = None, params: Optional[dict] = None,
-                      headers_data:Optional[dict] = None):
+                      headers_data: Optional[dict] = None):
     """Helper function to make API requests to the backend"""
     headers = {}
     if token:
@@ -101,10 +117,8 @@ async def login(request: Request, username: str = Form(...), password: str = For
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request, current_user: dict = Depends(get_current_user)):
+async def dashboard(request: Request, current_user: dict = Depends(get_current_user_required)):
     """Dashboard page - shows admin list"""
-    if not current_user:
-        return RedirectResponse(url="/login")
 
     # Get admins list from API
     response = await api_request("GET", "/admins/", current_user["access_token"])
@@ -122,10 +136,8 @@ async def dashboard(request: Request, current_user: dict = Depends(get_current_u
 
 
 @app.get("/admins", response_class=HTMLResponse)
-async def admins_list(request: Request, current_user: dict = Depends(get_current_user)):
+async def admins_list(request: Request, current_user: dict = Depends(get_current_user_required)):
     """Admins management page"""
-    if not current_user:
-        return RedirectResponse(url="/login")
 
     # Get admins list from API
     response = await api_request("GET", "/admins/", current_user["access_token"])
@@ -143,10 +155,8 @@ async def admins_list(request: Request, current_user: dict = Depends(get_current
 
 
 @app.get("/admins/create", response_class=HTMLResponse)
-async def create_admin_page(request: Request, current_user: dict = Depends(get_current_user)):
+async def create_admin_page(request: Request, current_user: dict = Depends(get_current_user_required)):
     """Show create admin form"""
-    if not current_user:
-        return RedirectResponse(url="/login")
 
     return templates.TemplateResponse("create_admin.html", {"request": request})
 
@@ -158,11 +168,9 @@ async def create_admin(
         email: str = Form(...),
         password: str = Form(...),
         enabled: bool = Form(True),
-        current_user: dict = Depends(get_current_user)
+        current_user: dict = Depends(get_current_user_required)
 ):
     """Handle create admin form submission"""
-    if not current_user:
-        return RedirectResponse(url="/login")
 
     admin_data = {
         "name": name,
@@ -184,10 +192,8 @@ async def create_admin(
 
 
 @app.get("/admins/{admin_id}/edit", response_class=HTMLResponse)
-async def edit_admin_page(request: Request, admin_id: int, current_user: dict = Depends(get_current_user)):
+async def edit_admin_page(request: Request, admin_id: int, current_user: dict = Depends(get_current_user_required)):
     """Show edit admin form"""
-    if not current_user:
-        return RedirectResponse(url="/login")
 
     # Get admin data from API
     response = await api_request("GET", f"/admins/{admin_id}", current_user["access_token"])
@@ -209,17 +215,18 @@ async def edit_admin(
         email: str = Form(None),
         password: str = Form(None),
         enabled: bool = Form(None),
-        current_user: dict = Depends(get_current_user)
+        current_user: dict = Depends(get_current_user_required)
 ):
     """Handle edit admin form submission"""
-    if not current_user:
-        return RedirectResponse(url="/login")
 
     admin_data = {}
     if email: admin_data["email"] = email
     if password: admin_data["password"] = password
-    if enabled is not None: admin_data["enabled"] = enabled
-    #json_data=json.dumps(admin_data)
+    if enabled is not None:
+        admin_data["enabled"] = enabled
+    else:
+        admin_data["enabled"] = False
+    # json_data=json.dumps(admin_data)
     response = await api_request("PUT", f"/admins/{admin_id}", current_user["access_token"],
                                  json_data=admin_data, headers_data={'Content-Type': 'application/json'})
 
@@ -238,10 +245,8 @@ async def edit_admin(
 
 
 @app.post("/admins/{admin_id}/delete")
-async def delete_admin(admin_id: int, current_user: dict = Depends(get_current_user)):
+async def delete_admin(admin_id: int, current_user: dict = Depends(get_current_user_required)):
     """Handle delete admin"""
-    if not current_user:
-        return RedirectResponse(url="/login")
 
     response = await api_request("DELETE", f"/admins/{admin_id}", current_user["access_token"])
 
@@ -249,7 +254,7 @@ async def delete_admin(admin_id: int, current_user: dict = Depends(get_current_u
 
 
 @app.post("/admins/{admin_id}/toggle-status")
-async def toggle_admin_status(admin_id: int, current_user: dict = Depends(get_current_user)):
+async def toggle_admin_status(admin_id: int, current_user: dict = Depends(get_current_user_required)):
     """Toggle admin status"""
     if not current_user:
         return RedirectResponse(url="/login")
