@@ -54,7 +54,7 @@ async def root(request: Request):
     return RedirectResponse(url="/login")
 
 
-@app.get("/login", response_class=HTMLResponse)
+@app.get("/login", response_cylass=HTMLResponse)
 async def login_page(request: Request):
     """Show login form"""
     return templates.TemplateResponse("login.html", {"request": request})
