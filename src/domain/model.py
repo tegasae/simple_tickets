@@ -1,13 +1,11 @@
 import hashlib
-import os
 import secrets
-import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Dict, Final, Optional
 from abc import ABC, abstractmethod
 import re
-import bcrypt
+
 
 from src.domain.exceptions import AdminNotFoundError, AdminAlreadyExistsError, AdminValidationError, AdminOperationError
 
@@ -19,6 +17,9 @@ EMAIL_REGEX: Final[str] = r"[^@]+@[^@]+\.[^@]+"
 
 class AdminAbstract(ABC):
     """Abstract base class for all Admin types"""
+    """Класс абстрактный Админ. Абстрактным сделан для реализации обычного Admin и AdminEmpty. 
+    AdminEmpty используется вместо использования None значений. В дальнейшем на базе этого класса будет реализован 
+    класс User, который будет предком как для Admin, так и для предствителей клиентов"""
 
     @property
     @abstractmethod
@@ -94,6 +95,12 @@ class AdminAbstract(ABC):
 
 @dataclass
 class Admin(AdminAbstract):
+    """Пользователи владельцев системы. Обладаюь полными правами в системе."""
+    """name используется как login. Возможно, в дальнейшем добавить дополнительную информацию о пользователе и ввести
+    отдельноем поле login"""
+    """пароль храниться в хешированном виде"""
+    """Дата создания не меняется"""
+    """Обращения к полям только через свойства"""
     _admin_id: int
     _name: str
     _email: str
@@ -151,8 +158,10 @@ class Admin(AdminAbstract):
         return self._date_created
 
     def __eq__(self, other) -> bool:
+        """Если этот экземпляр это AdminEmpty, то они не равны"""
         if isinstance(other, AdminEmpty):
             return False
+        """Админы равны по именам"""
         return isinstance(other, Admin) and self._name == other._name
 
     def __hash__(self) -> int:
