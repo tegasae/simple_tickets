@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 import re
 
 
-from src.domain.exceptions import AdminNotFoundError, AdminAlreadyExistsError, AdminValidationError, AdminOperationError
+from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError, AdminOperationError
 
 # Constants
 EMPTY_ADMIN_ID: Final[int] = 0
@@ -316,32 +316,32 @@ class AdminsAggregate:
     def _validate_name(name: str) -> str:
         """Validate and sanitize admin name"""
         if not name or not name.strip():
-            raise AdminValidationError(message=f"Admin name cannot be empty")
+            raise ItemValidationError(message=f"Admin name cannot be empty")
         return name.strip()
 
     @staticmethod
     def _validate_email(email: str) -> str:
         """Validate email format"""
         if not re.match(EMAIL_REGEX, email):
-            raise AdminValidationError(message=f"Invalid email format {email}")
+            raise ItemValidationError(message=f"Invalid email format {email}")
         return email
 
     @staticmethod
     def _validate_password(password: str) -> str:
         """Validate password strength"""
         if len(password) < MIN_PASSWORD_LENGTH:
-            raise AdminValidationError(message=f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+            raise ItemValidationError(message=f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
         return password
 
     def _validate_admin_id_unique(self, admin_id: int):
         """Validate that admin ID is unique"""
         if any(a.admin_id == admin_id for a in self.admins.values() if not a.is_empty()):
-            raise AdminAlreadyExistsError(str(admin_id))
+            raise ItemAlreadyExistsError(str(admin_id))
 
     def _validate_admin_name_unique(self, name: str):
         """Validate that admin name is unique"""
         if name in self.admins:
-            raise AdminAlreadyExistsError(name)
+            raise ItemAlreadyExistsError(name)
 
     def create_admin(self, admin_id: int, name: str, email: str, password: str, enabled: bool = True) -> Admin:
         """Create a new admin with validation"""
@@ -391,7 +391,7 @@ class AdminsAggregate:
         """Get admin by name - throws exception if not found"""
         admin = self.admins.get(name)
         if not admin or admin.is_empty():
-            raise AdminNotFoundError(name)
+            raise ItemNotFoundError(name)
         return admin
 
     def admin_exists(self, name: str) -> bool:
@@ -433,7 +433,7 @@ class AdminsAggregate:
                 self.version += 1
                 del (self.admins[name])
                 return
-        raise AdminNotFoundError(f"Admin {admin_id} not found")
+        raise ItemNotFoundError(f"Admin {admin_id} not found")
 
     def get_all_admins(self) -> List[AdminAbstract]:
         """Get all real admins (exclude empty ones)"""
@@ -443,7 +443,7 @@ class AdminsAggregate:
         for name in self.admins:
             if self.admins[name].admin_id == admin_id:
                 return self.admins[name]
-        raise AdminNotFoundError(f"Admin {admin_id} not found")
+        raise ItemNotFoundError(f"Admin {admin_id} not found")
 
     def get_enabled_admins(self) -> List[AdminAbstract]:
         return [admin for admin in self.get_all_admins() if admin.enabled]

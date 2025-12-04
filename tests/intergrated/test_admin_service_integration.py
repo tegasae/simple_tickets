@@ -9,7 +9,7 @@ from src.services.service_layer.factory import ServiceFactory
 from src.services.uow.uowsqlite import SqliteUnitOfWork
 from src.adapters.repositorysqlite import CreateDB
 from utils.db.connect import Connection
-from src.domain.exceptions import AdminOperationError, AdminNotFoundError, AdminAlreadyExistsError
+from src.domain.exceptions import AdminOperationError, ItemNotFoundError, ItemAlreadyExistsError
 
 
 @pytest.fixture
@@ -99,7 +99,7 @@ class TestAdminServiceIntegration:
         admin_service.execute('create', create_admin_data=create_data)
 
         # Second creation should fail
-        with pytest.raises(AdminAlreadyExistsError):
+        with pytest.raises(ItemAlreadyExistsError):
             admin_service.execute('create', create_admin_data=create_data)
 
     def test_update_admin_email(self, admin_service):
@@ -181,11 +181,11 @@ class TestAdminServiceIntegration:
         assert admin_service.admin_exists("remove_test") is False
 
         # Verify get_by_name raises error
-        with pytest.raises(AdminNotFoundError):
+        with pytest.raises(ItemNotFoundError):
             admin_service.execute('get_by_name', name="remove_test")
 
         # Verify get_by_id returns None
-        with pytest.raises(AdminNotFoundError):
+        with pytest.raises(ItemNotFoundError):
             result = admin_service.execute('get_by_id', admin_id=admin.admin_id)
 
 
@@ -253,7 +253,7 @@ class TestAdminServiceIntegration:
             # This should fail due to duplicate name
             admin2_data = CreateAdminData(name="admin1", email="admin2@example.com", password="pass123456")
             admin_service.execute('create', create_admin_data=admin2_data)
-        except AdminAlreadyExistsError:
+        except ItemAlreadyExistsError:
             pass  # Expected to fail
 
         # Verify admin1 still exists (transaction rolled back)
@@ -324,7 +324,7 @@ class TestAdminServiceIntegration:
             admin_service.execute('get_by_name')  # Missing name parameter
 
         # Test non-existent admin
-        with pytest.raises(AdminNotFoundError):
+        with pytest.raises(ItemNotFoundError):
             admin_service.execute('get_by_name', name="non_existent_admin")
 
     def test_admin_id_generation(self, admin_service):
@@ -389,7 +389,7 @@ class TestAdminServiceEdgeCases:
         assert admin_service.admin_exists("any_admin") is False
 
         # Get by ID on empty DB
-        with pytest.raises(AdminNotFoundError):
+        with pytest.raises(ItemNotFoundError):
             result = admin_service.execute('get_by_id', admin_id=1)
 
 

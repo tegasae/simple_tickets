@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime
 
 
-from src.domain.exceptions import AdminNotFoundError, AdminAlreadyExistsError, AdminValidationError, AdminOperationError
+from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError, AdminOperationError
 from src.domain.model import (
     Admin, AdminEmpty, AdminsAggregate,
     EMPTY_ADMIN_ID, MIN_PASSWORD_LENGTH
@@ -227,7 +227,7 @@ class TestAdminsAggregate:
 
     def test_create_admin_duplicate_name(self, populated_aggregate):
         """Test admin creation with duplicate name"""
-        with pytest.raises(AdminAlreadyExistsError, match="admin1"):
+        with pytest.raises(ItemAlreadyExistsError, match="admin1"):
             populated_aggregate.create_admin(
                 admin_id=3,
                 name="admin1",  # Already exists
@@ -238,7 +238,7 @@ class TestAdminsAggregate:
 
     def test_create_admin_duplicate_id(self, populated_aggregate):
         """Test admin creation with duplicate ID"""
-        with pytest.raises(AdminAlreadyExistsError, match="1"):
+        with pytest.raises(ItemAlreadyExistsError, match="1"):
             populated_aggregate.create_admin(
                 admin_id=1,  # Already exists
                 name="newadmin",
@@ -250,15 +250,15 @@ class TestAdminsAggregate:
     def test_create_admin_validation_errors(self, empty_aggregate):
         """Test admin creation validation errors"""
         # Empty name
-        with pytest.raises(AdminValidationError, match="Admin name cannot be empty"):
+        with pytest.raises(ItemValidationError, match="Admin name cannot be empty"):
             empty_aggregate.create_admin(1, "", "test@example.com", "password123", True)
 
         # Invalid email
-        with pytest.raises(AdminValidationError, match="Invalid email format"):
+        with pytest.raises(ItemValidationError, match="Invalid email format"):
             empty_aggregate.create_admin(1, "test", "invalid-email", "password123", True)
 
         # Short password
-        with pytest.raises(AdminValidationError, match=f"Password must be at least {MIN_PASSWORD_LENGTH} characters"):
+        with pytest.raises(ItemValidationError, match=f"Password must be at least {MIN_PASSWORD_LENGTH} characters"):
             empty_aggregate.create_admin(1, "test", "test@example.com", "short", True)
 
     def test_add_admin_success(self, empty_aggregate, sample_admin):
@@ -271,7 +271,7 @@ class TestAdminsAggregate:
 
     def test_add_admin_duplicate_name(self, populated_aggregate, sample_admin):
         """Test adding admin with duplicate name"""
-        with pytest.raises(AdminAlreadyExistsError, match="admin1"):
+        with pytest.raises(ItemAlreadyExistsError, match="admin1"):
             populated_aggregate.add_admin(sample_admin)  # Already exists
 
     def test_get_admin_by_name_found(self, populated_aggregate, sample_admin):
@@ -293,7 +293,7 @@ class TestAdminsAggregate:
 
     def test_require_admin_by_name_not_found(self, populated_aggregate):
         """Test requiring admin by name when not found"""
-        with pytest.raises(AdminNotFoundError, match="nonexistent"):
+        with pytest.raises(ItemNotFoundError, match="nonexistent"):
             populated_aggregate.require_admin_by_name("nonexistent")
 
     def test_admin_exists(self, populated_aggregate):
@@ -312,7 +312,7 @@ class TestAdminsAggregate:
 
     def test_change_admin_email_invalid(self, populated_aggregate):
         """Test email change with invalid email"""
-        with pytest.raises(AdminValidationError, match="Invalid email format"):
+        with pytest.raises(ItemValidationError, match="Invalid email format"):
             populated_aggregate.change_admin_email("admin1", "invalid-email")
 
     def test_change_admin_password_success(self, populated_aggregate):
@@ -328,7 +328,7 @@ class TestAdminsAggregate:
 
     def test_change_admin_password_short(self, populated_aggregate):
         """Test password change with short password"""
-        with pytest.raises(AdminValidationError, match=f"Password must be at least {MIN_PASSWORD_LENGTH} characters"):
+        with pytest.raises(ItemValidationError, match=f"Password must be at least {MIN_PASSWORD_LENGTH} characters"):
             populated_aggregate.change_admin_password("admin1", "short")
 
     def test_toggle_admin_status(self, populated_aggregate):
@@ -362,7 +362,7 @@ class TestAdminsAggregate:
 
     def test_remove_admin_by_id_not_found(self, populated_aggregate):
         """Test admin removal by ID when not found"""
-        with pytest.raises(AdminNotFoundError, match="Admin 999 not found"):
+        with pytest.raises(ItemNotFoundError, match="Admin 999 not found"):
             populated_aggregate.remove_admin_by_id(999)
 
     def test_get_admin_by_id_success(self, populated_aggregate, sample_admin):
@@ -372,7 +372,7 @@ class TestAdminsAggregate:
 
     def test_get_admin_by_id_not_found(self, populated_aggregate):
         """Test getting admin by ID when not found"""
-        with pytest.raises(AdminNotFoundError, match="Admin 999 not found"):
+        with pytest.raises(ItemNotFoundError, match="Admin 999 not found"):
             populated_aggregate.get_admin_by_id(999)
 
     def test_get_all_admins(self, populated_aggregate):
@@ -424,9 +424,9 @@ class TestStaticValidationMethods:
 
     def test_validate_name_empty(self):
         """Test empty name validation"""
-        with pytest.raises(AdminValidationError, match="Admin name cannot be empty"):
+        with pytest.raises(ItemValidationError, match="Admin name cannot be empty"):
             AdminsAggregate._validate_name("")
-        with pytest.raises(AdminValidationError, match="Admin name cannot be empty"):
+        with pytest.raises(ItemValidationError, match="Admin name cannot be empty"):
             AdminsAggregate._validate_name("   ")
 
     def test_validate_email_success(self):
@@ -444,7 +444,7 @@ class TestStaticValidationMethods:
             "invalid@example."
         ]
         for email in invalid_emails:
-            with pytest.raises(AdminValidationError, match="Invalid email format"):
+            with pytest.raises(ItemValidationError, match="Invalid email format"):
                 AdminsAggregate._validate_email(email)
 
     def test_validate_password_success(self):
@@ -454,7 +454,7 @@ class TestStaticValidationMethods:
 
     def test_validate_password_short(self):
         """Test short password validation"""
-        with pytest.raises(AdminValidationError, match=f"Password must be at least {MIN_PASSWORD_LENGTH} characters"):
+        with pytest.raises(ItemValidationError, match=f"Password must be at least {MIN_PASSWORD_LENGTH} characters"):
             AdminsAggregate._validate_password("short")
 
 
@@ -465,11 +465,11 @@ pytestmark = pytest.mark.unit
 def test_imports():
     """Test that all required imports are available"""
     from src.domain.model import Admin, AdminEmpty, AdminsAggregate
-    from src.domain.exceptions import AdminNotFoundError, AdminAlreadyExistsError, AdminValidationError
+    from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError
 
     assert Admin is not None
     assert AdminEmpty is not None
     assert AdminsAggregate is not None
-    assert AdminNotFoundError is not None
-    assert AdminAlreadyExistsError is not None
-    assert AdminValidationError is not None
+    assert ItemNotFoundError is not None
+    assert ItemAlreadyExistsError is not None
+    assert ItemValidationError is not None
