@@ -1,7 +1,7 @@
-
+#clients.py
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Dict, Callable
+from typing import Callable
 
 from src.domain.exceptions import ItemValidationError, ItemAlreadyExistsError, ItemNotFoundError
 from src.domain.value_objects import Emails, Address, Phones, ClientName
@@ -31,10 +31,12 @@ class Client:
 
 
 class ClientsAggregate:
-    def __init__(self, clients: List[Client] = None, version: int = 0):
-        self.clients: Dict[str, Client] = {}  # Index by unique name
-        self.clients_by_id: Dict[int, Client] = {}  # Index by ID
-        self.new_clients:List[Client]=[]
+    def __init__(self, clients: list[Client] = None, version: int = 0):
+        self.clients: dict[str, Client] = {}  # Index by unique name
+        self.clients_by_id: dict[int, Client] = {}  # Index by ID
+        self.new_clients:list[Client]=[]
+
+
         self.version: int = version
         if clients:
             for client in clients:
@@ -43,10 +45,10 @@ class ClientsAggregate:
 
 
 
-    def _validate_client_name_unique(self, name: str):
+    def _validate_client_name_unique(self, name: ClientName):
         """Validate that client name is unique"""
         if name in self.clients:
-            raise ItemAlreadyExistsError(name)
+            raise ItemAlreadyExistsError(name.value)
 
     def _validate_client_id_unique(self, client_id: int):
         """Validate that client ID is unique"""
@@ -80,7 +82,7 @@ class ClientsAggregate:
 
     def add_existing_client(self, client: Client):
         """Add an existing client to the aggregate"""
-        self.clients[client.name] = client
+        self.clients[client.name.value] = client
         if client.client_id:
             self.clients_by_id[client.client_id] = client
         else:
@@ -90,19 +92,19 @@ class ClientsAggregate:
     def get_client_by_name(self, name: str) -> Client:
         """Get client by unique name - returns ClientEmpty if not found"""
         try:
-            return self.clients.get(name)
+            return self.clients[name]
         except KeyError:
             raise ItemNotFoundError(item_name=name)
 
     def get_client_by_id(self, client_id: int) -> Client:
         """Get client by ID - returns ClientEmpty if not found"""
         try:
-            return self.clients_by_id.get(client_id)
+            return self.clients_by_id[client_id]
         except KeyError:
             raise ItemNotFoundError(item_name=str(client_id))
 
 
-    def get_new_clients(self) ->List[Client]:
+    def get_new_clients(self) ->list[Client]:
         return self.new_clients
 
     def client_exists(self, name: str) -> bool:
@@ -111,42 +113,49 @@ class ClientsAggregate:
 
     def update_client_address(self, client_id: int, new_address: str):
         """Update client address (can be done by any admin)"""
-        client = self.get_client_by_id(client_id)
-        validated_address = self._validate_address(new_address)
-        client.update_address(validated_address)
-        self.version += 1
+        try:
+            client = self.clients_by_id[client_id]
+            client.address=Address(new_address)
+            self.version += 1
+        except KeyError:
+            raise ItemNotFoundError(item_name=str(client_id))
+        except ValueError:
+            raise ItemValidationError(message=f"address {new_address}")
 
-    def set_client_status(self, client_name: str, enabled: bool):
+    def set_client_status(self, client_id: int, enabled: bool):
         """Enable/disable client (can be done by any admin)"""
-        client = self.require_client_by_name(client_name)
-        client.set_enabled(enabled)
+        client = self.get_client_by_id(client_id)
+        client.enabled=enabled
         self.version += 1
 
-    def toggle_client_status(self, client_name: str):
+    def toggle_client_status(self, client_id: int):
         """Toggle client enabled status"""
-        client = self.require_client_by_name(client_name)
-        client.set_enabled(not client.enabled)
+        client = self.get_client_by_id(client_id)
+        client.enabled=not client.enabled
         self.version += 1
 
-    def remove_client(self, client_name: str):
+    def remove_client(self, client_id: int):
         """Remove client by name"""
-        client = self.require_client_by_name(client_name)
-        del self.clients[client.name_of_client]
-        del self.clients_by_id[client.client_id]
-        self.version += 1
+        client = self.get_client_by_id(client_id)
+        try:
+            del self.clients[client.name.value]
+            del self.clients_by_id[client.client_id]
+            self.version += 1
+        except KeyError:
+            raise ItemNotFoundError(item_name=str(client_id))
 
-    def get_clients_by_admin(self, admin_id: int) -> List[Client]:
+    def get_clients_by_admin(self, admin_id: int) -> list[Client]:
         """Get all clients created by a specific admin"""
         return [client for client in self.get_all_clients() if client.admin_id == admin_id]
 
-    def get_all_clients(self) -> List[Client]:
+    def get_all_clients(self) -> list[Client]:
         """Get all real clients (exclude empty ones)"""
-        return [client for client in self.clients.values() if not client.is_empty()]
+        return [client for client in self.clients.values() if not client.client_id==0]
 
-    def get_enabled_clients(self) -> List[Client]:
+    def get_enabled_clients(self) -> list[Client]:
         return [client for client in self.get_all_clients() if client.enabled]
 
-    def get_disabled_clients(self) -> List[Client]:
+    def get_disabled_clients(self) -> list[Client]:
         return [client for client in self.get_all_clients() if not client.enabled]
 
     def get_client_count(self) -> int:
@@ -154,3 +163,6 @@ class ClientsAggregate:
 
     def is_empty(self) -> bool:
         return self.get_client_count() == 0
+
+if __name__=="__main__":
+    print("1")
