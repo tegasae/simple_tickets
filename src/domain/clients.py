@@ -44,11 +44,11 @@ class ClientsAggregate:
         self.version: int = version
         if clients:
             for client in clients:
-                self.add_existing_client(client)
+                self._put_clients(client)
 
 
     def _put_clients(self, client: Client)->Client:
-        if not self._get_client_by_name(client.name.value).is_empty:
+        if self._get_client_by_name(client.name.value).is_empty:
             self.clients[client.name.value.lower()] = client
             if client.client_id:
                 self.clients_by_id[client.client_id] = client
@@ -64,18 +64,12 @@ class ClientsAggregate:
 
 
 
-    def add_existing_client(self, client: Client)->Client:
-        """Add an existing client to the aggregate"""
-
-        if self._put_clients(client):
-            self.version+=1
-            return client
-        else:
-            return Client.empty_client()
-
 
     def create_client(self, client_id: int, name: str, admin_id: int, address: str="", phones:str="", emails:str="",enabled: bool = True) -> Client:
         """Create a new client (only called by Admin domain service)"""
+        # Check if name already exists
+        if self.client_exists(name):
+            raise ItemAlreadyExistsError
 
         try:
             client = Client(
@@ -90,11 +84,11 @@ class ClientsAggregate:
 
 
             c=self._put_clients(client)
-            if not c.empty_client():
+            if not c.is_empty:
                 self.version+=1
             return c
         except ItemValidationError:
-            return Client.empty_client()
+            raise
 
     def get_client_by_name(self, name: str) -> Client:
         """Get client by unique name - returns ClientEmpty if not found"""
@@ -105,7 +99,7 @@ class ClientsAggregate:
         return self._get_client_by_id(client_id)
 
     def get_new_clients(self) ->list[Client]:
-        return [self.clients[c] for c in self.clients if self.clients[c].client_id==0]
+        return [client for client in self.clients.values() if client.client_id == 0]
 
 
     def client_exists(self, name: str) -> bool:
@@ -169,7 +163,7 @@ class ClientsAggregate:
 
     def get_all_clients(self) -> list[Client]:
         """Get all real clients (exclude empty ones)"""
-        return [client for client in self.clients.values() if not client.client_id==0]
+        return [client for client in self.clients.values() if not client.is_empty]
 
     def get_enabled_clients(self) -> list[Client]:
         return [client for client in self.get_all_clients() if client.enabled]
