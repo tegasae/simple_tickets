@@ -38,7 +38,7 @@ class ClientsAggregate:
     def __init__(self, clients: list[Client] = None, version: int = 0):
         self.clients: dict[str, Client] = {}  # Index by unique name
         self.clients_by_id: dict[int, Client] = {}  # Index by ID
-        self.new_clients:list[Client]=[]
+
 
 
         self.version: int = version
@@ -48,20 +48,18 @@ class ClientsAggregate:
 
 
     def _put_clients(self, client: Client)->Client:
-        if not self._get_clients_by_name(client.name.value).empty_client():
+        if not self._get_client_by_name(client.name.value).is_empty:
             self.clients[client.name.value.lower()] = client
             if client.client_id:
                 self.clients_by_id[client.client_id] = client
-            else:
-                self.new_clients.append(client)
             return client
         else:
             return Client.empty_client()
 
-    def _get_clients_by_id(self, client_id: int)->Client:
+    def _get_client_by_id(self, client_id: int)->Client:
         return self.clients_by_id.get(client_id,Client.empty_client())
 
-    def _get_clients_by_name(self, name: str)->Client:
+    def _get_client_by_name(self, name: str)->Client:
         return self.clients.get(name,Client.empty_client())
 
 
@@ -73,7 +71,7 @@ class ClientsAggregate:
             self.version+=1
             return client
         else:
-            return client.empty_client()
+            return Client.empty_client()
 
 
     def create_client(self, client_id: int, name: str, admin_id: int, address: str="", phones:str="", emails:str="",enabled: bool = True) -> Client:
@@ -100,14 +98,15 @@ class ClientsAggregate:
 
     def get_client_by_name(self, name: str) -> Client:
         """Get client by unique name - returns ClientEmpty if not found"""
-        return self._get_clients_by_name(name)
+        return self._get_client_by_name(name)
 
     def get_client_by_id(self, client_id: int) -> Client:
         """Get client by ID - returns ClientEmpty if not found"""
-        return self._get_clients_by_id(client_id)
+        return self._get_client_by_id(client_id)
 
     def get_new_clients(self) ->list[Client]:
-        return self.new_clients
+        return [self.clients[c] for c in self.clients if self.clients[c].client_id==0]
+
 
     def client_exists(self, name: str) -> bool:
         """Check if client with given name exists"""
@@ -116,7 +115,7 @@ class ClientsAggregate:
     def update_client_address(self, client_id: int, new_address: str):
         """Update client address (can be done by any admin)"""
         try:
-            client = self._get_clients_by_id(client_id)
+            client = self._get_client_by_id(client_id)
             if client.is_empty:
                 raise ItemNotFoundError(item_name=str(client_id))
             client.address=Address(new_address)
@@ -126,7 +125,7 @@ class ClientsAggregate:
 
     def set_client_status(self, client_id: int, enabled: bool):
         """Enable/disable client (can be done by any admin)"""
-        client = self._get_clients_by_id(client_id)
+        client = self._get_client_by_id(client_id)
         if client.is_empty:
             raise ItemNotFoundError(item_name=str(client_id))
 
@@ -135,7 +134,7 @@ class ClientsAggregate:
 
     def toggle_client_status(self, client_id: int):
         """Toggle client enabled status"""
-        client = self._get_clients_by_id(client_id)
+        client = self._get_client_by_id(client_id)
         if client.is_empty:
             raise ItemNotFoundError(item_name=str(client_id))
 
@@ -143,20 +142,26 @@ class ClientsAggregate:
         self.version += 1
 
 
-    #Надо доделать. Учитываем, что client может быть в отедльном хранилище с нулевым id, его отуда тоже надо вытщить. Или просто не хранить в отедльном хранилище
+    #Надо доделать. Учитываем, что client может быть в отедльном хранилище с нулевым id, его отуда тоже надо вытщить.
+    # Или просто не хранить в отедльном хранилище
     #а когда понадобится все client с нулевым id просто их вытащить из словара с поиском по id==0
     def remove_client(self, client_id: int):
         """Remove client by name"""
         client = self.get_client_by_id(client_id)
         if client.is_empty:
             raise ItemNotFoundError(item_name=str(client_id))
-        del self.clients[client.name.value]
+        try:
+            del self.clients[client.name.value]
+            self.version += 1
+        except KeyError:
+            raise ItemNotFoundError(item_name=str(client_id))
 
-        self.version += 1
         try:
             del self.clients_by_id[client.client_id]
         except KeyError:
-            if
+            pass
+
+
 
     def get_clients_by_admin(self, admin_id: int) -> list[Client]:
         """Get all clients created by a specific admin"""
