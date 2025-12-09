@@ -69,7 +69,7 @@ class ClientsAggregate:
         """Create a new client (only called by Admin domain service)"""
         # Check if name already exists
         if self.client_exists(name):
-            raise ItemAlreadyExistsError
+            raise ItemAlreadyExistsError(item_name=name)
 
         try:
             client = Client(
@@ -81,11 +81,11 @@ class ClientsAggregate:
                 admin_id=admin_id,  # Fixed creator admin
                 enabled=enabled
             )
-
-
             c=self._put_clients(client)
             if not c.is_empty:
                 self.version+=1
+            else:
+                raise ItemAlreadyExistsError(item_name=name)
             return c
         except ItemValidationError:
             raise
@@ -96,7 +96,10 @@ class ClientsAggregate:
 
     def get_client_by_id(self, client_id: int) -> Client:
         """Get client by ID - returns ClientEmpty if not found"""
-        return self._get_client_by_id(client_id)
+        client=self._get_client_by_id(client_id)
+        if client.is_empty:
+            raise ItemNotFoundError(item_name=str(client_id))
+        return client
 
     def get_new_clients(self) ->list[Client]:
         return [client for client in self.clients.values() if client.client_id == 0]
@@ -104,18 +107,26 @@ class ClientsAggregate:
 
     def client_exists(self, name: str) -> bool:
         """Check if client with given name exists"""
-        return not self.get_client_by_name(name).is_empty
+        return not self._get_client_by_name(name).is_empty
 
-    def update_client_address(self, client_id: int, new_address: str):
+    def update_client_address(self, client_id: int, new_address: str,new_emails:str,new_phones:str):
         """Update client address (can be done by any admin)"""
         try:
             client = self._get_client_by_id(client_id)
             if client.is_empty:
                 raise ItemNotFoundError(item_name=str(client_id))
-            client.address=Address(new_address)
+            if new_address:
+                client.address=Address(new_address)
+
+            if new_emails:
+                client.emails=Emails(new_emails)
+
+            if new_phones:
+                client.phones=Phones(new_phones)
+
             self.version += 1
         except ValueError:
-            raise ItemValidationError(message=f"address {new_address}")
+            raise ItemValidationError(message=f"This item is wrong {new_address}")
 
     def set_client_status(self, client_id: int, enabled: bool):
         """Enable/disable client (can be done by any admin)"""

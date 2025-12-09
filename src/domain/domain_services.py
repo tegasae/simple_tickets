@@ -1,11 +1,10 @@
 # domain_services.py
 from typing import Optional
 
-from src.domain.model import Admin, AdminEmpty, AdminAbstract, AdminsAggregate
+from src.domain.model import AdminAbstract, AdminsAggregate
 from src.domain.clients import Client, ClientsAggregate
 from src.domain.exceptions import (
-    ItemNotFoundError, ItemAlreadyExistsError,
-    ItemValidationError, AdminOperationError, AdminSecurityError
+    ItemNotFoundError, AdminOperationError, AdminSecurityError
 )
 
 
@@ -18,32 +17,32 @@ class ClientManagementService:
 
     # ============ VALIDATION HELPERS ============
 
-    def _require_active_admin(self, admin_name: str) -> Admin:
+    def _require_active_admin(self, admin_id: int) -> AdminAbstract:
         """Get and validate admin exists and is active"""
-        admin = self.admins.require_admin_by_name(admin_name)
+        admin = self.admins.get_admin_by_id(admin_id)
 
         if admin.is_empty():
-            raise ItemNotFoundError(f"Admin '{admin_name}' not found")
+            raise ItemNotFoundError(f"Admin '{admin_id}' not found")
 
         if not admin.enabled:
-            raise AdminOperationError(f"Admin '{admin_name}' is disabled")
+            raise AdminOperationError(f"Admin '{admin.name}' is disabled")
+        return admin
 
-        return admin  # type: ignore (we know it's Admin, not AdminEmpty)
 
-    def _require_client_exists(self, client_id: int) -> Client:
-        """Get and validate client exists"""
-        client = self.clients.get_client_by_id(client_id)
+    def _get_admin_client(self,admin_id:int,client_id)->tuple[AdminAbstract,Client]:
+        admin = self._require_active_admin(admin_id=admin_id)
+        client=self.clients.get_client_by_id(client_id=client_id)
 
-        if client.is_empty:
-            raise ItemNotFoundError(f"Client {client_id} not found")
 
-        return client
+        return admin,client
+
+
 
     # ============ BUSINESS OPERATIONS ============
 
     def create_client(
             self,
-            admin_name: str,
+            admin_id: int,
             client_name: str,
             address: str = "",
             phones: str = "",
@@ -57,9 +56,15 @@ class ClientManagementService:
             admin_name: Name of admin creating the client
             client_name: Name for the new client
             ... other client details
+            :param enabled:
+            :param emails:
+            :param phones:
+            :param client_name:
+            :param admin_id:
+            :param address:
         """
         # 1. Validate admin exists and is active
-        admin = self._require_active_admin(admin_name)
+        admin = self._require_active_admin(admin_id)
 
         # 2. Create client with admin's ID as creator
         # Note: client_id=0 for new (unpersisted) clients
@@ -73,148 +78,71 @@ class ClientManagementService:
             enabled=enabled
         )
 
-        if client.is_empty:
-            raise ItemAlreadyExistsError(f"Client '{client_name}' already exists")
 
         return client
 
     def update_client_address(
             self,
-            admin_name: str,
+            admin_id: int,
             client_id: int,
-            new_address: str
+            new_address: Optional[str] = "",
+            new_emails: Optional[str] = "",
+            new_phones: Optional[str] = ""
+
     ) -> Client:
         """
         Update client address (Rule 2: Any admin can update any client)
         """
-        # 1. Validate admin exists and is active
-        admin = self._require_active_admin(admin_name)
-
-        # 2. Validate client exists
-        client = self._require_client_exists(client_id)
+        (admin,client)=self._get_admin_client(admin_id=admin_id,client_id=client_id)
 
         # 3. Update address (any admin can do this per Rule 2)
-        self.clients.update_client_address(client_id, new_address)
+        self.clients.update_client_address(client_id=client.client_id,
+                                           new_address=new_address,new_emails=new_emails,new_phones=new_phones)
 
         # Return updated client
         return self.clients.get_client_by_id(client_id)
 
-    def update_client_contact(
-            self,
-            admin_name: str,
-            client_id: int,
-            emails: Optional[str] = None,
-            phones: Optional[str] = None
-    ) -> Client:
-        """Update client contact info"""
-        admin = self._require_active_admin(admin_name)
-        client = self._require_client_exists(client_id)
-
-        # Update logic would go here
-        # For now, just return the client
-        return client
 
     def enable_client(
             self,
-            admin_name: str,
+            admin_id: int,
             client_id: int,
             enabled: bool = True
     ) -> Client:
         """Enable or disable a client"""
-        admin = self._require_active_admin(admin_name)
-        client = self._require_client_exists(client_id)
+        (admin, client) = self._get_admin_client(admin_id=admin_id, client_id=client_id)
+        client.enabled=enabled
 
-        self.clients.set_client_status(client_id, enabled)
-        return self.clients.get_client_by_id(client_id)
+        return client
 
     def delete_client(
             self,
-            admin_name: str,
+            admin_id: int,
             client_id: int
     ) -> None:
-        """
-        Delete a client with business rules:
-        - Rule 3: Any admin can delete any client
-        - Rule 4: EXCEPT if admin created the client (then nobody can delete)
-        - Rule 5: Admin can't delete itself (handled separately)
-        """
-        # 1. Validate admin exists and is active
-        admin = self._require_active_admin(admin_name)
 
-        # 2. Validate client exists
-        client = self._require_client_exists(client_id)
+        (admin, client) = self._get_admin_client(admin_id=admin_id, client_id=client_id)
 
-        # 3. Apply Rule 4: Check if this admin created the client
-        if client.admin_id == admin.admin_id:
+        if client.admin_id != admin.admin_id:
             raise AdminOperationError(
-                f"Admin '{admin_name}' created this client. "
+                f"Admin '{admin.name}' created this client. "
                 "Client cannot be deleted by anyone (Rule 4)."
             )
 
-        # 4. Apply Rule 3: Any other admin can delete
+
         self.clients.remove_client(client_id)
 
-    def transfer_client_ownership(
-            self,
-            admin_name: str,
-            client_id: int,
-            new_admin_name: str
-    ) -> Client:
-        """
-        Transfer client to another admin.
-        Only the current owner (creator) can transfer ownership.
-        """
-        # 1. Validate requesting admin
-        requesting_admin = self._require_active_admin(admin_name)
 
-        # 2. Validate client exists
-        client = self._require_client_exists(client_id)
 
-        # 3. Check if requesting admin is the creator
-        if client.admin_id != requesting_admin.admin_id:
-            raise AdminOperationError(
-                f"Only the creator admin (ID: {client.admin_id}) "
-                f"can transfer client ownership"
-            )
-
-        # 4. Validate new admin
-        new_admin = self._require_active_admin(new_admin_name)
-
-        # 5. Update client's admin_id (simplified - in real system,
-        #    this might require domain events or more complex logic)
-        # Note: Since Client is immutable, we'd need to create a new client
-        # For now, this shows the business logic
-
-        raise NotImplementedError("Client transfer requires client immutability handling")
 
     def get_clients_created_by_admin(
             self,
-            admin_name: str
+            admin_id: int
     ) -> list[Client]:
         """Get all clients created by a specific admin"""
-        admin = self._require_active_admin(admin_name)
+        admin = self._require_active_admin(admin_id)
         return self.clients.get_clients_by_admin(admin.admin_id)
 
-    def get_client_with_creator_info(
-            self,
-            client_id: int
-    ) -> dict:
-        """Get client info with creator admin details"""
-        client = self._require_client_exists(client_id)
-
-        # Find creator admin
-        creator_admin = AdminEmpty()
-        for admin in self.admins.get_all_admins():
-            if admin.admin_id == client.admin_id:
-                creator_admin = admin
-                break
-
-        return {
-            'client': client,
-            'creator_admin': creator_admin,
-            'created_by_name': creator_admin.name if not creator_admin.is_empty() else "[Unknown]",
-            'created_by_email': creator_admin.email if not creator_admin.is_empty() else "[Unknown]"
-        }
 
 
 class AdminManagementService:
@@ -275,3 +203,12 @@ class AdminManagementService:
         if requesting_admin==admin_to_disable:
             raise AdminSecurityError("Admin cannot disable themselves")
         self.admins.set_admin_status(admin_to_disable.name, False)
+
+    def create_admin(self,requesting_admin_id:int,
+                     name:str,email:str,password:str,enable:bool=True)->AdminAbstract:
+
+        requesting_admin=self.admins.get_admin_by_id(requesting_admin_id)
+        if requesting_admin.is_empty() or not requesting_admin.enabled:
+            raise AdminSecurityError(f"Admin {requesting_admin.name} cannot create a new admin")
+        admin=self.admins.create_admin(admin_id=0, name=name,email=email,password=password,enabled=enable)
+        return admin
