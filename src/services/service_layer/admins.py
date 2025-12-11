@@ -1,7 +1,7 @@
 # services/admin_service.py
 from typing import List
 
-from src.domain.exceptions import AdminOperationError
+from src.domain.exceptions import DomainOperationError
 from src.domain.model import Admin, AdminAbstract
 from src.services.service_layer.base import BaseService
 from src.services.service_layer.data import CreateAdminData
@@ -31,7 +31,7 @@ class AdminService(BaseService[Admin]):
         }
 
         if operation not in operation_methods:
-            raise AdminOperationError(f"Unknown operation: {operation}")
+            raise DomainOperationError(f"Unknown operation: {operation}")
 
         return operation_methods[operation](**kwargs)
 
@@ -63,10 +63,10 @@ class AdminService(BaseService[Admin]):
                 fresh_admin = self._get_admin_by_name(create_admin_data.name)
 
                 if fresh_admin.admin_id == 0:
-                    raise AdminOperationError("Admin was created but ID wasn't properly generated")
+                    raise DomainOperationError("Admin was created but ID wasn't properly generated")
 
                 return fresh_admin
-        except AdminOperationError:
+        except DomainOperationError:
             raise  # Re-raise domain exceptions
         except Exception as e:
             self.logger.error(f"Unexpected error creating admin: {e}")

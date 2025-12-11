@@ -4,8 +4,9 @@ from typing import Optional
 from src.domain.model import AdminAbstract, AdminsAggregate
 from src.domain.clients import Client, ClientsAggregate
 from src.domain.exceptions import (
-    ItemNotFoundError, AdminOperationError, AdminSecurityError
+    ItemNotFoundError, DomainOperationError, DomainSecurityError
 )
+from src.domain.tickets import Ticket
 
 
 class ClientManagementService:
@@ -25,7 +26,7 @@ class ClientManagementService:
             raise ItemNotFoundError(f"Admin '{admin_id}' not found")
 
         if not admin.enabled:
-            raise AdminOperationError(f"Admin '{admin.name}' is disabled")
+            raise DomainOperationError(f"Admin '{admin.name}' is disabled")
         return admin
 
 
@@ -124,7 +125,7 @@ class ClientManagementService:
         (admin, client) = self._get_admin_client(admin_id=admin_id, client_id=client_id)
 
         if client.admin_id != admin.admin_id:
-            raise AdminOperationError(
+            raise DomainOperationError(
                 f"Admin '{admin.name}' created this client. "
                 "Client cannot be deleted by anyone (Rule 4)."
             )
@@ -173,14 +174,14 @@ class AdminManagementService:
         (requesting_admin,admin_to_delete)=(
             self._get_admins(requesting_admin_id=requesting_admin_id,admin_to_operation=admin_to_delete_id))
         if requesting_admin==admin_to_delete:
-            raise AdminSecurityError("Admin cannot delete themselves")
+            raise DomainSecurityError("Admin cannot delete themselves")
 
 
         # 4. Check if admin to delete has created any clients
         clients_by_admin = self.clients.get_clients_by_admin(admin_to_delete.admin_id)
         if clients_by_admin:
             client_names = [str(c.name) for c in clients_by_admin]
-            raise AdminOperationError(
+            raise DomainOperationError(
                 f"Cannot delete admin '{admin_to_delete.name}'. "
                 f"They have created clients: {', '.join(client_names[:3])}"
                 f"{'...' if len(client_names) > 3 else ''}"
@@ -201,7 +202,7 @@ class AdminManagementService:
 
         # Can't disable yourself
         if requesting_admin==admin_to_disable:
-            raise AdminSecurityError("Admin cannot disable themselves")
+            raise DomainSecurityError("Admin cannot disable themselves")
         self.admins.set_admin_status(admin_to_disable.name, False)
 
     def create_admin(self,requesting_admin_id:int,
@@ -209,6 +210,67 @@ class AdminManagementService:
 
         requesting_admin=self.admins.get_admin_by_id(requesting_admin_id)
         if requesting_admin.is_empty() or not requesting_admin.enabled:
-            raise AdminSecurityError(f"Admin {requesting_admin.name} cannot create a new admin")
+            raise DomainSecurityError(f"Admin {requesting_admin.name} cannot create a new admin")
         admin=self.admins.create_admin(admin_id=0, name=name,email=email,password=password,enabled=enable)
         return admin
+
+
+    class TicketManagementService:
+        """Domain Service enforcing cross-aggregate rules"""
+
+        def __init__(
+                self,
+                admins_aggregate,  # Your existing AdminsAggregate
+                clients_aggregate,  # Your existing ClientsAggregate
+                tickets_aggregate  # New TicketsAggregate
+        ):
+            self.admins = admins_aggregate
+            self.clients = clients_aggregate
+            self.tickets = tickets_aggregate
+
+        def create_ticket(
+                self,
+                admin_name: str,
+                client_name: str,
+                text: str,
+                executor: str = "",
+                comment: str = ""
+        ) -> Ticket:
+            """
+            Business rule 4: Ticket can be created only by enabled Admin for enabled Client
+            """
+            # Check admin exists and enabled
+            admin = self.admins.require_admin_by_name(admin_name)
+            if admin.is_empty() or not admin.enabled:
+                raise ValueError(f"Admin '{admin_name}' not enabled or doesn't exist")
+
+            # Check client exists and enabled
+            client = self.clients.get_client_by_name(client_name)
+            if client.is_empty or not client.enabled:
+                raise ValueError(f"Client '{client_name}' not enabled or doesn't exist")
+
+            # Create ticket
+            return self.tickets.create_ticket(
+                admin_id=admin.admin_id,
+                client_id=client.client_id,
+                text=text,
+                executor=executor,
+                comment=comment
+            )
+
+        def delete_ticket(
+                self,
+                admin_name: str,
+                ticket_id: int
+        ) -> None:
+            """
+            Business rule 5: Ticket can be deleted only by enabled Admin
+            """
+            # Check admin exists and enabled
+            admin = self.admins.require_admin_by_name(admin_name)
+            if admin.is_empty() or not admin.enabled:
+                raise ValueError(f"Admin '{admin_name}' not enabled or doesn't exist")
+
+            # Delete ticket
+            self.tickets.delete_ticket(ticket_id, admin.admin_id)
+

@@ -9,7 +9,7 @@ from src.services.service_layer.factory import ServiceFactory
 from src.services.uow.uowsqlite import SqliteUnitOfWork
 from src.adapters.repositorysqlite import CreateDB
 from utils.db.connect import Connection
-from src.domain.exceptions import AdminOperationError, ItemNotFoundError, ItemAlreadyExistsError
+from src.domain.exceptions import DomainOperationError, ItemNotFoundError, ItemAlreadyExistsError
 
 
 @pytest.fixture
@@ -316,7 +316,7 @@ class TestAdminServiceIntegration:
     def test_error_handling_integration(self, admin_service):
         """Test error handling with real database"""
         # Test invalid operation
-        with pytest.raises(AdminOperationError, match="Unknown operation"):
+        with pytest.raises(DomainOperationError, match="Unknown operation"):
             admin_service.execute('invalid_operation')
 
         # Test missing parameters

@@ -6,15 +6,9 @@ from datetime import datetime
 from src.domain.exceptions import ItemValidationError, ItemAlreadyExistsError, ItemNotFoundError
 from src.domain.value_objects import Emails, Address, Phones, ClientName
 
-from typing import Protocol, runtime_checkable
 
 
-@runtime_checkable
-class IAdminNameUniquenessChecker(Protocol):
-    """Протокол для проверки уникальности имени админа"""
 
-    def is_name_available(self, name: str) -> bool:
-        """Возвращает True, если имя доступно (уникально)"""
 
 
 

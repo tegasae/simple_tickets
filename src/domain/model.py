@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 import re
 
 
-from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError, AdminOperationError
+from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError, DomainOperationError
 
 # Constants
 EMPTY_ADMIN_ID: Final[int] = 0
@@ -290,7 +290,7 @@ class AdminEmpty(AdminAbstract):
 
     @property
     def password(self):
-        raise AdminOperationError(message="Cannot access password on empty admin")
+        raise DomainOperationError(message="Cannot access password on empty admin")
 
     @password.setter
     def password(self, plain_password: str):

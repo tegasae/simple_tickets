@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime
 
 
-from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError, AdminOperationError
+from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError, DomainOperationError
 from src.domain.model import (
     Admin, AdminEmpty, AdminsAggregate,
     EMPTY_ADMIN_ID, MIN_PASSWORD_LENGTH
@@ -151,7 +151,7 @@ class TestAdminEmpty:
 
     def test_admin_empty_password_access(self, empty_admin):
         """Test that password access raises errors on AdminEmpty"""
-        with pytest.raises(AdminOperationError, match="Operation failed: Cannot access password on empty admin"):
+        with pytest.raises(DomainOperationError, match="Operation failed: Cannot access password on empty admin"):
             _ = empty_admin.password
 
         with pytest.raises(AttributeError, match="Cannot set password on empty admin"):

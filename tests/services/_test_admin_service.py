@@ -6,7 +6,7 @@ from typing import List
 from src.services.service_layer.admins import AdminService
 from src.services.service_layer.data import CreateAdminData
 from src.services.uow.uowsqlite import AbstractUnitOfWork
-from src.domain.exceptions import AdminOperationError
+from src.domain.exceptions import DomainOperationError
 from src.domain.model import Admin, AdminAbstract, AdminsAggregate
 
 
@@ -66,7 +66,7 @@ class TestAdminService:
 
     def test_execute_invalid_operation(self, admin_service):
         """Test execute with invalid operation"""
-        with pytest.raises(AdminOperationError, match="Unknown operation: invalid_op"):
+        with pytest.raises(DomainOperationError, match="Unknown operation: invalid_op"):
             admin_service.execute("invalid_op", name="test")
 
     def test_execute_missing_parameters(self, admin_service):
@@ -116,7 +116,7 @@ class TestAdminService:
         admin_service._get_admin_by_name = Mock(return_value=fresh_admin)
 
         # Execute & Assert
-        with pytest.raises(AdminOperationError, match="Admin was created but ID wasn't properly generated"):
+        with pytest.raises(DomainOperationError, match="Admin was created but ID wasn't properly generated"):
             admin_service._create_admin(create_admin_data)
 
     def test_create_admin_unexpected_error(self, admin_service, mock_uow, create_admin_data):
@@ -140,9 +140,9 @@ class TestAdminService:
     def test_get_admin_by_name_not_found(self, admin_service, mock_uow, mock_aggregate):
         """Test admin retrieval by name when not found"""
         mock_uow.admins.get_list_of_admins.return_value = mock_aggregate
-        mock_aggregate.require_admin_by_name.side_effect = AdminOperationError("Admin not found")
+        mock_aggregate.require_admin_by_name.side_effect = DomainOperationError("Admin not found")
 
-        with pytest.raises(AdminOperationError, match="Admin not found"):
+        with pytest.raises(DomainOperationError, match="Admin not found"):
             admin_service._get_admin_by_name("nonexistent")
 
     # Test _get_admin_by_id
