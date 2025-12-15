@@ -250,7 +250,7 @@ class AdminManagementService:
                 raise ValueError(f"Client '{client_name}' not enabled or doesn't exist")
 
             # Create ticket
-            return self.tickets.create_ticket(
+            return s1elf.tickets.create_ticket(
                 admin_id=admin.admin_id,
                 client_id=client.client_id,
                 text=text,
