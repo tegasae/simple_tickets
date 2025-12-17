@@ -2,12 +2,13 @@ import hashlib
 import secrets
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Dict, Final, Optional
+from typing import List, Dict, Final, Optional, Set
 from abc import ABC, abstractmethod
 import re
 
 
 from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError, DomainOperationError
+from src.domain.permissions.rbac import Permission
 
 # Constants
 EMPTY_ADMIN_ID: Final[int] = 0
@@ -106,15 +107,18 @@ class Admin(AdminAbstract):
     _email: str
     _password_hash: str = field(repr=False)
     _enabled: bool
+    _roles: Set[str] = field(default_factory=set)  # Store role names, not objects
     _date_created: datetime = field(default_factory=datetime.now)
 
     def __init__(self, admin_id: int, name: str, password: str, email: str, enabled: bool,
+                 roles: Optional[Set[str]] = None,
                  date_created: Optional[datetime] = None):
 
         self._admin_id = admin_id
         self._name = name
         self._email = email
         self._enabled = enabled
+        self._roles = roles or set()
         self._password_hash = Admin.str_hash(password)
         self._date_created = date_created or datetime.now()
 
@@ -156,6 +160,36 @@ class Admin(AdminAbstract):
     @property
     def date_created(self) -> datetime:
         return self._date_created
+
+        # New RBAC methods
+
+    def has_role(self, role_name: str) -> bool:
+        return role_name in self._roles
+
+    def has_permission(self, permission: Permission, role_registry: 'RoleRegistry') -> bool:
+        """Check if admin has permission through any of their roles"""
+        if not self._enabled:
+            return False
+
+        for role_name in self._roles:
+            role = role_registry.get_role(role_name)
+            if role and role.has_permission(permission):
+                return True
+        return False
+
+    def assign_role(self, role_name: str, role_registry: 'RoleRegistry') -> None:
+        """Assign a role to admin"""
+        if not role_registry.role_exists(role_name):
+            raise ItemNotFoundError(f"Role '{role_name}' not found")
+        self._roles.add(role_name)
+
+    def remove_role(self, role_name: str) -> None:
+        """Remove a role from admin"""
+        self._roles.discard(role_name)
+
+    def get_roles(self) -> Set[str]:
+        return set(self._roles)  # Return copy
+
 
     def __eq__(self, other) -> bool:
         """Если этот экземпляр это AdminEmpty, то они не равны"""
