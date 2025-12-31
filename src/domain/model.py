@@ -97,6 +97,10 @@ class AdminAbstract(ABC):
     def password(self, plain_password: str):
         raise NotImplementedError
 
+    @abstractmethod
+    def assign_role(self, role_name: str, role_registry: RoleRegistry) -> None:
+        raise NotImplementedError
+
 
 @dataclass
 class Admin(AdminAbstract):
@@ -330,6 +334,10 @@ class AdminEmpty(AdminAbstract):
 
     def verify_password(self, password: str) -> bool:
         return False
+
+    def assign_role(self, role_name: str, role_registry: RoleRegistry) -> None:
+        pass
+
 
     @property
     def password(self):

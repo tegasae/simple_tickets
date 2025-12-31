@@ -299,3 +299,36 @@ class AdminManagementService:
             # Delete ticket
             self.tickets.delete_ticket(ticket_id, admin.admin_id)
 
+###доделать
+class RoleManagementService:
+    """Service for managing roles and role assignments"""
+
+    def __init__(self, admins_aggregate: AdminsAggregate, role_registry: RoleRegistry):
+        self.admins = admins_aggregate
+        self.roles = role_registry
+
+    def assign_role_to_admin(self, requesting_admin_id: int,
+                             target_admin_id: int, role_name: str) -> None:
+        """Assign role to admin (requires UPDATE_ADMIN permission)"""
+        # 1. Check requesting admin has UPDATE_ADMIN permission
+        requesting_admin = self.admins.get_admin_by_id(requesting_admin_id)
+        if not requesting_admin.has_permission(Permission.UPDATE_ADMIN, self.roles):
+            raise DomainSecurityError("Insufficient permissions to assign roles")
+
+        # 2. Get target admin
+        target_admin = self.admins.get_admin_by_id(target_admin_id)
+        if target_admin.is_empty():
+            raise ItemNotFoundError(f"Admin '{target_admin_id}' not found")
+
+        # 3. Check role exists
+        if not self.roles.role_exists(role_name):
+            raise ItemNotFoundError(f"Role '{role_name}' not found")
+
+        # 4. Assign role
+        target_admin.assign_role(role_name, self.roles)
+
+    def remove_role_from_admin(self, requesting_admin_id: int,
+                               target_admin_id: int, role_name: str) -> None:
+        """Remove role from admin"""
+        # Similar logic to assign_role_to_admin
+        # Additional check: Cannot remove last supervisor from system
