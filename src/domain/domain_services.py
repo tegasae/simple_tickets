@@ -6,15 +6,36 @@ from src.domain.clients import Client, ClientsAggregate
 from src.domain.exceptions import (
     ItemNotFoundError, DomainOperationError, DomainSecurityError
 )
+from src.domain.permissions.rbac import RoleRegistry, Permission
 from src.domain.tickets import Ticket
 
 
 class ClientManagementService:
     """Domain Service for orchestrating client operations across aggregates"""
 
-    def __init__(self, admins_aggregate: AdminsAggregate, clients_aggregate: ClientsAggregate):
+    def __init__(self, admins_aggregate: AdminsAggregate,
+                 clients_aggregate: ClientsAggregate,
+                 role_registry: RoleRegistry):
         self.admins = admins_aggregate
         self.clients = clients_aggregate
+        self.roles = role_registry
+
+    def _require_permission(self, admin_id: int, permission: Permission) -> AdminAbstract:
+        """Get admin and verify they have required permission"""
+        admin = self.admins.get_admin_by_id(admin_id)
+
+        if admin.is_empty():
+            raise ItemNotFoundError(f"Admin '{admin_id}' not found")
+
+        if not admin.enabled:
+            raise DomainOperationError(f"Admin '{admin.name}' is disabled")
+
+        if not admin.has_permission(permission, self.roles):
+            raise DomainSecurityError(
+                f"Admin '{admin.name}' lacks permission: {permission.value}"
+            )
+
+        return admin
 
     # ============ VALIDATION HELPERS ============
 
@@ -64,8 +85,11 @@ class ClientManagementService:
             :param admin_id:
             :param address:
         """
+
+        admin = self._require_permission(admin_id, Permission.CREATE_CLIENT)
+
         # 1. Validate admin exists and is active
-        admin = self._require_active_admin(admin_id)
+        #admin = self._require_active_admin(admin_id)
 
         # 2. Create client with admin's ID as creator
         # Note: client_id=0 for new (unpersisted) clients
@@ -94,6 +118,7 @@ class ClientManagementService:
         """
         Update client address (Rule 2: Any admin can update any client)
         """
+
         (admin,client)=self._get_admin_client(admin_id=admin_id,client_id=client_id)
 
         # 3. Update address (any admin can do this per Rule 2)
@@ -250,7 +275,7 @@ class AdminManagementService:
                 raise ValueError(f"Client '{client_name}' not enabled or doesn't exist")
 
             # Create ticket
-            return s1elf.tickets.create_ticket(
+            return self.tickets.create_ticket(
                 admin_id=admin.admin_id,
                 client_id=client.client_id,
                 text=text,

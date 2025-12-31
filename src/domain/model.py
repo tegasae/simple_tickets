@@ -8,7 +8,7 @@ import re
 
 
 from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError, DomainOperationError
-from src.domain.permissions.rbac import Permission
+from src.domain.permissions.rbac import Permission, RoleRegistry
 
 # Constants
 EMPTY_ADMIN_ID: Final[int] = 0
@@ -25,6 +25,10 @@ class AdminAbstract(ABC):
     @property
     @abstractmethod
     def admin_id(self) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def has_permission(self, permission: Permission, role_registry: RoleRegistry) -> bool:
         raise NotImplementedError
 
     @admin_id.setter
@@ -166,7 +170,7 @@ class Admin(AdminAbstract):
     def has_role(self, role_name: str) -> bool:
         return role_name in self._roles
 
-    def has_permission(self, permission: Permission, role_registry: 'RoleRegistry') -> bool:
+    def has_permission(self, permission: Permission, role_registry: RoleRegistry) -> bool:
         """Check if admin has permission through any of their roles"""
         if not self._enabled:
             return False
@@ -177,7 +181,7 @@ class Admin(AdminAbstract):
                 return True
         return False
 
-    def assign_role(self, role_name: str, role_registry: 'RoleRegistry') -> None:
+    def assign_role(self, role_name: str, role_registry: RoleRegistry) -> None:
         """Assign a role to admin"""
         if not role_registry.role_exists(role_name):
             raise ItemNotFoundError(f"Role '{role_name}' not found")
@@ -267,6 +271,8 @@ class Admin(AdminAbstract):
 @dataclass
 class AdminEmpty(AdminAbstract):
     """Null Object implementation of AdminAbstract"""
+
+
     _admin_id: int = EMPTY_ADMIN_ID
     _name: str = ""
     _email: str = ""
@@ -277,6 +283,9 @@ class AdminEmpty(AdminAbstract):
     @property
     def admin_id(self) -> int:
         return self._admin_id
+
+    def has_permission(self, permission: Permission, role_registry: RoleRegistry) -> bool:
+        return False
 
     @admin_id.setter
     def admin_id(self, value: int):
