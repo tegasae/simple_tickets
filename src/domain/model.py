@@ -20,7 +20,7 @@ class AdminAbstract(ABC):
     """Abstract base class for all Admin types"""
     """Класс абстрактный Админ. Абстрактным сделан для реализации обычного Admin и AdminEmpty. 
     AdminEmpty используется вместо использования None значений. В дальнейшем на базе этого класса будет реализован 
-    класс User, который будет предком как для Admin, так и для предствителей клиентов"""
+    класс User, который будет предком как для Admin, так и для представителей клиентов"""
 
     @property
     @abstractmethod
@@ -115,18 +115,17 @@ class Admin(AdminAbstract):
     _email: str
     _password_hash: str = field(repr=False)
     _enabled: bool
-    _roles: Set[str] = field(default_factory=set)  # Store role names, not objects
     _date_created: datetime = field(default_factory=datetime.now)
-
+    _role_ids: Set[int] = field(default_factory=set)  # ← Store IDs, not names!
     def __init__(self, admin_id: int, name: str, password: str, email: str, enabled: bool,
-                 roles: Optional[Set[str]] = None,
+                 roles_ids: Optional[Set[int]] = None,
                  date_created: Optional[datetime] = None):
 
         self._admin_id = admin_id
         self._name = name
         self._email = email
         self._enabled = enabled
-        self._roles = roles or set()
+        self._roles_ids = roles_ids or set()
         self._password_hash = Admin.str_hash(password)
         self._date_created = date_created or datetime.now()
 
@@ -174,13 +173,14 @@ class Admin(AdminAbstract):
     def has_role(self, role_name: str) -> bool:
         return role_name in self._roles
 
+
     def has_permission(self, permission: Permission, role_registry: RoleRegistry) -> bool:
         """Check if admin has permission through any of their roles"""
         if not self._enabled:
             return False
 
-        for role_name in self._roles:
-            role = role_registry.get_role(role_name)
+        for role_id in self._role_ids:  # ← Iterate through IDs
+            role = role_registry.get_role_by_id(role_id)  # ← Look up by ID
             if role and role.has_permission(permission):
                 return True
         return False

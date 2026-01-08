@@ -6,9 +6,10 @@ from datetime import datetime
 
 from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, DomainSecurityError
 
-
+#todo В дальнейшем хранить роли в базе.
 class Permission(Enum):
     """All possible permissions in the system"""
+    """Все возможные права. Просто перечисление."""
     # Client Operations
     CREATE_CLIENT = "create_client"
     VIEW_CLIENT = "view_client"
@@ -36,6 +37,8 @@ class Permission(Enum):
 @dataclass(frozen=True)
 class Role:
     """Immutable role with permissions"""
+    """Роль, включает в себя набор прав. Сейчас роли используются только для Admin. В дальнейшем у Client 
+    тоже будет поведение и роли нужно будет предусмотреть для Client, но позже."""
     role_id: int
     name: str
     description: str = ""
@@ -44,9 +47,11 @@ class Role:
     date_created: datetime = field(default_factory=datetime.now)
 
     def has_permission(self, permission: Permission) -> bool:
+        """Ииееет ли роль указанное разрешение"""
         return permission in self.permissions
 
     def can_manage_clients(self) -> bool:
+        """может ли эта роль управлять Client"""
         client_permissions = {
             Permission.CREATE_CLIENT, Permission.VIEW_CLIENT,
             Permission.UPDATE_CLIENT, Permission.DELETE_CLIENT,
@@ -55,6 +60,7 @@ class Role:
         return any(p in self.permissions for p in client_permissions)
 
     def can_manage_admins(self) -> bool:
+        """может ли эта роль управлять Admin"""
         admin_permissions = {
             Permission.CREATE_ADMIN, Permission.VIEW_ADMIN,
             Permission.UPDATE_ADMIN, Permission.DISABLE_ADMIN,
@@ -66,13 +72,18 @@ class Role:
 # rbac.py (continued)
 class RoleRegistry:
     """Aggregate for managing roles"""
-
+    """Набор ролей. Пока роли только для Admin. Есть несколько предопределенных ролей."""
+    """Роли храняться как по id так и по имени."""
+    #todo избавиться от хранения ролей по имени, хранить только по id.
     def __init__(self):
-        self._roles: dict[str, Role] = {}  # name -> Role
         self._load_default_roles()
+        self._roles_by_id: dict[int, Role] = {}  # ID → Role
+        self._roles_by_name: dict[str, Role] = {}  # Name → Role
+
 
     def _load_default_roles(self):
         """Create default system roles"""
+        """Предопределенные роли"""
         default_roles = {
             Role(
                 role_id=1,
@@ -115,36 +126,45 @@ class RoleRegistry:
         }
 
         for role in default_roles:
-            self._roles[role.name] = role
+            self._roles_by_name[role.name] = role
+            self._roles_by_id[role.role_id] = role
 
-    def get_role(self, role_name: str) -> Optional[Role]:
-        return self._roles.get(role_name)
 
-    def role_exists(self, role_name: str) -> bool:
-        return role_name in self._roles
+    def get_role_by_id(self, role_id: int) -> Optional[Role]:
+        return self._roles_by_id.get(role_id)
+
+    def role_exists_by_name(self, role_name: str) -> bool:
+        return role_name in self._roles_by_name
+
+    def get_role_by_name(self, role_name: str) -> Optional[Role]:
+        return self._roles_by_name.get(role_name)
+
+    def role_exists_by_id(self, role_id: int) -> bool:
+        return role_id in self._roles_by_id
 
     def create_custom_role(self, name: str, description: str,
                            permissions: set[Permission]) -> Role:
         """Create a new custom role (for future extensibility)"""
-        if name in self._roles:
+        if name in self._roles_by_name:
             raise ItemAlreadyExistsError(f"Role '{name}' already exists")
 
         role = Role(
-            role_id=len(self._roles) + 1,
+            role_id=len(self._roles_by_id) + 1,
             name=name,
             description=description,
             permissions=frozenset(permissions),
             is_system_role=False
         )
-        self._roles[name] = role
+        self._roles_by_name[name] = role
+        self._roles_by_id[role.role_id] = role
         return role
 
-    def update_role_permissions(self, role_name: str,
+    def update_role_permissions(self, role_id: int,
                                 new_permissions: set[Permission]) -> Role:
         """Update permissions for a role (cannot modify system roles)"""
-        role = self.get_role(role_name)
+        role = self.get_role_by_id(role_id)
         if not role:
-            raise ItemNotFoundError(f"Role '{role_name}' not found")
+            raise ItemNotFoundError(f"Role '{role_id}' not found")
 
         if role.is_system_role:
             raise DomainSecurityError("Cannot modify system roles")
@@ -156,8 +176,9 @@ class RoleRegistry:
             permissions=frozenset(new_permissions),
             is_system_role=False
         )
-        self._roles[role_name] = updated_role
+        self._roles_by_name[role.name] = updated_role
+        self._roles_by_id[role.role_id] = updated_role
         return updated_role
 
     def get_all_roles(self) -> list[Role]:
-        return list(self._roles.values())
+        return list(self._roles_by_id.values())
