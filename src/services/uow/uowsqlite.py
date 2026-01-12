@@ -48,6 +48,7 @@ class AbstractUnitOfWork(ContextManager,ABC):
         raise NotImplementedError
 
 
+
 class SqliteUnitOfWork(AbstractUnitOfWork):
     """
     Concrete implementation for SQLite database
@@ -124,6 +125,9 @@ class SqliteUnitOfWork(AbstractUnitOfWork):
     def is_active(self) -> bool:
         """Check if SQLite transaction is active"""
         return self._active
+
+
+
 if __name__=='__main__':
     # conn1 = Connection.create_connection(url=":memory:", engine=sqlite3)
 

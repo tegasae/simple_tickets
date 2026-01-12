@@ -21,7 +21,7 @@ class AdminAbstract(ABC):
     """Класс абстрактный Админ. Абстрактным сделан для реализации обычного Admin и AdminEmpty. 
     AdminEmpty используется вместо использования None значений. В дальнейшем на базе этого класса будет реализован 
     класс User, который будет предком как для Admin, так и для представителей клиентов"""
-
+    created_clients = 0
     @property
     @abstractmethod
     def admin_id(self) -> int:
@@ -109,6 +109,8 @@ class AdminAbstract(ABC):
     def get_roles(self) -> Set[int]:
         raise NotImplementedError
 
+
+
 @dataclass
 class Admin(AdminAbstract):
     """Пользователи владельцев системы. Обладаюь полными правами в системе."""
@@ -126,7 +128,7 @@ class Admin(AdminAbstract):
     _role_ids: Set[int] = field(default_factory=set)  # ← Store IDs, not names!
     def __init__(self, admin_id: int, name: str, password: str, email: str, enabled: bool,
                  roles_ids: Optional[Set[int]] = None,
-                 date_created: Optional[datetime] = None):
+                 date_created: Optional[datetime] = None,created_clients=0):
 
         self._admin_id = admin_id
         self._name = name
@@ -135,6 +137,7 @@ class Admin(AdminAbstract):
         self._roles_ids = roles_ids or set()
         self._password_hash = Admin.str_hash(password)
         self._date_created = date_created or datetime.now()
+        self.created_clients = created_clients
 
 
         # Property implementations with setters
@@ -277,6 +280,7 @@ class Admin(AdminAbstract):
 
     def verify_password(self, password: str) -> bool:
         return self.str_verify(password, self._password_hash)
+
 
 
 @dataclass
@@ -440,7 +444,7 @@ class AdminsAggregate:
             self.admins[admin.name] = admin
             #self.version += 1
 
-    def change_admin(self, admin: Admin):
+    def change_admin(self, admin: AdminAbstract):
         """Change an existing admin with validation"""
         # todo При изменении admin не валидируется имя, email, пароль.
         #  Это связано с порнографией добавления уже хешированного пароля

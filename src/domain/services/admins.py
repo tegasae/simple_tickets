@@ -1,15 +1,13 @@
-from src.domain.clients import ClientsAggregate
 from src.domain.exceptions import DomainSecurityError, DomainOperationError, ItemNotFoundError
-from src.domain.model import AdminsAggregate, AdminAbstract, AdminEmpty
+from src.domain.model import AdminsAggregate, AdminAbstract, AdminEmpty, Admin
 from src.domain.permissions.rbac import Permission, RoleRegistry
 
 
 class AdminManagementService:
     """Domain Service for admin operations with cross-aggregate rules"""
 
-    def __init__(self, admins_aggregate: AdminsAggregate, clients_aggregate: ClientsAggregate,roles_registry: RoleRegistry):
+    def __init__(self, admins_aggregate: AdminsAggregate, roles_registry: RoleRegistry):
         self.admins = admins_aggregate
-        self.clients = clients_aggregate
         self.roles=roles_registry
 
     def _get_admins(self,requesting_admin_id:int,admin_to_operation:int,permission: Permission)->tuple[AdminAbstract,AdminAbstract]:
@@ -52,13 +50,10 @@ class AdminManagementService:
 
 
         # 4. Check if admin to delete has created any clients
-        clients_by_admin = self.clients.get_clients_by_admin(admin_to_delete.admin_id)
-        if clients_by_admin:
-            client_names = [str(c.name) for c in clients_by_admin]
+
+        if admin_to_delete.created_clients!=0:
             raise DomainOperationError(
-                f"Cannot delete admin '{admin_to_delete.name}'. "
-                f"They have created clients: {', '.join(client_names[:3])}"
-                f"{'...' if len(client_names) > 3 else ''}"
+                f"Cannot delete admin '{admin_to_delete.name}'. It has {admin_to_delete.created_clients}."
             )
 
         # 5. Delete the admin
@@ -92,6 +87,13 @@ class AdminManagementService:
         admin=self.admins.create_admin(admin_id=0, name=name,email=email,password=password,enabled=enabled,roles=roles)
         return admin
 
+    def update_admin(self,requesting_admin_id:int,new_admin:AdminAbstract)->AdminAbstract:
+        self._get_admins(requesting_admin_id=requesting_admin_id, admin_to_operation=new_admin.admin_id,
+                             permission=Permission.UPDATE_ADMIN)
+        admin=self.admins.change_admin(admin=new_admin)
+        return admin
+
+
     def assign_role_to_admin(self, requesting_admin_id: int,
                              target_admin_id: int, role_id: int) -> None:
         """Assign role to admin (requires UPDATE_ADMIN permission)"""
@@ -106,12 +108,12 @@ class AdminManagementService:
 
 
     def remove_role_from_admin(self, requesting_admin_id: int,
-                               target_admin_id: int, role_name: str) -> None:
+                               target_admin_id: int, role_id: int) -> None:
 
         """Remove role from admin"""
         (requesting_admin, target_admin) = (
             self._get_admins(requesting_admin_id=requesting_admin_id, admin_to_operation=target_admin_id,
                              permission=Permission.UPDATE_ADMIN))
 
-        role=self.roles.get_role_by_name(role_name)
+        role=self.roles.get_role_by_id(role_id)
         target_admin.remove_role(role.role_id)
