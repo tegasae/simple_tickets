@@ -1,8 +1,11 @@
 # services/admin_service.py
 from typing import List
 
+from src.domain.clients import ClientsAggregate
 from src.domain.exceptions import DomainOperationError
 from src.domain.model import Admin, AdminAbstract
+from src.domain.permissions.rbac import RoleRegistry
+from src.domain.services.admins import AdminManagementService
 from src.services.service_layer.base import BaseService
 from src.services.service_layer.data import CreateAdminData
 
@@ -13,12 +16,24 @@ class AdminService(BaseService[Admin]):
     Handles business logic and coordinates with UoW
     """
 
-    def execute(self, operation: str, **kwargs) -> AdminAbstract:
+    def __init__(self, uow, logger, roles_registry: RoleRegistry):
+        super().__init__(uow)
+        self.role_registry = roles_registry
+
+        self.admin_management_service = AdminManagementService(admins_aggregate=self.uow.admins.get_list_of_admins(),
+                                                               clients_aggregate=None,
+                                                               roles_registry=roles_registry)
+
+    def execute(self, requesting_admin_id: int, operation: str, **kwargs) -> AdminAbstract:
+        """All operations need to know WHO is performing them"""
+        self._validate_input(requesting_admin_id=requesting_admin_id, operation=operation, **kwargs)
         """
         Main entry point for admin operations
         Uses a command pattern for different operations
         """
-        self._validate_input(operation=operation, **kwargs)
+        # Get requesting admin first
+        requesting_admin = self._get_admin_by_id(requesting_admin_id)
+
 
         operation_methods = {
             'create': self._create_admin,
@@ -28,14 +43,16 @@ class AdminService(BaseService[Admin]):
             'toggle_status': self._toggle_admin_status,
             'change_password': self._change_admin_password,
             'remove_by_id': self._remove_admin_by_id,
+            'assign_role': self._assign_role,  # New
+            'remove_role': self._remove_role,  # New
         }
 
         if operation not in operation_methods:
             raise DomainOperationError(f"Unknown operation: {operation}")
 
-        return operation_methods[operation](**kwargs)
+        return operation_methods[operation](requesting_admin.admin_id, **kwargs)
 
-    def _create_admin(self, create_admin_data: CreateAdminData) -> AdminAbstract:
+    def _create_admin(self, requesting_admin_id: int, create_admin_data: CreateAdminData) -> AdminAbstract:
         """Create a new admin with validation"""
         self._log_operation("create_admin", name=create_admin_data.name, email=create_admin_data.email)
 
@@ -45,13 +62,14 @@ class AdminService(BaseService[Admin]):
                 aggregate = self.uow.admins.get_list_of_admins()
 
                 # Create admin through aggregate
-                aggregate.create_admin(
-                    admin_id=0,  # Let database generate ID
-                    name=create_admin_data.name,
-                    email=create_admin_data.email,
-                    password=create_admin_data.password,
-                    enabled=create_admin_data.enabled
-                )
+                self.admin_management_service.create_admin(requesting_admin_id=requesting_admin_id,
+                                                           name=create_admin_data.name,
+                                                           email=create_admin_data.email,
+                                                           password=create_admin_data.password,
+                                                           enabled=create_admin_data.enabled,
+                                                           roles=create_admin_data.roles
+                                                           )
+
 
                 # Persist changes
 
@@ -61,6 +79,7 @@ class AdminService(BaseService[Admin]):
 
                 # ✅ GOOD: Reload to get database-generated ID and ensure consistency
                 fresh_admin = self._get_admin_by_name(create_admin_data.name)
+
 
                 if fresh_admin.admin_id == 0:
                     raise DomainOperationError("Admin was created but ID wasn't properly generated")
@@ -137,17 +156,29 @@ class AdminService(BaseService[Admin]):
             self.logger.info(f"Password changed for admin: {name}")
             return aggregate.require_admin_by_name(name)
 
-    def _remove_admin_by_id(self, admin_id: int) -> None:
-        """Remove admin by ID"""
-        self._log_operation("remove_admin_by_id", admin_id=admin_id)
+    def _remove_admin_by_id(self, requesting_admin_id: int, admin_id: int) -> None:
+        """Remove admin - requires DELETE_ADMIN permission"""
+        self._log_operation("remove_admin_by_id",
+                            requester=requesting_admin_id,
+                            target=admin_id)
+
+        # Can't delete yourself
+        if requesting_admin_id == admin_id:
+            raise DomainOperationError("Admin cannot delete themselves")
 
         with self.uow:
-            aggregate = self.uow.admins.get_list_of_admins()
-            aggregate.remove_admin_by_id(admin_id)
-            self.uow.admins.save_admins(aggregate)
+
+
+            self.admin_management_service.delete_admin(
+                requesting_admin_id=requesting_admin_id,
+                admin_to_delete_id=admin_id
+            )
+
+            # Persist
+            self.uow.admins.save_admins(self.admin_management_service.admins)
             self.uow.commit()
 
-            self.logger.info(f"Admin removed: (ID: {admin_id})")
+            self.logger.info(f"Admin {admin_id} removed by admin {requesting_admin_id}")
 
     # Bulk operations
     def list_all_admins(self) -> List[Admin]:
@@ -167,3 +198,33 @@ class AdminService(BaseService[Admin]):
         with self.uow:
             aggregate = self.uow.admins.get_list_of_admins()
             return aggregate.admin_exists(name)
+
+    def _assign_role(self, requesting_admin_id: int, target_admin_id: int, role_id: int) -> AdminAbstract:
+        """Assign role to admin - requires UPDATE_ADMIN permission"""
+
+        self._log_operation("assign_role",
+                            requester=requesting_admin_id,
+                            target=target_admin_id,
+                            role=role_id)
+
+        with self.uow:
+            # Get domain services
+            #admin_service = self._get_admin_management_service()
+
+            #role_management_service = RoleManagementService(
+            #    admins_aggregate=admin_service.admins,
+            #    role_registry=self.role_registry
+            #)
+
+            # Assign role (includes permission check)
+            self.admin_management_service.assign_role_to_admin(
+                requesting_admin_id=requesting_admin_id,
+                target_admin_id=target_admin_id,
+                role_id=role_id
+            )
+
+            # Persist
+            self.uow.admins.save_admins(admin_service.admins)
+            self.uow.commit()
+
+            return admin_service.admins.get_admin_by_id(target_admin_id)

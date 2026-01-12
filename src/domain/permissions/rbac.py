@@ -69,16 +69,37 @@ class Role:
         return any(p in self.permissions for p in admin_permissions)
 
 
+@dataclass(frozen=True)
+class EmptyRole(Role):
+    """Immutable role with permissions"""
+    """Пустая роль"""
+    role_id: int=0
+    name: str=""
+    description: str = ""
+    permissions: set=()
+    is_system_role: bool = False  # Cannot be modified/deleted
+    date_created: datetime = field(default_factory=datetime.now)
+
+    def has_permission(self, permission: Permission) -> bool:
+        return False
+
+    def can_manage_clients(self) -> bool:
+        return False
+
+    def can_manage_admins(self) -> bool:
+        return False
+
+
 # rbac.py (continued)
 class RoleRegistry:
     """Aggregate for managing roles"""
     """Набор ролей. Пока роли только для Admin. Есть несколько предопределенных ролей."""
-    """Роли храняться как по id так и по имени."""
+    """Роли хранятся по id."""
     #todo избавиться от хранения ролей по имени, хранить только по id.
     def __init__(self):
         self._load_default_roles()
         self._roles_by_id: dict[int, Role] = {}  # ID → Role
-        self._roles_by_name: dict[str, Role] = {}  # Name → Role
+        #self._roles_by_name: dict[str, Role] = {}  # Name → Role
 
 
     def _load_default_roles(self):
@@ -126,18 +147,24 @@ class RoleRegistry:
         }
 
         for role in default_roles:
-            self._roles_by_name[role.name] = role
             self._roles_by_id[role.role_id] = role
 
 
-    def get_role_by_id(self, role_id: int) -> Optional[Role]:
-        return self._roles_by_id.get(role_id)
+    def get_role_by_id(self, role_id: int) -> Role:
+        return self._roles_by_id.get(role_id,EmptyRole())
 
     def role_exists_by_name(self, role_name: str) -> bool:
-        return role_name in self._roles_by_name
+        for role in self._roles_by_id.values():
+            if role.name == role_name:
+                return True
+        return False
 
-    def get_role_by_name(self, role_name: str) -> Optional[Role]:
-        return self._roles_by_name.get(role_name)
+    def get_role_by_name(self, role_name: str) -> Role:
+        for role in self._roles_by_id.values():
+            if role.name == role_name:
+                return role
+        return EmptyRole()
+
 
     def role_exists_by_id(self, role_id: int) -> bool:
         return role_id in self._roles_by_id
@@ -145,7 +172,7 @@ class RoleRegistry:
     def create_custom_role(self, name: str, description: str,
                            permissions: set[Permission]) -> Role:
         """Create a new custom role (for future extensibility)"""
-        if name in self._roles_by_name:
+        if self.role_exists_by_name(name):
             raise ItemAlreadyExistsError(f"Role '{name}' already exists")
 
         role = Role(
@@ -155,7 +182,7 @@ class RoleRegistry:
             permissions=frozenset(permissions),
             is_system_role=False
         )
-        self._roles_by_name[name] = role
+
         self._roles_by_id[role.role_id] = role
         return role
 
@@ -176,7 +203,6 @@ class RoleRegistry:
             permissions=frozenset(new_permissions),
             is_system_role=False
         )
-        self._roles_by_name[role.name] = updated_role
         self._roles_by_id[role.role_id] = updated_role
         return updated_role
 

@@ -1,13 +1,9 @@
-# domain_services.py
 from typing import Optional
 
-from src.domain.model import AdminAbstract, AdminsAggregate
-from src.domain.clients import Client, ClientsAggregate
-from src.domain.exceptions import (
-    ItemNotFoundError, DomainOperationError, DomainSecurityError
-)
+from src.domain.clients import ClientsAggregate, Client
+from src.domain.exceptions import ItemNotFoundError, DomainOperationError, DomainSecurityError
+from src.domain.model import AdminsAggregate, AdminAbstract
 from src.domain.permissions.rbac import RoleRegistry, Permission
-from src.domain.tickets import Ticket
 
 
 class ClientManagementService:
@@ -168,97 +164,3 @@ class ClientManagementService:
         """Get all clients created by a specific admin"""
         admin = self._require_active_admin(admin_id)
         return self.clients.get_clients_by_admin(admin.admin_id)
-
-
-class TicketManagementService:
-    """Domain Service enforcing cross-aggregate rules"""
-
-    def __init__(
-                self,
-                admins_aggregate,  # Your existing AdminsAggregate
-                clients_aggregate,  # Your existing ClientsAggregate
-                tickets_aggregate  # New TicketsAggregate
-        ):
-            self.admins = admins_aggregate
-            self.clients = clients_aggregate
-            self.tickets = tickets_aggregate
-
-    def create_ticket(
-                self,
-                admin_name: str,
-                client_name: str,
-                text: str,
-                executor: str = "",
-                comment: str = ""
-        ) -> Ticket:
-            """
-            Business rule 4: Ticket can be created only by enabled Admin for enabled Client
-            """
-            # Check admin exists and enabled
-            admin = self.admins.require_admin_by_name(admin_name)
-            if admin.is_empty() or not admin.enabled:
-                raise ValueError(f"Admin '{admin_name}' not enabled or doesn't exist")
-
-            # Check client exists and enabled
-            client = self.clients.get_client_by_name(client_name)
-            if client.is_empty or not client.enabled:
-                raise ValueError(f"Client '{client_name}' not enabled or doesn't exist")
-
-            # Create ticket
-            return self.tickets.create_ticket(
-                admin_id=admin.admin_id,
-                client_id=client.client_id,
-                text=text,
-                executor=executor,
-                comment=comment
-            )
-
-    def delete_ticket(
-                self,
-                admin_name: str,
-                ticket_id: int
-        ) -> None:
-            """
-            Business rule 5: Ticket can be deleted only by enabled Admin
-            """
-            # Check admin exists and enabled
-            admin = self.admins.require_admin_by_name(admin_name)
-            if admin.is_empty() or not admin.enabled:
-                raise ValueError(f"Admin '{admin_name}' not enabled or doesn't exist")
-
-            # Delete ticket
-            self.tickets.delete_ticket(ticket_id, admin.admin_id)
-
-###доделать
-class RoleManagementService:
-    """Service for managing roles and role assignments"""
-
-    def __init__(self, admins_aggregate: AdminsAggregate, role_registry: RoleRegistry):
-        self.admins = admins_aggregate
-        self.roles = role_registry
-
-    def assign_role_to_admin(self, requesting_admin_id: int,
-                             target_admin_id: int, role_name: str) -> None:
-        """Assign role to admin (requires UPDATE_ADMIN permission)"""
-        # 1. Check requesting admin has UPDATE_ADMIN permission
-        requesting_admin = self.admins.get_admin_by_id(requesting_admin_id)
-        if not requesting_admin.has_permission(Permission.UPDATE_ADMIN, self.roles):
-            raise DomainSecurityError("Insufficient permissions to assign roles")
-
-        # 2. Get target admin
-        target_admin = self.admins.get_admin_by_id(target_admin_id)
-        if target_admin.is_empty():
-            raise ItemNotFoundError(f"Admin '{target_admin_id}' not found")
-
-        # 3. Check role exists
-        if not self.roles.role_exists(role_name):
-            raise ItemNotFoundError(f"Role '{role_name}' not found")
-
-        # 4. Assign role
-        target_admin.assign_role(role_name, self.roles)
-
-    def remove_role_from_admin(self, requesting_admin_id: int,
-                               target_admin_id: int, role_name: str) -> None:
-        """Remove role from admin"""
-        # Similar logic to assign_role_to_admin
-        # Additional check: Cannot remove last supervisor from system

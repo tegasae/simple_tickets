@@ -34,9 +34,19 @@ class CreateDB:
                     email TEXT NOT NULL,
                     password_hash TEXT NOT NULL,
                     enabled INTEGER NOT NULL,
-                    date_created TEXT NOT NULL
+                    date_created TEXT NOT NULL,
+                    roles text default ""
                 )
             """)
+            query.set_result()
+
+            # Create admins table
+            query = self.conn.create_query("""
+                            CREATE TABLE IF NOT EXISTS admins_roles (
+                                admin_id INTEGER,
+                                role_id INTEGER
+                            )
+                        """)
             query.set_result()
 
             # Insert initial aggregate row if it doesn't exist
@@ -96,9 +106,9 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
             self.saved_version = version_result.get('version', 0) if version_result else 0
 
             # Get all admins
-            query = self.conn.create_query("SELECT admin_id,name,password_hash,email,enabled,date_created FROM admins",
+            query = self.conn.create_query("SELECT admin_id,name,password_hash,email,enabled,date_created,roles FROM admins",
                                            var=['admin_id', 'name', 'password_hash', 'email', 'enabled',
-                                                'date_created'])
+                                                'date_created','roles'])
 
             admins_data = query.get_result()
 
@@ -106,6 +116,10 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
 
             for row in admins_data:
                 #todo переделать это. Дата может быть не в формате, тогда выаодить значение по умолчанию
+                try:
+                    roles=set(map(int,row['roles'].split(',')))
+                except (ValueError,AttributeError):
+                    roles=set()
 
                 try:
                     date_created=datetime.fromisoformat(row['date_created'])
@@ -117,7 +131,8 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
                     password=row['password_hash'],  # Already hashed
                     email=row['email'],
                     enabled=bool(row['enabled']),
-                    date_created=date_created
+                    date_created=date_created,
+                    roles_ids=roles
                 )
 
                 # Set date from database
@@ -151,21 +166,24 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
             query.set_result()
             query_new_admin = self.conn.create_query(
                 "INSERT INTO admins  (name, email, password_hash, enabled, "
-                "date_created) VALUES (:name, :email, :password_hash, "
-                ":enabled, :date_created)")
+                "date_created,roles) VALUES (:name, :email, :password_hash, "
+                ":enabled, :date_created,roles)")
             query_exists_admin = self.conn.create_query(
                 "INSERT INTO admins  (admin_id, name, email, password_hash, enabled, "
-                "date_created) VALUES (:admin_id, :name, :email, :password_hash, "
-                ":enabled, :date_created)")
+                "date_created,roles) VALUES (:admin_id, :name, :email, :password_hash, "
+                ":enabled, :date_created,:roles)")
             # Insert all admins from aggregate
             for admin in aggregate.get_all_admins():
+
+                roles=",".join(map(str,admin.get_roles()))
                 if admin.admin_id == 0:
                     query_new_admin.set_result(params={
                         'name': admin.name,
                         'email': admin.email,
                         'password_hash': admin.password,
                         'enabled': 1 if admin.enabled else 0,
-                        'date_created': admin.date_created.isoformat()
+                        'date_created': admin.date_created.isoformat(),
+                        'roles': roles
                     })
 
                 else:
@@ -176,7 +194,8 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
                         'email': admin.email,
                         'password_hash': admin.password,
                         'enabled': 1 if admin.enabled else 0,
-                        'date_created': admin.date_created.isoformat()
+                        'date_created': admin.date_created.isoformat(),
+                        'roles': roles
                     })
         except Exception as e:
             raise DBOperationError(f"Failed to save admins: {str(e)}")

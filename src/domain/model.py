@@ -98,9 +98,16 @@ class AdminAbstract(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def assign_role(self, role_name: str, role_registry: RoleRegistry) -> None:
+    def assign_role(self, role_id: int, role_registry: RoleRegistry) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    def remove_role(self, role_id: int) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_roles(self) -> Set[int]:
+        raise NotImplementedError
 
 @dataclass
 class Admin(AdminAbstract):
@@ -170,8 +177,8 @@ class Admin(AdminAbstract):
 
         # New RBAC methods
 
-    def has_role(self, role_name: str) -> bool:
-        return role_name in self._roles
+    def has_role(self, role_id: int) -> bool:
+        return role_id in self._roles_ids
 
 
     def has_permission(self, permission: Permission, role_registry: RoleRegistry) -> bool:
@@ -185,18 +192,18 @@ class Admin(AdminAbstract):
                 return True
         return False
 
-    def assign_role(self, role_name: str, role_registry: RoleRegistry) -> None:
+    def assign_role(self, role_id: int, role_registry: RoleRegistry) -> None:
         """Assign a role to admin"""
-        if not role_registry.role_exists(role_name):
-            raise ItemNotFoundError(f"Role '{role_name}' not found")
-        self._roles.add(role_name)
+        if not role_registry.role_exists_by_id(role_id):
+            raise ItemNotFoundError(f"Role '{role_id}' not found")
+        self._roles_ids.add(role_id)
 
-    def remove_role(self, role_name: str) -> None:
+    def remove_role(self, role_id: int) -> None:
         """Remove a role from admin"""
-        self._roles.discard(role_name)
+        self._roles_ids.discard(role_id)
 
-    def get_roles(self) -> Set[str]:
-        return set(self._roles)  # Return copy
+    def get_roles(self) -> Set[int]:
+        return set(self._roles_ids)  # Return copy
 
 
     def __eq__(self, other) -> bool:
@@ -335,9 +342,12 @@ class AdminEmpty(AdminAbstract):
     def verify_password(self, password: str) -> bool:
         return False
 
-    def assign_role(self, role_name: str, role_registry: RoleRegistry) -> None:
+    def assign_role(self, role_id: int, role_registry: RoleRegistry) -> None:
         pass
 
+
+    def remove_role(self, role_id: int) -> None:
+        pass
 
     @property
     def password(self):
@@ -347,9 +357,13 @@ class AdminEmpty(AdminAbstract):
     def password(self, plain_password: str):
         raise AttributeError("Cannot set password on empty admin")
 
+    def get_roles(self) -> Set[int]:
+        pass
+
     def __getattr__(self, name):
         """Catch any other method calls and raise appropriate error"""
         raise AttributeError(f"Cannot call '{name}' on empty admin")
+
 
 
 class AdminsAggregate:
@@ -394,7 +408,7 @@ class AdminsAggregate:
         if name in self.admins:
             raise ItemAlreadyExistsError(name)
 
-    def create_admin(self, admin_id: int, name: str, email: str, password: str, enabled: bool = True) -> Admin:
+    def create_admin(self, admin_id: int, name: str, email: str, password: str, enabled: bool = True,roles:set[int]=()) -> Admin:
         """Create a new admin with validation"""
         validated_name = AdminsAggregate._validate_name(name)
         validated_email = AdminsAggregate._validate_email(email)
@@ -407,7 +421,8 @@ class AdminsAggregate:
             name=validated_name,
             password=validated_password,
             email=validated_email,
-            enabled=enabled
+            enabled=enabled,
+            roles_ids=roles
         )
         self.version+=1
         self.add_admin(admin)
