@@ -125,7 +125,7 @@ class Admin(AdminAbstract):
     _password_hash: str = field(repr=False)
     _enabled: bool
     _date_created: datetime = field(default_factory=datetime.now)
-    _role_ids: Set[int] = field(default_factory=set)  # ← Store IDs, not names!
+    _roles_ids: Set[int] = field(default_factory=set)  # ← Store IDs, not names!
     def __init__(self, admin_id: int, name: str, password: str, email: str, enabled: bool,
                  roles_ids: Optional[Set[int]] = None,
                  date_created: Optional[datetime] = None,created_clients=0):
