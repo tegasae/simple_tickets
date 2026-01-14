@@ -1,6 +1,11 @@
+from functools import wraps
+
 from src.domain.exceptions import DomainSecurityError, DomainOperationError, ItemNotFoundError
-from src.domain.model import AdminsAggregate, AdminAbstract, AdminEmpty, Admin
+from src.domain.model import AdminsAggregate, AdminAbstract, AdminEmpty
 from src.domain.permissions.rbac import Permission, RoleRegistry
+
+
+
 
 
 class AdminManagementService:
@@ -10,12 +15,24 @@ class AdminManagementService:
         self.admins = admins_aggregate
         self.roles=roles_registry
 
-    def _get_admins(self,requesting_admin_id:int,admin_to_operation:int,permission: Permission)->tuple[AdminAbstract,AdminAbstract]:
+
+    @staticmethod
+    def require_permission(permission: Permission):
+        def decorator(func):
+            @wraps(func)
+            def wrapper(self, requesting_admin_id: int, *args, **kwargs):
+                requesting_admin = self._check_admin_permissions(
+                    requesting_admin_id, permission
+                )
+
+                return func(self, requesting_admin_id, *args, **kwargs)
+
+            return wrapper
+
+        return decorator
+
+    def _check_admin_permissions(self,requesting_admin_id:int,permission: Permission)->AdminAbstract:
         requesting_admin = self.admins.get_admin_by_id(requesting_admin_id)
-        if admin_to_operation!=0:
-            admin_to_operation=self.admins.get_admin_by_id(admin_to_operation)
-        else:
-            admin_to_operation=AdminEmpty()
 
         if requesting_admin.is_empty():
             raise ItemNotFoundError(f"Admin '{requesting_admin_id}' not found")
@@ -28,92 +45,102 @@ class AdminManagementService:
             raise DomainSecurityError(
                 f"Admin '{requesting_admin.name}' lacks permission: {permission.value}"
             )
-        return requesting_admin,admin_to_operation
+        return requesting_admin
 
 
+
+    @require_permission(permission=Permission.DELETE_ADMIN)
     def delete_admin(
             self,
             requesting_admin_id: int,
-            admin_to_delete_id: int
+            targeting_admin_id: int
     ) -> None:
         """
         Delete an admin with business rules:
         - Rule 5: Admin can't delete itself
         - Additional: Check if admin has created clients
         """
-        # 1. Validate requesting admin exists and is active
-        (requesting_admin,admin_to_delete)=(
-            self._get_admins(requesting_admin_id=requesting_admin_id,admin_to_operation=admin_to_delete_id,permission=Permission.DELETE_ADMIN))
-
-        if requesting_admin==admin_to_delete:
+        if requesting_admin_id==targeting_admin_id:
             raise DomainSecurityError("Admin cannot delete themselves")
 
-
         # 4. Check if admin to delete has created any clients
-
-        if admin_to_delete.created_clients!=0:
-            raise DomainOperationError(
-                f"Cannot delete admin '{admin_to_delete.name}'. It has {admin_to_delete.created_clients}."
-            )
+        admin_to_delete=self.admins.get_admin_by_id(targeting_admin_id)
 
         # 5. Delete the admin
         self.admins.remove_admin_by_id(admin_to_delete.admin_id)
 
+    @require_permission(Permission.UPDATE_ADMIN)
     def disable_admin(
             self,
-            requesting_admin_id: int,
-            admin_to_disable_id: int
+            requesting_admin_id:int,
+            targeting_admin_id: int
     ) -> None:
         """Disable an admin (softer than delete)"""
 
-        (requesting_admin, admin_to_disable) = (
-            self._get_admins(requesting_admin_id=requesting_admin_id, admin_to_operation=admin_to_disable_id,permission=Permission.DISABLE_ADMIN))
-
         # Can't disable yourself
-        if requesting_admin==admin_to_disable:
+        if requesting_admin_id==targeting_admin_id:
             raise DomainSecurityError("Admin cannot disable themselves")
 
-        self.admins.set_admin_status(admin_to_disable.name, False)
 
+        self.admins.set_admin_status(targeting_admin_id, False)
+
+    @require_permission(Permission.UPDATE_ADMIN)
+    def enable_admin(
+            self,
+            requesting_admin_id: int,
+            targeting_admin_id: int
+    ) -> None:
+        """Disable an admin (softer than delete)"""
+
+        self.admins.set_admin_status(targeting_admin_id, True)
+
+    @require_permission(Permission.CREATE_ADMIN)
     def create_admin(self,requesting_admin_id:int,
                      name:str,email:str,password:str,enabled:bool=True,roles:set[int]=())->AdminAbstract:
 
-        (requesting_admin, _) = (
-            self._get_admins(requesting_admin_id=requesting_admin_id, admin_to_operation=0,permission=Permission.CREATE_ADMIN))
-
-
-        if requesting_admin.is_empty() or not requesting_admin.enabled:
-            raise DomainSecurityError(f"Admin {requesting_admin.name} cannot create a new admin")
         admin=self.admins.create_admin(admin_id=0, name=name,email=email,password=password,enabled=enabled,roles=roles)
         return admin
 
-    def update_admin(self,requesting_admin_id:int,new_admin:AdminAbstract)->AdminAbstract:
-        self._get_admins(requesting_admin_id=requesting_admin_id, admin_to_operation=new_admin.admin_id,
-                             permission=Permission.UPDATE_ADMIN)
-        admin=self.admins.change_admin(admin=new_admin)
+    @require_permission(Permission.UPDATE_ADMIN)
+    def update_admin(self,requesting_admin_id:int, targeting_admin_id: int, email:str=None,
+                     password:str=None)->AdminAbstract:
+        admin=AdminEmpty()
+        if email:
+            admin=self.admins.change_admin_email(admin_id=targeting_admin_id,new_email=email)
+        if password:
+            admin=self.admins.change_admin_password(admin_id=targeting_admin_id,new_password=password)
         return admin
 
-
+    @require_permission(Permission.UPDATE_ADMIN)
     def assign_role_to_admin(self, requesting_admin_id: int,
-                             target_admin_id: int, role_id: int) -> None:
+                             targeting_admin_id: int, role_id: int) -> AdminAbstract:
         """Assign role to admin (requires UPDATE_ADMIN permission)"""
-        (requesting_admin, target_admin) = (
-            self._get_admins(requesting_admin_id=requesting_admin_id, admin_to_operation=target_admin_id,
-                             permission=Permission.UPDATE_ADMIN))
 
-        # 4. Assign role
-        role=self.roles.get_role_by_id(role_id)
-        target_admin.assign_role(role.role_id, self.roles)
+        role = self.roles.get_role_by_id(role_id)
+        admin=self.admins.get_admin_by_id(admin_id=targeting_admin_id)
+        admin.assign_role(role.role_id, self.roles)
+        self.admins.change_admin(admin=admin)
+        return admin
 
-
-
+    @require_permission(Permission.UPDATE_ADMIN)
     def remove_role_from_admin(self, requesting_admin_id: int,
-                               target_admin_id: int, role_id: int) -> None:
+                               targeting_admin_id: int, role_id: int) -> AdminAbstract:
 
         """Remove role from admin"""
-        (requesting_admin, target_admin) = (
-            self._get_admins(requesting_admin_id=requesting_admin_id, admin_to_operation=target_admin_id,
-                             permission=Permission.UPDATE_ADMIN))
+
 
         role=self.roles.get_role_by_id(role_id)
-        target_admin.remove_role(role.role_id)
+        admin = self.admins.get_admin_by_id(admin_id=targeting_admin_id)
+        admin.remove_role(role.role_id)
+        return admin
+
+if __name__=="__main__":
+    aggregate=AdminsAggregate()
+    aggregate.create_admin(admin_id=1,name="admin1",email="1@11.ru",password="123567890",roles={1,2,3})
+    aggregate.create_admin(admin_id=2, name="admin2", email="2@22.ru", password="123567890", roles={1, 2, 3})
+    print(aggregate.get_all_admins())
+    rr=RoleRegistry()
+    admin_management_service=AdminManagementService(admins_aggregate=aggregate,roles_registry=rr)
+    admin_management_service.disable_admin(requesting_admin_id=1,targeting_admin_id=2)
+
+    print(aggregate.get_all_admins())

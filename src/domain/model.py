@@ -113,10 +113,10 @@ class AdminAbstract(ABC):
 
 @dataclass
 class Admin(AdminAbstract):
-    """Пользователи владельцев системы. Обладаюь полными правами в системе."""
+    """Пользователи владельцев системы. Обладают полными правами в системе."""
     """name используется как login. Возможно, в дальнейшем добавить дополнительную информацию о пользователе и ввести
-    отдельноем поле login"""
-    """пароль храниться в хешированном виде"""
+    отдельном поле login"""
+    """пароль храниться в хэшированном виде"""
     """Дата создания не меняется"""
     """Обращения к полям только через свойства"""
     _admin_id: int
@@ -189,7 +189,7 @@ class Admin(AdminAbstract):
         if not self._enabled:
             return False
 
-        for role_id in self._role_ids:  # ← Iterate through IDs
+        for role_id in self._roles_ids:  # ← Iterate through IDs
             role = role_registry.get_role_by_id(role_id)  # ← Look up by ID
             if role and role.has_permission(permission):
                 return True
@@ -238,10 +238,7 @@ class Admin(AdminAbstract):
 
     @staticmethod
     def str_hash(s: str) -> str:
-        #return "1"
-        #return bcrypt.hashpw(s.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-        #salt = os.urandom(32)
-        #return hashlib.sha256(salt + s.encode()).hexdigest()
+
         """Hash password with SHA-256 and random salt"""
         # Generate a cryptographically secure random salt
         salt = secrets.token_bytes(32)
@@ -434,8 +431,8 @@ class AdminsAggregate:
 
     def add_admin(self, admin: AdminAbstract):
         """Add an existing admin with validation"""
-        # todo При добавлении созданого admin не валидируется имя, email, пароль.
-        # Это связано с порнографией добавления уже хешированного пароля
+        # todo При добавлении созданного admin не валидируется имя, email, пароль.
+        # Это связано с порнографией добавления уже хэшированного пароля
 
         if isinstance(admin, Admin):
             # self._validate_admin_id_unique(admin.admin_id)
@@ -447,7 +444,7 @@ class AdminsAggregate:
     def change_admin(self, admin: AdminAbstract):
         """Change an existing admin with validation"""
         # todo При изменении admin не валидируется имя, email, пароль.
-        #  Это связано с порнографией добавления уже хешированного пароля
+        #  Это связано с порнографией добавления уже хэшированного пароля
         if isinstance(admin, Admin):
             if admin.name in self.admins and self.admins[admin.name].admin_id == admin.admin_id:
                 self.admins[admin.name] = admin
@@ -468,31 +465,30 @@ class AdminsAggregate:
         """Check if admin with given name exists"""
         return name in self.admins and not self.admins[name].is_empty()
 
-    def change_admin_email(self, name: str, new_email: str):
+    def change_admin_email(self, admin_id: int, new_email: str):
         """Change email for specific admin"""
-        admin = self.require_admin_by_name(name)
+        admin = self.get_admin_by_id(admin_id=admin_id)
         validated_email = AdminsAggregate._validate_email(new_email)
-
         admin.email = validated_email
         self.version += 1
 
-    def change_admin_password(self, name: str, new_password: str):
+    def change_admin_password(self, admin_id: int, new_password: str):
         """Change password for specific admin"""
-        admin = self.require_admin_by_name(name)
+        admin = self.get_admin_by_id(admin_id)
         validated_password = AdminsAggregate._validate_password(new_password)
 
         admin.password = validated_password
         self.version += 1
 
-    def toggle_admin_status(self, name: str):
+    def toggle_admin_status(self, admin_id: int):
         """Toggle admin status (enable ↔ disable)"""
-        admin = self.require_admin_by_name(name)
+        admin = self.get_admin_by_id(admin_id=admin_id)
         admin.enabled = not admin.enabled
         self.version += 1
 
-    def set_admin_status(self, name: str, enabled: bool):
+    def set_admin_status(self, admin_id: int, enabled: bool):
         """Set specific admin status"""
-        admin = self.require_admin_by_name(name)
+        admin = self.get_admin_by_id(admin_id)
         admin.enabled = enabled
         self.version += 1
 
@@ -500,6 +496,10 @@ class AdminsAggregate:
         """Remove admin by id"""
         for name in self.admins:
             if self.admins[name].admin_id == admin_id:
+                if self.admins[name].created_clients!=0:
+                    raise DomainOperationError(
+                        f"Cannot delete admin '{self.admins[name].name}'. It has {self.admins[name].created_clients}."
+                    )
                 self.version += 1
                 del (self.admins[name])
                 return

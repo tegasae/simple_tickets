@@ -97,9 +97,9 @@ class RoleRegistry:
     """Роли хранятся по id."""
     #todo избавиться от хранения ролей по имени, хранить только по id.
     def __init__(self):
-        self._load_default_roles()
         self._roles_by_id: dict[int, Role] = {}  # ID → Role
-        #self._roles_by_name: dict[str, Role] = {}  # Name → Role
+        self._load_default_roles()
+
 
 
     def _load_default_roles(self):
