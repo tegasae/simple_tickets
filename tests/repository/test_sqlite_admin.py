@@ -2,7 +2,8 @@ import pytest
 import sqlite3
 from datetime import datetime
 from unittest.mock import Mock, MagicMock
-from src.adapters.repositorysqlite import CreateDB, SQLiteAdminRepository, Admin, AdminsAggregate, AdminEmpty
+from src.adapters.repositorysqlite import CreateDB, SQLiteAdminRepository, Admin, AdminsAggregate
+from src.domain.admin_empty import AdminEmpty
 from utils.db.connect import Connection
 from utils.db.exceptions import DBOperationError
 

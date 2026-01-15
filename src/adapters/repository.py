@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from src.domain.model import AdminsAggregate, AdminAbstract, Admin
+from src.domain.model import AdminsAggregate
 
 
 class AdminRepositoryAbstract(ABC):

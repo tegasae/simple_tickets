@@ -4,9 +4,10 @@ from datetime import datetime
 
 from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError, DomainOperationError
 from src.domain.model import (
-    Admin, AdminEmpty, AdminsAggregate,
+    Admin, AdminsAggregate,
     EMPTY_ADMIN_ID, MIN_PASSWORD_LENGTH
 )
+from src.domain.admin_empty import AdminEmpty
 
 
 class TestAdmin:

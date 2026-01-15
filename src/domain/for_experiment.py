@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 import bcrypt
 
-from src.domain.model import AdminEmpty
+from src.domain.admin_empty import AdminEmpty
 
 
 @dataclass

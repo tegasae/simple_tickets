@@ -208,3 +208,9 @@ class RoleRegistry:
 
     def get_all_roles(self) -> list[Role]:
         return list(self._roles_by_id.values())
+
+    def require_role_by_id(self, role_id: int) -> Role:
+        role = self.get_role_by_id(role_id)
+        if not role:
+            raise ItemNotFoundError(f"Role ID '{role_id}' not found")
+        return role

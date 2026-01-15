@@ -4,7 +4,8 @@ import sqlite3
 from datetime import datetime
 
 from src.adapters.repository import AdminRepositoryAbstract
-from src.domain.model import AdminEmpty, AdminsAggregate, Admin
+from src.domain.model import AdminsAggregate, Admin
+from src.domain.admin_empty import AdminEmpty
 from utils.db.connect import Connection
 
 from utils.db.exceptions import DBOperationError
