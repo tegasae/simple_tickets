@@ -1,7 +1,7 @@
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 
-from src.domain.admin_empty import AdminEmpty
+from src.domain.old.admin_empty import AdminEmpty
 from src.services.service_layer.admins import AdminService
 from src.services.service_layer.factory import ServiceFactory
 from src.web import settings

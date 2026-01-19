@@ -7,7 +7,7 @@ from src.domain.model import (
     Admin, AdminsAggregate,
     EMPTY_ADMIN_ID, MIN_PASSWORD_LENGTH
 )
-from src.domain.admin_empty import AdminEmpty
+from src.domain.old.admin_empty import AdminEmpty
 
 
 class TestAdmin:

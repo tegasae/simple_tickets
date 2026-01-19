@@ -3,9 +3,10 @@ import sqlite3
 
 from datetime import datetime
 
-from src.adapters.repository import AdminRepositoryAbstract
+from src.adapters.repository import AdminRepositoryAbstract, ClientRepositoryAbstract
+from src.domain.clients import Client
 from src.domain.model import AdminsAggregate, Admin
-from src.domain.admin_empty import AdminEmpty
+from src.domain.value_objects import Emails, Address, Phones, ClientName
 from utils.db.connect import Connection
 
 from utils.db.exceptions import DBOperationError
@@ -94,7 +95,7 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
 
     def __init__(self, conn: Connection):
         self.conn = conn
-        self._empty_admin = AdminEmpty()
+
         self.saved_version = 0
 
     def get_list_of_admins(self) -> AdminsAggregate:
@@ -202,6 +203,91 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
             raise DBOperationError(f"Failed to save admins: {str(e)}")
 
 
+class SQLiteClientRepository(ClientRepositoryAbstract):
+
+    def __init__(self, conn: Connection):
+        self.conn = conn
+        self.saved_version = 0
+
+    def get_all_clients(self) -> list[Client]:
+        try:
+            query = self.conn.create_query(
+                "SELECT client_id,admin_id, client_name,emails,phones,address, enabled,date_created,version FROM clients",
+                var=['client_id','admin_id', 'name', 'emails', 'phones', 'address', 'enabled','date_created','version'])
+
+            clients_data = query.get_result()
+
+            clients = []
+
+            for row in clients_data:
+                try:
+                    date_created = datetime.fromisoformat(row['date_created'])
+                except ValueError:
+                    date_created = datetime.now()
+                client = Client(
+                    client_id=row['client_id'],
+                    admin_id=row['admin_id'],
+                    name=ClientName(row['name']),
+                    emails=Emails(row['emails']),
+                    phones=Phones(row['phones']),
+                    address=Address(row['address']),
+                    enabled=bool(row['enabled']),
+                    date_created=date_created,
+                    version=row['version']
+                )
+
+                clients.append(client)
+
+
+        except Exception as e:
+            raise DBOperationError(f"Failed to get admin list: {str(e)}")
+
+        return clients
+
+    def save_client(self, client: Client) -> None:
+        """Save the entire aggregate to persistence"""
+        try:
+            query_new_client = self.conn.create_query(
+                "INSERT INTO clients (admin_id,client_name, emails, address,phones, enabled, date_created,version) VALUES (:admin_id,:name, :emails, :address, :phones, :enabled, :date_created,0)")
+            query_exists_client = self.conn.create_query(
+                "UPDATE clients  "
+                "SET client_name=:name,emails=:emails,address=:address,phones=:phones,enabled=:enabled,version=:version "
+                "WHERE client_id=:client_id AND version=:version")
+            # Insert all admins from aggregate
+
+            if client.client_id == 0:
+                client.client_id=query_new_client.set_result(params={
+                        'admin_id': client.admin_id,
+                        'name': client.name.value,
+                        'emails': client.emails.value,
+                        'address': client.address.value,
+                        'phones': client.phones.value,
+                        'enabled': 1 if client.enabled else 0,
+                        'date_created': client.date_created.isoformat()
+                    })
+            else:
+                query_exists_client.set_result(params={
+                        'name': client.name.value,
+                        'emails': client.emails.value,
+                        'address': client.address.value,
+                        'phones': client.phones.value,
+                        'enabled': 1 if client.enabled else 0,
+                        'client_id': client.admin_id,
+                        'version': self.saved_version
+                })
+                if not query_exists_client.count:
+                    raise DBOperationError(f"The version is wrong")
+        except Exception as e:
+            raise DBOperationError(f"Failed to save client: {str(e)}")
+
+    def delete_client(self, client_id:int) -> None:
+        try:
+            query_delete_client = self.conn.create_query("DELETE FROM clients WHERE client_id=:client_id")
+            query_delete_client.set_result(params={'client_id': client_id})
+        except Exception as e:
+            raise DBOperationError(f"Failed to delete client: {str(e)}")
+
+
 if __name__ == "__main__":
     # conn1 = Connection.create_connection(url=":memory:", engine=sqlite3)
 
@@ -209,24 +295,18 @@ if __name__ == "__main__":
         url='../../db/admins.db',  # or "admins.db" for file-based
         engine=sqlite3
     )
-    db_creator = CreateDB(conn1)
-    db_creator.init_data()
-    db_creator.create_indexes()
-    # admins=AdminsAggregate()
-    # admins.add_admin(Admin(admin_id=1,name='name',password='1',email='1',enabled=True))
+    #db_creator = CreateDB(conn1)
+   # db_creator.init_data()
+   # db_creator.create_indexes()
     conn1.begin_transaction()
-    repository = SQLiteAdminRepository(conn=conn1)
-    admins1 = repository.get_list_of_admins()
-    print(admins1.get_all_admins())
-
-    admins1.change_admin_email(name='name', new_email='123@111.ru')
-    admins1.add_admin(Admin(admin_id=0, name='new', email='<EMAIL>', password='1', enabled=True))
-    # admin.email='12345'
-
-    # admins1.change_admin(admin)
-    repository.save_admins(admins1)
-    admins1 = repository.get_list_of_admins()
-    print(admins1.get_all_admins())
+    admin=Admin(name='admin', email='<EMAIL>', password='<PASSWORD>',admin_id=1,enabled=True)
+    repository=SQLiteClientRepository(conn1)
+    #repository.save_client(Client.create(name="test",emails="<EMAIL>",phones="0123456789",address="test",enabled=True,admin=admin))
+    clients=repository.get_all_clients()
+    print(clients)
+    clients[0].phones=Phones("111111111122")
+    repository.save_client(clients[0])
+    repository.delete_client(client_id=3)
 
     conn1.commit()
     conn1.close()

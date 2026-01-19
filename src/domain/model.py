@@ -6,7 +6,7 @@ from datetime import datetime
 import re
 from typing import Final, Optional
 
-from src.domain.admin_empty import AdminEmpty
+
 from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError, DomainOperationError
 from src.domain.permissions.rbac import Permission, RoleRegistry
 
@@ -118,7 +118,7 @@ class Admin:
 
     def __eq__(self, other) -> bool:
         """Если этот экземпляр это AdminEmpty, то они не равны"""
-        if isinstance(other, AdminEmpty):
+        if isinstance(other, Admin) and other.is_empty():
             return False
         """Админы равны по именам"""
         return isinstance(other, Admin) and self._name == other._name
@@ -190,7 +190,7 @@ class AdminsAggregate:
     def __init__(self, admins: list[Admin] = None, version: int = 0):
         self.admins: dict[str, Admin] = {}
         self.version: int = version
-        self._empty_admin = AdminEmpty()
+        #self._empty_admin = AdminEmpty()
 
         if admins:
             for admin in admins:
@@ -270,8 +270,10 @@ class AdminsAggregate:
                 self.version += 1
 
     def get_admin_by_name(self, name: str) -> Admin:
-        """Get admin by unique name - returns AdminEmpty if not found"""
-        return self.admins.get(name, self._empty_admin)
+        admin=self.admins.get(name)
+        if not admin:
+            raise ItemNotFoundError(f"Admin {name} not found")
+        return admin
 
     def require_admin_by_name(self, name: str) -> Admin:
         """Get admin by name - throws exception if not found"""

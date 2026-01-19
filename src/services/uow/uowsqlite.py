@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 class AbstractUnitOfWork(ContextManager,ABC):
     admins_repository: repository.AdminRepositoryAbstract
+    clients_repository: repository.ClientRepositoryAbstract
     """
     Abstract base class that combines ABC and ContextManager
     All concrete implementations must follow this interface
@@ -61,6 +62,7 @@ class SqliteUnitOfWork(AbstractUnitOfWork):
         self._active = False
         self._committed = False
         self.admins_repository = repositorysqlite.SQLiteAdminRepository(conn=self.connection)
+        self.clients_repository = repositorysqlite.SQLiteClientRepository(conn=self.connection)
 
     # ========== ContextManager Methods ==========
     def __enter__(self) -> 'SqliteUnitOfWork':

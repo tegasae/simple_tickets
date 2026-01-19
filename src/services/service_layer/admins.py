@@ -22,6 +22,17 @@ class AdminService(BaseService[Admin]):
         self.admin_roles_management_service = AdminRolesManagementService(
             roles_registry=RoleRegistry()
         )
+        self.operation_methods = {
+            'create': self._create_admin,
+            'get_by_name': self._get_admin_by_name,
+            'get_by_id': self._get_admin_by_id,
+            'update_email': self._update_admin_email,
+            'toggle_status': self._toggle_admin_status,
+            'change_password': self._change_admin_password,
+            'remove_by_id': self._remove_admin_by_id,
+            'assign_role': self._assign_role,
+            'remove_role': self._remove_role,
+        }
 
     @contextmanager
     def _with_admin_operation(self,
@@ -72,24 +83,13 @@ class AdminService(BaseService[Admin]):
             **kwargs
         )
 
-        operation_methods = {
-            'create': self._create_admin,
-            'get_by_name': self._get_admin_by_name,
-            'get_by_id': self._get_admin_by_id,
-            'update_email': self._update_admin_email,
-            'toggle_status': self._toggle_admin_status,
-            'change_password': self._change_admin_password,
-            'remove_by_id': self._remove_admin_by_id,
-            'assign_role': self._assign_role,
-            'remove_role': self._remove_role,
-        }
 
-        if operation not in operation_methods:
+        if operation not in self.operation_methods:
             raise DomainOperationError(f"Unknown operation: {operation}")
 
         # Get requesting admin for validation
         requesting_admin = self._get_admin_by_id(requesting_admin_id)
-        return operation_methods[operation](requesting_admin.admin_id, **kwargs)
+        return self.operation_methods[operation](requesting_admin.admin_id, **kwargs)
 
     def _create_admin(self, requesting_admin_id: int, create_admin_data: CreateAdminData) -> Admin:
         """Create a new admin"""
