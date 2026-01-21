@@ -13,5 +13,5 @@ if __name__=="__main__":
     admin_service=AdminService(uow=SqliteUnitOfWork(connection=connect))
     list_all_admins=admin_service.list_all_admins()
     print(list_all_admins)
-    admin_service.execute(requesting_admin_id=2,operation='toggle_status',target_admin_id=1)
+    admin_service.execute(requesting_admin_id=2,operation='toggle_status',target_admin_id=3)
     connect.close()

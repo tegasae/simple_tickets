@@ -8,3 +8,15 @@ class CreateAdminData:
     email:str
     enabled: bool=True
     roles: set=field(default_factory=set)
+
+
+@dataclass(kw_only=True, frozen=True)
+class CreateClientData:
+    name: str
+    password:str
+    email:str
+    address:str
+    phones:str
+    enabled: bool=True
+
+

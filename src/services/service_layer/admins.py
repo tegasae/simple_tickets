@@ -1,11 +1,9 @@
 # services/admin_service.py
-from contextlib import contextmanager
-from typing import Generator
 
 from src.domain.exceptions import DomainOperationError
-from src.domain.model import Admin, AdminsAggregate
-from src.domain.permissions.rbac import RoleRegistry, Permission
-from src.domain.services.roles_admins import AdminRolesManagementService
+from src.domain.model import Admin
+from src.domain.permissions.rbac import Permission
+
 
 from src.services.service_layer.base import BaseService
 from src.services.service_layer.data import CreateAdminData
@@ -19,9 +17,7 @@ class AdminService(BaseService[Admin]):
 
     def __init__(self, uow):
         super().__init__(uow)
-        self.admin_roles_management_service = AdminRolesManagementService(
-            roles_registry=RoleRegistry()
-        )
+
         self.operation_methods = {
             'create': self._create_admin,
             'get_by_name': self._get_admin_by_name,
@@ -34,46 +30,7 @@ class AdminService(BaseService[Admin]):
             'remove_role': self._remove_role,
         }
 
-    @contextmanager
-    def _with_admin_operation(self,
-                              requesting_admin_id: int,
-                              permission: Permission,
-                              operation_name: str,
-                              **log_details) -> Generator[AdminsAggregate, None, None]:
-        """
-        Context manager for admin operations:
-        1. Logs operation
-        2. Checks permissions
-        3. Provides fresh aggregate
-        4. Commits on success
-        """
-        # 1. Log
-        self._log_operation(operation_name, **log_details)
 
-        # 2. Check permissions
-        self._check_admin_permissions(requesting_admin_id, permission)
-
-        # 3. Get fresh aggregate and execute
-        with self.uow:
-            aggregate = self._get_fresh_aggregate()
-            yield aggregate  # Give aggregate to the operation
-
-            # 4. Save and commit (only if no exception)
-            self.uow.admins.save_admins(aggregate)
-            self.uow.commit()
-
-    def _check_admin_permissions(self, requesting_admin_id: int, permission: Permission):
-        """Check if admin has permission"""
-        aggregate = self._get_fresh_aggregate()
-        requesting_admin = aggregate.get_admin_by_id(requesting_admin_id)
-        self.admin_roles_management_service.check_permission(
-            admin=requesting_admin,
-            permission=permission
-        )
-
-    def _get_fresh_aggregate(self) -> AdminsAggregate:
-        """Get fresh aggregate from UoW"""
-        return self.uow.admins.get_list_of_admins()
 
     def execute(self, requesting_admin_id: int, operation: str, **kwargs) -> Admin | None:
         """All operations need to know WHO is performing them"""
