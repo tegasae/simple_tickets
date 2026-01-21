@@ -4,6 +4,7 @@ from typing import Generator
 from src.domain.clients import Client
 from src.domain.model import AdminsAggregate
 from src.domain.permissions.rbac import Permission
+from src.domain.services.clients_admins import AdminClientManagmentService, AdminClientManagementService
 from src.services.service_layer.base import BaseService, T
 from src.services.service_layer.data import CreateClientData
 
@@ -24,21 +25,25 @@ class ClientService(BaseService[Client]):
             'change_admin': self._change_admin,
             'remove_by_id': self._remove_admin_by_id
         }
+        self.service=AdminClientManagementService
 
 
-    def execute(self, requesting_admin_id: int, operation: str, **kwargs) -> Client | None:
-        """All operations need to know WHO is performing them"""
-        self._validate_input(**kwargs)
+    def _create_client(self, requesting_admin_id: int, create_client_data: CreateClientData) -> Client:
+        with self._with_admin_operation(
+                requesting_admin_id=requesting_admin_id,
+                permission=Permission.CREATE_CLIENT,
+                operation_name="create_client"
+        ) as aggregate:
+            # Create admin
+
+            s=self.service(admins_aggregate=aggregate)
+            client=s.create_client(admin_id=requesting_admin_id,name=create_client_data.name,emails=create_client_data.email,address=create_client_data.email,phones=create_client_data.phones,enabled=create_client_data.enabled)
 
 
-        if operation not in self.operation_methods:
-            raise DomainOperationError(f"Unknown operation: {operation}")
+            # Verify ID was generated
+            client=self.uow.clients_repository.save_client(client)
 
-        # Get requesting admin for validation
-        requesting_admin = self._get_admin_by_id(requesting_admin_id)
-        return self.operation_methods[operation](requesting_admin.admin_id, **kwargs)
-
-    def _create_client(self, requesting_admin_id: int, create_admin_data: CreateClientData) -> Client:
+            return client
 
 
     # Bulk operations

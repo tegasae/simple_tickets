@@ -70,18 +70,13 @@ class AdminService(BaseService[Admin]):
 
             return fresh_admin
 
+
+
     def _get_admin_by_name(self, name: str) -> Admin:
         """Get admin by name"""
         aggregate = self._get_fresh_aggregate()
         return aggregate.require_admin_by_name(name)
 
-    def _get_admin_by_id(self, admin_id: int) -> Admin:
-        """Get admin by ID"""
-        aggregate = self._get_fresh_aggregate()
-        admin = aggregate.get_admin_by_id(admin_id)
-        if admin.is_empty():
-            raise DomainOperationError(f"Admin ID {admin_id} not found")
-        return admin
 
     def _update_admin_email(self,
                             requesting_admin_id: int,

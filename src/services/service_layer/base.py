@@ -1,10 +1,11 @@
 # services/base.py
-from abc import ABC, abstractmethod
+from abc import ABC
 from contextlib import contextmanager
-from typing import Generic, TypeVar, Generator
+from typing import Generic, TypeVar, Generator, overload
 import logging
 
-from src.domain.model import AdminsAggregate
+from src.domain.exceptions import DomainOperationError
+from src.domain.model import AdminsAggregate, Admin
 from src.domain.permissions.rbac import RoleRegistry, Permission
 from src.domain.services.roles_admins import AdminRolesManagementService
 from src.services.uow.uowsqlite import AbstractUnitOfWork
@@ -26,7 +27,7 @@ class BaseService(ABC, Generic[T]):
             roles_registry=RoleRegistry()
         )
         self.logger = logging.getLogger(self.__class__.__name__)
-
+        self.operation_methods={}
 
     def _check_admin_permissions(self, requesting_admin_id: int, permission: Permission):
         """Check if admin has permission"""
@@ -69,10 +70,39 @@ class BaseService(ABC, Generic[T]):
             self.uow.admins.save_admins(aggregate)
             self.uow.commit()
 
-    @abstractmethod
-    def execute(self, *args, **kwargs) -> T:
-        """Main execution method - must be implemented by subclasses"""
-        raise NotImplementedError
+    def _get_admin_by_id(self, admin_id: int) -> Admin:
+        """Get admin by ID"""
+        aggregate = self._get_fresh_aggregate()
+        admin = aggregate.get_admin_by_id(admin_id)
+        if admin.is_empty():
+            raise DomainOperationError(f"Admin ID {admin_id} not found")
+        return admin
+
+
+    @overload
+    def execute(self, requesting_admin_id: int, operation: str, **kwargs) -> None:
+        ...
+
+    @overload
+    def execute(self, requesting_admin_id: int, operation: str, **kwargs) -> T:
+        ...
+
+    @overload
+    def execute(self, requesting_admin_id: int, operation: str, **kwargs) -> list[T]:
+        ...
+
+    def execute(self, requesting_admin_id: int, operation: str, **kwargs) -> T|list[T]|None:
+        """All operations need to know WHO is performing them"""
+        self._validate_input(**kwargs)
+
+        if operation not in self.operation_methods:
+            raise DomainOperationError(f"Unknown operation: {operation}")
+
+        # Get requesting admin for validation
+        requesting_admin = self._get_admin_by_id(requesting_admin_id)
+        return self.operation_methods[operation](requesting_admin.admin_id, **kwargs)
+
+
 
     def _validate_input(self, **kwargs) -> None:
         """Common input validation - can be overridden by subclasses"""
