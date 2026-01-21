@@ -124,6 +124,15 @@ class SqliteUnitOfWork(AbstractUnitOfWork):
         # return self._admins_repo
         return self.admins_repository
 
+    @property
+    def clients(self) -> repository.ClientRepositoryAbstract:
+
+        # if self._admins_repo is None:
+        #    from src.adapters.repository_sqlite import SQLiteAdminRepository
+        #    self._admins_repo = SQLiteAdminRepository(self.connection)
+        # return self._admins_repo
+        return self.clients_repository
+
     def is_active(self) -> bool:
         """Check if SQLite transaction is active"""
         return self._active

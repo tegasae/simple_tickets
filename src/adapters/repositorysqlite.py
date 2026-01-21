@@ -207,7 +207,7 @@ class SQLiteClientRepository(ClientRepositoryAbstract):
 
     def __init__(self, conn: Connection):
         self.conn = conn
-        self.saved_version = 0
+
 
     def get_all_clients(self) -> list[Client]:
         try:
@@ -251,7 +251,7 @@ class SQLiteClientRepository(ClientRepositoryAbstract):
                 "INSERT INTO clients (admin_id,client_name, emails, address,phones, enabled, date_created,version) VALUES (:admin_id,:name, :emails, :address, :phones, :enabled, :date_created,0)")
             query_exists_client = self.conn.create_query(
                 "UPDATE clients  "
-                "SET client_name=:name,emails=:emails,address=:address,phones=:phones,enabled=:enabled,version=:version "
+                "SET client_name=:name,emails=:emails,address=:address,phones=:phones,enabled=:enabled,version=:version+1 "
                 "WHERE client_id=:client_id AND version=:version")
             # Insert all admins from aggregate
 
@@ -273,7 +273,7 @@ class SQLiteClientRepository(ClientRepositoryAbstract):
                         'phones': client.phones.value,
                         'enabled': 1 if client.enabled else 0,
                         'client_id': client.admin_id,
-                        'version': self.saved_version
+                        'version': client.version
                 })
                 if not query_exists_client.count:
                     raise DBOperationError(f"The version is wrong")
@@ -299,13 +299,13 @@ if __name__ == "__main__":
    # db_creator.init_data()
    # db_creator.create_indexes()
     conn1.begin_transaction()
-    admin=Admin(name='admin', email='<EMAIL>', password='<PASSWORD>',admin_id=1,enabled=True)
+    admin1=Admin(name='admin', email='<EMAIL>', password='<PASSWORD>',admin_id=1,enabled=True)
     repository=SQLiteClientRepository(conn1)
     #repository.save_client(Client.create(name="test",emails="<EMAIL>",phones="0123456789",address="test",enabled=True,admin=admin))
-    clients=repository.get_all_clients()
-    print(clients)
-    clients[0].phones=Phones("111111111122")
-    repository.save_client(clients[0])
+    clients1=repository.get_all_clients()
+    print(clients1)
+    clients1[0].phones=Phones("111111111122")
+    repository.save_client(clients1[0])
     repository.delete_client(client_id=3)
 
     conn1.commit()

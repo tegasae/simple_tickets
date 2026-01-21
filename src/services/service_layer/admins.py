@@ -1,6 +1,6 @@
 # services/admin_service.py
 from contextlib import contextmanager
-from typing import List, Generator
+from typing import Generator
 
 from src.domain.exceptions import DomainOperationError
 from src.domain.model import Admin, AdminsAggregate
@@ -77,11 +77,7 @@ class AdminService(BaseService[Admin]):
 
     def execute(self, requesting_admin_id: int, operation: str, **kwargs) -> Admin | None:
         """All operations need to know WHO is performing them"""
-        self._validate_input(
-            requesting_admin_id=requesting_admin_id,
-            operation=operation,
-            **kwargs
-        )
+        self._validate_input(**kwargs)
 
 
         if operation not in self.operation_methods:
@@ -220,12 +216,12 @@ class AdminService(BaseService[Admin]):
             return admin
 
     # Bulk operations
-    def list_all_admins(self) -> List[Admin]:
+    def list_all_admins(self) -> list[Admin]:
         """Get all admins"""
         aggregate = self._get_fresh_aggregate()
         return aggregate.get_all_admins()
 
-    def list_enabled_admins(self) -> List[Admin]:
+    def list_enabled_admins(self) -> list[Admin]:
         """Get only enabled admins"""
         aggregate = self._get_fresh_aggregate()
         return aggregate.get_enabled_admins()

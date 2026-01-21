@@ -354,3 +354,13 @@ class AdminsAggregate:
     def is_empty(self) -> bool:
         return self.get_admin_count() == 0
 
+    def increase_client(self,admin_id:int):
+        admin=self.get_admin_by_id(admin_id=admin_id)
+        admin.created_clients = (admin.created_clients or 0) + 1
+        self.version+=1
+
+    def decrease_client(self,admin_id:int):
+        admin = self.get_admin_by_id(admin_id=admin_id)
+        admin.created_clients = max(0, admin.created_clients - 1)
+        self.version += 1
+
