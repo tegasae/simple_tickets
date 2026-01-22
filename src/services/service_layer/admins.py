@@ -5,7 +5,7 @@ from src.domain.model import Admin
 from src.domain.permissions.rbac import Permission
 
 
-from src.services.service_layer.base import BaseService
+from src.services.service_layer.base import BaseService, _validate_input
 from src.services.service_layer.data import CreateAdminData
 
 
@@ -32,17 +32,6 @@ class AdminService(BaseService[Admin]):
 
 
 
-    def execute(self, requesting_admin_id: int, operation: str, **kwargs) -> Admin | None:
-        """All operations need to know WHO is performing them"""
-        self._validate_input(**kwargs)
-
-
-        if operation not in self.operation_methods:
-            raise DomainOperationError(f"Unknown operation: {operation}")
-
-        # Get requesting admin for validation
-        requesting_admin = self._get_admin_by_id(requesting_admin_id)
-        return self.operation_methods[operation](requesting_admin.admin_id, **kwargs)
 
     def _create_admin(self, requesting_admin_id: int, create_admin_data: CreateAdminData) -> Admin:
         """Create a new admin"""

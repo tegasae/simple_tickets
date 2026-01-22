@@ -13,10 +13,10 @@ class CreateAdminData:
 @dataclass(kw_only=True, frozen=True)
 class CreateClientData:
     name: str
-    password:str
     email:str
     address:str
     phones:str
     enabled: bool=True
+    admin_id:int=0
 
 

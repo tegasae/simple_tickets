@@ -15,6 +15,13 @@ logger = logging.getLogger(__name__)
 T = TypeVar('T')
 
 
+def _validate_input(**kwargs) -> None:
+    """Common input validation - can be overridden by subclasses"""
+    for key, value in kwargs.items():
+        if value is None:
+            raise ValueError(f"Parameter '{key}' cannot be None")
+
+
 class BaseService(ABC, Generic[T]):
     """
     Base service class with common functionality
@@ -93,7 +100,7 @@ class BaseService(ABC, Generic[T]):
 
     def execute(self, requesting_admin_id: int, operation: str, **kwargs) -> T|list[T]|None:
         """All operations need to know WHO is performing them"""
-        self._validate_input(**kwargs)
+        _validate_input(**kwargs)
 
         if operation not in self.operation_methods:
             raise DomainOperationError(f"Unknown operation: {operation}")
@@ -101,14 +108,6 @@ class BaseService(ABC, Generic[T]):
         # Get requesting admin for validation
         requesting_admin = self._get_admin_by_id(requesting_admin_id)
         return self.operation_methods[operation](requesting_admin.admin_id, **kwargs)
-
-
-
-    def _validate_input(self, **kwargs) -> None:
-        """Common input validation - can be overridden by subclasses"""
-        for key, value in kwargs.items():
-            if value is None:
-                raise ValueError(f"Parameter '{key}' cannot be None")
 
     def _log_operation(self, operation: str, **details) -> None:
         """Structured logging for service operations"""
