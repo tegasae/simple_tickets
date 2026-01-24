@@ -20,6 +20,9 @@ class ClientRepositoryAbstract(ABC):
     def get_all_clients(self) -> list[Client]:
         raise NotImplementedError
     @abstractmethod
+    def get_client_by_id(self,client_id:int) -> Client:
+        raise NotImplementedError
+    @abstractmethod
     def save_client(self, client:Client) -> None:
         raise NotImplementedError
     @abstractmethod

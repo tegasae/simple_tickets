@@ -2,9 +2,11 @@
 import sqlite3
 
 from datetime import datetime
+from pyexpat.errors import messages
 
 from src.adapters.repository import AdminRepositoryAbstract, ClientRepositoryAbstract
 from src.domain.clients import Client
+from src.domain.exceptions import DomainOperationError, ItemNotFoundError
 from src.domain.model import AdminsAggregate, Admin
 from src.domain.value_objects import Emails, Address, Phones, ClientName
 from utils.db.connect import Connection
@@ -108,25 +110,26 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
             self.saved_version = version_result.get('version', 0) if version_result else 0
 
             # Get all admins
-            query = self.conn.create_query("SELECT admin_id,name,password_hash,email,enabled,date_created,roles FROM admins",
-                                           var=['admin_id', 'name', 'password_hash', 'email', 'enabled',
-                                                'date_created','roles'])
+            query = self.conn.create_query(
+                "SELECT admin_id,name,password_hash,email,enabled,date_created,roles FROM admins",
+                var=['admin_id', 'name', 'password_hash', 'email', 'enabled',
+                     'date_created', 'roles'])
 
             admins_data = query.get_result()
 
             admins = []
 
             for row in admins_data:
-                #todo переделать это. Дата может быть не в формате, тогда выаодить значение по умолчанию
+                # todo переделать это. Дата может быть не в формате, тогда выаодить значение по умолчанию
                 try:
-                    roles=set(map(int,row['roles'].split(',')))
-                except (ValueError,AttributeError):
-                    roles=set()
+                    roles = set(map(int, row['roles'].split(',')))
+                except (ValueError, AttributeError):
+                    roles = set()
 
                 try:
-                    date_created=datetime.fromisoformat(row['date_created'])
+                    date_created = datetime.fromisoformat(row['date_created'])
                 except ValueError:
-                    date_created=datetime.now()
+                    date_created = datetime.now()
                 admin = Admin(
                     admin_id=row['admin_id'],
                     name=row['name'],
@@ -177,7 +180,7 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
             # Insert all admins from aggregate
             for admin in aggregate.get_all_admins():
 
-                roles=",".join(map(str,admin.get_roles()))
+                roles = ",".join(map(str, admin.get_roles()))
                 if admin.admin_id == 0:
                     query_new_admin.set_result(params={
                         'name': admin.name,
@@ -206,14 +209,21 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
 class SQLiteClientRepository(ClientRepositoryAbstract):
 
     def __init__(self, conn: Connection):
-        self.conn = conn
 
+        self.conn = conn
+        self.query_new_client = self.conn.create_query(
+            "INSERT INTO clients (admin_id,client_name, emails, address,phones, enabled, date_created,version) VALUES (:admin_id,:name, :emails, :address, :phones, :enabled, :date_created,0)")
+        self.query_exists_client = self.conn.create_query(
+            "UPDATE clients  "
+            "SET client_name=:name,emails=:emails,address=:address,phones=:phones,enabled=:enabled,admin_id=:admin_id, version=:version+1 "
+            "WHERE client_id=:client_id AND version=:version")
 
     def get_all_clients(self) -> list[Client]:
         try:
             query = self.conn.create_query(
                 "SELECT client_id,admin_id, client_name,emails,phones,address, enabled,date_created,version FROM clients",
-                var=['client_id','admin_id', 'name', 'emails', 'phones', 'address', 'enabled','date_created','version'])
+                var=['client_id', 'admin_id', 'name', 'emails', 'phones', 'address', 'enabled', 'date_created',
+                     'version'])
 
             clients_data = query.get_result()
 
@@ -244,43 +254,68 @@ class SQLiteClientRepository(ClientRepositoryAbstract):
 
         return clients
 
+    def get_client_by_id(self, client_id: int) -> Client:
+
+        query = self.conn.create_query(
+            "SELECT client_id,admin_id, client_name,emails,phones,address, enabled,date_created,version FROM clients WHERE client_id=:client_id",
+            var=['client_id', 'admin_id', 'name', 'emails', 'phones', 'address', 'enabled', 'date_created', 'version',
+                 'client_id'])
+
+        client_data = query.get_one_result(params={'client_id': client_id})
+        if not len(client_data):
+            raise ItemNotFoundError(item_name=f"Client {client_id} not found")
+        try:
+            date_created = datetime.fromisoformat(client_data['date_created'])
+        except ValueError:
+            date_created = datetime.now()
+
+        client = Client(
+            client_id=client_data['client_id'],
+            admin_id=client_data['admin_id'],
+            name=ClientName(client_data['name']),
+            emails=Emails(client_data['emails']),
+            phones=Phones(client_data['phones']),
+            address=Address(client_data['address']),
+            enabled=bool(client_data['enabled']),
+            date_created=date_created,
+            version=client_data['version']
+        )
+
+        return client
+
     def save_client(self, client: Client) -> None:
         """Save the entire aggregate to persistence"""
         try:
-            query_new_client = self.conn.create_query(
-                "INSERT INTO clients (admin_id,client_name, emails, address,phones, enabled, date_created,version) VALUES (:admin_id,:name, :emails, :address, :phones, :enabled, :date_created,0)")
-            query_exists_client = self.conn.create_query(
-                "UPDATE clients  "
-                "SET client_name=:name,emails=:emails,address=:address,phones=:phones,enabled=:enabled,version=:version+1 "
-                "WHERE client_id=:client_id AND version=:version")
+
             # Insert all admins from aggregate
 
             if client.client_id == 0:
-                client.client_id=query_new_client.set_result(params={
-                        'admin_id': client.admin_id,
-                        'name': client.name.value,
-                        'emails': client.emails.value,
-                        'address': client.address.value,
-                        'phones': client.phones.value,
-                        'enabled': 1 if client.enabled else 0,
-                        'date_created': client.date_created.isoformat()
-                    })
-            else:
-                query_exists_client.set_result(params={
-                        'name': client.name.value,
-                        'emails': client.emails.value,
-                        'address': client.address.value,
-                        'phones': client.phones.value,
-                        'enabled': 1 if client.enabled else 0,
-                        'client_id': client.admin_id,
-                        'version': client.version
+                client.client_id = self.query_new_client.set_result(params={
+                    'admin_id': client.admin_id,
+                    'name': client.name.value,
+                    'emails': client.emails.value,
+                    'address': client.address.value,
+                    'phones': client.phones.value,
+                    'enabled': 1 if client.enabled else 0,
+                    'date_created': client.date_created.isoformat()
                 })
-                if not query_exists_client.count:
+            else:
+                self.query_exists_client.set_result(params={
+                    'name': client.name.value,
+                    'emails': client.emails.value,
+                    'address': client.address.value,
+                    'phones': client.phones.value,
+                    'enabled': 1 if client.enabled else 0,
+                    'admin_id': client.admin_id,
+                    'client_id': client.client_id,
+                    'version': client.version
+                })
+                if not self.query_exists_client.count:
                     raise DBOperationError(f"The version is wrong")
         except Exception as e:
             raise DBOperationError(f"Failed to save client: {str(e)}")
 
-    def delete_client(self, client_id:int) -> None:
+    def delete_client(self, client_id: int) -> None:
         try:
             query_delete_client = self.conn.create_query("DELETE FROM clients WHERE client_id=:client_id")
             query_delete_client.set_result(params={'client_id': client_id})
@@ -295,21 +330,21 @@ if __name__ == "__main__":
         url='../../db/admins.db',  # or "admins.db" for file-based
         engine=sqlite3
     )
-    #db_creator = CreateDB(conn1)
-   # db_creator.init_data()
-   # db_creator.create_indexes()
+    # db_creator = CreateDB(conn1)
+    # db_creator.init_data()
+    # db_creator.create_indexes()
     conn1.begin_transaction()
-    admin1=Admin(name='admin', email='<EMAIL>', password='<PASSWORD>',admin_id=1,enabled=True)
-    repository=SQLiteClientRepository(conn1)
-    client1=Client.create(name="test",emails="<EMAIL>",phones="0123456789",address="test",enabled=True,admin_id=admin1.admin_id)
+    admin1 = Admin(name='admin', email='<EMAIL>', password='<PASSWORD>', admin_id=1, enabled=True)
+    repository = SQLiteClientRepository(conn1)
+    client1 = Client.create(name="test", emails="<EMAIL>", phones="0123456789", address="test", enabled=True,
+                            admin_id=admin1.admin_id)
     repository.save_client(client=client1)
     print(client1)
-    #clients1=repository.get_all_clients()
-    #print(clients1)
-    #clients1[0].phones=Phones("111111111122")
-    #repository.save_client(clients1[0])
-    #repository.delete_client(client_id=3)
+    # clients1=repository.get_all_clients()
+    # print(clients1)
+    # clients1[0].phones=Phones("111111111122")
+    # repository.save_client(clients1[0])
+    # repository.delete_client(client_id=3)
 
     conn1.commit()
     conn1.close()
-
