@@ -40,7 +40,7 @@ class AdminClientManagementService:
             self.client.phones = Phones(phones)
         self.client.enabled = enabled
         if admin_id:
-            admin = self.admins_aggregate.get_admin_by_id(admin_id=self.client.admin_id)
+            admin = self.admins_aggregate.get_admin_by_id(admin_id=admin_id)
             if admin.admin_id != self.client.admin_id:
                 self.admins_aggregate.increase_client(admin_id=admin.admin_id)
                 self.admins_aggregate.decrease_client(admin_id=self.client.admin_id)
