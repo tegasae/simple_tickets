@@ -36,14 +36,17 @@ class BaseService(ABC, Generic[T]):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.operation_methods={}
 
-    def _check_admin_permissions(self, requesting_admin_id: int, permission: Permission):
-        """Check if admin has permission"""
-        aggregate = self._get_fresh_aggregate()
+    def _check_admin_permissions(self,
+                                 aggregate: AdminsAggregate,  # Receive aggregate
+                                 requesting_admin_id: int,
+                                 permission: Permission):
+        """Check if admin has permission using provided aggregate"""
         requesting_admin = aggregate.get_admin_by_id(requesting_admin_id)
         self.admin_roles_management_service.check_permission(
             admin=requesting_admin,
             permission=permission
         )
+
 
     def _get_fresh_aggregate(self) -> AdminsAggregate:
         """Get fresh aggregate from UoW"""
@@ -66,11 +69,12 @@ class BaseService(ABC, Generic[T]):
         self._log_operation(operation_name, **log_details)
 
         # 2. Check permissions
-        self._check_admin_permissions(requesting_admin_id, permission)
 
         # 3. Get fresh aggregate and execute
         with self.uow:
             aggregate = self._get_fresh_aggregate()
+            self._check_admin_permissions(aggregate,requesting_admin_id, permission)
+
             yield aggregate  # Give aggregate to the operation
 
             # 4. Save and commit (only if no exception)
@@ -107,8 +111,8 @@ class BaseService(ABC, Generic[T]):
             raise DomainOperationError(f"Unknown operation: {operation}")
 
         # Get requesting admin for validation
-        requesting_admin = self._get_admin_by_id(requesting_admin_id)
-        return self.operation_methods[operation](requesting_admin.admin_id, **kwargs)
+        #requesting_admin = self._get_admin_by_id(requesting_admin_id)
+        return self.operation_methods[operation](requesting_admin_id, **kwargs)
 
     def _log_operation(self, operation: str, **details) -> None:
         """Structured logging for service operations"""

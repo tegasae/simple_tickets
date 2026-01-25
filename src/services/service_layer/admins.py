@@ -5,7 +5,7 @@ from src.domain.model import Admin
 from src.domain.permissions.rbac import Permission
 
 
-from src.services.service_layer.base import BaseService, _validate_input
+from src.services.service_layer.base import BaseService
 from src.services.service_layer.data import CreateAdminData
 
 
@@ -29,7 +29,6 @@ class AdminService(BaseService[Admin]):
             'assign_role': self._assign_role,
             'remove_role': self._remove_role,
         }
-
 
 
 
@@ -84,9 +83,7 @@ class AdminService(BaseService[Admin]):
     def _toggle_admin_status(self,
                              requesting_admin_id: int,
                              target_admin_id: int) -> Admin:
-        """Toggle admin enabled/disabled status"""
-        if requesting_admin_id == target_admin_id:
-            raise DomainOperationError("Admin cannot change their own status")
+
 
         with self._with_admin_operation(
                 requesting_admin_id=requesting_admin_id,

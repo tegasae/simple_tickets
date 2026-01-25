@@ -33,6 +33,9 @@ class ClientService(BaseService[Client]):
         }
         self.service=AdminClientManagementService
 
+
+
+
     def _update_client_with_service(self,
                                     requesting_admin_id: int,
                                     client_id: int,
@@ -49,7 +52,7 @@ class ClientService(BaseService[Client]):
                 client_id=client_id,
                 **update_kwargs
         ) as aggregate:
-            client = self.get_client_by_id(client_id)
+            client = self.uow.clients_repository.get_client_by_id(client_id)
             service = self.service(admins_aggregate=aggregate, client=client)
 
             # Update with provided kwargs
@@ -79,93 +82,58 @@ class ClientService(BaseService[Client]):
 
             return client
 
-    def get_client_by_name(self, name: str) -> list[Client]:
-        return [c for c in self.uow.clients_repository.get_all_clients() if c.name == name]
+    def _update_client_email(self, requesting_admin_id: int, client_id: int, new_email: str) -> Client:
+        return self._update_client_with_service(
+            requesting_admin_id=requesting_admin_id,
+            client_id=client_id,
+            operation_name="update_client_email",
+            emails=new_email
+        )
 
-    def get_client_by_id(self, client_id: int) -> Client:
-        client=self.uow.clients_repository.get_client_by_id(client_id=client_id)
-        return client
+    def _change_client_status(self, requesting_admin_id: int, client_id: int, enabled: bool) -> Client:
+        return self._update_client_with_service(
+            requesting_admin_id=requesting_admin_id,
+            client_id=client_id,
+            operation_name="change_client_status",
+            enabled=enabled
+        )
 
+    def _update_client_phones(self, requesting_admin_id: int, client_id: int, phones: str) -> Client:
+        return self._update_client_with_service(
+            requesting_admin_id=requesting_admin_id,
+            client_id=client_id,
+            operation_name="update_client_phones",
+            phones=phones
+        )
 
-    def get_all_clients(self) -> list[Client]:
-        return self.uow.clients_repository.get_all_clients()
-
-
-    def _update_client_email(self,requesting_admin_id: int, client_id: int, new_email:str)->Client:
-        with self._with_admin_operation(
-                requesting_admin_id=requesting_admin_id,
-                permission=Permission.UPDATE_CLIENT,
-                operation_name="update_client"
-        ) as aggregate:
-            client=self.get_client_by_id(client_id=client_id)
-            s = self.service(admins_aggregate=aggregate,client=client)
-            client=s.update_client(emails=new_email)
-
-            self.uow.clients_repository.save_client(client)
-
-            return client
-
-    def _change_client_status(self,requesting_admin_id: int, client_id: int, enabled:bool)->Client:
-        with self._with_admin_operation(
-                requesting_admin_id=requesting_admin_id,
-                permission=Permission.UPDATE_CLIENT,
-                operation_name="change_status_client"
-        ) as aggregate:
-            client=self.get_client_by_id(client_id=client_id)
-            s = self.service(admins_aggregate=aggregate, client=client)
-            client=s.update_client(enabled=enabled)
-            self.uow.clients_repository.save_client(client)
-            return client
-
-    def _update_client_phones(self,requesting_admin_id: int, client_id: int, phones:str)->Client:
-        with self._with_admin_operation(
-                requesting_admin_id=requesting_admin_id,
-                permission=Permission.UPDATE_CLIENT,
-                operation_name="change_phones_client"
-        ) as aggregate:
-            client=self.get_client_by_id(client_id=client_id)
-            s = self.service(admins_aggregate=aggregate, client=client)
-            client=s.update_client(phones=phones)
-            self.uow.clients_repository.save_client(client)
-            return client
-
-    def _update_client_address(self, requesting_admin_id: int, client_id: int, address: str)->Client:
-        with self._with_admin_operation(
-                requesting_admin_id=requesting_admin_id,
-                permission=Permission.UPDATE_CLIENT,
-                operation_name="change_address_client"
-        ) as aggregate:
-            client = self.get_client_by_id(client_id=client_id)
-            s = self.service(admins_aggregate=aggregate, client=client)
-            client = s.update_client(address=address)
-            self.uow.clients_repository.save_client(client)
-            return client
+    def _update_client_address(self, requesting_admin_id: int, client_id: int, address: str) -> Client:
+        return self._update_client_with_service(
+            requesting_admin_id=requesting_admin_id,
+            client_id=client_id,
+            operation_name="update_client_address",
+            adrress=address
+        )
 
     def _update_client_name(self, requesting_admin_id: int, client_id: int, name: str)->Client:
-        with self._with_admin_operation(
+            return self._update_client_with_service(
                 requesting_admin_id=requesting_admin_id,
-                permission=Permission.UPDATE_CLIENT,
-                operation_name="update_name_client"
-        ) as aggregate:
-            client = self.get_client_by_id(client_id=client_id)
-            s = self.service(admins_aggregate=aggregate, client=client)
-            client = s.update_client(name=name)
-            self.uow.clients_repository.save_client(client)
-            return client
+                client_id=client_id,
+                operation_name="update_client_address",
+                name=name
+            )
 
     def _change_client_admin(self, requesting_admin_id: int, client_id: int, admin_id:int=0)->Client:
-        with self._with_admin_operation(
+        if admin_id == 0:
+            admin_id=requesting_admin_id
+
+        return self._update_client_with_service(
                 requesting_admin_id=requesting_admin_id,
-                permission=Permission.UPDATE_CLIENT,
-                operation_name="update_name_client"
-        ) as aggregate:
-            client = self.get_client_by_id(client_id=client_id)
-            s = self.service(admins_aggregate=aggregate, client=client)
-            if admin_id==0:
-                admin_id=requesting_admin_id
-            client = s.update_client(admin_id=admin_id)
-            self.uow.clients_repository.save_client(client)
-            return client
+                client_id=client_id,
+                operation_name="update_client_admin",
+                admin_id=admin_id
+            )
+
+
 
     def _remove_admin_by_id(self,requesting_admin_id: int, client_id: int):
         with self._with_admin_operation(
@@ -180,13 +148,18 @@ class ClientService(BaseService[Client]):
             self.uow.clients_repository.delete_client(client_id=client_id)
 
 
-    # Bulk operations
-    #def list_all_clients(self) -> list[Client]:
+    def get_client_by_name(self, name: str) -> list[Client]:
+        return [c for c in self.uow.clients_repository.get_all_clients() if c.name == name]
+
+    def get_client_by_id(self, client_id: int) -> Client:
+        client=self.uow.clients_repository.get_client_by_id(client_id=client_id)
+        return client
 
 
-    #def list_enabled_clients(self) -> list[Client]:
+    def get_all_clients(self) -> list[Client]:
+        return self.uow.clients_repository.get_all_clients()
 
 
-    #def client_exists(self, name: str) -> bool:
+
 
 

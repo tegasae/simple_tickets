@@ -2,11 +2,11 @@
 import sqlite3
 
 from datetime import datetime
-from pyexpat.errors import messages
+
 
 from src.adapters.repository import AdminRepositoryAbstract, ClientRepositoryAbstract
 from src.domain.clients import Client
-from src.domain.exceptions import DomainOperationError, ItemNotFoundError
+from src.domain.exceptions import ItemNotFoundError
 from src.domain.model import AdminsAggregate, Admin
 from src.domain.value_objects import Emails, Address, Phones, ClientName
 from utils.db.connect import Connection
