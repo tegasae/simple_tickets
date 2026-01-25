@@ -1,13 +1,19 @@
 #service/client.py
-
+from typing import Protocol
 
 from src.domain.clients import Client
-
+from src.domain.model import AdminsAggregate
 
 from src.domain.permissions.rbac import Permission
 from src.domain.services.clients_admins import AdminClientManagementService
 from src.services.service_layer.base import BaseService
 from src.services.service_layer.data import CreateClientData
+
+class ServiceFactoryProtocol(Protocol):
+    """Protocol for service factories"""
+    def __call__(self, aggregate: AdminsAggregate, client: Client) -> AdminClientManagementService:
+        ...
+
 
 
 class ClientService(BaseService[Client]):
@@ -26,6 +32,31 @@ class ClientService(BaseService[Client]):
             'remove_by_id': self._remove_admin_by_id
         }
         self.service=AdminClientManagementService
+
+    def _update_client_with_service(self,
+                                    requesting_admin_id: int,
+                                    client_id: int,
+                                    operation_name: str,
+                                    **update_kwargs) -> Client:
+        """
+        Helper method for all client update operations
+        Handles the repetitive pattern
+        """
+        with self._with_admin_operation(
+                requesting_admin_id=requesting_admin_id,
+                permission=Permission.UPDATE_CLIENT,
+                operation_name=operation_name,
+                client_id=client_id,
+                **update_kwargs
+        ) as aggregate:
+            client = self.get_client_by_id(client_id)
+            service = self.service(admins_aggregate=aggregate, client=client)
+
+            # Update with provided kwargs
+            updated_client = service.update_client(**update_kwargs)
+
+            self.uow.clients_repository.save_client(updated_client)
+            return updated_client
 
 
     def _create_client(self, requesting_admin_id: int, create_client_data: CreateClientData) -> Client:
