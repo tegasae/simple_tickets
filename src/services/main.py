@@ -16,10 +16,12 @@ if __name__=="__main__":
     client_service=ClientService(uow=SqliteUnitOfWork(connection=connect))
     #list_all_admins=admin_service.list_all_admins()
     #print(list_all_admins)
-    admin_service.execute(requesting_admin_id=2,operation='toggle_status',target_admin_id=3)
+    #admin_service.execute(requesting_admin_id=2,operation='toggle_status',target_admin_id=1)
+    admin_service.execute(requesting_admin_id=2, operation='change_password', target_admin_id=1,new_password='1234567890')
     print(admin_service._get_admin_by_id(admin_id=3))
     create_client_data=CreateClientData(name="name1",address="address1",email="email1",phones="phones1")
     client=client_service.execute(requesting_admin_id=2,operation='create',create_client_data=create_client_data)
+
     print(client)
     clients=client_service.get_all_clients()
     print(clients)

@@ -1,7 +1,7 @@
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 
-from src.domain.old.admin_empty import AdminEmpty
+from src.domain.exceptions import ItemNotFoundError
 from src.services.service_layer.admins import AdminService
 from src.services.service_layer.factory import ServiceFactory
 from src.web import settings
@@ -24,24 +24,25 @@ class AuthService(AuthServiceAbstract):
 
     def authenticate_user(self, username: str, password: str) -> UserAuth:
         """Authenticate user credentials"""
-        admin = self.admin_service.execute('get_by_name', name=username)
-
-        if (admin and
-                not isinstance(admin, AdminEmpty) and
-                admin.verify_password(password=password) and
-                admin.enabled):
-            return UserAuth(id=admin.admin_id, username=admin.name, scopes=[])
+        try:
+            admin = self.admin_service.get_admin_by_name(name=username)
+            if admin.enabled and admin.verify_password(password=password):
+                return UserAuth(id=admin.admin_id, username=admin.name, scope=[])
+        except ItemNotFoundError:
+            raise UserNotValidError(username)
         else:
             raise UserNotValidError(username)
 
     def validate_user_exists(self, username: str) -> bool:
         """Validate user exists and is enabled"""
-        admin = self.admin_service.execute('get_by_name', name=username)
-
-        if not admin or isinstance(admin, AdminEmpty) or not admin.enabled:
+        try:
+            admin = self.admin_service.get_admin_by_name(name=username)
+            if admin.enabled:
+                return True
+        except ItemNotFoundError(item_name=username):
             return False
 
-        return True
+        return False
 
 
 def get_token_storage() -> TokenStorage:
@@ -75,3 +76,9 @@ def get_current_user_new(token: str = Depends(oauth2_scheme), auth_manager: Auth
         -> str:
     """Dependency for getting current user from access token"""
     return auth_manager.token_service.verify_access_token(token)
+
+
+#def get_current_user_id(token: str = Depends(oauth2_scheme), auth_manager: AuthManager = Depends(get_auth_manager)) \
+#        -> int:
+#    """Dependency for getting current user from access token"""
+#    return auth_manager.auth_service_abstract

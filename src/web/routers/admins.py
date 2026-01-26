@@ -65,6 +65,7 @@ async def create_admin(
     )
 
     # Create admin
+
     admin = admin_service.execute('create', create_admin_data=create_data)
 
     # Convert to view model

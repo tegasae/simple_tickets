@@ -20,7 +20,6 @@ class AdminService(BaseService[Admin]):
 
         self.operation_methods = {
             'create': self._create_admin,
-            'get_by_name': self._get_admin_by_name,
             'get_by_id': self._get_admin_by_id,
             'update_email': self._update_admin_email,
             'toggle_status': self._toggle_admin_status,
@@ -60,7 +59,7 @@ class AdminService(BaseService[Admin]):
 
 
 
-    def _get_admin_by_name(self, name: str) -> Admin:
+    def get_admin_by_name(self, name: str) -> Admin:
         """Get admin by name"""
         aggregate = self._get_fresh_aggregate()
         return aggregate.require_admin_by_name(name)

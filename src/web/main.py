@@ -43,16 +43,17 @@ app = FastAPI(
 
 )
 
-app.include_router(admins.router)
-# LoggingMiddleware(app)
-registry = ExceptionHandlerRegistry(app)
+####потом этот блок открыть, включить маршрут
+#app.include_router(admins.router)
+## LoggingMiddleware(app)
+#registry = ExceptionHandlerRegistry(app)
 
-registry.add_all_handler('src.domain.exceptions', admins.handlers)
-registry.add_all_handler('src.web.auth.exceptions', {'TokenError': 401, 'TokenNotFoundError': 401,
-                                                     'TokenExpiredError': 401, 'UserNotValidError': 401})
-registry.add_standard_handler(Exception, 500)
-registry.register_all()
-
+#registry.add_all_handler('src.domain.exceptions', admins.handlers)
+#registry.add_all_handler('src.web.auth.exceptions', {'TokenError': 401, 'TokenNotFoundError': 401,
+#                                                     'TokenExpiredError': 401, 'UserNotValidError': 401})
+#registry.add_standard_handler(Exception, 500)
+#registry.register_all()
+####потом этот блок открыть
 
 @app.get("/")
 def root():

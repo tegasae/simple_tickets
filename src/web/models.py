@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import datetime
 
 from src.domain.model import Admin
-from src.domain.model import AdminAbstract
+
 
 
 class AdminBase(BaseModel):
@@ -19,7 +19,7 @@ class AdminView(BaseModel):
     date_created: datetime
 
     @classmethod
-    def from_admin(cls, admin: 'AdminAbstract'):
+    def from_admin(cls, admin: Admin):
         """Simple conversion with configurable date format"""
 
         return cls(
