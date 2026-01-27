@@ -21,11 +21,11 @@ def requires_permission(permission: Permission):
             )
 
             # 3. Execute with transaction
-            with self.uow:
-                result = func(self, requesting_admin_id, *args, **kwargs)
-                self.uow.admins.save_admins(aggregate)
-                self.uow.commit()
-                return result
+            #with self.uow:
+            result = func(self, requesting_admin_id, *args, **kwargs)
+            #    self.uow.admins.save_admins(aggregate)
+            #    self.uow.commit()
+            return result
 
         return wrapper
 

@@ -7,6 +7,7 @@ from src.domain.permissions.rbac import Permission
 
 from src.services.service_layer.base import BaseService
 from src.services.service_layer.data import CreateAdminData
+from src.services.service_layer.decorators import requires_permission
 
 
 class AdminService(BaseService[Admin]):
@@ -17,17 +18,12 @@ class AdminService(BaseService[Admin]):
 
 
 
-
+    @requires_permission(Permission.CREATE_ADMIN)
     def create_admin(self, requesting_admin_id: int, create_admin_data: CreateAdminData) -> Admin:
         """Create a new admin"""
-        with self._with_admin_operation(
-                requesting_admin_id=requesting_admin_id,
-                permission=Permission.CREATE_ADMIN,
-                operation_name="create_admin",
-                name=create_admin_data.name,
-                email=create_admin_data.email
-        ) as aggregate:
-            # Create admin
+        with self.uow:
+            aggregate = self._get_fresh_aggregate()
+                # Create admin
             aggregate.create_admin(
                 admin_id=0,  # Let DB generate ID
                 name=create_admin_data.name,
@@ -38,10 +34,13 @@ class AdminService(BaseService[Admin]):
             )
 
             # Verify ID was generated
-        aggregate=self._get_fresh_aggregate()
-        fresh_admin = aggregate.require_admin_by_name(create_admin_data.name)
-        if fresh_admin.admin_id == 0:
-            raise DomainOperationError("Admin was created but ID wasn't properly generated")
+            self.uow.admins.save_admins(aggregate)
+            aggregate = self._get_fresh_aggregate()
+            fresh_admin = aggregate.require_admin_by_name(create_admin_data.name)
+
+            if fresh_admin.admin_id == 0:
+                raise DomainOperationError("Admin was created but ID wasn't properly generated")
+            self.uow.commit()
 
         return fresh_admin
 
