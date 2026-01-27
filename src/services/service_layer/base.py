@@ -1,7 +1,7 @@
 # services/base.py
 from abc import ABC
 from contextlib import contextmanager
-from typing import Generic, TypeVar, Generator, overload
+from typing import Generic, TypeVar, Generator
 import logging
 
 from src.domain.exceptions import DomainOperationError
@@ -82,7 +82,7 @@ class BaseService(ABC, Generic[T]):
             self.uow.admins.save_admins(aggregate)
             self.uow.commit()
 
-    def _get_admin_by_id(self, admin_id: int) -> Admin:
+    def get_admin_by_id(self, admin_id: int) -> Admin:
         """Get admin by ID"""
         aggregate = self._get_fresh_aggregate()
         admin = aggregate.get_admin_by_id(admin_id)
@@ -91,28 +91,6 @@ class BaseService(ABC, Generic[T]):
         return admin
 
 
-    @overload
-    def execute(self, requesting_admin_id: int, operation: str, **kwargs) -> None:
-        ...
-
-    @overload
-    def execute(self, requesting_admin_id: int, operation: str, **kwargs) -> T:
-        ...
-
-    @overload
-    def execute(self, requesting_admin_id: int, operation: str, **kwargs) -> list[T]:
-        ...
-
-    def execute(self, requesting_admin_id: int, operation: str, **kwargs) -> T|list[T]|None:
-        """All operations need to know WHO is performing them"""
-        _validate_input(**kwargs)
-
-        if operation not in self.operation_methods:
-            raise DomainOperationError(f"Unknown operation: {operation}")
-
-        # Get requesting admin for validation
-        #requesting_admin = self._get_admin_by_id(requesting_admin_id)
-        return self.operation_methods[operation](requesting_admin_id, **kwargs)
 
     def _log_operation(self, operation: str, **details) -> None:
         """Structured logging for service operations"""

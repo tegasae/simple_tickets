@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr
+#web/models.py
+from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
@@ -37,7 +38,7 @@ class AdminCreate(AdminBase):
 
 
 class AdminUpdate(BaseModel):
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     enabled: Optional[bool] = None
     password: Optional[str] = None
 

@@ -36,17 +36,6 @@ class ClientService(BaseService[Client]):
         """
         super().__init__(uow)
 
-        # Operation method mappings
-        self.operation_methods = {
-            'create': self._create_client,
-            'update_email': self._update_client_email,
-            'change_status': self._change_client_status,
-            'update_phones': self._update_client_phones,
-            'update_address': self._update_client_address,
-            'update_name': self._update_client_name,
-            'change_admin': self._change_client_admin,
-            'remove_by_id': self._remove_client_by_id,  # Fixed method name
-        }
 
         # Service factory (dependency injection for testability)
         self.service_factory = service_factory or AdminClientManagementService
@@ -141,13 +130,13 @@ class ClientService(BaseService[Client]):
 
     # ========== OPERATION METHODS ==========
 
-    def _create_client(self,
+    def create_client(self,
                        requesting_admin_id: int,
                        create_client_data: CreateClientData) -> Client:
         """Create a new client"""
         return self._execute_client_creation(requesting_admin_id, create_client_data)
 
-    def _update_client_email(self,
+    def update_client_email(self,
                              requesting_admin_id: int,
                              client_id: int,
                              new_email: str) -> Client:
@@ -159,7 +148,7 @@ class ClientService(BaseService[Client]):
             emails=new_email
         )
 
-    def _change_client_status(self,
+    def change_client_status(self,
                               requesting_admin_id: int,
                               client_id: int,
                               enabled: bool) -> Client:
@@ -171,7 +160,7 @@ class ClientService(BaseService[Client]):
             enabled=enabled
         )
 
-    def _update_client_phones(self,
+    def update_client_phones(self,
                               requesting_admin_id: int,
                               client_id: int,
                               phones: str) -> Client:
@@ -183,7 +172,7 @@ class ClientService(BaseService[Client]):
             phones=phones
         )
 
-    def _update_client_address(self,
+    def update_client_address(self,
                                requesting_admin_id: int,
                                client_id: int,
                                address: str) -> Client:
@@ -195,7 +184,7 @@ class ClientService(BaseService[Client]):
             address=address  # Fixed typo: was "adrress"
         )
 
-    def _update_client_name(self,
+    def update_client_name(self,
                             requesting_admin_id: int,
                             client_id: int,
                             name: str) -> Client:
@@ -207,7 +196,7 @@ class ClientService(BaseService[Client]):
             name=name
         )
 
-    def _change_client_admin(self,
+    def change_client_admin(self,
                              requesting_admin_id: int,
                              client_id: int,
                              admin_id: int = 0) -> Client:
@@ -222,7 +211,7 @@ class ClientService(BaseService[Client]):
             admin_id=target_admin_id
         )
 
-    def _remove_client_by_id(self,  # Renamed for clarity
+    def remove_client_by_id(self,  # Renamed for clarity
                              requesting_admin_id: int,
                              client_id: int) -> None:
         """Delete a client"""

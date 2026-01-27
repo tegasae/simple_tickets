@@ -172,7 +172,7 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
             query_new_admin = self.conn.create_query(
                 "INSERT INTO admins  (name, email, password_hash, enabled, "
                 "date_created,roles) VALUES (:name, :email, :password_hash, "
-                ":enabled, :date_created,roles)")
+                ":enabled, :date_created,:roles)")
             query_exists_admin = self.conn.create_query(
                 "INSERT INTO admins  (admin_id, name, email, password_hash, enabled, "
                 "date_created,roles) VALUES (:admin_id, :name, :email, :password_hash, "

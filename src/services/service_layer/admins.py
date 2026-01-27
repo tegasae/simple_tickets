@@ -15,23 +15,10 @@ class AdminService(BaseService[Admin]):
     Handles business logic and coordinates with UoW
     """
 
-    def __init__(self, uow):
-        super().__init__(uow)
-
-        self.operation_methods = {
-            'create': self._create_admin,
-            'get_by_id': self._get_admin_by_id,
-            'update_email': self._update_admin_email,
-            'toggle_status': self._toggle_admin_status,
-            'change_password': self._change_admin_password,
-            'remove_by_id': self._remove_admin_by_id,
-            'assign_role': self._assign_role,
-            'remove_role': self._remove_role,
-        }
 
 
 
-    def _create_admin(self, requesting_admin_id: int, create_admin_data: CreateAdminData) -> Admin:
+    def create_admin(self, requesting_admin_id: int, create_admin_data: CreateAdminData) -> Admin:
         """Create a new admin"""
         with self._with_admin_operation(
                 requesting_admin_id=requesting_admin_id,
@@ -51,11 +38,12 @@ class AdminService(BaseService[Admin]):
             )
 
             # Verify ID was generated
-            fresh_admin = aggregate.require_admin_by_name(create_admin_data.name)
-            if fresh_admin.admin_id == 0:
-                raise DomainOperationError("Admin was created but ID wasn't properly generated")
+        aggregate=self._get_fresh_aggregate()
+        fresh_admin = aggregate.require_admin_by_name(create_admin_data.name)
+        if fresh_admin.admin_id == 0:
+            raise DomainOperationError("Admin was created but ID wasn't properly generated")
 
-            return fresh_admin
+        return fresh_admin
 
 
 
@@ -65,7 +53,9 @@ class AdminService(BaseService[Admin]):
         return aggregate.require_admin_by_name(name)
 
 
-    def _update_admin_email(self,
+
+
+    def update_admin_email(self,
                             requesting_admin_id: int,
                             target_admin_id: int,
                             new_email: str) -> Admin:
@@ -79,20 +69,21 @@ class AdminService(BaseService[Admin]):
         ) as aggregate:
             return aggregate.change_admin_email(target_admin_id, new_email)
 
-    def _toggle_admin_status(self,
+    def change_admin_status(self,
                              requesting_admin_id: int,
-                             target_admin_id: int) -> Admin:
+                             target_admin_id: int,enabled:bool) -> Admin:
 
 
-        with self._with_admin_operation(
+        with (self._with_admin_operation(
                 requesting_admin_id=requesting_admin_id,
                 permission=Permission.UPDATE_ADMIN,
                 operation_name="toggle_admin_status",
                 target_id=target_admin_id
-        ) as aggregate:
-            return aggregate.toggle_admin_status(target_admin_id)
+        ) as aggregate):
+            return aggregate.change_admin_status(admin_id=target_admin_id, enabled=enabled)
 
-    def _change_admin_password(self,
+
+    def change_admin_password(self,
                                requesting_admin_id: int,
                                target_admin_id: int,
                                new_password: str) -> Admin:
@@ -105,7 +96,7 @@ class AdminService(BaseService[Admin]):
         ) as aggregate:
             return aggregate.change_admin_password(target_admin_id, new_password)
 
-    def _remove_admin_by_id(self,
+    def remove_admin_by_id(self,
                             requesting_admin_id: int,
                             target_admin_id: int) -> None:
         """Remove admin"""
@@ -120,7 +111,7 @@ class AdminService(BaseService[Admin]):
         ) as aggregate:
             aggregate.remove_admin_by_id(target_admin_id)
 
-    def _assign_role(self,
+    def assign_role(self,
                      requesting_admin_id: int,
                      target_admin_id: int,
                      role_id: int) -> Admin:
@@ -136,7 +127,7 @@ class AdminService(BaseService[Admin]):
             self.admin_roles_management_service.assign_role_to_admin(admin, role_id)
             return admin
 
-    def _remove_role(self,
+    def remove_role(self,
                      requesting_admin_id: int,
                      target_admin_id: int,
                      role_id: int) -> Admin:

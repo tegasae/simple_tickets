@@ -303,10 +303,10 @@ class AdminsAggregate:
         self.version += 1
         return admin
 
-    def toggle_admin_status(self, admin_id: int)->Admin:
+    def change_admin_status(self, admin_id: int,enabled:bool)->Admin:
         """Toggle admin status (enable ↔ disable)"""
         admin = self.get_admin_by_id(admin_id=admin_id)
-        admin.enabled = not admin.enabled
+        admin.enabled = enabled
         self.version += 1
         return admin
 
