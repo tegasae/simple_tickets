@@ -75,6 +75,7 @@ def get_auth_manager(
 def get_current_user_new(token: str = Depends(oauth2_scheme), auth_manager: AuthManager = Depends(get_auth_manager)) \
         -> str:
     """Dependency for getting current user from access token"""
+
     return auth_manager.token_service.verify_access_token(token)
 
 

@@ -76,6 +76,16 @@ async def app_info(token: Annotated[str, Depends(oauth2_scheme)], settings: Sett
     }
 
 
+@app.get("/info1")
+async def app_info1(username: str = Depends(get_current_user_new), settings: Settings = Depends(get_app_settings)):
+    """Application information"""
+    return {
+        "app_name": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "description": "Admin Management System"
+    }
+
+
 @app.post("/token")
 async def login(
         form_data: OAuth2PasswordRequestForm = Depends(),
