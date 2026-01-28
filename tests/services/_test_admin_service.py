@@ -39,7 +39,7 @@ class TestAdminService:
     @pytest.fixture
     def admin_service(self, mock_uow):
         """AdminService instance"""
-        return AdminService(uow=mock_uow)
+        return AdminService()
 
     @pytest.fixture
     def create_admin_data(self):

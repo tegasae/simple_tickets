@@ -59,7 +59,7 @@ class TestSqliteUnitOfWork:
     @pytest.fixture
     def mock_repository(self):
         """Create a mock admin repository"""
-        return Mock(spec=repository.AdminRepositoryAbstract)
+        return Mock(spec=repository.AdminRepository)
 
     @pytest.fixture
     def uow(self, mock_connection, mock_repository):

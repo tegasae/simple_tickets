@@ -12,7 +12,6 @@ class AdminClientManagementService:
     def delete_client(self):
         if not self.client.is_empty and not self.client.is_deleted:
             raise DomainOperationError(message=f"{self.client.name} already deleted")
-        self.admins_aggregate.decrease_client(admin_id=self.client.admin_id)
         self.client.is_deleted = True
 
 
@@ -21,7 +20,6 @@ class AdminClientManagementService:
         admin = self.admins_aggregate.get_admin_by_id(admin_id=admin_id)
         client = Client.create(admin_id=admin.admin_id, name=name, emails=emails, address=address, phones=phones,
                            enabled=enabled)
-        self.admins_aggregate.increase_client(admin_id=admin.admin_id)
         self.client=client
         return client
 
@@ -42,7 +40,5 @@ class AdminClientManagementService:
         if admin_id:
             admin = self.admins_aggregate.get_admin_by_id(admin_id=admin_id)
             if admin.admin_id != self.client.admin_id:
-                self.admins_aggregate.increase_client(admin_id=admin.admin_id)
-                self.admins_aggregate.decrease_client(admin_id=self.client.admin_id)
                 self.client.admin_id = admin.admin_id
         return self.client

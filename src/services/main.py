@@ -1,5 +1,5 @@
 import sqlite3
-
+import datetime
 from src.adapters.repositorysqlite import SQLiteAdminRepository
 from src.services.service_layer.admins import AdminService
 from src.services.service_layer.clients import ClientService
@@ -13,24 +13,31 @@ if __name__=="__main__":
     admins=repository.get_list_of_admins()
 
     #print(admins.admins)
-    admin_service=AdminService(uow=SqliteUnitOfWork(connection=connect))
+    admin_service= AdminService(uow=SqliteUnitOfWork(connection=connect))
     create_data = CreateAdminData(
-        name='string1111111111112221',
+        name='string1111111111112221'+datetime.datetime.now().strftime("%Y%m%d%H%M%S"),
         email="email@email.email",
         password='1234567890',
         enabled=True,
-        roles={1,2,3}
+        roles={}
     )
 
     # Create admin
+    list_all_admins = admin_service.list_all_admins()
+    print(len(list_all_admins))
 
     admin = admin_service.create_admin(requesting_admin_id=1,create_admin_data=create_data)
-
-    # Convert to view model
     print(admin)
+    # Convert to view model
+    admin=admin_service.update_admin_email(requesting_admin_id=1,target_admin_id=admin.admin_id,new_email="EMAIL@1.11")
+    print(admin)
+    admin_service.remove_admin_by_id(requesting_admin_id=1, target_admin_id=admin.admin_id)
+
+    list_all_admins = admin_service.list_all_admins()
+    print(len(list_all_admins))
 
     client_service=ClientService(uow=SqliteUnitOfWork(connection=connect))
-    #list_all_admins=admin_service.list_all_admins()
+
     #print(list_all_admins)
     #admin_service.execute(requesting_admin_id=2,operation='toggle_status',target_admin_id=1)
     #admin_service.execute(requesting_admin_id=2, operation='change_password', target_admin_id=1,new_password='1234567890')

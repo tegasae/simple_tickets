@@ -1,3 +1,4 @@
+from __future__ import annotations  # Add at the top of the file
 import hashlib
 import secrets
 from dataclasses import dataclass, field
@@ -7,7 +8,7 @@ import re
 from typing import Final, Optional
 
 
-from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError, DomainOperationError
+from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError
 from src.domain.permissions.rbac import Permission, RoleRegistry
 
 # Constants
@@ -36,7 +37,7 @@ class Admin:
     _roles_ids: set[int] = field(default_factory=set)  # ← Store IDs, not names!
     def __init__(self, admin_id: int, name: str, password: str, email: str, enabled: bool,
                  roles_ids: Optional[set[int]] = None,
-                 date_created: Optional[datetime] = None,created_clients=0):
+                 date_created: Optional[datetime] = None):
 
         self._admin_id = admin_id
         self._name = name
@@ -45,8 +46,6 @@ class Admin:
         self._roles_ids = roles_ids or set()
         self._password_hash = Admin.str_hash(password)
         self._date_created = date_created or datetime.now()
-        self.created_clients = created_clients
-
 
         # Property implementations with setters
 
@@ -185,6 +184,13 @@ class Admin:
     def verify_password(self, password: str) -> bool:
         return self.str_verify(password, self._password_hash)
 
+    @classmethod
+    def create_empty(cls) -> Admin:
+        admin = cls(admin_id=0, name="", email="1", enabled=False,password="1234567890")
+        admin._is_empty = True
+        return admin
+
+
 
 class AdminsAggregate:
     def __init__(self, admins: list[Admin] = None, version: int = 0):
@@ -321,10 +327,6 @@ class AdminsAggregate:
         """Remove admin by id"""
         for name in self.admins:
             if self.admins[name].admin_id == admin_id:
-                if self.admins[name].created_clients!=0:
-                    raise DomainOperationError(
-                        f"Cannot delete admin '{self.admins[name].name}'. It has {self.admins[name].created_clients}."
-                    )
                 self.version += 1
                 del (self.admins[name])
                 return
@@ -354,13 +356,4 @@ class AdminsAggregate:
     def is_empty(self) -> bool:
         return self.get_admin_count() == 0
 
-    def increase_client(self,admin_id:int):
-        admin=self.get_admin_by_id(admin_id=admin_id)
-        admin.created_clients = (admin.created_clients or 0) + 1
-        self.version+=1
-
-    def decrease_client(self,admin_id:int):
-        admin = self.get_admin_by_id(admin_id=admin_id)
-        admin.created_clients = max(0, admin.created_clients - 1)
-        self.version += 1
 

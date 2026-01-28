@@ -38,7 +38,7 @@ def sqlite_uow(initialized_db):
 @pytest.fixture
 def admin_service(sqlite_uow):
     """AdminService with real UoW"""
-    return AdminService(uow=sqlite_uow)
+    return AdminService()
 
 
 @pytest.fixture
@@ -51,7 +51,7 @@ def service_factory(sqlite_uow):
 def admin_service(initialized_db):
     """AdminService with clean database"""
     uow = SqliteUnitOfWork(connection=initialized_db)
-    return AdminService(uow=uow)
+    return AdminService()
 
 
 class TestAdminServiceIntegration:
@@ -302,8 +302,8 @@ class TestAdminServiceIntegration:
     def test_concurrent_operations(self, sqlite_uow):
         """Test that services work correctly with concurrent operations"""
         # Create two services sharing the same UoW
-        service1 = AdminService(uow=sqlite_uow)
-        service2 = AdminService(uow=sqlite_uow)
+        service1 = AdminService()
+        service2 = AdminService()
 
         # Service 1 creates an admin
         create_data = CreateAdminData(name="concurrent_user", email="concurrent@example.com", password="pass123456")
