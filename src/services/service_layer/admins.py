@@ -1,17 +1,19 @@
 # services/admin_service.py
 from functools import wraps
 
+
 from src.domain.exceptions import DomainOperationError
 from src.domain.model import Admin
 from src.domain.permissions.rbac import Permission
 from src.domain.services.admins import AdminManagementService
 
-from src.services.service_layer.base import BaseService
+from src.services.service_layer.base import BaseService, with_permission_check
 from src.services.service_layer.data import CreateAdminData
+
 from src.services.uow.uowsqlite import AbstractUnitOfWork
 
 
-def with_permission_check(permission: Permission):
+def with_permission_check_old(permission: Permission):
     """Meta-decorator that works with instance methods"""
 
     def decorator(func):
@@ -39,15 +41,16 @@ class AdminService(BaseService[Admin]):
     Handles business logic and coordinates with UoW
     """
 
-    def __init__(self, uow: AbstractUnitOfWork, requesting_admin_name: str="",requesting_admin_id:int=0) -> None:
+    def __init__(self, uow: AbstractUnitOfWork, requesting_admin_name="", requesting_admin_id=0):
+        super().__init__(uow,requesting_admin_name, requesting_admin_id)
+        self.management_service = AdminManagementService(
+            client_repository=uow.clients_repository
+        )
 
-        super().__init__(uow)
-        if requesting_admin_name != "":
-            self.requesting_admin = self.uow.admins.get_list_of_admins().get_admin_by_name(requesting_admin_name)
-        else:
-            self.requesting_admin = self.uow.admins.get_by_id(requesting_admin_id)
-        self.requesting_admin_id=requesting_admin_id
-        self.management_service = AdminManagementService(client_repository=uow.clients_repository)
+
+
+
+
 
 
 
@@ -123,7 +126,7 @@ class AdminService(BaseService[Admin]):
                            target_admin_id: int) -> None:
         """Remove admin"""
 
-        if self.requesting_admin_id == target_admin_id:
+        if self.requesting_admin.admin_id == target_admin_id:
             raise DomainOperationError("Admin cannot delete themselves")
         with self.uow:
             aggregate = self._get_fresh_aggregate()

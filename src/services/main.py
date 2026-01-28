@@ -13,13 +13,13 @@ if __name__=="__main__":
     admins=repository.get_list_of_admins()
 
     #print(admins.admins)
-    admin_service= AdminService(uow=SqliteUnitOfWork(connection=connect))
+    admin_service= AdminService(uow=SqliteUnitOfWork(connection=connect),requesting_admin_id=26)
     create_data = CreateAdminData(
         name='string1111111111112221'+datetime.datetime.now().strftime("%Y%m%d%H%M%S"),
         email="email@email.email",
         password='1234567890',
         enabled=True,
-        roles={}
+        roles={1}
     )
 
     # Create admin

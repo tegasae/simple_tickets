@@ -1,10 +1,11 @@
 # services/base.py
 from abc import ABC
 from contextlib import contextmanager
-from typing import Generic, TypeVar, Generator
+from functools import wraps
+from typing import Generic, TypeVar, Generator, Optional
 import logging
 
-from src.domain.exceptions import DomainOperationError
+from src.domain.exceptions import DomainOperationError, DomainSecurityError
 from src.domain.model import AdminsAggregate, Admin
 from src.domain.permissions.rbac import RoleRegistry, Permission
 from src.domain.services.roles_admins import AdminRolesManagementService
@@ -21,6 +22,35 @@ def _validate_input(**kwargs) -> None:
         if value is None:
             raise ValueError(f"Parameter '{key}' cannot be None")
 
+def with_permission_check(permission: Permission):
+    """Decorator that checks permissions using self.requesting_admin"""
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self_instance:BaseService[T], *args, **kwargs):
+            # Check if requesting_admin is set
+            if not hasattr(self_instance, 'requesting_admin'):
+                raise DomainSecurityError(
+                    "No admin set. Call set_requesting_admin() first."
+                )
+
+            if self_instance.requesting_admin is None:
+                raise DomainSecurityError("No admin authenticated")
+
+            # Check permission
+            self_instance.admin_roles_management_service.check_permission(
+                admin=self_instance.requesting_admin,
+                permission=permission
+            )
+
+            # Execute original method
+            return func(self_instance, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 
 class BaseService(ABC, Generic[T]):
     """
@@ -28,13 +58,19 @@ class BaseService(ABC, Generic[T]):
     All services should inherit from this
     """
 
-    def __init__(self, uow: AbstractUnitOfWork):
+    def __init__(self, uow: AbstractUnitOfWork, requesting_admin_name: str = "",requesting_admin_id: int = 0):
         self.uow = uow
         self.admin_roles_management_service = AdminRolesManagementService(
             roles_registry=RoleRegistry()
         )
         self.logger = logging.getLogger(self.__class__.__name__)
         self.operation_methods={}
+        self.requesting_admin: Optional[Admin] = None  # Store Admin object
+        if requesting_admin_name:
+            self.requesting_admin = self.uow.admins_repository.get_list_of_admins().get_admin_by_name(
+                requesting_admin_name)
+        if requesting_admin_id:
+            self.requesting_admin = self.uow.admins_repository.get_by_id(requesting_admin_id)
 
     def _check_admin_permissions(self,
                                  aggregate: AdminsAggregate,  # Receive aggregate
@@ -51,6 +87,15 @@ class BaseService(ABC, Generic[T]):
     def _get_fresh_aggregate(self) -> AdminsAggregate:
         """Get fresh aggregate from UoW"""
         return self.uow.admins.get_list_of_admins()
+
+
+    def set_requesting_admin(self, admin: Admin) -> None:
+        """Set the currently authenticated admin"""
+        self.requesting_admin = admin
+
+    def clear_requesting_admin(self) -> None:
+        """Clear the current admin"""
+        self.requesting_admin = None
 
     @contextmanager
     def _with_admin_operation(self,

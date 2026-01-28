@@ -1,6 +1,8 @@
 # services/decorators.py
 from functools import wraps
 from typing import Callable
+
+from src.domain.exceptions import DomainSecurityError
 from src.domain.permissions.rbac import Permission
 
 
@@ -60,5 +62,7 @@ def with_aggregate_transaction(func: Callable):
                 delattr(self, '_current_aggregate')
 
     return wrapper
+
+
 
 
