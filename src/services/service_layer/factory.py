@@ -21,7 +21,7 @@ class ServiceFactory:
     def get_admin_service(self) -> AdminService:
         """Get or create AdminService instance"""
         if AdminService not in self._services:
-            self._services[AdminService] = AdminService()
+            self._services[AdminService] = AdminService(self.uow)
         return self._services[AdminService]
 
     def get_client_service(self) -> ClientService:

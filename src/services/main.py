@@ -26,12 +26,12 @@ if __name__=="__main__":
     list_all_admins = admin_service.list_all_admins()
     print(len(list_all_admins))
 
-    admin = admin_service.create_admin(requesting_admin_id=1,create_admin_data=create_data)
+    admin = admin_service.create_admin(create_admin_data=create_data)
     print(admin)
     # Convert to view model
-    admin=admin_service.update_admin_email(requesting_admin_id=1,target_admin_id=admin.admin_id,new_email="EMAIL@1.11")
+    admin=admin_service.update_admin_email(target_admin_id=admin.admin_id,new_email="EMAIL@1.11")
     print(admin)
-    admin_service.remove_admin_by_id(requesting_admin_id=1, target_admin_id=admin.admin_id)
+    admin_service.remove_admin_by_id(target_admin_id=admin.admin_id)
 
     list_all_admins = admin_service.list_all_admins()
     print(len(list_all_admins))

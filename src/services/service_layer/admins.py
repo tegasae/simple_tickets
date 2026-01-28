@@ -1,4 +1,5 @@
 # services/admin_service.py
+from functools import wraps
 
 from src.domain.exceptions import DomainOperationError
 from src.domain.model import Admin
@@ -7,8 +8,29 @@ from src.domain.services.admins import AdminManagementService
 
 from src.services.service_layer.base import BaseService
 from src.services.service_layer.data import CreateAdminData
-from src.services.service_layer.decorators import requires_permission_id, with_aggregate_transaction
 from src.services.uow.uowsqlite import AbstractUnitOfWork
+
+
+def with_permission_check(permission: Permission):
+    """Meta-decorator that works with instance methods"""
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self_instance, *args, **kwargs):
+            # Type hint for IDE
+            self: AdminService = self_instance
+
+            self.admin_roles_management_service.check_permission(
+                admin=self.requesting_admin,
+                permission=permission
+            )
+
+            # Execute original method
+            return func(self, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 class AdminService(BaseService[Admin]):
@@ -17,18 +39,25 @@ class AdminService(BaseService[Admin]):
     Handles business logic and coordinates with UoW
     """
 
-    def __init__(self, uow: AbstractUnitOfWork):
+    def __init__(self, uow: AbstractUnitOfWork, requesting_admin_name: str="",requesting_admin_id:int=0) -> None:
 
         super().__init__(uow)
-        self.management_service=AdminManagementService(client_repository=uow.clients_repository)
+        if requesting_admin_name != "":
+            self.requesting_admin = self.uow.admins.get_list_of_admins().get_admin_by_name(requesting_admin_name)
+        else:
+            self.requesting_admin = self.uow.admins.get_by_id(requesting_admin_id)
+        self.requesting_admin_id=requesting_admin_id
+        self.management_service = AdminManagementService(client_repository=uow.clients_repository)
 
 
-    @requires_permission_id(Permission.CREATE_ADMIN)
-    def create_admin(self, requesting_admin_id: int, create_admin_data: CreateAdminData) -> Admin:
+
+
+    @with_permission_check(Permission.CREATE_ADMIN)
+    def create_admin(self, create_admin_data: CreateAdminData) -> Admin:
         """Create a new admin"""
         with self.uow:
             aggregate = self._get_fresh_aggregate()
-                # Create admin
+            # Create admin
             aggregate.create_admin(
                 admin_id=0,  # Let DB generate ID
                 name=create_admin_data.name,
@@ -49,30 +78,26 @@ class AdminService(BaseService[Admin]):
 
         return fresh_admin
 
-
-
     def get_admin_by_name(self, name: str) -> Admin:
         """Get admin by name"""
         aggregate = self._get_fresh_aggregate()
         return aggregate.require_admin_by_name(name)
 
-    @requires_permission_id(Permission.UPDATE_ADMIN)
+    @with_permission_check(Permission.UPDATE_ADMIN)
     def update_admin_email(self,
-                            requesting_admin_id: int,
-                            target_admin_id: int,
-                            new_email: str) -> Admin:
+                           target_admin_id: int,
+                           new_email: str) -> Admin:
         """Update admin email"""
         with self.uow:
-            aggregate=self._get_fresh_aggregate()
-            admin=aggregate.change_admin_email(target_admin_id, new_email)
+            aggregate = self._get_fresh_aggregate()
+            admin = aggregate.change_admin_email(target_admin_id, new_email)
             self.uow.admins.save_admins(aggregate)
             self.uow.commit()
             return admin
 
-    @requires_permission_id(Permission.UPDATE_ADMIN)
+    @with_permission_check(Permission.UPDATE_ADMIN)
     def change_admin_status(self,
-                             requesting_admin_id: int,
-                             target_admin_id: int,enabled:bool) -> Admin:
+                            target_admin_id: int, enabled: bool) -> Admin:
 
         with self.uow:
             aggregate = self._get_fresh_aggregate()
@@ -81,11 +106,10 @@ class AdminService(BaseService[Admin]):
             self.uow.commit()
             return admin
 
-    @requires_permission_id(Permission.UPDATE_ADMIN)
+    @with_permission_check(Permission.UPDATE_ADMIN)
     def change_admin_password(self,
-                               requesting_admin_id: int,
-                               target_admin_id: int,
-                               new_password: str) -> Admin:
+                              target_admin_id: int,
+                              new_password: str) -> Admin:
         """Change admin password"""
         with self.uow:
             aggregate = self._get_fresh_aggregate()
@@ -94,25 +118,23 @@ class AdminService(BaseService[Admin]):
             self.uow.commit()
             return admin
 
-    @requires_permission_id(Permission.DELETE_ADMIN)
+    @with_permission_check(Permission.DELETE_ADMIN)
     def remove_admin_by_id(self,
-                            requesting_admin_id: int,
-                            target_admin_id: int) -> None:
+                           target_admin_id: int) -> None:
         """Remove admin"""
 
-        if requesting_admin_id == target_admin_id:
+        if self.requesting_admin_id == target_admin_id:
             raise DomainOperationError("Admin cannot delete themselves")
         with self.uow:
             aggregate = self._get_fresh_aggregate()
-            self.management_service.delete_admin(admin_id=target_admin_id,aggregate=aggregate)
+            self.management_service.delete_admin(admin_id=target_admin_id, aggregate=aggregate)
             self.uow.admins.save_admins(aggregate)
             self.uow.commit()
 
-    @requires_permission_id(Permission.UPDATE_ADMIN)
+    @with_permission_check(Permission.UPDATE_ADMIN)
     def assign_role(self,
-                     requesting_admin_id: int,
-                     target_admin_id: int,
-                     role_id: int) -> Admin:
+                    target_admin_id: int,
+                    role_id: int) -> Admin:
         """Assign role to admin"""
         with self.uow:
             aggregate = self._get_fresh_aggregate()
@@ -122,11 +144,10 @@ class AdminService(BaseService[Admin]):
             self.uow.commit()
             return admin
 
-    @requires_permission_id(Permission.UPDATE_ADMIN)
+    @with_permission_check(Permission.UPDATE_ADMIN)
     def remove_role(self,
-                     requesting_admin_id: int,
-                     target_admin_id: int,
-                     role_id: int) -> Admin:
+                    target_admin_id: int,
+                    role_id: int) -> Admin:
         """Remove role from admin"""
         with self.uow:
             aggregate = self._get_fresh_aggregate()

@@ -15,7 +15,8 @@ def requires_permission_id(permission: Permission):
 
             # 2. Check permission
 
-            requesting_admin=self.uow.admins.get_by_id(requesting_admin_id)
+            #requesting_admin=self.uow.admins.get_by_id(requesting_admin_id)
+            requesting_admin = self.uow.admins.get_by_id(self.admin_requesting_id)
             self.admin_roles_management_service.check_permission(
                 admin=requesting_admin,
                 permission=permission
@@ -59,3 +60,5 @@ def with_aggregate_transaction(func: Callable):
                 delattr(self, '_current_aggregate')
 
     return wrapper
+
+
