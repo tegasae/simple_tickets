@@ -1,9 +1,11 @@
-from pydantic import BaseModel, EmailStr
+#web/models.py
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
+from src.domain.clients import Client
 from src.domain.model import Admin
-from src.domain.model import AdminAbstract
+
 
 
 class AdminBase(BaseModel):
@@ -19,7 +21,7 @@ class AdminView(BaseModel):
     date_created: datetime
 
     @classmethod
-    def from_admin(cls, admin: 'AdminAbstract'):
+    def from_admin(cls, admin: Admin):
         """Simple conversion with configurable date format"""
 
         return cls(
@@ -31,13 +33,17 @@ class AdminView(BaseModel):
         )
 
 
+
+
+
 class AdminCreate(AdminBase):
     password: str
     enabled: bool = True
+    roles: set[int] = Field(default_factory=set)  # ✅ CORRECT
 
 
 class AdminUpdate(BaseModel):
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     enabled: Optional[bool] = None
     password: Optional[str] = None
 
@@ -58,3 +64,45 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+
+class ClientBase(BaseModel):
+    name: str
+    email: str
+    address: Optional[str] = ""
+    phones: Optional[str] = ""
+
+
+class ClientCreate(ClientBase):
+    enabled: bool = True
+    admin_id: Optional[int] = None  # 0 or None = use current admin
+
+
+class ClientUpdate(BaseModel):
+    email: Optional[str] = None
+    address: Optional[str] = None
+    phones: Optional[str] = None
+    enabled: Optional[bool] = None
+    admin_id: Optional[int] = None
+
+
+class ClientView(ClientBase):
+    client_id: int
+    admin_id: int
+    enabled: bool
+    is_deleted: bool
+    date_created: datetime
+
+    @classmethod
+    def from_client(cls, client: Client) -> "ClientView":
+        return cls(
+            client_id=client.client_id,
+            name=client.name.value,
+            email=client.emails.value,
+            address=client.address.value,
+            phones=client.phones.value,
+            admin_id=client.admin_id,
+            enabled=client.enabled,
+            is_deleted=client.is_deleted,
+            date_created=client.date_created
+        )

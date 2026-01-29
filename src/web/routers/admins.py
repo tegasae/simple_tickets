@@ -1,11 +1,16 @@
+#routers/admins.py
 from typing import List
 
+
+
 from fastapi import APIRouter, Depends, status
+
 
 from src.services.service_layer.data import CreateAdminData
 from src.services.service_layer.factory import ServiceFactory
 from src.web.dependicies.dependencies import get_service_factory
-from src.web.dependicies.dependicies_auth import get_current_user_new
+from src.web.dependicies.dependicies_auth import get_service_factory_auth, \
+    get_current_user
 
 from src.web.models import AdminView, AdminCreate, AdminUpdate
 
@@ -13,11 +18,13 @@ router = APIRouter(
     prefix="/admins",
     tags=["admins"],
     responses={404: {"description": "Not found"}},
-    dependencies=[Depends(get_current_user_new)]
+    #dependencies=[Depends(get_current_user_new)]
+    dependencies=[Depends(get_current_user)]
 )
 
 handlers = {
     'AdminError': 500,
+    'DomainSecurityError':403,
     'AdminNotFoundError': 404,
     'AdminAlreadyExistsError': 409,
     'AdminValidationError': 400,
@@ -36,7 +43,8 @@ handlers = {
 )
 async def create_admin(
         admin_create: AdminCreate,
-        sf: ServiceFactory = Depends(get_service_factory)
+        #sf: ServiceFactory = Depends(get_service_factory_admin_name_new),
+        sf: ServiceFactory = Depends(get_service_factory_auth)
 ):
     """
     Create a new admin account.
@@ -47,14 +55,8 @@ async def create_admin(
     - **enabled**: Whether the admin is active (default: True)
     """
     # try:
-    admin_service = sf.get_admin_service()
+    admin_service=sf.get_admin_service()
 
-    # Check if admin already exists
-    # if admin_service.admin_exists(admin_create.name):
-    #    raise HTTPException(
-    #        status_code=status.HTTP_409_CONFLICT,
-    #        detail=f"Admin with name '{admin_create.name}' already exists"
-    #    )
 
     # Convert to service layer data
     create_data = CreateAdminData(
@@ -65,7 +67,8 @@ async def create_admin(
     )
 
     # Create admin
-    admin = admin_service.execute('create', create_admin_data=create_data)
+
+    admin = admin_service.create_admin(create_admin_data=create_data)
 
     # Convert to view model
     return AdminView.from_admin(admin)
@@ -86,6 +89,7 @@ async def read_admins(
 
     Returns all admins in the system.
     """
+
     admin_service = sf.get_admin_service()
     all_admins = admin_service.list_all_admins()
     # Convert to view models
@@ -111,7 +115,7 @@ async def read_admin(
 
     # try:
     admin_service = sf.get_admin_service()
-    admin = admin_service.execute('get_by_id', admin_id=admin_id)
+    admin = admin_service.get_admin_by_id(admin_id=admin_id)
 
     return AdminView.from_admin(admin)
 
@@ -133,7 +137,7 @@ async def read_admin_by_name(
     - **admin_name**: The unique username of the admin
     """
     admin_service = sf.get_admin_service()
-    admin = admin_service.execute('get_by_name', name=admin_name)
+    admin = admin_service.get_admin_by_name(name=admin_name)
 
     return AdminView.from_admin(admin)
 
@@ -148,7 +152,7 @@ async def read_admin_by_name(
 async def update_admin(
         admin_id: int,
         admin_update: AdminUpdate,
-        sf: ServiceFactory = Depends(get_service_factory)
+        sf: ServiceFactory = Depends(get_service_factory_auth)
 ):
     """
     Update an existing admin account.
@@ -160,33 +164,26 @@ async def update_admin(
     """
     admin_service = sf.get_admin_service()
     # Get the target admin
-    target_admin = admin_service.execute('get_by_id', admin_id=admin_id)
 
-    updated_admin = None
+
+
 
     # Update email if provided
     if admin_update.email is not None:
-        updated_admin = admin_service.execute(
-            'update_email',
-            name=target_admin.name,
-            new_email=admin_update.email
-        )
+        admin_service.update_admin_email(target_admin_id=admin_id, new_email=admin_update.email)
 
     # Update password if provided
     if admin_update.password is not None:
-        updated_admin = admin_service.execute(
-            'change_password',
-            name=target_admin.name,
-            new_password=admin_update.password
-        )
+        admin_service.change_admin_password(target_admin_id=admin_id, new_password=admin_update.password)
+
 
     # Update enabled status if provided
     if admin_update.enabled is not None:
-        if admin_update.enabled != target_admin.enabled:
-            updated_admin = admin_service.execute('toggle_status', name=target_admin.name)
+        admin_service.change_admin_status(target_admin_id=admin_id, enabled=admin_update.enabled)
+
 
     # Get the final updated admin
-    final_admin = admin_service.execute('get_by_id', admin_id=admin_id)
+    final_admin = admin_service.get_admin_by_id(admin_id=admin_id)
 
     return AdminView.from_admin(final_admin)
 
@@ -200,7 +197,7 @@ async def update_admin(
 )
 async def delete_admin(
         admin_id: int,
-        sf: ServiceFactory = Depends(get_service_factory)
+        sf: ServiceFactory = Depends(get_service_factory_auth)
 ):
     """
     Delete an admin account.
@@ -210,7 +207,7 @@ async def delete_admin(
     admin_service = sf.get_admin_service()
     # Check if admin exists
 
-    admin_service.execute('remove_by_id', admin_id=admin_id)
+    admin_service.remove_admin_by_id(requesting_admin_id=admin_id, target_admin_id=admin_id)
     return None
 
 
@@ -218,15 +215,15 @@ async def delete_admin(
 @router.post(
     "/{admin_id}/toggle-status",
     response_model=AdminView,
-    summary="Toggle admin status",
-    description="Toggle admin enabled/disabled status."
+    summary="change admin status",
+    description="Change admin enabled/disabled status."
 )
-async def toggle_admin_status(
+async def change_admin_status(
         admin_id: int,
-        sf: ServiceFactory = Depends(get_service_factory)
+        sf: ServiceFactory = Depends(get_service_factory_auth)
 ):
     """
-    Toggle an admin's enabled/disabled status.
+    change an admin's enabled/disabled status.
 
     - **admin_id**: The admin whose status to toggle
     """
@@ -234,11 +231,11 @@ async def toggle_admin_status(
     admin_service = sf.get_admin_service()
 
     # Get admin to ensure they exist
-    target_admin = admin_service.execute('get_by_id', admin_id=admin_id)
+
 
     # Toggle status
-    updated_admin = admin_service.execute('toggle_status', name=target_admin.name)
-
+    admin=admin_service.get_admin_by_id(admin_id=admin_id)
+    updated_admin = admin_service.change_admin_status(requesting_admin_id=admin_id, target_admin_id=admin_id, enabled=not admin.enabled)
     return AdminView.from_admin(updated_admin)
 
 

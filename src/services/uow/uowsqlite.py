@@ -10,7 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 class AbstractUnitOfWork(ContextManager,ABC):
-    admins_repository: repository.AdminRepositoryAbstract
+    admins_repository: repository.AdminRepository
+    clients_repository: repository.ClientRepository
     """
     Abstract base class that combines ABC and ContextManager
     All concrete implementations must follow this interface
@@ -38,7 +39,7 @@ class AbstractUnitOfWork(ContextManager,ABC):
 
     @property
     @abstractmethod
-    def admins(self)-> repository.AdminRepositoryAbstract:
+    def admins(self)-> repository.AdminRepository:
         """Admin repository access"""
         raise NotImplementedError
 
@@ -46,6 +47,7 @@ class AbstractUnitOfWork(ContextManager,ABC):
     def is_active(self) -> bool:
         """Check if transaction is active"""
         raise NotImplementedError
+
 
 
 class SqliteUnitOfWork(AbstractUnitOfWork):
@@ -60,6 +62,7 @@ class SqliteUnitOfWork(AbstractUnitOfWork):
         self._active = False
         self._committed = False
         self.admins_repository = repositorysqlite.SQLiteAdminRepository(conn=self.connection)
+        self.clients_repository = repositorysqlite.SQLiteClientRepository(conn=self.connection)
 
     # ========== ContextManager Methods ==========
     def __enter__(self) -> 'SqliteUnitOfWork':
@@ -113,7 +116,7 @@ class SqliteUnitOfWork(AbstractUnitOfWork):
             logger.info("SQLite transaction rolled back")
 
     @property
-    def admins(self)->repository.AdminRepositoryAbstract:
+    def admins(self)->repository.AdminRepository:
 
         # if self._admins_repo is None:
         #    from src.adapters.repository_sqlite import SQLiteAdminRepository
@@ -121,9 +124,21 @@ class SqliteUnitOfWork(AbstractUnitOfWork):
         # return self._admins_repo
         return self.admins_repository
 
+    @property
+    def clients(self) -> repository.ClientRepository:
+
+        # if self._admins_repo is None:
+        #    from src.adapters.repository_sqlite import SQLiteAdminRepository
+        #    self._admins_repo = SQLiteAdminRepository(self.connection)
+        # return self._admins_repo
+        return self.clients_repository
+
     def is_active(self) -> bool:
         """Check if SQLite transaction is active"""
         return self._active
+
+
+
 if __name__=='__main__':
     # conn1 = Connection.create_connection(url=":memory:", engine=sqlite3)
 

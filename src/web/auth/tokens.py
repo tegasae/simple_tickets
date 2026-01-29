@@ -8,12 +8,12 @@ from pydantic import BaseModel, Field
 from src.web.auth.exceptions import TokenError
 from src.web.config import get_settings
 
-
-class AuthUser(BaseModel):
-    id: int
-    login: str
-    enabled: bool = True
-    scope: list[str] = []
+### пока комментируем
+#class AuthUser(BaseModel):
+#    id: int
+#    login: str
+#    enabled: bool = True
+#    scope: list[str] = []
 
 
 class AccessToken(BaseModel):

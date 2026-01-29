@@ -3,12 +3,22 @@ import sqlite3
 
 from datetime import datetime
 
-from src.adapters.repository import AdminRepositoryAbstract
-from src.domain.model import AdminEmpty, AdminsAggregate, Admin
+
+from src.adapters.repository import AdminRepository, ClientRepository
+from src.domain.clients import Client
+from src.domain.exceptions import ItemNotFoundError
+from src.domain.model import AdminsAggregate, Admin
+from src.domain.value_objects import Emails, Address, Phones, ClientName
 from utils.db.connect import Connection
 
 from utils.db.exceptions import DBOperationError
 
+def date_from_sqlite_iso(date_created: str) -> datetime:
+    try:
+        date = datetime.fromisoformat(date_created)
+    except ValueError:
+        date = datetime.now()
+    return date
 
 class CreateDB:
     def __init__(self, conn: Connection):
@@ -34,9 +44,19 @@ class CreateDB:
                     email TEXT NOT NULL,
                     password_hash TEXT NOT NULL,
                     enabled INTEGER NOT NULL,
-                    date_created TEXT NOT NULL
+                    date_created TEXT NOT NULL,
+                    roles text default ""
                 )
             """)
+            query.set_result()
+
+            # Create admins table
+            query = self.conn.create_query("""
+                            CREATE TABLE IF NOT EXISTS admins_roles (
+                                admin_id INTEGER,
+                                role_id INTEGER
+                            )
+                        """)
             query.set_result()
 
             # Insert initial aggregate row if it doesn't exist
@@ -79,15 +99,28 @@ class CreateDB:
             raise
 
 
-class SQLiteAdminRepository(AdminRepositoryAbstract):
+class SQLiteAdminRepository(AdminRepository):
 
     def __init__(self, conn: Connection):
         self.conn = conn
-        self._empty_admin = AdminEmpty()
+
         self.saved_version = 0
 
-    def get_list_of_admins(self) -> AdminsAggregate:
+    @staticmethod
+    def _get_roles(roles_str)->set[int]:
+        try:
+            roles = set(map(int, roles_str.split(',')))
+        except (ValueError, AttributeError):
+            roles = set()
+        return roles
 
+    @staticmethod
+    def _set_roles(roles:set[int])->str:
+        #return roles = ",".join(map(str, admin.get_roles()))
+        return ','.join(map(str, roles))
+
+
+    def get_list_of_admins(self) -> AdminsAggregate:
         try:
 
             # Get current version
@@ -96,28 +129,29 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
             self.saved_version = version_result.get('version', 0) if version_result else 0
 
             # Get all admins
-            query = self.conn.create_query("SELECT admin_id,name,password_hash,email,enabled,date_created FROM admins",
-                                           var=['admin_id', 'name', 'password_hash', 'email', 'enabled',
-                                                'date_created'])
+            query = self.conn.create_query(
+                "SELECT admin_id,name,password_hash,email,enabled,date_created,roles FROM admins",
+                var=['admin_id', 'name', 'password_hash', 'email', 'enabled',
+                     'date_created', 'roles'])
 
             admins_data = query.get_result()
 
             admins = []
 
-            for row in admins_data:
-                #todo переделать это. Дата может быть не в формате, тогда выаодить значение по умолчанию
 
-                try:
-                    date_created=datetime.fromisoformat(row['date_created'])
-                except ValueError:
-                    date_created=datetime.now()
+            for row in admins_data:
+                # todo переделать это. Дата может быть не в формате, тогда выаодить значение по умолчанию
+
+
+
                 admin = Admin(
                     admin_id=row['admin_id'],
                     name=row['name'],
                     password=row['password_hash'],  # Already hashed
                     email=row['email'],
                     enabled=bool(row['enabled']),
-                    date_created=date_created
+                    date_created=date_from_sqlite_iso(row['date_created']),
+                    roles_ids=self._get_roles(row['roles'])
                 )
 
                 # Set date from database
@@ -133,6 +167,26 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
 
         except Exception as e:
             raise DBOperationError(f"Failed to get admin list: {str(e)}")
+
+    def get_by_id(self, admin_id: int) -> Admin:
+        query = self.conn.create_query(
+            "SELECT admin_id,name,password_hash,email,enabled,date_created,roles FROM admins WHERE admin_id=:admin_id",
+            var=['admin_id', 'name', 'password_hash', 'email', 'enabled',
+                 'date_created', 'roles'])
+
+        admin_data = query.get_one_result(params={'admin_id': admin_id})
+        if not len(admin_data):
+            return Admin.create_empty()
+        admin = Admin(
+                admin_id=admin_data['admin_id'],
+                name=admin_data['name'],
+                password=admin_data['password_hash'],  # Already hashed
+                email=admin_data['email'],
+                enabled=bool(admin_data['enabled']),
+                date_created=date_from_sqlite_iso(admin_data['date_created']),
+                roles_ids=self._get_roles(admin_data['roles'])
+            )
+        return admin
 
     def save_admins(self, aggregate: AdminsAggregate) -> None:
         """Save the entire aggregate to persistence"""
@@ -151,35 +205,186 @@ class SQLiteAdminRepository(AdminRepositoryAbstract):
             query.set_result()
             query_new_admin = self.conn.create_query(
                 "INSERT INTO admins  (name, email, password_hash, enabled, "
-                "date_created) VALUES (:name, :email, :password_hash, "
-                ":enabled, :date_created)")
+                "date_created,roles) VALUES (:name, :email, :password_hash, "
+                ":enabled, :date_created,:roles)")
             query_exists_admin = self.conn.create_query(
                 "INSERT INTO admins  (admin_id, name, email, password_hash, enabled, "
-                "date_created) VALUES (:admin_id, :name, :email, :password_hash, "
-                ":enabled, :date_created)")
+                "date_created,roles) VALUES (:admin_id, :name, :email, :password_hash, "
+                ":enabled, :date_created,:roles)")
             # Insert all admins from aggregate
             for admin in aggregate.get_all_admins():
+                params = {
+                        'name': admin.name,
+                        'email': admin.email,
+                        'password_hash': admin.password,
+                        'enabled': 1 if admin.enabled else 0,
+                        'date_created': admin.date_created.isoformat(),
+                        'roles': self._set_roles(admin.get_roles())
+                    }
+
                 if admin.admin_id == 0:
-                    query_new_admin.set_result(params={
-                        'name': admin.name,
-                        'email': admin.email,
-                        'password_hash': admin.password,
-                        'enabled': 1 if admin.enabled else 0,
-                        'date_created': admin.date_created.isoformat()
-                    })
-
+                    query_new_admin.set_result(params=params)
                 else:
-
-                    query_exists_admin.set_result(params={
-                        'admin_id': admin.admin_id,
-                        'name': admin.name,
-                        'email': admin.email,
-                        'password_hash': admin.password,
-                        'enabled': 1 if admin.enabled else 0,
-                        'date_created': admin.date_created.isoformat()
-                    })
+                    params['admin_id']= admin.admin_id
+                    query_exists_admin.set_result(params=params)
         except Exception as e:
             raise DBOperationError(f"Failed to save admins: {str(e)}")
+
+
+class SQLiteClientRepository(ClientRepository):
+
+
+    def __init__(self, conn: Connection):
+
+        self.conn = conn
+        self.query_new_client = self.conn.create_query(
+            "INSERT INTO clients (admin_id,client_name, emails, address,phones, enabled, date_created,version) VALUES (:admin_id,:name, :emails, :address, :phones, :enabled, :date_created,0)")
+        self.query_exists_client = self.conn.create_query(
+            "UPDATE clients  "
+            "SET client_name=:name,emails=:emails,address=:address,phones=:phones,enabled=:enabled,admin_id=:admin_id, version=:version+1 "
+            "WHERE client_id=:client_id AND version=:version")
+
+    def get_all_clients(self) -> list[Client]:
+        try:
+            query = self.conn.create_query(
+                "SELECT client_id,admin_id, client_name,emails,phones,address, enabled,date_created,version FROM clients",
+                var=['client_id', 'admin_id', 'name', 'emails', 'phones', 'address', 'enabled', 'date_created',
+                     'version'])
+
+            clients_data = query.get_result()
+
+            clients = []
+
+            for row in clients_data:
+                try:
+                    date_created = datetime.fromisoformat(row['date_created'])
+                except ValueError:
+                    date_created = datetime.now()
+                client = Client(
+                    client_id=row['client_id'],
+                    admin_id=row['admin_id'],
+                    name=ClientName(row['name']),
+                    emails=Emails(row['emails']),
+                    phones=Phones(row['phones']),
+                    address=Address(row['address']),
+                    enabled=bool(row['enabled']),
+                    date_created=date_created,
+                    version=row['version']
+                )
+
+                clients.append(client)
+
+
+        except Exception as e:
+            raise DBOperationError(f"Failed to get admin list: {str(e)}")
+
+        return clients
+
+    def get_client_by_admin_id(self, admin_id: int) -> list[Client]:
+        try:
+            query = self.conn.create_query(
+                "SELECT client_id,admin_id, client_name,emails,phones,address, enabled,date_created,version FROM clients WHERE admin_id=:admin_id",
+                var=['client_id', 'admin_id', 'name', 'emails', 'phones', 'address', 'enabled', 'date_created',
+                     'version'])
+
+            clients_data = query.get_result(params={'admin_id': admin_id})
+
+            clients = []
+
+            for row in clients_data:
+                try:
+                    date_created = datetime.fromisoformat(row['date_created'])
+                except ValueError:
+                    date_created = datetime.now()
+                client = Client(
+                    client_id=row['client_id'],
+                    admin_id=row['admin_id'],
+                    name=ClientName(row['name']),
+                    emails=Emails(row['emails']),
+                    phones=Phones(row['phones']),
+                    address=Address(row['address']),
+                    enabled=bool(row['enabled']),
+                    date_created=date_created,
+                    version=row['version']
+                )
+
+                clients.append(client)
+
+
+        except Exception as e:
+            raise DBOperationError(f"Failed to get admin list: {str(e)}")
+
+        return clients
+
+
+
+    def get_client_by_id(self, client_id: int) -> Client:
+
+        query = self.conn.create_query(
+            "SELECT client_id,admin_id, client_name,emails,phones,address, enabled,date_created,version FROM clients WHERE client_id=:client_id",
+            var=['client_id', 'admin_id', 'name', 'emails', 'phones', 'address', 'enabled', 'date_created', 'version',
+                 'client_id'])
+
+        client_data = query.get_one_result(params={'client_id': client_id})
+        if not len(client_data):
+            raise ItemNotFoundError(item_name=f"Client {client_id} not found")
+        try:
+            date_created = datetime.fromisoformat(client_data['date_created'])
+        except ValueError:
+            date_created = datetime.now()
+
+        client = Client(
+            client_id=client_data['client_id'],
+            admin_id=client_data['admin_id'],
+            name=ClientName(client_data['name']),
+            emails=Emails(client_data['emails']),
+            phones=Phones(client_data['phones']),
+            address=Address(client_data['address']),
+            enabled=bool(client_data['enabled']),
+            date_created=date_created,
+            version=client_data['version']
+        )
+
+        return client
+
+    def save_client(self, client: Client) -> None:
+        """Save the entire aggregate to persistence"""
+        try:
+
+            # Insert all admins from aggregate
+
+            if client.client_id == 0:
+                client.client_id = self.query_new_client.set_result(params={
+                    'admin_id': client.admin_id,
+                    'name': client.name.value,
+                    'emails': client.emails.value,
+                    'address': client.address.value,
+                    'phones': client.phones.value,
+                    'enabled': 1 if client.enabled else 0,
+                    'date_created': client.date_created.isoformat()
+                })
+            else:
+                self.query_exists_client.set_result(params={
+                    'name': client.name.value,
+                    'emails': client.emails.value,
+                    'address': client.address.value,
+                    'phones': client.phones.value,
+                    'enabled': 1 if client.enabled else 0,
+                    'admin_id': client.admin_id,
+                    'client_id': client.client_id,
+                    'version': client.version
+                })
+                if not self.query_exists_client.count:
+                    raise DBOperationError(f"The version is wrong")
+        except Exception as e:
+            raise DBOperationError(f"Failed to save client: {str(e)}")
+
+    def delete_client(self, client_id: int) -> None:
+        try:
+            query_delete_client = self.conn.create_query("DELETE FROM clients WHERE client_id=:client_id")
+            query_delete_client.set_result(params={'client_id': client_id})
+        except Exception as e:
+            raise DBOperationError(f"Failed to delete client: {str(e)}")
 
 
 if __name__ == "__main__":
@@ -189,25 +394,21 @@ if __name__ == "__main__":
         url='../../db/admins.db',  # or "admins.db" for file-based
         engine=sqlite3
     )
-    db_creator = CreateDB(conn1)
-    db_creator.init_data()
-    db_creator.create_indexes()
-    # admins=AdminsAggregate()
-    # admins.add_admin(Admin(admin_id=1,name='name',password='1',email='1',enabled=True))
+    # db_creator = CreateDB(conn1)
+    # db_creator.init_data()
+    # db_creator.create_indexes()
     conn1.begin_transaction()
-    repository = SQLiteAdminRepository(conn=conn1)
-    admins1 = repository.get_list_of_admins()
-    print(admins1.get_all_admins())
-
-    admins1.change_admin_email(name='name', new_email='123@111.ru')
-    admins1.add_admin(Admin(admin_id=0, name='new', email='<EMAIL>', password='1', enabled=True))
-    # admin.email='12345'
-
-    # admins1.change_admin(admin)
-    repository.save_admins(admins1)
-    admins1 = repository.get_list_of_admins()
-    print(admins1.get_all_admins())
+    admin1 = Admin(name='admin', email='<EMAIL>', password='<PASSWORD>', admin_id=1, enabled=True)
+    repository = SQLiteClientRepository(conn1)
+    client1 = Client.create(name="test", emails="<EMAIL>", phones="0123456789", address="test", enabled=True,
+                            admin_id=admin1.admin_id)
+    repository.save_client(client=client1)
+    print(client1)
+    # clients1=repository.get_all_clients()
+    # print(clients1)
+    # clients1[0].phones=Phones("111111111122")
+    # repository.save_client(clients1[0])
+    # repository.delete_client(client_id=3)
 
     conn1.commit()
     conn1.close()
-

@@ -1,10 +1,38 @@
 # services/admin_service.py
-from typing import List
+from functools import wraps
 
-from src.domain.exceptions import AdminOperationError
-from src.domain.model import Admin, AdminAbstract
-from src.services.service_layer.base import BaseService
+
+from src.domain.exceptions import DomainOperationError
+from src.domain.model import Admin
+from src.domain.permissions.rbac import Permission
+from src.domain.services.admins import AdminManagementService
+
+from src.services.service_layer.base import BaseService, with_permission_check
 from src.services.service_layer.data import CreateAdminData
+
+from src.services.uow.uowsqlite import AbstractUnitOfWork
+
+
+def with_permission_check_old(permission: Permission):
+    """Meta-decorator that works with instance methods"""
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self_instance, *args, **kwargs):
+            # Type hint for IDE
+            self: AdminService = self_instance
+
+            self.admin_roles_management_service.check_permission(
+                admin=self.requesting_admin,
+                permission=permission
+            )
+
+            # Execute original method
+            return func(self, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 class AdminService(BaseService[Admin]):
@@ -13,157 +41,131 @@ class AdminService(BaseService[Admin]):
     Handles business logic and coordinates with UoW
     """
 
-    def execute(self, operation: str, **kwargs) -> AdminAbstract:
-        """
-        Main entry point for admin operations
-        Uses a command pattern for different operations
-        """
-        self._validate_input(operation=operation, **kwargs)
+    def __init__(self, uow: AbstractUnitOfWork, requesting_admin_name="", requesting_admin_id=0):
+        super().__init__(uow,requesting_admin_name, requesting_admin_id)
+        self.management_service = AdminManagementService(
+            client_repository=uow.clients_repository
+        )
 
-        operation_methods = {
-            'create': self._create_admin,
-            'get_by_name': self._get_admin_by_name,
-            'get_by_id': self._get_admin_by_id,
-            'update_email': self._update_admin_email,
-            'toggle_status': self._toggle_admin_status,
-            'change_password': self._change_admin_password,
-            'remove_by_id': self._remove_admin_by_id,
-        }
 
-        if operation not in operation_methods:
-            raise AdminOperationError(f"Unknown operation: {operation}")
 
-        return operation_methods[operation](**kwargs)
+    @with_permission_check(Permission.CREATE_ADMIN)
+    def create_admin(self, create_admin_data: CreateAdminData) -> Admin:
+        """Create a new admin"""
+        with self.uow:
+            aggregate = self._get_fresh_aggregate()
+            # Create admin
+            aggregate.create_admin(
+                admin_id=0,  # Let DB generate ID
+                name=create_admin_data.name,
+                email=create_admin_data.email,
+                enabled=create_admin_data.enabled,
+                password=create_admin_data.password,
+                roles=create_admin_data.roles
+            )
 
-    def _create_admin(self, create_admin_data: CreateAdminData) -> AdminAbstract:
-        """Create a new admin with validation"""
-        self._log_operation("create_admin", name=create_admin_data.name, email=create_admin_data.email)
+            # Verify ID was generated
+            self.uow.admins.save_admins(aggregate)
+            aggregate = self._get_fresh_aggregate()
+            fresh_admin = aggregate.require_admin_by_name(create_admin_data.name)
 
-        try:
-            with self.uow:
+            if fresh_admin.admin_id == 0:
+                raise DomainOperationError("Admin was created but ID wasn't properly generated")
+            self.uow.commit()
 
-                aggregate = self.uow.admins.get_list_of_admins()
+        return fresh_admin
 
-                # Create admin through aggregate
-                aggregate.create_admin(
-                    admin_id=0,  # Let database generate ID
-                    name=create_admin_data.name,
-                    email=create_admin_data.email,
-                    password=create_admin_data.password,
-                    enabled=create_admin_data.enabled
-                )
-
-                # Persist changes
-
-                self.uow.admins.save_admins(aggregate)
-
-                self.uow.commit()
-
-                # ✅ GOOD: Reload to get database-generated ID and ensure consistency
-                fresh_admin = self._get_admin_by_name(create_admin_data.name)
-
-                if fresh_admin.admin_id == 0:
-                    raise AdminOperationError("Admin was created but ID wasn't properly generated")
-
-                return fresh_admin
-        except AdminOperationError:
-            raise  # Re-raise domain exceptions
-        except Exception as e:
-            self.logger.error(f"Unexpected error creating admin: {e}")
-            #raise AdminOperationError("Failed to create admin") from e
-            raise
-
-    def _get_admin_by_name(self, name: str) -> AdminAbstract:
-        """Get admin by name - throws exception if not found"""
-        self._log_operation("get_admin_by_name", name=name)
-
-        aggregate = self.uow.admins.get_list_of_admins()
+    def get_admin_by_name(self, name: str) -> Admin:
+        """Get admin by name"""
+        aggregate = self._get_fresh_aggregate()
         return aggregate.require_admin_by_name(name)
 
-    def _get_admin_by_id(self, admin_id: int) -> AdminAbstract:
-        """Get admin by ID - throws exception if not found"""
-        self._log_operation("get_admin_by_id", admin_id=admin_id)
-
+    @with_permission_check(Permission.UPDATE_ADMIN)
+    def update_admin_email(self,
+                           target_admin_id: int,
+                           new_email: str) -> Admin:
+        """Update admin email"""
         with self.uow:
-            aggregate = self.uow.admins.get_list_of_admins()
-
-            admin = aggregate.get_admin_by_id(admin_id=admin_id)
+            aggregate = self._get_fresh_aggregate()
+            admin = aggregate.change_admin_email(target_admin_id, new_email)
+            self.uow.admins.save_admins(aggregate)
+            self.uow.commit()
             return admin
 
-    def _update_admin_email(self, name: str, new_email: str) -> AdminAbstract:
-        """Update admin email with validation"""
-        self._log_operation("update_admin_email", name=name, new_email=new_email)
+    @with_permission_check(Permission.UPDATE_ADMIN)
+    def change_admin_status(self,
+                            target_admin_id: int, enabled: bool) -> Admin:
 
         with self.uow:
-            aggregate = self.uow.admins.get_list_of_admins()
+            aggregate = self._get_fresh_aggregate()
+            admin = aggregate.change_admin_status(target_admin_id, enabled=enabled)
+            self.uow.admins.save_admins(aggregate)
+            self.uow.commit()
+            return admin
 
-            # This already throws if admin doesn't exist
-            aggregate.require_admin_by_name(name)
+    @with_permission_check(Permission.UPDATE_ADMIN)
+    def change_admin_password(self,
+                              target_admin_id: int,
+                              new_password: str) -> Admin:
+        """Change admin password"""
+        with self.uow:
+            aggregate = self._get_fresh_aggregate()
+            admin = aggregate.change_admin_password(target_admin_id, new_password)
+            self.uow.admins.save_admins(aggregate)
+            self.uow.commit()
+            return admin
 
-            aggregate.change_admin_email(name, new_email)
+    @with_permission_check(Permission.DELETE_ADMIN)
+    def remove_admin_by_id(self,
+                           target_admin_id: int) -> None:
+        """Remove admin"""
+
+        if self.requesting_admin.admin_id == target_admin_id:
+            raise DomainOperationError("Admin cannot delete themselves")
+        with self.uow:
+            aggregate = self._get_fresh_aggregate()
+            self.management_service.delete_admin(admin_id=target_admin_id, aggregate=aggregate)
             self.uow.admins.save_admins(aggregate)
             self.uow.commit()
 
-            return aggregate.require_admin_by_name(name)
-
-    def _toggle_admin_status(self, name: str) -> AdminAbstract:
-        """Toggle admin enabled/disabled status"""
-        self._log_operation("toggle_admin_status", name=name)
-
+    @with_permission_check(Permission.UPDATE_ADMIN)
+    def assign_role(self,
+                    target_admin_id: int,
+                    role_id: int) -> Admin:
+        """Assign role to admin"""
         with self.uow:
-            aggregate = self.uow.admins.get_list_of_admins()
-            admin = aggregate.require_admin_by_name(name)
-
-            aggregate.toggle_admin_status(name)
+            aggregate = self._get_fresh_aggregate()
+            admin = aggregate.get_admin_by_id(target_admin_id)
+            self.admin_roles_management_service.assign_role_to_admin(admin, role_id)
             self.uow.admins.save_admins(aggregate)
             self.uow.commit()
+            return admin
 
-            new_status = "enabled" if not admin.enabled else "disabled"
-            self.logger.info(f"Admin {name} status toggled to {new_status}")
-            return aggregate.require_admin_by_name(name)
-
-    def _change_admin_password(self, name: str, new_password: str) -> AdminAbstract:
-        """Change admin password with validation"""
-        self._log_operation("change_admin_password", name=name)
-
+    @with_permission_check(Permission.UPDATE_ADMIN)
+    def remove_role(self,
+                    target_admin_id: int,
+                    role_id: int) -> Admin:
+        """Remove role from admin"""
         with self.uow:
-            aggregate = self.uow.admins.get_list_of_admins()
-            aggregate.require_admin_by_name(name)  # Validate existence
-
-            aggregate.change_admin_password(name, new_password)
+            aggregate = self._get_fresh_aggregate()
+            admin = aggregate.get_admin_by_id(target_admin_id)
+            self.admin_roles_management_service.remove_role_from_admin(admin, role_id)
             self.uow.admins.save_admins(aggregate)
             self.uow.commit()
-
-            self.logger.info(f"Password changed for admin: {name}")
-            return aggregate.require_admin_by_name(name)
-
-    def _remove_admin_by_id(self, admin_id: int) -> None:
-        """Remove admin by ID"""
-        self._log_operation("remove_admin_by_id", admin_id=admin_id)
-
-        with self.uow:
-            aggregate = self.uow.admins.get_list_of_admins()
-            aggregate.remove_admin_by_id(admin_id)
-            self.uow.admins.save_admins(aggregate)
-            self.uow.commit()
-
-            self.logger.info(f"Admin removed: (ID: {admin_id})")
+            return admin
 
     # Bulk operations
-    def list_all_admins(self) -> List[Admin]:
+    def list_all_admins(self) -> list[Admin]:
         """Get all admins"""
-        with self.uow:
-            aggregate = self.uow.admins.get_list_of_admins()
-            return [admin for admin in aggregate.get_all_admins() if isinstance(admin, Admin)]
+        aggregate = self._get_fresh_aggregate()
+        return aggregate.get_all_admins()
 
-    def list_enabled_admins(self) -> List[Admin]:
+    def list_enabled_admins(self) -> list[Admin]:
         """Get only enabled admins"""
-        with self.uow:
-            aggregate = self.uow.admins.get_list_of_admins()
-            return [admin for admin in aggregate.get_enabled_admins() if isinstance(admin, Admin)]
+        aggregate = self._get_fresh_aggregate()
+        return aggregate.get_enabled_admins()
 
     def admin_exists(self, name: str) -> bool:
         """Check if admin exists"""
-        with self.uow:
-            aggregate = self.uow.admins.get_list_of_admins()
-            return aggregate.admin_exists(name)
+        aggregate = self._get_fresh_aggregate()
+        return aggregate.admin_exists(name)

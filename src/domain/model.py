@@ -1,15 +1,15 @@
+from __future__ import annotations  # Add at the top of the file
 import hashlib
-import os
 import secrets
-import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Dict, Final, Optional
-from abc import ABC, abstractmethod
-import re
-import bcrypt
 
-from src.domain.exceptions import AdminNotFoundError, AdminAlreadyExistsError, AdminValidationError, AdminOperationError
+import re
+from typing import Final, Optional
+
+
+from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError
+from src.domain.permissions.rbac import Permission, RoleRegistry
 
 # Constants
 EMPTY_ADMIN_ID: Final[int] = 0
@@ -17,100 +17,35 @@ MIN_PASSWORD_LENGTH: Final[int] = 8
 EMAIL_REGEX: Final[str] = r"[^@]+@[^@]+\.[^@]+"
 
 
-class AdminAbstract(ABC):
-    """Abstract base class for all Admin types"""
 
-    @property
-    @abstractmethod
-    def admin_id(self) -> int:
-        raise NotImplementedError
-
-    @admin_id.setter
-    @abstractmethod
-    def admin_id(self, value: int):
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        raise NotImplementedError
-
-    @name.setter
-    @abstractmethod
-    def name(self, value: str):
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def email(self) -> str:
-        raise NotImplementedError
-
-    @email.setter
-    @abstractmethod
-    def email(self, value: str):
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def enabled(self) -> bool:
-        raise NotImplementedError
-
-    @enabled.setter
-    @abstractmethod
-    def enabled(self, value: bool):
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def date_created(self) -> datetime:
-        raise NotImplementedError
-
-    @abstractmethod
-    def __eq__(self, other) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
-    def __bool__(self) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
-    def is_empty(self) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
-    def verify_password(self, password: str) -> bool:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def password(self):
-        raise NotImplementedError
-
-    @password.setter
-    @abstractmethod
-    def password(self, plain_password: str):
-        raise NotImplementedError
 
 
 @dataclass
-class Admin(AdminAbstract):
+class Admin:
+    """Пользователи владельцев системы. Обладают полными правами в системе."""
+    """name используется как login. Возможно, в дальнейшем добавить дополнительную информацию о пользователе и ввести
+    отдельном поле login"""
+    """пароль храниться в хэшированном виде"""
+    """Дата создания не меняется"""
+    """Обращения к полям только через свойства"""
     _admin_id: int
     _name: str
     _email: str
     _password_hash: str = field(repr=False)
     _enabled: bool
     _date_created: datetime = field(default_factory=datetime.now)
-
+    _roles_ids: set[int] = field(default_factory=set)  # ← Store IDs, not names!
     def __init__(self, admin_id: int, name: str, password: str, email: str, enabled: bool,
+                 roles_ids: Optional[set[int]] = None,
                  date_created: Optional[datetime] = None):
 
         self._admin_id = admin_id
         self._name = name
         self._email = email
         self._enabled = enabled
+        self._roles_ids = roles_ids or set()
         self._password_hash = Admin.str_hash(password)
         self._date_created = date_created or datetime.now()
-
 
         # Property implementations with setters
 
@@ -150,9 +85,41 @@ class Admin(AdminAbstract):
     def date_created(self) -> datetime:
         return self._date_created
 
-    def __eq__(self, other) -> bool:
-        if isinstance(other, AdminEmpty):
+        # New RBAC methods
+
+    def has_role(self, role_id: int) -> bool:
+        return role_id in self._roles_ids
+
+
+    def has_permission(self, permission: Permission, role_registry: RoleRegistry) -> bool:
+        """Check if admin has permission through any of their roles"""
+        if not self._enabled:
             return False
+
+        for role_id in self._roles_ids:  # ← Iterate through IDs
+            role = role_registry.get_role_by_id(role_id)  # ← Look up by ID
+            if role and role.has_permission(permission):
+                return True
+        return False
+
+    def assign_role(self, role_id: int, role_registry: RoleRegistry) -> None:
+        """Assign a role to admin"""
+        role = role_registry.require_role_by_id(role_id)
+        self._roles_ids.add(role.role_id)
+
+    def remove_role(self, role_id: int) -> None:
+        """Remove a role from admin"""
+        self._roles_ids.discard(role_id)
+
+    def get_roles(self) -> set[int]:
+        return set(self._roles_ids)  # Return copy
+
+
+    def __eq__(self, other) -> bool:
+        """Если этот экземпляр это AdminEmpty, то они не равны"""
+        if isinstance(other, Admin) and other.is_empty():
+            return False
+        """Админы равны по именам"""
         return isinstance(other, Admin) and self._name == other._name
 
     def __hash__(self) -> int:
@@ -177,10 +144,7 @@ class Admin(AdminAbstract):
 
     @staticmethod
     def str_hash(s: str) -> str:
-        #return "1"
-        #return bcrypt.hashpw(s.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-        #salt = os.urandom(32)
-        #return hashlib.sha256(salt + s.encode()).hexdigest()
+
         """Hash password with SHA-256 and random salt"""
         # Generate a cryptographically secure random salt
         salt = secrets.token_bytes(32)
@@ -220,83 +184,19 @@ class Admin(AdminAbstract):
     def verify_password(self, password: str) -> bool:
         return self.str_verify(password, self._password_hash)
 
+    @classmethod
+    def create_empty(cls) -> Admin:
+        admin = cls(admin_id=0, name="", email="1", enabled=False,password="1234567890")
+        admin._is_empty = True
+        return admin
 
-@dataclass
-class AdminEmpty(AdminAbstract):
-    """Null Object implementation of AdminAbstract"""
-    _admin_id: int = EMPTY_ADMIN_ID
-    _name: str = ""
-    _email: str = ""
-    _enabled: bool = False
-    _date_created: datetime = field(default_factory=datetime.now)
-
-    # Property implementations with setters that raise errors
-    @property
-    def admin_id(self) -> int:
-        return self._admin_id
-
-    @admin_id.setter
-    def admin_id(self, value: int):
-        raise AttributeError("Cannot set admin_id on empty admin")
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @name.setter
-    def name(self, value: str):
-        raise AttributeError("Cannot set name on empty admin")
-
-    @property
-    def email(self) -> str:
-        return self._email
-
-    @email.setter
-    def email(self, value: str):
-        raise AttributeError("Cannot set email on empty admin")
-
-    @property
-    def enabled(self) -> bool:
-        return self._enabled
-
-    @enabled.setter
-    def enabled(self, value: bool):
-        raise AttributeError("Cannot set enabled on empty admin")
-
-    @property
-    def date_created(self) -> datetime:
-        return self._date_created
-
-    def __eq__(self, other) -> bool:
-        return isinstance(other, AdminEmpty)
-
-    def __bool__(self) -> bool:
-        return False
-
-    def is_empty(self) -> bool:
-        return True
-
-    def verify_password(self, password: str) -> bool:
-        return False
-
-    @property
-    def password(self):
-        raise AdminOperationError(message="Cannot access password on empty admin")
-
-    @password.setter
-    def password(self, plain_password: str):
-        raise AttributeError("Cannot set password on empty admin")
-
-    def __getattr__(self, name):
-        """Catch any other method calls and raise appropriate error"""
-        raise AttributeError(f"Cannot call '{name}' on empty admin")
 
 
 class AdminsAggregate:
-    def __init__(self, admins: List[Admin] = None, version: int = 0):
-        self.admins: Dict[str, AdminAbstract] = {}
+    def __init__(self, admins: list[Admin] = None, version: int = 0):
+        self.admins: dict[str, Admin] = {}
         self.version: int = version
-        self._empty_admin = AdminEmpty()
+        #self._empty_admin = AdminEmpty()
 
         if admins:
             for admin in admins:
@@ -307,34 +207,34 @@ class AdminsAggregate:
     def _validate_name(name: str) -> str:
         """Validate and sanitize admin name"""
         if not name or not name.strip():
-            raise AdminValidationError(message=f"Admin name cannot be empty")
+            raise ItemValidationError(message=f"Admin name cannot be empty")
         return name.strip()
 
     @staticmethod
     def _validate_email(email: str) -> str:
         """Validate email format"""
         if not re.match(EMAIL_REGEX, email):
-            raise AdminValidationError(message=f"Invalid email format {email}")
+            raise ItemValidationError(message=f"Invalid email format {email}")
         return email
 
     @staticmethod
     def _validate_password(password: str) -> str:
         """Validate password strength"""
         if len(password) < MIN_PASSWORD_LENGTH:
-            raise AdminValidationError(message=f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+            raise ItemValidationError(message=f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
         return password
 
     def _validate_admin_id_unique(self, admin_id: int):
         """Validate that admin ID is unique"""
         if any(a.admin_id == admin_id for a in self.admins.values() if not a.is_empty()):
-            raise AdminAlreadyExistsError(str(admin_id))
+            raise ItemAlreadyExistsError(str(admin_id))
 
     def _validate_admin_name_unique(self, name: str):
         """Validate that admin name is unique"""
         if name in self.admins:
-            raise AdminAlreadyExistsError(name)
+            raise ItemAlreadyExistsError(name)
 
-    def create_admin(self, admin_id: int, name: str, email: str, password: str, enabled: bool = True) -> Admin:
+    def create_admin(self, admin_id: int, name: str, email: str, password: str, enabled: bool = True,roles:set[int]=()) -> Admin:
         """Create a new admin with validation"""
         validated_name = AdminsAggregate._validate_name(name)
         validated_email = AdminsAggregate._validate_email(email)
@@ -347,16 +247,17 @@ class AdminsAggregate:
             name=validated_name,
             password=validated_password,
             email=validated_email,
-            enabled=enabled
+            enabled=enabled,
+            roles_ids=roles
         )
         self.version+=1
         self.add_admin(admin)
         return admin
 
-    def add_admin(self, admin: AdminAbstract):
+    def add_admin(self, admin: Admin):
         """Add an existing admin with validation"""
-        # todo При добавлении созданого admin не валидируется имя, email, пароль.
-        # Это связано с порнографией добавления уже хешированного пароля
+        # todo При добавлении созданного admin не валидируется имя, email, пароль.
+        # Это связано с порнографией добавления уже хэшированного пароля
 
         if isinstance(admin, Admin):
             # self._validate_admin_id_unique(admin.admin_id)
@@ -368,54 +269,59 @@ class AdminsAggregate:
     def change_admin(self, admin: Admin):
         """Change an existing admin with validation"""
         # todo При изменении admin не валидируется имя, email, пароль.
-        #  Это связано с порнографией добавления уже хешированного пароля
+        #  Это связано с порнографией добавления уже хэшированного пароля
         if isinstance(admin, Admin):
             if admin.name in self.admins and self.admins[admin.name].admin_id == admin.admin_id:
                 self.admins[admin.name] = admin
                 self.version += 1
 
-    def get_admin_by_name(self, name: str) -> AdminAbstract:
-        """Get admin by unique name - returns AdminEmpty if not found"""
-        return self.admins.get(name, self._empty_admin)
+    def get_admin_by_name(self, name: str) -> Admin:
+        admin=self.admins.get(name)
+        if not admin:
+            raise ItemNotFoundError(f"Admin {name} not found")
+        return admin
 
-    def require_admin_by_name(self, name: str) -> AdminAbstract:
+    def require_admin_by_name(self, name: str) -> Admin:
         """Get admin by name - throws exception if not found"""
         admin = self.admins.get(name)
-        if not admin or admin.is_empty():
-            raise AdminNotFoundError(name)
+        if not isinstance(admin,Admin) or admin.is_empty():
+            raise ItemNotFoundError(name)
         return admin
 
     def admin_exists(self, name: str) -> bool:
         """Check if admin with given name exists"""
         return name in self.admins and not self.admins[name].is_empty()
 
-    def change_admin_email(self, name: str, new_email: str):
+    def change_admin_email(self, admin_id: int, new_email: str)->Admin:
         """Change email for specific admin"""
-        admin = self.require_admin_by_name(name)
+        admin = self.get_admin_by_id(admin_id=admin_id)
         validated_email = AdminsAggregate._validate_email(new_email)
-
         admin.email = validated_email
         self.version += 1
+        return admin
 
-    def change_admin_password(self, name: str, new_password: str):
+    def change_admin_password(self, admin_id: int, new_password: str)->Admin:
         """Change password for specific admin"""
-        admin = self.require_admin_by_name(name)
+        admin = self.get_admin_by_id(admin_id)
         validated_password = AdminsAggregate._validate_password(new_password)
 
         admin.password = validated_password
         self.version += 1
+        return admin
 
-    def toggle_admin_status(self, name: str):
+    def change_admin_status(self, admin_id: int,enabled:bool)->Admin:
         """Toggle admin status (enable ↔ disable)"""
-        admin = self.require_admin_by_name(name)
-        admin.enabled = not admin.enabled
-        self.version += 1
-
-    def set_admin_status(self, name: str, enabled: bool):
-        """Set specific admin status"""
-        admin = self.require_admin_by_name(name)
+        admin = self.get_admin_by_id(admin_id=admin_id)
         admin.enabled = enabled
         self.version += 1
+        return admin
+
+    def set_admin_status(self, admin_id: int, enabled: bool)->Admin:
+        """Set specific admin status"""
+        admin = self.get_admin_by_id(admin_id)
+        admin.enabled = enabled
+        self.version += 1
+        return admin
 
     def remove_admin_by_id(self, admin_id: int):
         """Remove admin by id"""
@@ -424,22 +330,24 @@ class AdminsAggregate:
                 self.version += 1
                 del (self.admins[name])
                 return
-        raise AdminNotFoundError(f"Admin {admin_id} not found")
+        raise ItemNotFoundError(f"Admin {admin_id} not found")
 
-    def get_all_admins(self) -> List[AdminAbstract]:
+    def get_all_admins(self) -> list[Admin]:
         """Get all real admins (exclude empty ones)"""
-        return [admin for admin in self.admins.values() if not admin.is_empty()]
+        return [admin for admin in self.admins.values() if not admin.is_empty() and isinstance(admin,Admin)]
 
-    def get_admin_by_id(self, admin_id: int) -> AdminAbstract:
+    def get_admin_by_id(self, admin_id: int) -> Admin:
         for name in self.admins:
             if self.admins[name].admin_id == admin_id:
-                return self.admins[name]
-        raise AdminNotFoundError(f"Admin {admin_id} not found")
+                admin=self.admins[name]
+                if isinstance(admin,Admin):
+                    return admin
+        raise ItemNotFoundError(f"Admin {admin_id} not found")
 
-    def get_enabled_admins(self) -> List[AdminAbstract]:
+    def get_enabled_admins(self) -> list[Admin]:
         return [admin for admin in self.get_all_admins() if admin.enabled]
 
-    def get_disabled_admins(self) -> List[AdminAbstract]:
+    def get_disabled_admins(self) -> list[Admin]:
         return [admin for admin in self.get_all_admins() if not admin.enabled]
 
     def get_admin_count(self) -> int:
@@ -447,3 +355,5 @@ class AdminsAggregate:
 
     def is_empty(self) -> bool:
         return self.get_admin_count() == 0
+
+

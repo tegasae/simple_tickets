@@ -1,13 +1,7 @@
 from dataclasses import dataclass, field
-from typing import Optional
-
 import bcrypt
 
-from dataclasses import dataclass, field
-from typing import Optional
-import bcrypt
-
-from src.domain.model import AdminEmpty
+from src.domain.old.admin_empty import AdminEmpty
 
 
 @dataclass

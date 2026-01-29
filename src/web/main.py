@@ -20,7 +20,7 @@ from src.web.auth.models import RefreshRequest, LogoutRequest
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
 
-from src.web.routers import admins
+from src.web.routers import admins, clients
 
 from utils.db.connect import Connection
 
@@ -43,11 +43,14 @@ app = FastAPI(
 
 )
 
+
 app.include_router(admins.router)
+app.include_router(clients.router)
 # LoggingMiddleware(app)
 registry = ExceptionHandlerRegistry(app)
 
 registry.add_all_handler('src.domain.exceptions', admins.handlers)
+registry.add_all_handler('src.domain.exceptions', clients.handlers)
 registry.add_all_handler('src.web.auth.exceptions', {'TokenError': 401, 'TokenNotFoundError': 401,
                                                      'TokenExpiredError': 401, 'UserNotValidError': 401})
 registry.add_standard_handler(Exception, 500)
@@ -67,6 +70,16 @@ async def health_check(settings: Settings = Depends(get_app_settings)):
 
 @app.get("/info")
 async def app_info(token: Annotated[str, Depends(oauth2_scheme)], settings: Settings = Depends(get_app_settings)):
+    """Application information"""
+    return {
+        "app_name": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "description": "Admin Management System"
+    }
+
+
+@app.get("/info1")
+async def app_info1(username: str = Depends(get_current_user_new), settings: Settings = Depends(get_app_settings)):
     """Application information"""
     return {
         "app_name": settings.APP_NAME,

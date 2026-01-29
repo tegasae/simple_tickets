@@ -2,7 +2,7 @@
 from typing import Optional
 
 
-class AdminError(Exception):
+class DomainError(Exception):
     """Base exception for all admin-related errors"""
 
     def __init__(self, message: str, admin_name: Optional[str] = None):
@@ -11,35 +11,35 @@ class AdminError(Exception):
         super().__init__(self.message)
 
 
-class AdminNotFoundError(AdminError):
-    """Raised when an admin is not found"""
+class ItemNotFoundError(DomainError):
+    """Raised when an item is not found"""
 
-    def __init__(self, admin_name: str):
-        super().__init__(f"Admin '{admin_name}' not found", admin_name)
-
-
-class AdminAlreadyExistsError(AdminError):
-    """Raised when trying to create a duplicate admin"""
-
-    def __init__(self, admin_name: str):
-        super().__init__(f"Admin '{admin_name}' already exists", admin_name)
+    def __init__(self, item_name: str):
+        super().__init__(f"The '{item_name}' not found", item_name)
 
 
-class AdminValidationError(AdminError):
-    """Raised when admin data validation fails"""
+class ItemAlreadyExistsError(DomainError):
+    """Raised when trying to create a duplicate item"""
 
-    def __init__(self, message: str, admin_name: Optional[str] = None):
-        super().__init__(f"Validation error: {message}", admin_name)
+    def __init__(self, item_name: str):
+        super().__init__(f"The item '{item_name}' already exists", item_name)
 
 
-class AdminOperationError(AdminError):
+class ItemValidationError(DomainError):
+    """Raised when item data validation fails"""
+
+    def __init__(self, message: str, item_name: Optional[str] = None):
+        super().__init__(f"Validation error: {message}", item_name)
+
+
+class DomainOperationError(DomainError):
     """Raised when admin operations fail"""
 
     def __init__(self, message: str, admin_name: Optional[str] = None):
         super().__init__(f"Operation failed: {message}", admin_name)
 
 
-class AdminSecurityError(AdminError):
+class DomainSecurityError(DomainError):
     """Raised for security-related admin issues"""
 
     def __init__(self, message: str, admin_name: Optional[str] = None):
