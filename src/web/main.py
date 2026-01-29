@@ -20,7 +20,7 @@ from src.web.auth.models import RefreshRequest, LogoutRequest
 
 from src.web.exception_handlers import ExceptionHandlerRegistry
 
-from src.web.routers import admins
+from src.web.routers import admins, clients
 
 from utils.db.connect import Connection
 
@@ -45,10 +45,12 @@ app = FastAPI(
 
 
 app.include_router(admins.router)
+app.include_router(clients.router)
 # LoggingMiddleware(app)
 registry = ExceptionHandlerRegistry(app)
 
 registry.add_all_handler('src.domain.exceptions', admins.handlers)
+registry.add_all_handler('src.domain.exceptions', clients.handlers)
 registry.add_all_handler('src.web.auth.exceptions', {'TokenError': 401, 'TokenNotFoundError': 401,
                                                      'TokenExpiredError': 401, 'UserNotValidError': 401})
 registry.add_standard_handler(Exception, 500)

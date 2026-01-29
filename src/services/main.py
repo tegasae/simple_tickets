@@ -13,7 +13,7 @@ if __name__=="__main__":
     admins=repository.get_list_of_admins()
 
     #print(admins.admins)
-    admin_service= AdminService(uow=SqliteUnitOfWork(connection=connect),requesting_admin_id=26)
+    admin_service= AdminService(uow=SqliteUnitOfWork(connection=connect),requesting_admin_name="name")
     create_data = CreateAdminData(
         name='string1111111111112221'+datetime.datetime.now().strftime("%Y%m%d%H%M%S"),
         email="email@email.email",
@@ -47,11 +47,18 @@ if __name__=="__main__":
     #client=client_service.execute(requesting_admin_id=2,operation='create',create_client_data=create_client_data)
 
     #print(client)
-    #clients=client_service.get_all_clients()
-    #print(clients)
+    clients=client_service.get_all_clients()
+    print(clients)
     #client=client_service.get_client_by_id(client_id=7)
     #print(client)
-
+    client_service.create_client(create_client_data=CreateClientData(
+        name="1",
+        email="<EMAIL>",
+        admin_id=1,
+        address="1",
+        phones="1",
+        enabled=True,
+    ))
     #client=client_service.execute(requesting_admin_id=2,operation='change_status',client_id=7,enabled=True)
     #client_service.execute(requesting_admin_id=2,operation='change_admin',client_id=7)
     #print(client)

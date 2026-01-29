@@ -1,94 +1,44 @@
 # services/client.py
-from typing import Protocol, Optional
+
 
 
 from src.domain.clients import Client
-from src.domain.exceptions import ItemNotFoundError
-from src.domain.model import AdminsAggregate
+from src.domain.exceptions import ItemNotFoundError, DomainOperationError
+
 from src.domain.permissions.rbac import Permission
 from src.domain.services.clients_admins import AdminClientManagementService
-from src.services.service_layer.base import BaseService
+from src.services.service_layer.base import BaseService, with_permission_check
 from src.services.service_layer.data import CreateClientData
 from src.services.uow.uowsqlite import AbstractUnitOfWork
-
-
-class ServiceFactoryProtocol(Protocol):
-    """Protocol for service factories"""
-
-    def __call__(self, aggregate: AdminsAggregate, client: Client) -> AdminClientManagementService:
-        ...
 
 
 class ClientService(BaseService[Client]):
     """
     Service for client management operations
-    Handles business logic and coordinates with UoW
+    Follows same pattern as AdminService
     """
 
-    def __init__(self,
-                 uow: AbstractUnitOfWork,
-                 service_factory: Optional[ServiceFactoryProtocol] = None):
-        """
-        Args:
-            uow: Unit of Work for database operations
-            service_factory: Factory to create AdminClientManagementService instances
-                            Defaults to AdminClientManagementService class
-        """
-        super().__init__(uow)
+    def __init__(self, uow: AbstractUnitOfWork, requesting_admin_name: str = ""):
+        super().__init__(uow, requesting_admin_name)
+        # Client service doesn't need additional services in constructor
+        # Domain service (AdminClientManagementService) is created per-operation
 
+    # ========== CRUD OPERATIONS ==========
 
-        # Service factory (dependency injection for testability)
-        self.service_factory = service_factory or AdminClientManagementService
+    @with_permission_check(Permission.CREATE_CLIENT)
+    def create_client(self, create_client_data: CreateClientData) -> Client:
+        """Create a new client"""
+        with (self.uow):
+            aggregate = self._get_fresh_aggregate()
 
-    # ========== HELPER METHODS ==========
+            # Create domain service
+            service = AdminClientManagementService(
+                admins_aggregate=aggregate,
+                client=Client.empty_client()
+            )
 
-    def _execute_client_update(self,
-                               requesting_admin_id: int,
-                               client_id: int,
-                               operation_name: str,
-                               **update_kwargs) -> Client:
-        """
-        Helper method for all client update operations
-        Handles: permissions, aggregate loading, service creation, saving
-        """
-        with self._with_admin_operation(
-                requesting_admin_id=requesting_admin_id,
-                permission=Permission.UPDATE_CLIENT,
-                operation_name=operation_name,
-                client_id=client_id,
-                **update_kwargs
-        ) as aggregate:
-            # Get client INSIDE transaction (fresh state)
-            client = self.uow.clients_repository.get_client_by_id(client_id)
-            if client.is_empty:
-                raise ItemNotFoundError(f"Client ID {client_id} not found")
-
-            # Create service instance
-            service = self.service_factory(aggregate, client)
-
-            # Execute update
-            updated_client = service.update_client(**update_kwargs)
-
-            # Persist changes
-            self.uow.clients_repository.save_client(updated_client)
-            return updated_client
-
-    def _execute_client_creation(self,
-                                 requesting_admin_id: int,
-                                 create_client_data: CreateClientData) -> Client:
-        """Helper for client creation"""
-        with self._with_admin_operation(
-                requesting_admin_id=requesting_admin_id,
-                permission=Permission.CREATE_CLIENT,
-                operation_name="create_client",
-                name=create_client_data.name,
-                email=create_client_data.email
-        ) as aggregate:
             # Determine admin ID (creator or specified)
-            admin_id = create_client_data.admin_id or requesting_admin_id
-
-            # Create service instance (no client yet)
-            service = self.service_factory(aggregate, Client.empty_client())
+            admin_id = create_client_data.admin_id or self.requesting_admin.admin_id
 
             # Create client
             client = service.create_client(
@@ -102,143 +52,128 @@ class ClientService(BaseService[Client]):
 
             # Persist
             self.uow.clients_repository.save_client(client)
+            self.uow.commit()
+
             return client
 
-    def _execute_client_deletion(self,
-                                 requesting_admin_id: int,
-                                 client_id: int) -> None:
-        """Helper for client deletion"""
-        with self._with_admin_operation(
-                requesting_admin_id=requesting_admin_id,
-                permission=Permission.DELETE_CLIENT,  # Assuming you have this permission
-                operation_name="delete_client",
-                client_id=client_id
-        ) as aggregate:
+    @with_permission_check(Permission.UPDATE_CLIENT)
+    def update_client_email(self, client_id: int, new_email: str) -> Client:
+        """Update client email"""
+        return self._update_client_attribute(
+            client_id=client_id,
+            new_value=new_email,
+            domain_service_method=lambda svc, val: svc.update_client(emails=val)
+        )
+
+    @with_permission_check(Permission.UPDATE_CLIENT)
+    def change_client_status(self, client_id: int, enabled: bool) -> Client:
+        """Enable/disable client"""
+        return self._update_client_attribute(
+            client_id=client_id,
+            new_value=enabled,
+            domain_service_method=lambda svc, val: svc.update_client(enabled=val)
+        )
+
+    @with_permission_check(Permission.UPDATE_CLIENT)
+    def update_client_phones(self, client_id: int, phones: str) -> Client:
+        """Update client phone numbers"""
+        return self._update_client_attribute(
+            client_id=client_id,
+            new_value=phones,
+            domain_service_method=lambda svc, val: svc.update_client(phones=val)
+        )
+
+    @with_permission_check(Permission.UPDATE_CLIENT)
+    def update_client_address(self, client_id: int, address: str) -> Client:
+        """Update client address"""
+        return self._update_client_attribute(
+            client_id=client_id,
+            new_value=address,
+            domain_service_method=lambda svc, val: svc.update_client(address=val)
+        )
+
+    @with_permission_check(Permission.UPDATE_CLIENT)
+    def update_client_name(self, client_id: int, name: str) -> Client:
+        """Update client name"""
+        return self._update_client_attribute(
+            client_id=client_id,
+            new_value=name,
+            domain_service_method=lambda svc, val: svc.update_client(name=val)
+        )
+
+    @with_permission_check(Permission.UPDATE_CLIENT)
+    def change_client_admin(self, client_id: int, new_admin_id: int) -> Client:
+        """Change which admin owns the client"""
+        # Prevent transferring to invalid admin
+        if new_admin_id <= 0:
+            raise DomainOperationError("Invalid admin ID")
+
+        return self._update_client_attribute(
+            client_id=client_id,
+            new_value=new_admin_id,
+            domain_service_method=lambda svc, val: svc.update_client(admin_id=val)
+        )
+
+    @with_permission_check(Permission.DELETE_CLIENT)
+    def remove_client_by_id(self, client_id: int) -> None:
+        """Delete a client"""
+        with self.uow:
+            aggregate = self._get_fresh_aggregate()
+
             # Get client
             client = self.uow.clients_repository.get_client_by_id(client_id)
             if client.is_empty:
                 raise ItemNotFoundError(f"Client ID {client_id} not found")
 
-            # Create service instance
-            service = self.service_factory(aggregate, client)
+            # Check if client is already deleted
+            if client.is_deleted:
+                raise DomainOperationError(f"Client {client.name} is already deleted")
 
-            # Delete (business logic in domain service)
+            # Create domain service
+            service = AdminClientManagementService(
+                admins_aggregate=aggregate,
+                client=client
+            )
+
+            # Delete client (business logic in domain service)
             service.delete_client()
 
-            # Persist deletion
-            self.uow.clients_repository.delete_client(client_id)
+            # Mark as deleted (soft delete) or remove (hard delete)
+            # Depending on your requirements:
+            # Option 1: Hard delete
+            # self.uow.clients.delete_client(client_id)
 
-    # ========== OPERATION METHODS ==========
+            # Option 2: Soft delete (recommended)
+            client.is_deleted = True
+            self.uow.clients_repository.save_client(client)
 
-    def create_client(self,
-                       requesting_admin_id: int,
-                       create_client_data: CreateClientData) -> Client:
-        """Create a new client"""
-        return self._execute_client_creation(requesting_admin_id, create_client_data)
+            self.uow.commit()
 
-    def update_client_email(self,
-                             requesting_admin_id: int,
-                             client_id: int,
-                             new_email: str) -> Client:
-        """Update client email"""
-        return self._execute_client_update(
-            requesting_admin_id=requesting_admin_id,
-            client_id=client_id,
-            operation_name="update_client_email",
-            emails=new_email
-        )
-
-    def change_client_status(self,
-                              requesting_admin_id: int,
-                              client_id: int,
-                              enabled: bool) -> Client:
-        """Enable/disable client"""
-        return self._execute_client_update(
-            requesting_admin_id=requesting_admin_id,
-            client_id=client_id,
-            operation_name="change_client_status",
-            enabled=enabled
-        )
-
-    def update_client_phones(self,
-                              requesting_admin_id: int,
-                              client_id: int,
-                              phones: str) -> Client:
-        """Update client phone numbers"""
-        return self._execute_client_update(
-            requesting_admin_id=requesting_admin_id,
-            client_id=client_id,
-            operation_name="update_client_phones",
-            phones=phones
-        )
-
-    def update_client_address(self,
-                               requesting_admin_id: int,
-                               client_id: int,
-                               address: str) -> Client:
-        """Update client address"""
-        return self._execute_client_update(
-            requesting_admin_id=requesting_admin_id,
-            client_id=client_id,
-            operation_name="update_client_address",
-            address=address  # Fixed typo: was "adrress"
-        )
-
-    def update_client_name(self,
-                            requesting_admin_id: int,
-                            client_id: int,
-                            name: str) -> Client:
-        """Update client name"""
-        return self._execute_client_update(
-            requesting_admin_id=requesting_admin_id,
-            client_id=client_id,
-            operation_name="update_client_name",  # Fixed: was "update_client_address"
-            name=name
-        )
-
-    def change_client_admin(self,
-                             requesting_admin_id: int,
-                             client_id: int,
-                             admin_id: int = 0) -> Client:
-        """Change which admin owns the client"""
-        # Use requesting admin if not specified
-        target_admin_id = admin_id if admin_id != 0 else requesting_admin_id
-
-        return self._execute_client_update(
-            requesting_admin_id=requesting_admin_id,
-            client_id=client_id,
-            operation_name="change_client_admin",
-            admin_id=target_admin_id
-        )
-
-    def remove_client_by_id(self,  # Renamed for clarity
-                             requesting_admin_id: int,
-                             client_id: int) -> None:
-        """Delete a client"""
-        self._execute_client_deletion(requesting_admin_id, client_id)
-
-    # ========== QUERY METHODS ==========
-
-    def get_client_by_name(self, name: str) -> list[Client]:
-        """Get all clients with matching name"""
-        return [
-            client for client in self.uow.clients_repository.get_all_clients()
-            if client.name == name
-        ]
+    # ========== QUERY METHODS (no permission needed) ==========
 
     def get_client_by_id(self, client_id: int) -> Client:
-        """Get client by ID (outside transaction - for queries only)"""
+        """Get client by ID"""
         client = self.uow.clients_repository.get_client_by_id(client_id)
         if client.is_empty:
             raise ItemNotFoundError(f"Client ID {client_id} not found")
         return client
 
+    def get_client_by_name(self, name: str) -> list[Client]:
+        """Get all clients with matching name"""
+        return [
+            client for client in self.uow.clients_repository.get_all_clients()
+            if client.name.value == name and not client.is_deleted
+        ]
+
     def get_all_clients(self) -> list[Client]:
-        """Get all clients (for listing/display)"""
-        return self.uow.clients_repository.get_all_clients()
+        """Get all non-deleted clients"""
+        return [
+            client for client in self.uow.clients_repository.get_all_clients()
+            if not client.is_deleted
+        ]
 
     def get_enabled_clients(self) -> list[Client]:
-        """Get only enabled clients"""
+        """Get only enabled, non-deleted clients"""
         return [
             client for client in self.get_all_clients()
             if client.enabled
@@ -251,46 +186,92 @@ class ClientService(BaseService[Client]):
             if client.admin_id == admin_id
         ]
 
+    def get_my_clients(self) -> list[Client]:
+        """Get clients created by the currently authenticated admin"""
+        if not self.requesting_admin:
+            raise DomainOperationError("No authenticated admin")
+
+        return self.get_clients_by_admin(self.requesting_admin.admin_id)
+
     def client_exists(self, name: str) -> bool:
-        """Check if a client with given name exists"""
-        return any(client.name == name for client in self.get_all_clients())
+        """Check if a client with given name exists (non-deleted)"""
+        return any(
+            client.name.value == name and not client.is_deleted
+            for client in self.uow.clients_repository.get_all_clients()
+        )
 
     # ========== BULK OPERATIONS ==========
 
-    def enable_all_clients(self, requesting_admin_id: int) -> list[Client]:
-        """Enable all clients (requires permission)"""
+    @with_permission_check(Permission.UPDATE_CLIENT)
+    def enable_all_clients(self) -> list[Client]:
+        """Enable all clients belonging to the authenticated admin"""
         enabled_clients = []
 
-        with self._with_admin_operation(
-                requesting_admin_id=requesting_admin_id,
-                permission=Permission.UPDATE_CLIENT,
-                operation_name="enable_all_clients"
-        ) as aggregate:
+        with self.uow:
+            aggregate = self._get_fresh_aggregate()
+            my_clients = self.get_my_clients()
 
-            for client in self.get_all_clients():
+            for client in my_clients:
                 if not client.enabled:
-                    service = self.service_factory(aggregate, client)
-                    enabled_client = service.update_client(enabled=True)
-                    self.uow.clients_repository.save_client(enabled_client)
-                    enabled_clients.append(enabled_client)
+                    service = AdminClientManagementService(aggregate, client)
+                    updated = service.update_client(enabled=True)
+                    self.uow.clients_repository.save_client(updated)
+                    enabled_clients.append(updated)
 
-            return enabled_clients
+            self.uow.commit()
 
-    def disable_all_clients(self, requesting_admin_id: int) -> list[Client]:
-        """Disable all clients (requires permission)"""
+        return enabled_clients
+
+    @with_permission_check(Permission.UPDATE_CLIENT)
+    def disable_all_clients(self) -> list[Client]:
+        """Disable all clients belonging to the authenticated admin"""
         disabled_clients = []
 
-        with self._with_admin_operation(
-                requesting_admin_id=requesting_admin_id,
-                permission=Permission.UPDATE_CLIENT,
-                operation_name="disable_all_clients"
-        ) as aggregate:
+        with self.uow:
+            aggregate = self._get_fresh_aggregate()
+            my_clients = self.get_my_clients()
 
-            for client in self.get_all_clients():
+            for client in my_clients:
                 if client.enabled:
-                    service = self.service_factory(aggregate, client)
-                    disabled_client = service.update_client(enabled=False)
-                    self.uow.clients_repository.save_client(disabled_client)
-                    disabled_clients.append(disabled_client)
+                    service = AdminClientManagementService(aggregate, client)
+                    updated = service.update_client(enabled=False)
+                    self.uow.clients_repository.save_client(updated)
+                    disabled_clients.append(updated)
 
-            return disabled_clients
+            self.uow.commit()
+
+        return disabled_clients
+
+    # ========== PRIVATE HELPER METHODS ==========
+
+    def _update_client_attribute(self, client_id: int,
+                                 new_value: any, domain_service_method) -> Client:
+        """
+        Generic helper for updating client attributes
+        """
+        with self.uow:
+            aggregate = self._get_fresh_aggregate()
+
+            # Get client
+            client = self.uow.clients_repository.get_client_by_id(client_id)
+            if client.is_empty:
+                raise ItemNotFoundError(f"Client ID {client_id} not found")
+
+            # Check if client is deleted
+            if client.is_deleted:
+                raise DomainOperationError(f"Cannot update deleted client {client.name}")
+
+            # Create domain service
+            service = AdminClientManagementService(
+                admins_aggregate=aggregate,
+                client=client
+            )
+
+            # Update using provided method
+            updated_client = domain_service_method(service, new_value)
+
+            # Persist changes
+            self.uow.clients_repository.save_client(updated_client)
+            self.uow.commit()
+
+            return updated_client
