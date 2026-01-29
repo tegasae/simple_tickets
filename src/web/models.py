@@ -1,5 +1,5 @@
 #web/models.py
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
@@ -35,6 +35,7 @@ class AdminView(BaseModel):
 class AdminCreate(AdminBase):
     password: str
     enabled: bool = True
+    roles: set[int] = Field(default_factory=set)  # ✅ CORRECT
 
 
 class AdminUpdate(BaseModel):

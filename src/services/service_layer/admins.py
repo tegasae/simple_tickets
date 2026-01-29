@@ -49,12 +49,6 @@ class AdminService(BaseService[Admin]):
 
 
 
-
-
-
-
-
-
     @with_permission_check(Permission.CREATE_ADMIN)
     def create_admin(self, create_admin_data: CreateAdminData) -> Admin:
         """Create a new admin"""

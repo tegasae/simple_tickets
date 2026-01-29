@@ -65,7 +65,7 @@ class BaseService(ABC, Generic[T]):
         )
         self.logger = logging.getLogger(self.__class__.__name__)
         self.operation_methods={}
-        self.requesting_admin: Optional[Admin] = None  # Store Admin object
+        self.requesting_admin: Admin = Admin.create_empty()  # Store Admin object
         if requesting_admin_name:
             self.requesting_admin = self.uow.admins_repository.get_list_of_admins().get_admin_by_name(
                 requesting_admin_name)
@@ -83,6 +83,9 @@ class BaseService(ABC, Generic[T]):
             permission=permission
         )
 
+    def set_requesting_admin_name(self,requesting_admin_name: str):
+        self.requesting_admin=self.uow.admins_repository.get_list_of_admins().get_admin_by_name(
+                requesting_admin_name)
 
     def _get_fresh_aggregate(self) -> AdminsAggregate:
         """Get fresh aggregate from UoW"""
