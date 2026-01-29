@@ -177,7 +177,7 @@ class Admin:
 
             # Compare the computed hash with the stored hash
             return secrets.compare_digest(computed_hash, original_hash)
-
+#
         except (ValueError, AttributeError):
             return False
 
