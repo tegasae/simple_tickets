@@ -53,9 +53,10 @@ class ServiceFactory(Generic[ServiceType]):
 
     def get_client_service(self) -> ClientService:
         """Get or create ClientService instance"""
-        if ClientService not in self._services:
-            self._services[ClientService] = ClientService(self.uow)
-        return self._services[ClientService]
+        #if ClientService not in self._services:
+        #    self._services[ClientService] = ClientService(self.uow)
+        #return self._services[ClientService]
+        return ClientService(uow=self.uow, requesting_admin_name=self.admin_name)
 
     def clear_cache(self):
         """Clear service cache (useful for testing)"""

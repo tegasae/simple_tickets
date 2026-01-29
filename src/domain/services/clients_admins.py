@@ -1,12 +1,12 @@
 #domain/services/clients_admin.py
 from src.domain.clients import Client
 from src.domain.exceptions import DomainOperationError
-from src.domain.model import AdminsAggregate
+
 from src.domain.value_objects import ClientName, Emails, Address, Phones
 
 class AdminClientManagementService:
-    def __init__(self,admins_aggregate: AdminsAggregate, client: Client=Client.empty_client()):
-        self.admins_aggregate=admins_aggregate
+    def __init__(self,client: Client=Client.empty_client()):
+
         self.client=client
 
     def delete_client(self):
@@ -17,8 +17,7 @@ class AdminClientManagementService:
 
     def create_client(self, admin_id: int, name: str, emails: str, address: str, phones: str,
                   enabled: bool = True) -> Client:
-        admin = self.admins_aggregate.get_admin_by_id(admin_id=admin_id)
-        client = Client.create(admin_id=admin.admin_id, name=name, emails=emails, address=address, phones=phones,
+        client = Client.create(admin_id=admin_id, name=name, emails=emails, address=address, phones=phones,
                            enabled=enabled)
         self.client=client
         return client
@@ -38,7 +37,5 @@ class AdminClientManagementService:
             self.client.phones = Phones(phones)
         self.client.enabled = enabled
         if admin_id:
-            admin = self.admins_aggregate.get_admin_by_id(admin_id=admin_id)
-            if admin.admin_id != self.client.admin_id:
-                self.client.admin_id = admin.admin_id
+                self.client.admin_id = admin_id
         return self.client

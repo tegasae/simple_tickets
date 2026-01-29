@@ -29,13 +29,10 @@ class ClientService(BaseService[Client]):
     def create_client(self, create_client_data: CreateClientData) -> Client:
         """Create a new client"""
         with (self.uow):
-            aggregate = self._get_fresh_aggregate()
+
 
             # Create domain service
-            service = AdminClientManagementService(
-                admins_aggregate=aggregate,
-                client=Client.empty_client()
-            )
+            service = AdminClientManagementService()
 
             # Determine admin ID (creator or specified)
             admin_id = create_client_data.admin_id or self.requesting_admin.admin_id
@@ -118,7 +115,7 @@ class ClientService(BaseService[Client]):
     def remove_client_by_id(self, client_id: int) -> None:
         """Delete a client"""
         with self.uow:
-            aggregate = self._get_fresh_aggregate()
+
 
             # Get client
             client = self.uow.clients_repository.get_client_by_id(client_id)
@@ -131,7 +128,6 @@ class ClientService(BaseService[Client]):
 
             # Create domain service
             service = AdminClientManagementService(
-                admins_aggregate=aggregate,
                 client=client
             )
 
@@ -208,12 +204,12 @@ class ClientService(BaseService[Client]):
         enabled_clients = []
 
         with self.uow:
-            aggregate = self._get_fresh_aggregate()
+
             my_clients = self.get_my_clients()
 
             for client in my_clients:
                 if not client.enabled:
-                    service = AdminClientManagementService(aggregate, client)
+                    service = AdminClientManagementService(client)
                     updated = service.update_client(enabled=True)
                     self.uow.clients_repository.save_client(updated)
                     enabled_clients.append(updated)
@@ -228,12 +224,12 @@ class ClientService(BaseService[Client]):
         disabled_clients = []
 
         with self.uow:
-            aggregate = self._get_fresh_aggregate()
+
             my_clients = self.get_my_clients()
 
             for client in my_clients:
                 if client.enabled:
-                    service = AdminClientManagementService(aggregate, client)
+                    service = AdminClientManagementService(client)
                     updated = service.update_client(enabled=False)
                     self.uow.clients_repository.save_client(updated)
                     disabled_clients.append(updated)
@@ -250,7 +246,7 @@ class ClientService(BaseService[Client]):
         Generic helper for updating client attributes
         """
         with self.uow:
-            aggregate = self._get_fresh_aggregate()
+
 
             # Get client
             client = self.uow.clients_repository.get_client_by_id(client_id)
@@ -263,7 +259,6 @@ class ClientService(BaseService[Client]):
 
             # Create domain service
             service = AdminClientManagementService(
-                admins_aggregate=aggregate,
                 client=client
             )
 
