@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Admin Management{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </h1>
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Welcome back, <strong>{{ user.name }}</strong>!
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-people-fill"></i> Admin Management
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>Manage system administrators and their permissions.</p>
+                <div class="d-grid gap-2">
+                    <a href="/admins" class="btn btn-outline-success">
+                        <i class="bi bi-list"></i> View All Admins
+                    </a>
+                    <a href="/admins/create" class="btn btn-success">
+                        <i class="bi bi-person-plus"></i> Create New Admin
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-badge"></i> Client Management
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>Manage client accounts and information.</p>
+                <div class="d-grid gap-2">
+                    <a href="/clients" class="btn btn-outline-info">
+                        <i class="bi bi-list"></i> View All Clients
+                    </a>
+                    <a href="/clients/create" class="btn btn-info">
+                        <i class="bi bi-person-plus"></i> Create New Client
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i> Recent Activity
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-light">
+                    <i class="bi bi-check-circle text-success"></i>
+                    You are logged in as <strong>{{ user.email }}</strong>
+                </div>
+                <div class="alert alert-light">
+                    <i class="bi bi-calendar-check"></i>
+                    Account created: {{ user.date_created[:10] }}
+                </div>
+                <div class="alert alert-light">
+                    <i class="bi bi-toggle2-on text-success"></i>
+                    Status: <span class="badge bg-success">Active</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
