@@ -165,9 +165,6 @@ async def update_admin(
     admin_service = sf.get_admin_service()
     # Get the target admin
 
-
-
-
     # Update email if provided
     if admin_update.email is not None:
         admin_service.update_admin_email(target_admin_id=admin_id, new_email=admin_update.email)
@@ -186,6 +183,10 @@ async def update_admin(
     final_admin = admin_service.get_admin_by_id(admin_id=admin_id)
 
     return AdminView.from_admin(final_admin)
+
+
+
+
 
 
 # DELETE - Delete admin (no authorization for now)

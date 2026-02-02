@@ -1,3 +1,4 @@
+#model.py
 from __future__ import annotations  # Add at the top of the file
 import hashlib
 import secrets

@@ -8,7 +8,7 @@ from src.adapters.repository import AdminRepository, ClientRepository
 from src.domain.clients import Client
 from src.domain.exceptions import ItemNotFoundError
 from src.domain.model import AdminsAggregate, Admin
-from src.domain.value_objects import Emails, Address, Phones, ClientName
+from src.domain.value_objects import Emails, Address, Phones, Name
 from utils.db.connect import Connection
 
 from utils.db.exceptions import DBOperationError
@@ -263,7 +263,7 @@ class SQLiteClientRepository(ClientRepository):
                 client = Client(
                     client_id=row['client_id'],
                     admin_id=row['admin_id'],
-                    name=ClientName(row['name']),
+                    name=Name(row['name']),
                     emails=Emails(row['emails']),
                     phones=Phones(row['phones']),
                     address=Address(row['address']),
@@ -299,7 +299,7 @@ class SQLiteClientRepository(ClientRepository):
                 client = Client(
                     client_id=row['client_id'],
                     admin_id=row['admin_id'],
-                    name=ClientName(row['name']),
+                    name=Name(row['name']),
                     emails=Emails(row['emails']),
                     phones=Phones(row['phones']),
                     address=Address(row['address']),
@@ -336,7 +336,7 @@ class SQLiteClientRepository(ClientRepository):
         client = Client(
             client_id=client_data['client_id'],
             admin_id=client_data['admin_id'],
-            name=ClientName(client_data['name']),
+            name=Name(client_data['name']),
             emails=Emails(client_data['emails']),
             phones=Phones(client_data['phones']),
             address=Address(client_data['address']),

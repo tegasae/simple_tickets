@@ -2,7 +2,7 @@
 from src.domain.clients import Client
 from src.domain.exceptions import DomainOperationError
 
-from src.domain.value_objects import ClientName, Emails, Address, Phones
+from src.domain.value_objects import Name, Emails, Address, Phones
 
 class AdminClientManagementService:
     def __init__(self,client: Client=Client.empty_client()):
@@ -28,7 +28,7 @@ class AdminClientManagementService:
         if not self.client.is_empty and self.client.is_deleted:
             raise DomainOperationError(message=f"{self.client.name} can't be update because it is already deleted")
         if name:
-            self.client.name = ClientName(name)
+            self.client.name = Name(name)
         if emails:
             self.client.emails = Emails(emails)
         if address:

@@ -77,7 +77,7 @@ class Phones(ValueObject):
 
 
 @dataclass(frozen=True,order=True)
-class ClientName(ValueObject):
+class Name(ValueObject):
     """Value Object for validated client name"""
     value: str
     MIN_LENGTH: ClassVar[int] = 2
@@ -88,9 +88,9 @@ class ClientName(ValueObject):
         if new_value=="":
             raise ValueError("The name cannot be only whitespace")
         if len(new_value) < self.MIN_LENGTH:
-            raise ValueError(f"Client name must be at least {self.MIN_LENGTH} characters")
+            raise ValueError(f"The name must be at least {self.MIN_LENGTH} characters")
 
         if len(new_value) > self.MAX_LENGTH:
-            raise ValueError(f"Client name cannot exceed {self.MAX_LENGTH} characters")
+            raise ValueError(f"The name cannot exceed {self.MAX_LENGTH} characters")
         return new_value
 

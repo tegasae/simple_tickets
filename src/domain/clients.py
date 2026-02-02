@@ -5,12 +5,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from src.domain.exceptions import ItemValidationError
-from src.domain.value_objects import Emails, Address, Phones, ClientName
+from src.domain.value_objects import Emails, Address, Phones, Name
 
 @dataclass
 class Client:
     client_id: int    # ✅ Public field
-    name: ClientName         # ✅ Public field
+    name: Name         # ✅ Public field
     emails: Emails
     address: Address
     phones: Phones
@@ -28,8 +28,8 @@ class Client:
 
     @classmethod
     def empty_client(cls)->Client:
-        c=cls(client_id=0, name=ClientName("----"), admin_id=0,
-                   phones=Phones(),address=Address(),emails=Emails(),enabled=False)
+        c=cls(client_id=0, name=Name("----"), admin_id=0,
+              phones=Phones(), address=Address(), emails=Emails(), enabled=False)
         c._is_empty=True
         return c
 
@@ -37,8 +37,8 @@ class Client:
     def create(cls, *, admin_id:int,name: str, emails: str, address:str,phones:str,enabled:bool=True) -> Client:
     # доменные инварианты/валидации при создании
         try:
-            client=cls(client_id=0,admin_id=admin_id, name=ClientName(name),emails=Emails(emails),
-                        address=Address(address),phones=Phones(phones),enabled=enabled)
+            client=cls(client_id=0, admin_id=admin_id, name=Name(name), emails=Emails(emails),
+                       address=Address(address), phones=Phones(phones), enabled=enabled)
             return client
         except ValueError as e:
             raise ItemValidationError(message=str(e))
