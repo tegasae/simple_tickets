@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 import bcrypt
 
-from src.domain.old.admin_empty import AdminEmpty
+from src.domain.old.admin_empty1 import AdminEmpty
 
 
 @dataclass

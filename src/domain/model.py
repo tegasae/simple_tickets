@@ -10,7 +10,8 @@ from typing import Final, Optional
 
 
 from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError
-from src.domain.permissions.rbac import Permission, RoleRegistry
+from src.domain.permissions.rbac import RoleRegistry
+from src.domain.permissions.permission import PermissionAdmin
 
 # Constants
 EMPTY_ADMIN_ID: Final[int] = 0
@@ -92,7 +93,7 @@ class Admin:
         return role_id in self._roles_ids
 
 
-    def has_permission(self, permission: Permission, role_registry: RoleRegistry) -> bool:
+    def has_permission(self, permission: PermissionAdmin, role_registry: RoleRegistry) -> bool:
         """Check if admin has permission through any of their roles"""
         if not self._enabled:
             return False

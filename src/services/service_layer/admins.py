@@ -4,7 +4,7 @@ from functools import wraps
 
 from src.domain.exceptions import DomainOperationError
 from src.domain.model import Admin
-from src.domain.permissions.rbac import Permission
+from src.domain.permissions.permission import PermissionAdmin
 from src.domain.services.admins import AdminManagementService
 
 from src.services.service_layer.base import BaseService, with_permission_check
@@ -13,7 +13,7 @@ from src.services.service_layer.data import CreateAdminData
 from src.services.uow.uowsqlite import AbstractUnitOfWork
 
 
-def with_permission_check_old(permission: Permission):
+def with_permission_check_old(permission: PermissionAdmin):
     """Meta-decorator that works with instance methods"""
 
     def decorator(func):
@@ -49,7 +49,7 @@ class AdminService(BaseService[Admin]):
 
 
 
-    @with_permission_check(Permission.CREATE_ADMIN)
+    @with_permission_check(PermissionAdmin.CREATE_ADMIN)
     def create_admin(self, create_admin_data: CreateAdminData) -> Admin:
         """Create a new admin"""
         with self.uow:
@@ -80,7 +80,7 @@ class AdminService(BaseService[Admin]):
         aggregate = self._get_fresh_aggregate()
         return aggregate.require_admin_by_name(name)
 
-    @with_permission_check(Permission.UPDATE_ADMIN)
+    @with_permission_check(PermissionAdmin.UPDATE_ADMIN)
     def update_admin_email(self,
                            target_admin_id: int,
                            new_email: str) -> Admin:
@@ -92,7 +92,7 @@ class AdminService(BaseService[Admin]):
             self.uow.commit()
             return admin
 
-    @with_permission_check(Permission.UPDATE_ADMIN)
+    @with_permission_check(PermissionAdmin.UPDATE_ADMIN)
     def change_admin_status(self,
                             target_admin_id: int, enabled: bool) -> Admin:
 
@@ -103,7 +103,7 @@ class AdminService(BaseService[Admin]):
             self.uow.commit()
             return admin
 
-    @with_permission_check(Permission.UPDATE_ADMIN)
+    @with_permission_check(PermissionAdmin.UPDATE_ADMIN)
     def change_admin_password(self,
                               target_admin_id: int,
                               new_password: str) -> Admin:
@@ -115,7 +115,7 @@ class AdminService(BaseService[Admin]):
             self.uow.commit()
             return admin
 
-    @with_permission_check(Permission.DELETE_ADMIN)
+    @with_permission_check(PermissionAdmin.DELETE_ADMIN)
     def remove_admin_by_id(self,
                            target_admin_id: int) -> None:
         """Remove admin"""
@@ -128,7 +128,7 @@ class AdminService(BaseService[Admin]):
             self.uow.admins.save_admins(aggregate)
             self.uow.commit()
 
-    @with_permission_check(Permission.UPDATE_ADMIN)
+    @with_permission_check(PermissionAdmin.UPDATE_ADMIN)
     def assign_role(self,
                     target_admin_id: int,
                     role_id: int) -> Admin:
@@ -141,7 +141,7 @@ class AdminService(BaseService[Admin]):
             self.uow.commit()
             return admin
 
-    @with_permission_check(Permission.UPDATE_ADMIN)
+    @with_permission_check(PermissionAdmin.UPDATE_ADMIN)
     def remove_role(self,
                     target_admin_id: int,
                     role_id: int) -> Admin:

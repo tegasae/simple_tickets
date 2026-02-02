@@ -2,12 +2,13 @@
 from abc import ABC
 from contextlib import contextmanager
 from functools import wraps
-from typing import Generic, TypeVar, Generator, Optional
+from typing import Generic, TypeVar, Generator
 import logging
 
 from src.domain.exceptions import DomainOperationError, DomainSecurityError
 from src.domain.model import AdminsAggregate, Admin
-from src.domain.permissions.rbac import RoleRegistry, Permission
+from src.domain.permissions.rbac import RoleRegistry
+from src.domain.permissions.permission import PermissionAdmin
 from src.domain.services.roles_admins import AdminRolesManagementService
 from src.services.uow.uowsqlite import AbstractUnitOfWork
 
@@ -22,7 +23,7 @@ def _validate_input(**kwargs) -> None:
         if value is None:
             raise ValueError(f"Parameter '{key}' cannot be None")
 
-def with_permission_check(permission: Permission):
+def with_permission_check(permission: PermissionAdmin):
     """Decorator that checks permissions using self.requesting_admin"""
 
     def decorator(func):
@@ -75,7 +76,7 @@ class BaseService(ABC, Generic[T]):
     def _check_admin_permissions(self,
                                  aggregate: AdminsAggregate,  # Receive aggregate
                                  requesting_admin_id: int,
-                                 permission: Permission):
+                                 permission: PermissionAdmin):
         """Check if admin has permission using provided aggregate"""
         requesting_admin = aggregate.get_admin_by_id(requesting_admin_id)
         self.admin_roles_management_service.check_permission(
@@ -103,7 +104,7 @@ class BaseService(ABC, Generic[T]):
     @contextmanager
     def _with_admin_operation(self,
                               requesting_admin_id: int,
-                              permission: Permission,
+                              permission: PermissionAdmin,
                               operation_name: str,
                               **log_details) -> Generator[AdminsAggregate, None, None]:
         """

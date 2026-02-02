@@ -94,3 +94,5 @@ class Name(ValueObject):
             raise ValueError(f"The name cannot exceed {self.MAX_LENGTH} characters")
         return new_value
 
+
+

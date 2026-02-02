@@ -3,10 +3,10 @@ from functools import wraps
 from typing import Callable
 
 from src.domain.exceptions import DomainSecurityError
-from src.domain.permissions.rbac import Permission
+from src.domain.permissions.permission import PermissionAdmin
 
 
-def requires_permission_id(permission: Permission):
+def requires_permission_id(permission: PermissionAdmin):
     """Decorator to check admin permissions before executing method"""
 
     def decorator(func: Callable):

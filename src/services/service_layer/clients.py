@@ -5,7 +5,7 @@
 from src.domain.clients import Client
 from src.domain.exceptions import ItemNotFoundError, DomainOperationError
 
-from src.domain.permissions.rbac import Permission
+from src.domain.permissions.permission import PermissionAdmin
 from src.domain.services.clients_admins import AdminClientManagementService
 from src.services.service_layer.base import BaseService, with_permission_check
 from src.services.service_layer.data import CreateClientData
@@ -25,7 +25,7 @@ class ClientService(BaseService[Client]):
 
     # ========== CRUD OPERATIONS ==========
 
-    @with_permission_check(Permission.CREATE_CLIENT)
+    @with_permission_check(PermissionAdmin.CREATE_CLIENT)
     def create_client(self, create_client_data: CreateClientData) -> Client:
         """Create a new client"""
         with (self.uow):
@@ -53,7 +53,7 @@ class ClientService(BaseService[Client]):
 
             return client
 
-    @with_permission_check(Permission.UPDATE_CLIENT)
+    @with_permission_check(PermissionAdmin.UPDATE_CLIENT)
     def update_client_email(self, client_id: int, new_email: str) -> Client:
         """Update client email"""
         return self._update_client_attribute(
@@ -62,7 +62,7 @@ class ClientService(BaseService[Client]):
             domain_service_method=lambda svc, val: svc.update_client(emails=val)
         )
 
-    @with_permission_check(Permission.UPDATE_CLIENT)
+    @with_permission_check(PermissionAdmin.UPDATE_CLIENT)
     def change_client_status(self, client_id: int, enabled: bool) -> Client:
         """Enable/disable client"""
         return self._update_client_attribute(
@@ -71,7 +71,7 @@ class ClientService(BaseService[Client]):
             domain_service_method=lambda svc, val: svc.update_client(enabled=val)
         )
 
-    @with_permission_check(Permission.UPDATE_CLIENT)
+    @with_permission_check(PermissionAdmin.UPDATE_CLIENT)
     def update_client_phones(self, client_id: int, phones: str) -> Client:
         """Update client phone numbers"""
         return self._update_client_attribute(
@@ -80,7 +80,7 @@ class ClientService(BaseService[Client]):
             domain_service_method=lambda svc, val: svc.update_client(phones=val)
         )
 
-    @with_permission_check(Permission.UPDATE_CLIENT)
+    @with_permission_check(PermissionAdmin.UPDATE_CLIENT)
     def update_client_address(self, client_id: int, address: str) -> Client:
         """Update client address"""
         return self._update_client_attribute(
@@ -89,7 +89,7 @@ class ClientService(BaseService[Client]):
             domain_service_method=lambda svc, val: svc.update_client(address=val)
         )
 
-    @with_permission_check(Permission.UPDATE_CLIENT)
+    @with_permission_check(PermissionAdmin.UPDATE_CLIENT)
     def update_client_name(self, client_id: int, name: str) -> Client:
         """Update client name"""
         return self._update_client_attribute(
@@ -98,7 +98,7 @@ class ClientService(BaseService[Client]):
             domain_service_method=lambda svc, val: svc.update_client(name=val)
         )
 
-    @with_permission_check(Permission.UPDATE_CLIENT)
+    @with_permission_check(PermissionAdmin.UPDATE_CLIENT)
     def change_client_admin(self, client_id: int, new_admin_id: int) -> Client:
         """Change which admin owns the client"""
         # Prevent transferring to invalid admin
@@ -111,7 +111,7 @@ class ClientService(BaseService[Client]):
             domain_service_method=lambda svc, val: svc.update_client(admin_id=val)
         )
 
-    @with_permission_check(Permission.DELETE_CLIENT)
+    @with_permission_check(PermissionAdmin.DELETE_CLIENT)
     def remove_client_by_id(self, client_id: int) -> None:
         """Delete a client"""
         with self.uow:
@@ -198,7 +198,7 @@ class ClientService(BaseService[Client]):
 
     # ========== BULK OPERATIONS ==========
 
-    @with_permission_check(Permission.UPDATE_CLIENT)
+    @with_permission_check(PermissionAdmin.UPDATE_CLIENT)
     def enable_all_clients(self) -> list[Client]:
         """Enable all clients belonging to the authenticated admin"""
         enabled_clients = []
@@ -218,7 +218,7 @@ class ClientService(BaseService[Client]):
 
         return enabled_clients
 
-    @with_permission_check(Permission.UPDATE_CLIENT)
+    @with_permission_check(PermissionAdmin.UPDATE_CLIENT)
     def disable_all_clients(self) -> list[Client]:
         """Disable all clients belonging to the authenticated admin"""
         disabled_clients = []

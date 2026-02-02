@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 from unittest.mock import Mock
 from src.adapters.repositorysqlite import CreateDB, SQLiteAdminRepository, Admin, AdminsAggregate
-from src.domain.old.admin_empty import AdminEmpty
+from src.domain.old.admin_empty1 import AdminEmpty
 from utils.db.connect import Connection
 from utils.db.exceptions import DBOperationError
 

@@ -1,7 +1,8 @@
 #roles_admins.py
 from src.domain.exceptions import ItemNotFoundError, DomainOperationError, DomainSecurityError
 from src.domain.model import Admin
-from src.domain.permissions.rbac import RoleRegistry, Permission
+from src.domain.permissions.rbac import RoleRegistry
+from src.domain.permissions.permission import PermissionAdmin
 
 
 class AdminRolesManagementService:
@@ -25,7 +26,7 @@ class AdminRolesManagementService:
         admin.remove_role(role.role_id)
         return admin
 
-    def check_permission(self, admin: Admin, permission: Permission) -> None:
+    def check_permission(self, admin: Admin, permission: PermissionAdmin) -> None:
         if admin.is_empty():
             raise ItemNotFoundError(f"Admin ID {admin.admin_id} not found")
 
