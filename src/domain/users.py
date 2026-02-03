@@ -33,7 +33,7 @@ class User:
         if not hasattr(self, '_role_holder') or self._role_holder is None:
             object.__setattr__(self, '_role_holder', RoleHolder.create_empty())
 
-
+#
 
     # ========== ROLE METHODS ==========
 
