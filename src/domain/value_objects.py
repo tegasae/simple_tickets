@@ -95,4 +95,42 @@ class Name(ValueObject):
         return new_value
 
 
+@dataclass(frozen=True,order=True)
+class Login(ValueObject):
+    """Value Object for validated client name"""
+    value: str
+    MIN_LENGTH: ClassVar[int] = 2
+    MAX_LENGTH: ClassVar[int] = 100
+    def _validate(self)->str:
+        new_value=self.value.strip()
+
+        if new_value=="":
+            raise ValueError("The login cannot be only whitespace")
+        if len(new_value) < self.MIN_LENGTH:
+            raise ValueError(f"The login must be at least {self.MIN_LENGTH} characters")
+
+        if len(new_value) > self.MAX_LENGTH:
+            raise ValueError(f"The login cannot exceed {self.MAX_LENGTH} characters")
+        return new_value
+
+
+
+@dataclass(frozen=True,order=True)
+class Password(ValueObject):
+    """Value Object for validated client name"""
+    value: str
+    MIN_LENGTH: ClassVar[int] = 2
+    MAX_LENGTH: ClassVar[int] = 100
+    def _validate(self)->str:
+        new_value=self.value.strip()
+
+        if new_value=="":
+            raise ValueError("The login cannot be only whitespace")
+        if len(new_value) < self.MIN_LENGTH:
+            raise ValueError(f"The login must be at least {self.MIN_LENGTH} characters")
+
+        if len(new_value) > self.MAX_LENGTH:
+            raise ValueError(f"The login cannot exceed {self.MAX_LENGTH} characters")
+        return new_value
+
 
