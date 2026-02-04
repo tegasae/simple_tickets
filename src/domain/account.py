@@ -7,18 +7,10 @@ from typing import Self
 
 from src.domain.value_objects import Login, Password
 
-# Требования:
-# - минимум 8 символов
-# - хотя бы одна строчная, одна заглавная, одна цифра, один спецсимвол
-
-
-
-
-
 @dataclass(slots=True)
 class Account:
     account_id: int
-    login: "Login"
+    login: Login
     password: Password
 
     @classmethod
@@ -40,9 +32,3 @@ class Account:
     def verify_password(self, plain_password: str) -> bool:
         return self.password.verify(plain_password)
 
-if __name__=="__main__":
-    account=Account.create(1,"login","1234567890")
-    print(account)
-    print(account.verify_password("1234567890"))
-    account.from_db(1,"login","1234567890")
-    print(account.password)
