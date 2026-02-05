@@ -177,3 +177,4 @@ class Password:
 
     def __str__(self) -> str:
         return "**hidden**"
+

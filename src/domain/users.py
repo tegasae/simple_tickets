@@ -4,27 +4,30 @@ from dataclasses import field, dataclass
 from datetime import datetime
 from typing import FrozenSet, Self
 
+from src.domain.account import Account, NoAccount
 from src.domain.permissions.role_registry import NewRoleRegistry
 from src.domain.permissions.permission import PermissionBase
 from src.domain.permissions.role_holder import RoleHolder
 from src.domain.value_objects import Emails, Address, Phones, Name
 
-
 @dataclass
-class User:
-    user_id: int    # ✅ Public field
-    name: Name         # ✅ Public field
-    login: Name
-    password: str # todo заменить на хешированный потом. И в принципе испоьзовать хешировоанный в виде ValueObkect и для Admin
-    emails: Emails
-    address: Address
+class Employee:
+    employee_id: int
+    first_name: str
+    last_name: str
+    email: Emails
     phones: Phones
-    client_id: int
-    enabled: bool = True
     date_created: datetime = field(default_factory=datetime.now)
+    enabled: bool = True
+    version: int = 0
     _is_empty: bool = field(default=False, init=False, repr=False)
-    is_deleted:bool=False
-    version:int=0
+    is_deleted: bool = False
+
+@dataclass(kw_only=True)
+class User(Employee):
+    user_id: int    # ✅ Public field
+    account:Account|NoAccount
+    client_id: int
     roles: set[int] = field(default_factory=set)
     _role_holder: RoleHolder = field(default_factory=RoleHolder.create_empty)
 
@@ -50,7 +53,7 @@ class User:
         """Get names of all user's roles"""
         return self._role_holder.get_role_names(role_registry)
 
-    def assign_role(self, role_id: int, role_registry: NewRoleRegistry) -> None:
+    def grant(self, role_id: int, role_registry: NewRoleRegistry) -> None:
         """Assign a role to user"""
         role = role_registry.require_role_by_id(role_id)
         object.__setattr__(
@@ -59,7 +62,7 @@ class User:
             self._role_holder.add_role(role.role_id)
         )
 
-    def remove_role(self, role_id: int) -> None:
+    def revoke(self, role_id: int) -> None:
         """Remove a role from user"""
         object.__setattr__(
             self,
@@ -93,13 +96,8 @@ class User:
     def update_email(self, new_email: str) -> None:
         """Update user email"""
         # Add validation if needed
-        self.emails = Emails(new_email)
+        self.email = Emails(new_email)
 
-
-    # ========== PRIVATE METHODS ==========
-
-
-    # ========== FACTORY METHODS ==========
 
 
     @classmethod

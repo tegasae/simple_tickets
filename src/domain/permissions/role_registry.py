@@ -1,18 +1,19 @@
+#src/role_registry.py
 from src.domain.exceptions import ItemNotFoundError
-from src.domain.permissions.role import Role, EmptyRole
+from src.domain.permissions.role import UserRole, EmptyUserRole
 
 
 class NewRoleRegistry:
     """Registry for User roles only"""
 
-    def __init__(self, list_roles: list[Role]=None):
-        self._roles_by_id: dict[int, Role] = {}
-        self._roles_by_name: dict[str, Role] = {}
-        self._load_default_roles([EmptyRole()])
+    def __init__(self, list_roles: list[UserRole]=None):
+        self._roles_by_id: dict[int, UserRole] = {}
+        self._roles_by_name: dict[str, UserRole] = {}
+        self._load_default_roles([EmptyUserRole()])
         if list_roles:
             self._load_default_roles(list_roles)
 
-    def _load_default_roles(self, list_roles: list[Role]):
+    def _load_default_roles(self, list_roles: list[UserRole]):
         """Load the two default user roles"""
         #ordinary_role = OrdinaryUserRole()
         #super_role = SuperUserRole()
@@ -22,13 +23,13 @@ class NewRoleRegistry:
 
 
 
-    def get_role_by_id(self, role_id: int) -> Role:
+    def get_role_by_id(self, role_id: int) -> UserRole:
         """Get role by ID, returns EmptyUserRole if not found"""
-        return self._roles_by_id.get(role_id, EmptyRole())
+        return self._roles_by_id.get(role_id, EmptyUserRole())
 
-    def get_role_by_name(self, name: str) -> Role:
+    def get_role_by_name(self, name: str) -> UserRole:
         """Get role by name, returns EmptyUserRole if not found"""
-        return self._roles_by_name.get(name, EmptyRole())
+        return self._roles_by_name.get(name, EmptyUserRole())
 
     def role_exists_by_id(self, role_id: int) -> bool:
         return role_id in self._roles_by_id
@@ -36,13 +37,13 @@ class NewRoleRegistry:
     def role_exists_by_name(self, name: str) -> bool:
         return name in self._roles_by_name
 
-    def require_role_by_id(self, role_id: int) -> Role:
+    def require_role_by_id(self, role_id: int) -> UserRole:
         """Get role or raise exception"""
         role = self.get_role_by_id(role_id)
-        if isinstance(role, EmptyRole):
+        if isinstance(role, EmptyUserRole):
             raise ItemNotFoundError(f"User role ID {role_id} not found")
         return role
 
-    def get_all_roles(self) -> list[Role]:
+    def get_all_roles(self) -> list[UserRole]:
         """Get all registered user roles"""
         return list(self._roles_by_id.values())

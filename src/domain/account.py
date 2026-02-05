@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 
 from typing import Self
 
@@ -12,6 +13,8 @@ class Account:
     account_id: int
     login: Login
     password: Password
+    enabled:bool=True
+    date_created: datetime = field(default_factory=datetime.now)
 
     @classmethod
     def create(cls, account_id: int, login: str, plain_password: str) -> Self:
@@ -32,3 +35,15 @@ class Account:
     def verify_password(self, plain_password: str) -> bool:
         return self.password.verify(plain_password)
 
+@dataclass(frozen=True)
+class NoAccount:
+    """
+    Null Object representing the absence of an internal system account.
+    Explicitly means: 'this employee has no account in this system'.
+    """
+
+    def __str__(self) -> str:
+        return "<no-account>"
+
+    def __repr__(self) -> str:
+        return "NoAccount()"

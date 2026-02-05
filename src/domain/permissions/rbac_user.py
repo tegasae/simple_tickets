@@ -4,11 +4,11 @@
 from dataclasses import dataclass
 
 from src.domain.permissions.permission import PermissionUser
-from src.domain.permissions.role import Role
+from src.domain.permissions.role import UserRole
 
 
 @dataclass(frozen=True)
-class OrdinaryUserRole(Role):
+class OrdinaryUserRole(UserRole):
     """Ordinary User Role - limited permissions"""
 
     def __init__(self):
@@ -27,7 +27,7 @@ class OrdinaryUserRole(Role):
 
 
 @dataclass(frozen=True)
-class SuperUserRole(Role):
+class SuperUserRole(UserRole):
     """Super User Role - full permissions"""
 
     def __init__(self):

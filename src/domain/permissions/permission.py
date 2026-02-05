@@ -1,5 +1,6 @@
+#src/domain/permissions.py
 from enum import StrEnum
-
+from typing import Self
 
 
 #class PermissionLike(Protocol):
@@ -8,10 +9,10 @@ from enum import StrEnum
 
 class PermissionBase(StrEnum):
     @classmethod
-    def from_value(cls, v: str) -> "PermissionBase":
+    def from_value(cls, v: str) -> Self:
         return cls(v)  # выбросит ValueError если нет такого значения
 
-class PermissionUser(PermissionBase):
+class UserPermission(PermissionBase):
     """User-specific permissions"""
     CREATE_USER = "create_user"          # SuperUsers only
     VIEW_USER = "view_user"              # All users
@@ -25,7 +26,7 @@ class PermissionUser(PermissionBase):
     VIEW_OWN_TICKET = "view_ticket" #all user
 
 
-class PermissionAdmin(PermissionBase):
+class AdminPermission(PermissionBase):
     """All possible permissions in the system"""
     """Все возможные права. Просто перечисление."""
     # Client Operations

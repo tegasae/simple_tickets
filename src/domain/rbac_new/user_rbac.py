@@ -1,0 +1,14 @@
+from src.domain.rbac_new.core import Role, UserPermission, RoleRepo, Authorizer, RoleManager
+
+UserRole = Role[UserPermission]
+
+
+
+
+
+def build_user_rbac() -> tuple[RoleRepo[UserPermission], Authorizer[UserPermission], RoleManager[UserPermission]]:
+    roles = RoleRepo[UserPermission]()
+    auth = Authorizer[UserPermission](roles)
+    mgr = RoleManager[UserPermission](auth, roles)
+    return roles, auth, mgr
+
