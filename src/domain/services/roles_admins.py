@@ -1,8 +1,8 @@
 #roles_admins.py
 from src.domain.exceptions import ItemNotFoundError, DomainOperationError, DomainSecurityError
 from src.domain.model import Admin
-from src.domain.permissions.rbac import RoleRegistry
-from src.domain.permissions.permission import PermissionAdmin
+from src.old.permissions.rbac import RoleRegistry
+from src.old.permissions.permission import PermissionAdmin
 
 
 class AdminRolesManagementService:

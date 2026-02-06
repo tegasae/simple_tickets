@@ -25,6 +25,12 @@ class TicketStatus(Enum):
         }
         return to_status in transitions.get(from_status, [])
 
+
+
+
+
+
+
 @dataclass
 class Ticket:
     ticket_id: int    # ✅ Public field

@@ -4,8 +4,8 @@
 # ============================
 from __future__ import annotations
 
-from src.domain.permissions.admin import AdminPermission
-from src.domain.rbac.core import AssignmentRepo, Authorizer, Role, RoleManager, RoleRepo
+from src.old.permissions.admin import AdminPermission
+from src.old.rbac.core import AssignmentRepo, Authorizer, Role, RoleManager, RoleRepo
 
 AdminRole = Role[AdminPermission]
 

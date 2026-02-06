@@ -1,8 +1,8 @@
 #domain/services/clients_admin.py
-from src.domain.clients import Client
+from src.domain.client import Client
 from src.domain.exceptions import DomainOperationError
 
-from src.domain.value_objects import Name, Emails, Address, Phones
+from src.domain.value_objects import Name, Email, Address, Phone
 
 class AdminClientManagementService:
     def __init__(self,client: Client=Client.empty_client()):
@@ -30,11 +30,11 @@ class AdminClientManagementService:
         if name:
             self.client.name = Name(name)
         if emails:
-            self.client.emails = Emails(emails)
+            self.client.email = Email(emails)
         if address:
             self.client.address = Address(address)
         if phones:
-            self.client.phones = Phones(phones)
+            self.client.phone = Phone(phones)
         self.client.enabled = enabled
         if admin_id:
                 self.client.admin_id = admin_id

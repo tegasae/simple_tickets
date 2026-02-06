@@ -3,11 +3,11 @@
 # ============================
 from __future__ import annotations
 
-from src.domain.permissions.admin import AdminPermission
-from src.domain.permissions.user import UserPermission
-from src.domain.rbac.core import Actor
-from src.domain.rbac.admin_rbac import build_admin_rbac, AdminRole
-from src.domain.rbac.user_rbac import build_user_rbac, UserRole
+from src.old.permissions.admin import AdminPermission
+from src.old.permissions.user import UserPermission
+from src.old.rbac.core import Actor
+from src.old.rbac.admin_rbac import build_admin_rbac, AdminRole
+from src.old.rbac.user_rbac import build_user_rbac, UserRole
 
 
 def demo() -> None:

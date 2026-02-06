@@ -1,7 +1,7 @@
 # ============================
 # src/domain/permissions/user.py
 # ============================
-from src.domain.permissions.base import PermissionBase
+from src.old.permissions.base import PermissionBase
 
 
 class UserPermission(PermissionBase):

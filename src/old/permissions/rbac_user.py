@@ -3,8 +3,8 @@
 
 from dataclasses import dataclass
 
-from src.domain.permissions.permission import PermissionUser
-from src.domain.permissions.role import UserRole
+from src.old.permissions.permission import PermissionUser
+from src.old.permissions.role import UserRole
 
 
 @dataclass(frozen=True)

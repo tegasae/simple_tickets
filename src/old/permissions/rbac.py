@@ -1,8 +1,8 @@
 # rbac.py
 
 from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, DomainSecurityError
-from src.domain.permissions.permission import PermissionAdmin
-from src.domain.permissions.role import Role, EmptyRole
+from src.old.permissions.permission import PermissionAdmin
+from src.old.permissions.role import Role, EmptyRole
 
 
 #from src.domain.permissions.permission import PermissionAdmin

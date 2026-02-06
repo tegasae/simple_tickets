@@ -2,10 +2,10 @@
 
 
 
-from src.domain.clients import Client
+from src.domain.client import Client
 from src.domain.exceptions import ItemNotFoundError, DomainOperationError
 
-from src.domain.permissions.permission import PermissionAdmin
+from src.old.permissions.permission import PermissionAdmin
 from src.domain.services.clients_admins import AdminClientManagementService
 from src.services.service_layer.base import BaseService, with_permission_check
 from src.services.service_layer.data import CreateClientData

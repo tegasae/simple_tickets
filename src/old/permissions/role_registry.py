@@ -1,6 +1,6 @@
 #src/role_registry.py
 from src.domain.exceptions import ItemNotFoundError
-from src.domain.permissions.role import UserRole, EmptyUserRole
+from src.old.permissions.role import UserRole, EmptyUserRole
 
 
 class NewRoleRegistry:

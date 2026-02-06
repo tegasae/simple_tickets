@@ -2,8 +2,7 @@
 from functools import wraps
 from typing import Callable
 
-from src.domain.exceptions import DomainSecurityError
-from src.domain.permissions.permission import PermissionAdmin
+from src.old.permissions.permission import PermissionAdmin
 
 
 def requires_permission_id(permission: PermissionAdmin):

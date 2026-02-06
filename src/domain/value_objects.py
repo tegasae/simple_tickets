@@ -27,7 +27,7 @@ class ValueObject(Generic[T]):
 
 
 @dataclass(frozen=True, order=True)  # frozen=immutable, order=can be sorted
-class Emails(ValueObject[str]):
+class Email(ValueObject[str]):
     """We haven't validated emails yet. We'll do it later. We need to create a value object and use to"""
     """An email or emails can be empty. If they aren't empty they won't contain spaces."""
 
@@ -57,7 +57,7 @@ class Address(ValueObject[str]):
 
 
 @dataclass(frozen=True, order=True)  # frozen=immutable, order=can be sorted
-class Phones(ValueObject[str]):
+class Phone(ValueObject[str]):
     value:str=""
     def _validate(self)->str:
         new_value=self.value.strip()
@@ -137,7 +137,6 @@ class Password:
             raise TypeError("Password must be a string")
         if plain == "":
             raise ValueError("Password cannot be empty")
-        return plain
         if any(ch.isspace() for ch in plain):
             raise ValueError("Password cannot contain whitespace")
 
@@ -154,7 +153,7 @@ class Password:
             raise ValueError("Password must contain at least one digit")
         if Password.REQUIRE_SPECIAL and not re.search(r"W", plain):
             raise ValueError("Password must contain at least one special character")
-
+        return plain
 
 
     @classmethod

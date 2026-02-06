@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import FrozenSet
 
-from src.domain.permissions.permission import PermissionBase
+from src.old.permissions.permission import PermissionBase
 
 #todo В дальнейшем хранить роли в базе.
 @dataclass(frozen=True)

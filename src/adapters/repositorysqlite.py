@@ -5,10 +5,10 @@ from datetime import datetime
 
 
 from src.adapters.repository import AdminRepository, ClientRepository
-from src.domain.clients import Client
+from src.domain.client import Client
 from src.domain.exceptions import ItemNotFoundError
 from src.domain.model import AdminsAggregate, Admin
-from src.domain.value_objects import Emails, Address, Phones, Name
+from src.domain.value_objects import Email, Address, Phone, Name
 from utils.db.connect import Connection
 
 from utils.db.exceptions import DBOperationError
@@ -264,8 +264,8 @@ class SQLiteClientRepository(ClientRepository):
                     client_id=row['client_id'],
                     admin_id=row['admin_id'],
                     name=Name(row['name']),
-                    emails=Emails(row['emails']),
-                    phones=Phones(row['phones']),
+                    email=Email(row['emails']),
+                    phone=Phone(row['phones']),
                     address=Address(row['address']),
                     enabled=bool(row['enabled']),
                     date_created=date_created,
@@ -300,8 +300,8 @@ class SQLiteClientRepository(ClientRepository):
                     client_id=row['client_id'],
                     admin_id=row['admin_id'],
                     name=Name(row['name']),
-                    emails=Emails(row['emails']),
-                    phones=Phones(row['phones']),
+                    email=Email(row['emails']),
+                    phone=Phone(row['phones']),
                     address=Address(row['address']),
                     enabled=bool(row['enabled']),
                     date_created=date_created,
@@ -337,8 +337,8 @@ class SQLiteClientRepository(ClientRepository):
             client_id=client_data['client_id'],
             admin_id=client_data['admin_id'],
             name=Name(client_data['name']),
-            emails=Emails(client_data['emails']),
-            phones=Phones(client_data['phones']),
+            email=Email(client_data['emails']),
+            phone=Phone(client_data['phones']),
             address=Address(client_data['address']),
             enabled=bool(client_data['enabled']),
             date_created=date_created,
@@ -357,18 +357,18 @@ class SQLiteClientRepository(ClientRepository):
                 client.client_id = self.query_new_client.set_result(params={
                     'admin_id': client.admin_id,
                     'name': client.name.value,
-                    'emails': client.emails.value,
+                    'emails': client.email.value,
                     'address': client.address.value,
-                    'phones': client.phones.value,
+                    'phones': client.phone.value,
                     'enabled': 1 if client.enabled else 0,
                     'date_created': client.date_created.isoformat()
                 })
             else:
                 self.query_exists_client.set_result(params={
                     'name': client.name.value,
-                    'emails': client.emails.value,
+                    'emails': client.email.value,
                     'address': client.address.value,
-                    'phones': client.phones.value,
+                    'phones': client.phone.value,
                     'enabled': 1 if client.enabled else 0,
                     'admin_id': client.admin_id,
                     'client_id': client.client_id,

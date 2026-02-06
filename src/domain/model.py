@@ -10,8 +10,8 @@ from typing import Final, Optional
 
 
 from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError, ItemValidationError
-from src.domain.permissions.rbac import RoleRegistry
-from src.domain.permissions.permission import PermissionAdmin
+from src.old.permissions.rbac import RoleRegistry
+from src.old.permissions.permission import PermissionAdmin
 
 # Constants
 EMPTY_ADMIN_ID: Final[int] = 0

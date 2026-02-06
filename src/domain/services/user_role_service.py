@@ -1,7 +1,7 @@
 # domain/services/user_role_service.py
 from src.domain.exceptions import DomainSecurityError
-from src.domain.permissions.role_registry import NewRoleRegistry
-from src.domain.permissions.permission import PermissionUser
+from src.old.permissions.role_registry import NewRoleRegistry
+from src.old.permissions.permission import PermissionUser
 from src.domain.users import User
 
 

@@ -1,5 +1,5 @@
-#web/routers/clients.py
-# web/routers/clients.py
+#web/routers/client.py
+# web/routers/client.py
 from typing import List
 from fastapi import APIRouter, Depends, status, HTTPException
 

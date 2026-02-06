@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
-from src.domain.clients import Client
+from src.domain.client import Client
 from src.domain.model import Admin
 
 
@@ -98,9 +98,9 @@ class ClientView(ClientBase):
         return cls(
             client_id=client.client_id,
             name=client.name.value,
-            email=client.emails.value,
+            email=client.email.value,
             address=client.address.value,
-            phones=client.phones.value,
+            phones=client.phone.value,
             admin_id=client.admin_id,
             enabled=client.enabled,
             is_deleted=client.is_deleted,
