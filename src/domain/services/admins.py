@@ -1,5 +1,5 @@
 from src.adapters.repository import ClientRepository
-from src.domain.model import AdminsAggregate
+from src.old.model import AdminsAggregate
 
 
 class AdminManagementService:

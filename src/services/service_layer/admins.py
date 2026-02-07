@@ -3,7 +3,7 @@ from functools import wraps
 
 
 from src.domain.exceptions import DomainOperationError
-from src.domain.model import Admin
+from src.old.model import Admin
 from src.old.permissions.permission import PermissionAdmin
 from src.domain.services.admins import AdminManagementService
 

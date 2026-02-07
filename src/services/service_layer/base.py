@@ -6,7 +6,7 @@ from typing import Generic, TypeVar, Generator
 import logging
 
 from src.domain.exceptions import DomainOperationError, DomainSecurityError
-from src.domain.model import AdminsAggregate, Admin
+from src.old.model import AdminsAggregate, Admin
 from src.old.permissions.rbac import RoleRegistry
 from src.old.permissions.permission import PermissionAdmin
 from src.domain.services.roles_admins import AdminRolesManagementService

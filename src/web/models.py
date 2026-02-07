@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import datetime
 
 from src.domain.client import Client
-from src.domain.model import Admin
+from src.old.model import Admin
 
 
 

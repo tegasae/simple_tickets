@@ -7,7 +7,7 @@ from datetime import datetime
 from src.adapters.repository import AdminRepository, ClientRepository
 from src.domain.client import Client
 from src.domain.exceptions import ItemNotFoundError
-from src.domain.model import AdminsAggregate, Admin
+from src.old.model import AdminsAggregate, Admin
 from src.domain.value_objects import Email, Address, Phone, Name
 from utils.db.connect import Connection
 

@@ -1,6 +1,10 @@
-from src.domain.rbac_new.admin_rbac import build_admin_rbac, AdminRole
-from src.domain.rbac_new.core import AdminPermission, UserPermission, Admin, User
-from src.domain.rbac_new.user_rbac import build_user_rbac, UserRole
+from src.domain.account import NoAccount
+from src.domain.employee import Admin, User
+from src.domain.rbac.admin_rbac import build_admin_rbac, AdminRole
+from src.domain.rbac.permissions import AdminPermission, UserPermission
+
+from src.domain.rbac.user_rbac import build_user_rbac, UserRole
+from src.domain.value_objects import Name, Email
 
 
 # ---------------------------
@@ -43,26 +47,27 @@ def demo() -> None:
     # Create entities and give initial roles (bootstrap)
     super_admin = Admin(
         employee_id=100,
-        first_name="Alice",
-        last_name="Admin",
-        email="alice@example.com",
-        department="IT",
+        first_name=Name("Alice"),
+        last_name=Name("Admin"),
+        email=Email("alice@example.com"),
+        account=NoAccount()
+
     )
     super_admin.grant_role(1)  # SuperAdmin role_id
 
     another_admin = Admin(
         employee_id=101,
-        first_name="Bob",
-        last_name="Admin",
-        email="bob@example.com",
-        department="Ops",
+        first_name=Name("Bob"),
+        last_name=Name("Admin"),
+        email=Email("bob@example.com")
+
     )
 
     user = User(
         employee_id=200,
-        first_name="Carol",
-        last_name="User",
-        email="carol@example.com",
+        first_name=Name("Carol"),
+        last_name=Name("User"),
+        email=Email("carol@example.com"),
         client_id=1,
     )
     user.grant_role(10)  # TicketUser role_id

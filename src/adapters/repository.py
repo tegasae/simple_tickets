@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from src.domain.client import Client
-from src.domain.model import AdminsAggregate, Admin
+from src.old.model import AdminsAggregate, Admin
 
 
 class AdminRepository(ABC):

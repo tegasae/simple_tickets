@@ -1,4 +1,5 @@
-from src.domain.rbac_new.core import Role, AdminPermission, RoleRepo, Authorizer, RoleManager
+from src.domain.rbac.permissions import AdminPermission
+from src.domain.rbac.role import Role, RoleManager, Authorizer, RoleRepo
 
 AdminRole = Role[AdminPermission]
 def build_admin_rbac() -> tuple[RoleRepo[AdminPermission], Authorizer[AdminPermission], RoleManager[AdminPermission]]:

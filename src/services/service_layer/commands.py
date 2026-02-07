@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
-from src.domain.model import AdminsAggregate, Admin
+from src.old.model import AdminsAggregate, Admin
 from src.domain.services.admins import AdminManagementService
 
 
