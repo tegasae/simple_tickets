@@ -19,6 +19,7 @@ class StatusTicketOfClient(Enum):
         """Business rule 3: Define valid status transitions"""
         transitions = {
             cls.CREATED: [cls.AT_WORK, cls.CANCELED_BY_CLIENT, cls.CANCELED_BY_ADMIN],
+            cls.CONFIRMED: [cls.AT_WORK, cls.CANCELED_BY_CLIENT, cls.CANCELED_BY_ADMIN],
             cls.AT_WORK: [cls.CREATED, cls.EXECUTED, cls.CANCELED_BY_ADMIN],
             cls.EXECUTED: [],
             cls.CANCELED_BY_CLIENT: [],
@@ -29,18 +30,23 @@ class StatusTicketOfClient(Enum):
 
 @dataclass(frozen=True, kw_only=True)
 class Status:
-    date_created: datetime = field(default_factory=datetime.now)
+    employee_id: int
     status:StatusTicketOfClient
-    employee_id:int
+    date_created: datetime = field(default_factory=datetime.now)
+
 
 @dataclass(frozen=True, kw_only=True)
 class Comment:
+    employee_id: int
+    comment: str
     date_created: datetime = field(default_factory=datetime.now)
-    comment:str
-    employee_id:int
 
 
 
+@dataclass
+class Executor:
+    id_admin: int
+    date_created: datetime = field(default_factory=datetime.now)
 
 @dataclass(kw_only=True)
 class TicketUser:
@@ -49,6 +55,7 @@ class TicketUser:
     created_by_employee_id: InitVar[int]  # передаём, но не храним как поле
     statuses:list[Status]=field(default_factory=list)
     comments:list[Comment]=field(default_factory=list)
+    executors:list[Executor]=field(default_factory=list)
     description:str
     date_created:datetime = field(default_factory=datetime.now)
     version=0
@@ -69,7 +76,23 @@ class TicketUser:
         self.statuses.append(Status(status=new_status,employee_id=employee_id))
         self.version += 1
 
+    def add_comment(self, comment:Comment) -> None:
+        self.comments.append(comment)
+        self.version += 1
 
-if __name__=="__main__":
-    ticket_user=TicketUser(ticket_id=1, client_id=1,created_by_employee_id=10,description="111")
-    print(ticket_user)
+
+
+    def get_current_state(self) -> StatusTicketOfClient:
+        return self.statuses[-1].status
+
+
+    def add_executor(self, new_executor:Executor) -> None:
+        self.executors.append(new_executor)
+
+    def get_current_executor(self) -> Executor:
+        try:
+            return self.executors[-1]
+        except IndexError:
+            raise DomainOperationError(message="No executor available")
+
+
