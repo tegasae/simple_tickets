@@ -8,6 +8,7 @@ like email, phone, address, name, login, and password.
 import hashlib
 import re
 from dataclasses import dataclass, field
+
 from typing import TypeVar, Generic, ClassVar, Self
 
 T = TypeVar('T')
@@ -381,3 +382,5 @@ class Password:
     def __str__(self) -> str:
         """Safe string representation."""
         return "**hidden**"
+
+

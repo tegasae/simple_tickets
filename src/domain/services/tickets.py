@@ -1,4 +1,4 @@
-from src.domain.tickets import Ticket
+from src.domain.ticket import Ticket
 
 
 class TicketManagementService:

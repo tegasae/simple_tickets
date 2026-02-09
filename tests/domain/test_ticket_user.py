@@ -9,11 +9,9 @@ from unittest.mock import patch
 
 from src.domain.ticket_user import (
     StatusTicketOfClient,
-    Status,
-    Comment,
-    Executor,
-    TicketUser,
+    TicketUser, StatusTicketUser,
 )
+from src.domain.value_objects import Comment, Executor
 from src.domain.exceptions import DomainOperationError
 
 
@@ -146,7 +144,7 @@ class TestStatus:
 
     def test_status_creation(self):
         """Test creating a Status with default timestamp."""
-        status = Status(
+        status = StatusTicketUser(
             employee_id=123,
             status=StatusTicketOfClient.CREATED
         )
@@ -157,7 +155,7 @@ class TestStatus:
 
     def test_status_is_frozen(self):
         """Test that Status is immutable."""
-        status = Status(
+        status = StatusTicketUser(
             employee_id=123,
             status=StatusTicketOfClient.CREATED
         )
@@ -171,12 +169,12 @@ class TestStatus:
 
     def test_status_equality(self):
         """Test Status equality comparison."""
-        status1 = Status(
+        status1 = StatusTicketUser(
             employee_id=123,
             status=StatusTicketOfClient.CREATED
         )
 
-        status2 = Status(
+        status2 = StatusTicketUser(
             employee_id=123,
             status=StatusTicketOfClient.CREATED
         )
@@ -185,7 +183,7 @@ class TestStatus:
         # (unless __eq__ is overridden, which dataclass does by default)
         assert status1 == status2
 
-        status3 = Status(
+        status3 = StatusTicketUser(
             employee_id=456,
             status=StatusTicketOfClient.AT_WORK
         )
@@ -253,7 +251,7 @@ class TestTicketUser:
 
     def test_ticket_creation_with_existing_statuses(self):
         """Test creating a ticket with pre-existing statuses."""
-        existing_status = Status(
+        existing_status = StatusTicketUser(
             employee_id=999,
             status=StatusTicketOfClient.CONFIRMED
         )
