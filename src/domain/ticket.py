@@ -9,8 +9,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional, Self
 
-from src.domain.exceptions import DomainOperationError
-from src.domain.ticket_components import StatusHistory, Comment, ExecutorAssignment, CommentThread
+from src.domain.ticket_components import StatusHistory, Comment, ExecutorAssignment, CommentThread, ExecutorAssignments
 
 
 ########
@@ -87,7 +86,7 @@ class Ticket:
         )
     )
     comments: CommentThread = field(default_factory=CommentThread)
-    executors: list[ExecutorAssignment] = field(default_factory=list)
+    executors: ExecutorAssignments = field(default_factory=ExecutorAssignments)
 
     # Lifecycle / tracking
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -118,13 +117,10 @@ class Ticket:
         self.version += 1
 
     def add_executor(self, assignment: ExecutorAssignment) -> None:
-        self.executors.append(assignment)
+        self.executors.add(assignment)
         self.version += 1
 
     def current_executor(self) -> ExecutorAssignment:
-        try:
-            return self.executors[-1]
-        except IndexError:
-            raise DomainOperationError("No executor available")
+        return self.executors.current()
 
 
