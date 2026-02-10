@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from typing import Callable, Generic, Protocol, TypeVar, List, Set
+from typing import Generic, Protocol, TypeVar, List, Set
 
 from src.domain.exceptions import DomainOperationError
 
@@ -37,6 +37,8 @@ class ExecutorAssignment:
 
 
 
+
+
 class TransitionPolicy(Protocol[S]):
     def can_transition(self, from_status: S, to_status: S) -> bool: ...
 
@@ -44,53 +46,41 @@ class TransitionPolicy(Protocol[S]):
 class RecordFactory(Protocol[S, R]):
     def __call__(self, *, status: S, actor_id: int) -> R: ...
 
-
-
-
-
-
-
+class StatusGetter(Protocol[R, S]):
+    def __call__(self, record: R) -> S: ...
 
 @dataclass
 class StatusHistory(Generic[S, R]):
     """
-    Generic status history component with strict typing.
+         Status history with explicit interfaces (Protocol-based).
 
-    Required dependencies:
-      - can_transition(from_status, to_status) -> bool
-      - get_status(record) -> status
-      - make_record(status, actor_id) -> record   <-- positional arguments
+         You inject:
+           - transition_policy: TransitionPolicy[S]
+           - record_factory: RecordFactory[S, R]  (keyword-only)
+           - get_status: StatusGetter[R, S]
 
-    This design avoids keyword-only callable typing issues in type checkers.
-    """
+         This is clear and explicit (strongly-typed style). """
 
-    can_transition: Callable[[S, S], bool]
-    get_status: Callable[[R], S]
-    make_record: Callable[[S, int], R]
+    transition_policy: TransitionPolicy[S]
+    record_factory: RecordFactory[S, R]
+    #get_status: StatusGetter[R, S]
 
     records: List[R] = field(default_factory=list)
 
     def ensure_initialized(self, *, initial_status: S, actor_id: int) -> None:
-        """Add initial record if history is empty."""
         if not self.records:
-            self.records.append(self.make_record(initial_status, actor_id))
+            self.records.append(self.record_factory(status=initial_status, actor_id=actor_id))
 
     def current(self) -> S:
-        """Return current (latest) status."""
         if not self.records:
             raise DomainOperationError("Status history is empty")
         return self.get_status(self.records[-1])
 
-    def can_change_to(self, new_status: S) -> bool:
-        """Check if the current status can transition to new_status."""
-        return self.can_transition(self.current(), new_status)
-
     def change(self, *, new_status: S, actor_id: int) -> None:
-        """Validate transition and append new record."""
         cur = self.current()
-        if not self.can_transition(cur, new_status):
+        if not self.transition_policy.can_transition(cur, new_status):
             raise DomainOperationError(f"Cannot change status from {cur} to {new_status}")
-        self.records.append(self.make_record(new_status, actor_id))
+        self.records.append(self.record_factory(status=new_status, actor_id=actor_id))
 
     def unique_statuses(self) -> Set[S]:
         """Return set of all statuses ever used."""
