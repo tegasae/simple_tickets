@@ -1,7 +1,4 @@
-# ============================
 # src/domain/ticket.py
-# Admin/manager-side ticket aggregate using shared components
-# ============================
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -9,21 +6,15 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional, Self
 
-from src.domain.ticket_components import StatusHistory, Comment, ExecutorAssignment, CommentThread, ExecutorAssignments
+from src.domain.exceptions import DomainOperationError
+from src.domain.ticket_components import Comment, ExecutorAssignment
 
 
-########
-# ============================
-# src/domain/ticket.py
-# Admin/manager-side ticket aggregate using StatusHistory (positional factory)
-# ============================
-
-
-
-
-
-class AdminTicketStatus(Enum):
-    """Ticket status for admin/manager workflow."""
+class TicketStatus(Enum):
+    """
+    Admin-side ticket workflow statuses.
+    NOTE: Pick one spelling and use it everywhere: CANCELLED (UK) or CANCELED (US).
+    """
     CREATED = "created"
     AT_WORK = "at_work"
     EXECUTED = "executed"
@@ -43,84 +34,127 @@ class AdminTicketStatus(Enum):
 
 
 @dataclass(frozen=True, kw_only=True)
-class AdminTicketStatusRecord:
-    """Immutable record of an admin ticket status change."""
-    actor_admin_id: int
-    status: AdminTicketStatus
+class TicketStatusRecord:
+    """
+    Immutable record of a status change.
+    Stores who changed it (admin/manager/executor) and when.
+    """
+    actor_employee_id: int
+    status: TicketStatus
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, AdminTicketStatusRecord) and self.status == other.status
-
-
-# ✅ positional factory (matches Callable[[S, int], R])
-def make_admin_record(status: AdminTicketStatus, actor_id: int) -> AdminTicketStatusRecord:
-    return AdminTicketStatusRecord(status=status, actor_admin_id=actor_id)
-
+        # Equality by status only (optional; remove if you don't need it).
+        return isinstance(other, TicketStatusRecord) and self.status == other.status
 
 
 @dataclass(kw_only=True)
 class Ticket:
     """
-        Admin/manager-side ticket aggregate.
+    Admin-created (or admin-owned) Ticket aggregate.
 
-        Note:
-          - Authorization checks (RBAC) should be done in application services.
-          - This aggregate enforces domain invariants and state transitions.
-        """
+    Invariants:
+      - Initial status is CREATED
+      - Status changes must follow TicketStatus.can_transition
+      - EXECUTED/CANCELLED are terminal -> ticket becomes closed, finished_at is set
+      - version increments on every state change (optimistic locking)
+    """
     ticket_id: int
     client_id: int
-    manager_admin_id: int
+    admin_id: int
     description: str
 
-    # Optional fields you had
     text_of_ticket: str = ""
     created_by_client: bool = False
 
-    # Components
-    status_history: StatusHistory[AdminTicketStatus, AdminTicketStatusRecord] = field(
-        default_factory=lambda: StatusHistory(
-            can_transition=AdminTicketStatus.can_transition,
-            get_status=lambda r: r.status,
-            make_record=make_admin_record,
-        )
-    )
-    comments: CommentThread = field(default_factory=CommentThread)
-    executors: ExecutorAssignments = field(default_factory=ExecutorAssignments)
+    # Optional cross-link for future transformation (can be unused for now)
+    source_user_ticket_id: Optional[int] = None
 
-    # Lifecycle / tracking
+    statuses: list[TicketStatusRecord] = field(default_factory=list)
+    comments: list[Comment] = field(default_factory=list)
+    executors: list[ExecutorAssignment] = field(default_factory=list)
+
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    is_remote:bool=False
     is_closed: bool = False
     finished_at: Optional[datetime] = None
     version: int = 0
-
+    urgency_level: int = 0
     def __post_init__(self) -> None:
-        self.status_history.ensure_initialized(
-            initial_status=AdminTicketStatus.CREATED,
-            actor_id=self.manager_admin_id,
-        )
+        # Ensure initial status exists
+        if not self.statuses:
+            self.statuses.append(
+                TicketStatusRecord(status=TicketStatus.CREATED, actor_employee_id=self.admin_id)
+            )
 
-    def change_status(self, new_status: AdminTicketStatus, actor_admin_id: int) -> None:
-        self.status_history.change(new_status=new_status, actor_id=actor_admin_id)
+        # Recompute closure from status history (robust when rehydrating from storage)
+        current = self.current_status()
+        if current in (TicketStatus.EXECUTED, TicketStatus.CANCELLED):
+            self.is_closed = True
+            if self.finished_at is None:
+                # If not stored, infer at least "now" (or use last record time if preferred)
+                self.finished_at = self.statuses[-1].created_at
+        else:
+            self.is_closed = False
+
+    # ----------------------------
+    # Queries
+    # ----------------------------
+
+    def current_status(self) -> TicketStatus:
+        if not self.statuses:
+            raise DomainOperationError("Ticket has no status history")
+        return self.statuses[-1].status
+
+    def current_executor(self) -> ExecutorAssignment:
+        try:
+            return self.executors[-1]
+        except IndexError:
+            raise DomainOperationError("No executor available")
+
+    # ----------------------------
+    # Commands (business methods)
+    # ----------------------------
+
+    def change_status(self, new_status: TicketStatus, actor_employee_id: int) -> None:
+        if self.is_closed:
+            raise DomainOperationError("Ticket is closed; status cannot be changed")
+
+        cur = self.current_status()
+        if not TicketStatus.can_transition(cur, new_status):
+            raise DomainOperationError(f"Cannot change status from {cur.value} to {new_status.value}")
+
+        self.statuses.append(TicketStatusRecord(status=new_status, actor_employee_id=actor_employee_id))
         self.version += 1
 
-        # Optional rule: close on terminal states
-        if new_status in (AdminTicketStatus.EXECUTED, AdminTicketStatus.CANCELLED):
+        if new_status in (TicketStatus.EXECUTED, TicketStatus.CANCELLED):
             self.is_closed = True
             self.finished_at = datetime.now(timezone.utc)
 
-    def current_status(self) -> AdminTicketStatus:
-        return self.status_history.current()
-
     def add_comment(self, comment: Comment) -> None:
-        self.comments.add(comment)
+        if self.is_closed:
+            raise DomainOperationError("Ticket is closed; cannot add comments")
+        self.comments.append(comment)
         self.version += 1
 
     def add_executor(self, assignment: ExecutorAssignment) -> None:
-        self.executors.add(assignment)
+        if self.is_closed:
+            raise DomainOperationError("Ticket is closed; cannot assign executors")
+        self.executors.append(assignment)
         self.version += 1
 
-    def current_executor(self) -> ExecutorAssignment:
-        return self.executors.current()
+    def defer(self, actor_employee_id: int) -> None:
+        """Convenience method."""
+        self.change_status(TicketStatus.DEFERRED, actor_employee_id)
 
+    def start_work(self, actor_employee_id: int) -> None:
+        """Convenience method."""
+        self.change_status(TicketStatus.AT_WORK, actor_employee_id)
 
+    def execute(self, actor_employee_id: int) -> None:
+        """Convenience method."""
+        self.change_status(TicketStatus.EXECUTED, actor_employee_id)
+
+    def cancel(self, actor_employee_id: int) -> None:
+        """Convenience method."""
+        self.change_status(TicketStatus.CANCELLED, actor_employee_id)

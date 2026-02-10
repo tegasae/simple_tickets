@@ -1,21 +1,22 @@
-# ============================
 # src/domain/ticket_user.py
-# Client-side ticket aggregate using shared components
-# ============================
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Self
+from typing import Any, Optional, Self
+
+from src.domain.exceptions import DomainOperationError
+from src.domain.ticket_components import Comment, ExecutorAssignment
 
 
-from src.domain.ticket_components import StatusHistory, Comment, ExecutorAssignment, CommentThread, ExecutorAssignments
+class StatusTicketOfClient(Enum):
+    """
+    Client-side ticket workflow statuses.
 
-
-
-
-class ClientTicketStatus(Enum):
+    NOTE: Your current choice (CANCELED_BY_*) is OK.
+    Just be consistent with spelling across the project.
+    """
     CREATED = "created"
     CONFIRMED = "confirmed"
     AT_WORK = "at_work"
@@ -37,91 +38,133 @@ class ClientTicketStatus(Enum):
 
 
 @dataclass(frozen=True, kw_only=True)
-class ClientTicketStatusRecord:
+class StatusRecordTicketUser:
+    """
+    Immutable record of a TicketUser status change.
+    actor_employee_id: who changed status (employee or admin).
+    """
     actor_employee_id: int
-    status: ClientTicketStatus
+    status: StatusTicketOfClient
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, ClientTicketStatusRecord) and self.status == other.status
-
-
-# ✅ FIX: positional factory (no "*", no keyword-only parameters)
-def make_client_record(status: ClientTicketStatus, actor_id: int) -> ClientTicketStatusRecord:
-    return ClientTicketStatusRecord(status=status, actor_employee_id=actor_id)
-
-
-
-
-
+        # Equality by status only (optional; remove if you don't need it).
+        return isinstance(other, StatusRecordTicketUser) and self.status == other.status
 
 
 @dataclass(kw_only=True)
 class TicketUser:
     """
-    Client-owned ticket aggregate.
-    Note: roles/permissions checks should live in application services, not here.
+    Employee-created (client-side) TicketUser aggregate.
+
+    Invariants:
+      - Initial status is CREATED (by user_id)
+      - Status changes must follow StatusTicketOfClient.can_transition
+      - Terminal statuses close the ticket (EXECUTED, CANCELED_BY_CLIENT, CANCELED_BY_ADMIN)
+      - version increments on every change (optimistic locking)
     """
     ticket_id: int
     client_id: int
-    user_id: int  # employee who created the ticket (client-side actor)
+    user_id: int
     description: str
 
-    status_history: StatusHistory[ClientTicketStatus, ClientTicketStatusRecord] = field(
-        default_factory=lambda: StatusHistory(
-            can_transition=ClientTicketStatus.can_transition,
-            get_status=lambda r: r.status,
-            make_record=make_client_record,  # ✅ matches Callable[[S, int], R]
-        )
-    )
+    # User-only fields you mentioned
+    created_by_client: bool = False
 
-    comments: CommentThread = field(default_factory=CommentThread)
-    executors: ExecutorAssignments = field(default_factory=ExecutorAssignments)
+
+    # Optional cross-link for future transformation (can be unused now)
+    promoted_ticket_id: Optional[int] = None
+
+    statuses: list[StatusRecordTicketUser] = field(default_factory=list)
+    comments: list[Comment] = field(default_factory=list)
+    executors: list[ExecutorAssignment] = field(default_factory=list)
 
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    is_closed: bool = False
+    finished_at: Optional[datetime] = None
     version: int = 0
 
-
     def __post_init__(self) -> None:
-        self.status_history.ensure_initialized(initial_status=ClientTicketStatus.CREATED, actor_id=self.user_id)
+        # Ensure initial status exists
+        if not self.statuses:
+            self.statuses.append(
+                StatusRecordTicketUser(status=StatusTicketOfClient.CREATED, actor_employee_id=self.user_id)
+            )
 
-    def change_status(self, new_status: ClientTicketStatus, actor_employee_id: int) -> None:
-        self.status_history.change(new_status=new_status, actor_id=actor_employee_id)
+        # Recompute closure from status history (robust when rehydrating from storage)
+        current = self.current_status()
+        if current in (StatusTicketOfClient.EXECUTED,
+                       StatusTicketOfClient.CANCELED_BY_ADMIN,
+                       StatusTicketOfClient.CANCELED_BY_CLIENT):
+            self.is_closed = True
+            if self.finished_at is None:
+                self.finished_at = self.statuses[-1].created_at
+        else:
+            self.is_closed = False
+
+    # ----------------------------
+    # Queries
+    # ----------------------------
+
+    def current_status(self) -> StatusTicketOfClient:
+        if not self.statuses:
+            raise DomainOperationError("TicketUser has no status history")
+        return self.statuses[-1].status
+
+    def current_executor(self) -> ExecutorAssignment:
+        try:
+            return self.executors[-1]
+        except IndexError:
+            raise DomainOperationError("No executor available")
+
+    # ----------------------------
+    # Commands (business methods)
+    # ----------------------------
+
+    def change_status(self, new_status: StatusTicketOfClient, actor_employee_id: int) -> None:
+        if self.is_closed:
+            raise DomainOperationError("TicketUser is closed; status cannot be changed")
+
+        cur = self.current_status()
+        if not StatusTicketOfClient.can_transition(cur, new_status):
+            raise DomainOperationError(f"Cannot change status from {cur.value} to {new_status.value}")
+
+        self.statuses.append(StatusRecordTicketUser(status=new_status, actor_employee_id=actor_employee_id))
         self.version += 1
 
-    def current_status(self) -> ClientTicketStatus:
-        return self.status_history.current()
-
-    @classmethod
-    def create(
-        cls,
-        *,
-        ticket_id: int,
-        client_id: int,
-        user_id: int,
-        description: str,
-        initial_comment: str | None = None,
-        initial_executor_admin_id: int | None = None,
-    ) -> Self:
-        ticket = cls(ticket_id=ticket_id, client_id=client_id, user_id=user_id, description=description)
-
-        if initial_comment:
-            ticket.add_comment(Comment(employee_id=user_id, comment=initial_comment))
-
-        if initial_executor_admin_id is not None:
-            ticket.add_executor(ExecutorAssignment(admin_id=initial_executor_admin_id))
-
-        return ticket
-
+        if new_status in (
+            StatusTicketOfClient.EXECUTED,
+            StatusTicketOfClient.CANCELED_BY_ADMIN,
+            StatusTicketOfClient.CANCELED_BY_CLIENT,
+        ):
+            self.is_closed = True
+            self.finished_at = datetime.now(timezone.utc)
 
     def add_comment(self, comment: Comment) -> None:
-        self.comments.add(comment)
+        if self.is_closed:
+            raise DomainOperationError("TicketUser is closed; cannot add comments")
+        self.comments.append(comment)
         self.version += 1
 
     def add_executor(self, assignment: ExecutorAssignment) -> None:
-        self.executors.add(assignment)
+        if self.is_closed:
+            raise DomainOperationError("TicketUser is closed; cannot assign executors")
+        self.executors.append(assignment)
         self.version += 1
 
+    # Convenience methods (optional)
 
-    def current_executor(self) -> ExecutorAssignment:
-        return self.executors.current()
+    def confirm(self, actor_employee_id: int) -> None:
+        self.change_status(StatusTicketOfClient.CONFIRMED, actor_employee_id)
+
+    def start_work(self, actor_employee_id: int) -> None:
+        self.change_status(StatusTicketOfClient.AT_WORK, actor_employee_id)
+
+    def execute(self, actor_employee_id: int) -> None:
+        self.change_status(StatusTicketOfClient.EXECUTED, actor_employee_id)
+
+    def cancel_by_client(self, actor_employee_id: int) -> None:
+        self.change_status(StatusTicketOfClient.CANCELED_BY_CLIENT, actor_employee_id)
+
+    def cancel_by_admin(self, actor_employee_id: int) -> None:
+        self.change_status(StatusTicketOfClient.CANCELED_BY_ADMIN, actor_employee_id)

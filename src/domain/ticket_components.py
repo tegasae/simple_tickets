@@ -63,7 +63,7 @@ class StatusHistory(Generic[S, R]):
 
     transition_policy: TransitionPolicy[S]
     record_factory: RecordFactory[S, R]
-    #get_status: StatusGetter[R, S]
+    get_status: StatusGetter[R, S]
 
     records: List[R] = field(default_factory=list)
 
