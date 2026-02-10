@@ -1,525 +1,270 @@
-"""Tests for Ticket User Domain Model."""
-import dataclasses
-from enum import Enum
-
+# tests/domain/test_ticket_user.py
 import pytest
-from datetime import datetime
-from unittest.mock import patch
-
-
+from datetime import datetime, timezone
 from src.domain.ticket_user import (
+    TicketUser,
     StatusTicketOfClient,
-    TicketUser, StatusTicketUser,
+    StatusRecordTicketUser
 )
-from src.domain.value_objects import Comment, Executor
+from src.domain.ticket_components import Comment, ExecutorAssignment
 from src.domain.exceptions import DomainOperationError
 
 
 class TestStatusTicketOfClient:
-    """Tests for StatusTicketOfClient enum."""
+    """Test client-side ticket status enum and transitions."""
 
-    def test_enum_values(self):
-        """Test all enum values are correctly defined."""
-        assert StatusTicketOfClient.CREATED.value == "created"
-        assert StatusTicketOfClient.CONFIRMED.value == "confirmed"
-        assert StatusTicketOfClient.AT_WORK.value == "at work"
-        assert StatusTicketOfClient.EXECUTED.value == "executed"
-        assert StatusTicketOfClient.CANCELED_BY_ADMIN.value == "canceled_by_admin"
-        assert StatusTicketOfClient.CANCELED_BY_CLIENT.value == "canceled_by_client"
-
-    def test_can_transition_from_created(self):
-        """Test valid transitions from CREATED status."""
+    def test_transition_created_to_confirmed(self):
         assert StatusTicketOfClient.can_transition(
             StatusTicketOfClient.CREATED,
             StatusTicketOfClient.CONFIRMED
-        ) is True
+        )
 
-        assert StatusTicketOfClient.can_transition(
-            StatusTicketOfClient.CREATED,
-            StatusTicketOfClient.AT_WORK
-        ) is True
-
+    def test_transition_created_to_canceled_by_client(self):
         assert StatusTicketOfClient.can_transition(
             StatusTicketOfClient.CREATED,
             StatusTicketOfClient.CANCELED_BY_CLIENT
-        ) is True
+        )
 
-        assert StatusTicketOfClient.can_transition(
-            StatusTicketOfClient.CREATED,
-            StatusTicketOfClient.CANCELED_BY_ADMIN
-        ) is True
-
-        # Invalid transitions
-        assert StatusTicketOfClient.can_transition(
-            StatusTicketOfClient.CREATED,
-            StatusTicketOfClient.EXECUTED
-        ) is False
-
-    def test_can_transition_from_confirmed(self):
-        """Test valid transitions from CONFIRMED status."""
+    def test_transition_confirmed_to_at_work(self):
         assert StatusTicketOfClient.can_transition(
             StatusTicketOfClient.CONFIRMED,
             StatusTicketOfClient.AT_WORK
-        ) is True
+        )
 
-        assert StatusTicketOfClient.can_transition(
-            StatusTicketOfClient.CONFIRMED,
-            StatusTicketOfClient.CANCELED_BY_CLIENT
-        ) is True
-
-        assert StatusTicketOfClient.can_transition(
-            StatusTicketOfClient.CONFIRMED,
-            StatusTicketOfClient.CANCELED_BY_ADMIN
-        ) is True
-
-        # Invalid transitions
-        assert StatusTicketOfClient.can_transition(
-            StatusTicketOfClient.CONFIRMED,
-            StatusTicketOfClient.CREATED
-        ) is False
-
-        assert StatusTicketOfClient.can_transition(
-            StatusTicketOfClient.CONFIRMED,
-            StatusTicketOfClient.EXECUTED
-        ) is False
-
-    def test_can_transition_from_at_work(self):
-        """Test valid transitions from AT_WORK status."""
+    def test_transition_at_work_to_executed(self):
         assert StatusTicketOfClient.can_transition(
             StatusTicketOfClient.AT_WORK,
             StatusTicketOfClient.EXECUTED
-        ) is True
+        )
 
+    def test_invalid_transition_created_to_executed(self):
+        assert not StatusTicketOfClient.can_transition(
+            StatusTicketOfClient.CREATED,
+            StatusTicketOfClient.EXECUTED
+        )
+
+    def test_canceled_by_admin_from_multiple_states(self):
+        # Can be canceled by admin from CREATED, CONFIRMED, AT_WORK
+        assert StatusTicketOfClient.can_transition(
+            StatusTicketOfClient.CREATED,
+            StatusTicketOfClient.CANCELED_BY_ADMIN
+        )
+        assert StatusTicketOfClient.can_transition(
+            StatusTicketOfClient.CONFIRMED,
+            StatusTicketOfClient.CANCELED_BY_ADMIN
+        )
         assert StatusTicketOfClient.can_transition(
             StatusTicketOfClient.AT_WORK,
             StatusTicketOfClient.CANCELED_BY_ADMIN
-        ) is True
+        )
 
-        # Invalid transitions (note: in your updated transitions, AT_WORK can't go to CREATED)
-        assert StatusTicketOfClient.can_transition(
-            StatusTicketOfClient.AT_WORK,
-            StatusTicketOfClient.CREATED
-        ) is False
-
-        assert StatusTicketOfClient.can_transition(
-            StatusTicketOfClient.AT_WORK,
-            StatusTicketOfClient.CONFIRMED
-        ) is False
-
-        assert StatusTicketOfClient.can_transition(
-            StatusTicketOfClient.AT_WORK,
-            StatusTicketOfClient.CANCELED_BY_CLIENT
-        ) is False
-
-    def test_can_transition_from_final_statuses(self):
-        """Test that final statuses cannot transition to other statuses."""
-        final_statuses = [
+    def test_terminal_statuses_cannot_transition(self):
+        terminal_statuses = [
             StatusTicketOfClient.EXECUTED,
             StatusTicketOfClient.CANCELED_BY_CLIENT,
-            StatusTicketOfClient.CANCELED_BY_ADMIN,
+            StatusTicketOfClient.CANCELED_BY_ADMIN
         ]
 
-        for final_status in final_statuses:
-            for target_status in StatusTicketOfClient:
-                assert StatusTicketOfClient.can_transition(
-                    final_status,
-                    target_status
-                ) is False
-
-    def test_invalid_from_status_returns_false(self):
-        """Test that invalid from_status returns False."""
-
-        # Using a mock status that's not in the transitions dict
-        class MockStatus(Enum):
-            UNKNOWN = "unknown"
-
-        assert StatusTicketOfClient.can_transition(
-            MockStatus.UNKNOWN,  # type: ignore
-            StatusTicketOfClient.CREATED
-        ) is False
-
-
-class TestStatus:
-    """Tests for Status dataclass."""
-
-    def test_status_creation(self):
-        """Test creating a Status with default timestamp."""
-        status = StatusTicketUser(
-            employee_id=123,
-            status=StatusTicketOfClient.CREATED
-        )
-
-        assert status.employee_id == 123
-        assert status.status == StatusTicketOfClient.CREATED
-        assert isinstance(status.date_created, datetime)
-
-    def test_status_is_frozen(self):
-        """Test that Status is immutable."""
-        status = StatusTicketUser(
-            employee_id=123,
-            status=StatusTicketOfClient.CREATED
-        )
-
-        # Should not be able to modify attributes
-        with pytest.raises(dataclasses.FrozenInstanceError):
-            status.employee_id = 456
-
-        with pytest.raises(dataclasses.FrozenInstanceError):
-            status.status = StatusTicketOfClient.AT_WORK
-
-    def test_status_equality(self):
-        """Test Status equality comparison."""
-        status1 = StatusTicketUser(
-            employee_id=123,
-            status=StatusTicketOfClient.CREATED
-        )
-
-        status2 = StatusTicketUser(
-            employee_id=123,
-            status=StatusTicketOfClient.CREATED
-        )
-
-        # Different instances with same values should not be equal
-        # (unless __eq__ is overridden, which dataclass does by default)
-        assert status1 == status2
-
-        status3 = StatusTicketUser(
-            employee_id=456,
-            status=StatusTicketOfClient.AT_WORK
-        )
-
-        assert status1 != status3
-
-
-class TestComment:
-    """Tests for Comment dataclass."""
-
-    def test_comment_creation(self):
-        """Test creating a Comment."""
-        comment = Comment(
-            employee_id=123,
-            comment="This is a test comment"
-        )
-
-        assert comment.employee_id == 123
-        assert comment.comment == "This is a test comment"
-        assert isinstance(comment.date_created, datetime)
-
-    def test_comment_is_frozen(self):
-        """Test that Comment is immutable."""
-        comment = Comment(
-            employee_id=123,
-            comment="Test comment"
-        )
-
-        with pytest.raises(dataclasses.FrozenInstanceError):
-            comment.comment = "Modified comment"
-
-
-class TestExecutor:
-    """Tests for Executor dataclass."""
-
-    def test_executor_creation(self):
-        """Test creating an Executor."""
-        executor = Executor(id_admin=123)
-
-        assert executor.id_admin == 123
-        assert isinstance(executor.date_created, datetime)
+        for status in terminal_statuses:
+            assert not StatusTicketOfClient.can_transition(
+                status,
+                StatusTicketOfClient.AT_WORK
+            )
 
 
 class TestTicketUser:
-    """Tests for TicketUser entity."""
+    """Test TicketUser aggregate root."""
 
-    def test_ticket_creation_with_default_status(self):
-        """Test creating a ticket without providing statuses."""
-        ticket = TicketUser(
+    @pytest.fixture
+    def sample_ticket_user(self):
+        return TicketUser(
             ticket_id=1,
             client_id=100,
-            created_by_employee_id=50,
-            description="Test ticket description"
+            user_id=300,
+            description="Test user ticket"
         )
 
-        assert ticket.ticket_id == 1
-        assert ticket.client_id == 100
-        assert ticket.description == "Test ticket description"
-        assert len(ticket.statuses) == 1
-        assert ticket.statuses[0].status == StatusTicketOfClient.CREATED
-        assert ticket.statuses[0].employee_id == 50
-        assert ticket.version == 0
-        assert len(ticket.comments) == 0
-        assert len(ticket.executors) == 0
+    def test_ticket_user_creation(self, sample_ticket_user):
+        """Test basic TicketUser creation."""
+        assert sample_ticket_user.ticket_id == 1
+        assert sample_ticket_user.client_id == 100
+        assert sample_ticket_user.user_id == 300
+        assert sample_ticket_user.description == "Test user ticket"
+        assert sample_ticket_user.created_by_client is False
+        assert sample_ticket_user.is_closed is False
+        assert sample_ticket_user.finished_at is None
+        assert sample_ticket_user.version == 0
 
-    def test_ticket_creation_with_existing_statuses(self):
-        """Test creating a ticket with pre-existing statuses."""
-        existing_status = StatusTicketUser(
-            employee_id=999,
-            status=StatusTicketOfClient.CONFIRMED
-        )
+    def test_initial_status_created(self, sample_ticket_user):
+        """Test that TicketUser gets initial CREATED status."""
+        assert sample_ticket_user.current_status() == StatusTicketOfClient.CREATED
+        assert len(sample_ticket_user.statuses) == 1
+        assert sample_ticket_user.statuses[0].actor_employee_id == 300  # user_id
 
-        ticket = TicketUser(
-            ticket_id=2,
-            client_id=200,
-            created_by_employee_id=50,  # Ignored since statuses provided
-            statuses=[existing_status],
-            description="Ticket with existing status"
-        )
-
-        assert len(ticket.statuses) == 1
-        assert ticket.statuses[0].status == StatusTicketOfClient.CONFIRMED
-        assert ticket.statuses[0].employee_id == 999
-
-    def test_change_status_valid_transition(self):
-        """Test valid status changes."""
-        ticket = TicketUser(
-            ticket_id=1,
-            client_id=100,
-            created_by_employee_id=50,
-            description="Test ticket"
-        )
-
-        # CREATED -> CONFIRMED
-        ticket.change_status(StatusTicketOfClient.CONFIRMED, employee_id=60)
-        assert ticket.get_current_state() == StatusTicketOfClient.CONFIRMED
-        assert ticket.version == 1
-
-        # CONFIRMED -> AT_WORK
-        ticket.change_status(StatusTicketOfClient.AT_WORK, employee_id=70)
-        assert ticket.get_current_state() == StatusTicketOfClient.AT_WORK
-        assert ticket.version == 2
-
-        # AT_WORK -> EXECUTED
-        ticket.change_status(StatusTicketOfClient.EXECUTED, employee_id=80)
-        assert ticket.get_current_state() == StatusTicketOfClient.EXECUTED
-        assert ticket.version == 3
-
-    def test_change_status_invalid_transition(self):
-        """Test invalid status change raises error."""
-        ticket = TicketUser(
-            ticket_id=1,
-            client_id=100,
-            created_by_employee_id=50,
-            description="Test ticket"
-        )
-
-        # Try to jump from CREATED to EXECUTED (invalid)
-        with pytest.raises(DomainOperationError) as exc_info:
-            ticket.change_status(StatusTicketOfClient.EXECUTED, employee_id=60)
-
-        assert "Cannot change status" in str(exc_info.value)
-        assert ticket.get_current_state() == StatusTicketOfClient.CREATED
-        assert ticket.version == 0  # Version should not increment
-
-    def test_cancel_by_client_from_created(self):
-        """Test canceling by client from CREATED status."""
-        ticket = TicketUser(
-            ticket_id=1,
-            client_id=100,
-            created_by_employee_id=50,
-            description="Test ticket"
-        )
-
-        ticket.change_status(StatusTicketOfClient.CANCELED_BY_CLIENT, employee_id=100)
-        assert ticket.get_current_state() == StatusTicketOfClient.CANCELED_BY_CLIENT
-        assert ticket.version == 1
-
-    def test_cancel_by_admin_from_confirmed(self):
-        """Test canceling by admin from CONFIRMED status."""
-        ticket = TicketUser(
-            ticket_id=1,
-            client_id=100,
-            created_by_employee_id=50,
-            description="Test ticket"
-        )
-
-        ticket.change_status(StatusTicketOfClient.CONFIRMED, employee_id=60)
-        ticket.change_status(StatusTicketOfClient.CANCELED_BY_ADMIN, employee_id=1)
-
-        assert ticket.get_current_state() == StatusTicketOfClient.CANCELED_BY_ADMIN
-        assert ticket.version == 2
-
-    def test_add_comment(self):
-        """Test adding comments to a ticket."""
-        ticket = TicketUser(
-            ticket_id=1,
-            client_id=100,
-            created_by_employee_id=50,
-            description="Test ticket"
-        )
-
-        comment1 = Comment(employee_id=100, comment="First comment")
-        comment2 = Comment(employee_id=200, comment="Second comment")
-
-        ticket.add_comment(comment1)
-        ticket.add_comment(comment2)
-
-        assert len(ticket.comments) == 2
-        assert ticket.comments[0] == comment1
-        assert ticket.comments[1] == comment2
-        assert ticket.version == 2
-
-    def test_add_and_get_executor(self):
-        """Test adding and retrieving executors."""
-        ticket = TicketUser(
-            ticket_id=1,
-            client_id=100,
-            created_by_employee_id=50,
-            description="Test ticket"
-        )
-
-        executor1 = Executor(id_admin=100)
-        executor2 = Executor(id_admin=200)
-
-        ticket.add_executor(executor1)
-        ticket.add_executor(executor2)
-
-        assert len(ticket.executors) == 2
-        assert ticket.get_current_executor() == executor2
-        assert ticket.get_current_executor().id_admin == 200
-
-    def test_get_current_executor_no_executors(self):
-        """Test getting current executor when none exist."""
-        ticket = TicketUser(
-            ticket_id=1,
-            client_id=100,
-            created_by_employee_id=50,
-            description="Test ticket"
-        )
-
-        with pytest.raises(DomainOperationError) as exc_info:
-            ticket.get_current_executor()
-
-        assert "No executor available" in str(exc_info.value)
-
-    def test_get_current_state_multiple_statuses(self):
-        """Test getting current state with multiple status changes."""
-        ticket = TicketUser(
-            ticket_id=1,
-            client_id=100,
-            created_by_employee_id=50,
-            description="Test ticket"
-        )
-
-        statuses_to_test = [
+    def test_change_status_valid_transition(self, sample_ticket_user):
+        """Test valid status change."""
+        sample_ticket_user.change_status(
             StatusTicketOfClient.CONFIRMED,
-            StatusTicketOfClient.AT_WORK,
-            StatusTicketOfClient.EXECUTED
+            actor_employee_id=400
+        )
+
+        assert sample_ticket_user.current_status() == StatusTicketOfClient.CONFIRMED
+        assert len(sample_ticket_user.statuses) == 2
+        assert sample_ticket_user.version == 1
+
+    def test_change_status_invalid_transition(self, sample_ticket_user):
+        """Test invalid status transition raises error."""
+        with pytest.raises(DomainOperationError, match="Cannot change status"):
+            sample_ticket_user.change_status(
+                StatusTicketOfClient.EXECUTED,
+                actor_employee_id=400
+            )
+
+    def test_change_status_when_closed(self, sample_ticket_user):
+        """Test that closed TicketUsers cannot change status."""
+        sample_ticket_user.change_status(
+            StatusTicketOfClient.CANCELED_BY_CLIENT,
+            actor_employee_id=300
+        )
+
+        assert sample_ticket_user.is_closed is True
+
+        with pytest.raises(DomainOperationError, match="TicketUser is closed"):
+            sample_ticket_user.change_status(
+                StatusTicketOfClient.CONFIRMED,
+                actor_employee_id=400
+            )
+
+    def test_terminal_statuses_close_ticket(self, sample_ticket_user):
+        """Test that terminal statuses close the ticket."""
+        terminal_statuses = [
+            StatusTicketOfClient.EXECUTED,
+            StatusTicketOfClient.CANCELED_BY_CLIENT,
+            StatusTicketOfClient.CANCELED_BY_ADMIN
         ]
 
-        for i, status in enumerate(statuses_to_test, 1):
-            ticket.change_status(status, employee_id=50 + i)
-            assert ticket.get_current_state() == status
-            assert len(ticket.statuses) == i + 1  # +1 for initial CREATED
+        for terminal_status in terminal_statuses:
+            # Create fresh ticket for each test
+            ticket = TicketUser(
+                ticket_id=2,
+                client_id=100,
+                user_id=300,
+                description="Test ticket"
+            )
 
+            if terminal_status != StatusTicketOfClient.CANCELED_BY_CLIENT:
+                # Need to transition through intermediate states
+                ticket.change_status(StatusTicketOfClient.CONFIRMED, actor_employee_id=400)
+                if terminal_status != StatusTicketOfClient.CANCELED_BY_ADMIN:
+                    ticket.change_status(StatusTicketOfClient.AT_WORK, actor_employee_id=400)
 
-    def test_version_increment_on_state_change(self):
-        """Test that version increments on state changes."""
-        ticket = TicketUser(
-            ticket_id=1,
-            client_id=100,
-            created_by_employee_id=50,
-            description="Test ticket"
-        )
+            ticket.change_status(terminal_status, actor_employee_id=400)
 
-        assert ticket.version == 0
+            assert ticket.is_closed is True
+            assert ticket.finished_at is not None
+            assert ticket.current_status() == terminal_status
 
-        ticket.change_status(StatusTicketOfClient.CONFIRMED, employee_id=60)
-        assert ticket.version == 1
+    def test_convenience_methods(self, sample_ticket_user):
+        """Test convenience methods for status changes."""
+        sample_ticket_user.confirm(actor_employee_id=400)
+        assert sample_ticket_user.current_status() == StatusTicketOfClient.CONFIRMED
 
-        ticket.change_status(StatusTicketOfClient.AT_WORK, employee_id=70)
-        assert ticket.version == 2
+        sample_ticket_user.start_work(actor_employee_id=400)
+        assert sample_ticket_user.current_status() == StatusTicketOfClient.AT_WORK
 
-        ticket.change_status(StatusTicketOfClient.EXECUTED, employee_id=80)
-        assert ticket.version == 3
+        sample_ticket_user.execute(actor_employee_id=400)
+        assert sample_ticket_user.current_status() == StatusTicketOfClient.EXECUTED
 
-    def test_version_increment_on_comment_add(self):
-        """Test that version increments when adding comments."""
-        ticket = TicketUser(
-            ticket_id=1,
-            client_id=100,
-            created_by_employee_id=50,
-            description="Test ticket"
-        )
-
-        assert ticket.version == 0
-
-        ticket.add_comment(Comment(employee_id=100, comment="Comment 1"))
-        assert ticket.version == 1
-
-        ticket.add_comment(Comment(employee_id=200, comment="Comment 2"))
-        assert ticket.version == 2
-
-    def test_comprehensive_workflow(self):
-        """Test a comprehensive ticket workflow."""
-        # Create ticket
-        ticket = TicketUser(
-            ticket_id=1,
-            client_id=100,
-            created_by_employee_id=50,
-            description="Server issue"
-        )
-
-        assert ticket.get_current_state() == StatusTicketOfClient.CREATED
-
-        # Confirm ticket
-        ticket.change_status(StatusTicketOfClient.CONFIRMED, employee_id=60)
-
-        # Add executor
-        executor = Executor(id_admin=200)
-        ticket.add_executor(executor)
-
-        # Add comment
-        ticket.add_comment(Comment(
-            employee_id=60,
-            comment="Issue confirmed, assigning to team"
-        ))
-
-        # Start work
-        ticket.change_status(StatusTicketOfClient.AT_WORK, employee_id=200)
-
-        # Add more comments
-        ticket.add_comment(Comment(
-            employee_id=200,
-            comment="Working on the issue"
-        ))
-
-        # Complete work
-        ticket.change_status(StatusTicketOfClient.EXECUTED, employee_id=200)
-
-        # Final checks
-        assert ticket.get_current_state() == StatusTicketOfClient.EXECUTED
-        assert ticket.get_current_executor().id_admin == 200
-        assert len(ticket.comments) == 2
-        assert len(ticket.statuses) == 4  # CREATED, CONFIRMED, AT_WORK, EXECUTED
-        assert ticket.version == 5  # 3 status changes + 2 comments
-
-    def test_ticket_equality(self):
-        """Test ticket equality based on ticket_id."""
+    def test_cancel_methods(self):
+        """Test cancellation convenience methods."""
+        # Test cancel by client
         ticket1 = TicketUser(
             ticket_id=1,
             client_id=100,
-            created_by_employee_id=50,
-            description="Test"
+            user_id=300,
+            description="Test ticket 1"
         )
+        ticket1.cancel_by_client(actor_employee_id=300)
+        assert ticket1.current_status() == StatusTicketOfClient.CANCELED_BY_CLIENT
 
+        # Test cancel by admin
         ticket2 = TicketUser(
-            ticket_id=1,
-            client_id=100,
-            created_by_employee_id=50,
-            description="Test"
-        )
-
-        ticket3 = TicketUser(
             ticket_id=2,
             client_id=100,
-            created_by_employee_id=50,
-            description="Test"
+            user_id=300,
+            description="Test ticket 2"
+        )
+        ticket2.confirm(actor_employee_id=400)
+        ticket2.cancel_by_admin(actor_employee_id=400)
+        assert ticket2.current_status() == StatusTicketOfClient.CANCELED_BY_ADMIN
+
+    def test_add_comment_and_executor(self, sample_ticket_user):
+        """Test adding comments and executors."""
+        # Add comment
+        comment = Comment(employee_id=500, comment="Test comment")
+        sample_ticket_user.add_comment(comment)
+        assert len(sample_ticket_user.comments) == 1
+        assert sample_ticket_user.version == 1
+
+        # Add executor
+        assignment = ExecutorAssignment(admin_id=600)
+        sample_ticket_user.add_executor(assignment)
+        assert len(sample_ticket_user.executors) == 1
+        assert sample_ticket_user.version == 2
+
+    def test_rehydration_from_storage(self):
+        """Test that TicketUser correctly rehydrates from stored data."""
+        statuses = [
+            StatusRecordTicketUser(
+                actor_employee_id=300,
+                status=StatusTicketOfClient.CREATED,
+                created_at=datetime(2024, 1, 1, tzinfo=timezone.utc)
+            ),
+            StatusRecordTicketUser(
+                actor_employee_id=400,
+                status=StatusTicketOfClient.CANCELED_BY_ADMIN,
+                created_at=datetime(2024, 1, 2, tzinfo=timezone.utc)
+            )
+        ]
+
+        ticket = TicketUser(
+            ticket_id=1,
+            client_id=100,
+            user_id=300,
+            description="Rehydrated ticket",
+            statuses=statuses
         )
 
-        # Tickets with same ID should not be equal (different instances)
-        # unless __eq__ is overridden
-        assert ticket1 != ticket2
-        assert ticket1 != ticket3
+        assert ticket.is_closed is True
+        assert ticket.finished_at == statuses[-1].created_at
+        assert ticket.current_status() == StatusTicketOfClient.CANCELED_BY_ADMIN
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v", "--tb=short"])
+class TestStatusRecordTicketUser:
+    """Test StatusRecordTicketUser value object."""
+
+    def test_record_creation(self):
+        record = StatusRecordTicketUser(
+            actor_employee_id=1,
+            status=StatusTicketOfClient.CREATED
+        )
+        assert record.actor_employee_id == 1
+        assert record.status == StatusTicketOfClient.CREATED
+        assert isinstance(record.created_at, datetime)
+
+    def test_record_equality_by_status(self):
+        record1 = StatusRecordTicketUser(
+            actor_employee_id=1,
+            status=StatusTicketOfClient.CREATED
+        )
+        record2 = StatusRecordTicketUser(
+            actor_employee_id=2,
+            status=StatusTicketOfClient.CREATED
+        )
+        record3 = StatusRecordTicketUser(
+            actor_employee_id=1,
+            status=StatusTicketOfClient.CONFIRMED
+        )
+
+        assert record1 == record2  # Same status
+        assert record1 != record3  # Different status
