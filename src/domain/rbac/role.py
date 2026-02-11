@@ -7,6 +7,7 @@ from typing import TypeVar, Generic, FrozenSet, Set, Dict, Iterable
 
 from src.domain.rbac.employee_protocol import HasRoleIds
 from src.domain.rbac.permissions import PermissionBase
+from src.domain.repositories.role_repository import RoleRepository
 
 P = TypeVar("P", bound=PermissionBase)
 
@@ -60,7 +61,7 @@ class Authorizer(Generic[P]):
             raise PermissionError(f"Subject lacks permission: {permission.value}")
 
 
-class RoleRepo(Generic[P]):
+class RoleRepo(RoleRepository):
     """In-memory role registry for ONE realm (Admin OR User)."""
     def __init__(self) -> None:
         self._by_id: Dict[int, Role[P]] = {}

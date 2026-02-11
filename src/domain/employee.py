@@ -1,4 +1,5 @@
 #src/domain/employee.py
+from abc import ABC
 from dataclasses import field, dataclass
 from datetime import datetime
 from typing import FrozenSet, Self
@@ -9,7 +10,7 @@ from src.domain.value_objects import Email, Phone, Name
 
 
 @dataclass(kw_only=True,eq=False)
-class Employee(HasRoleIds):
+class Employee(ABC, HasRoleIds):
     employee_id: int
     first_name: Name|None
     last_name: Name|None
