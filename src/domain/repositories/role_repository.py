@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Generic, Iterable
 
-from pydantic.v1 import Protocol
 
-from src.domain.rbac.role import Role, P
+
+from src.domain.rbac.role import P
+from src.domain.rbac.role_new import Role
 
 
 class RoleRepository(ABC, Generic[P]):
