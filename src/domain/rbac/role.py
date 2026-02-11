@@ -5,7 +5,7 @@ from typing import Generic, Set
 from src.domain.rbac.employee_protocol import HasRoleIds
 
 from src.domain.rbac.typevar import P
-from src.domain.repositories.role_repository import RoleRepository
+from src.domain.rbac.role_repository import RoleRepository
 
 
 

@@ -1,0 +1,152 @@
+# src/domain/services/client.py
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Protocol, runtime_checkable, Optional
+
+from src.domain.client import Client
+from src.domain.exceptions import ItemValidationError, DomainOperationError
+
+
+# ---------------------------
+# Repository interface
+# ---------------------------
+
+
+# ---------------------------
+# Service (use-case orchestration)
+# ---------------------------
+
+class ClientService:
+    """
+    Orchestrates client operations.
+
+    This service:
+      - validates cross-entity rules (like "unique name")
+      - calls entity methods for state changes
+      - persists through ClientRepository
+      - does NOT manage transactions (UoW can wrap it later)
+    """
+
+    def __init__(self, clients: ClientRepository) -> None:
+        self._clients = clients
+
+    def create_client(
+        self,
+        *,
+        name: str,
+        created_by_admin_id: int,
+        email: str | None = None,
+        address: str | None = None,
+        phone: str | None = None,
+        enabled: bool = True,
+    ) -> Client:
+        # Example business rule: unique client name (optional; remove if not needed)
+        if self._clients.exists_by_name(name.strip()):
+            raise ItemValidationError(f"Client with name '{name}' already exists")
+
+        client = Client.create(
+            client_id=self._clients.next_id(),
+            name=name,
+            email=email,
+            address=address,
+            phone=phone,
+            created_by_admin_id=created_by_admin_id,
+            enabled=enabled,
+        )
+        self._clients.save(client)
+        return client
+
+    def update_contact_info(
+        self,
+        *,
+        client_id: int,
+        email: str | None = None,
+        address: str | None = None,
+        phone: str | None = None,
+    ) -> Client:
+        client = self._clients.get(client_id)
+        if client.is_deleted:
+            raise DomainOperationError("Cannot update a deleted client")
+
+        client.update_contact_info(email=email, address=address, phone=phone)
+        self._clients.save(client)
+        return client
+
+    def disable_client(self, *, client_id: int) -> Client:
+        client = self._clients.get(client_id)
+        if client.is_deleted:
+            raise DomainOperationError("Cannot disable a deleted client")
+
+        client.disable()
+        self._clients.save(client)
+        return client
+
+    def enable_client(self, *, client_id: int) -> Client:
+        client = self._clients.get(client_id)
+        if client.is_deleted:
+            raise DomainOperationError("Cannot enable a deleted client")
+
+        client.enable()
+        self._clients.save(client)
+        return client
+
+    def soft_delete_client(self, *, client_id: int) -> Client:
+        client = self._clients.get(client_id)
+        if client.is_deleted:
+            return client  # idempotent
+
+        client.soft_delete()
+        self._clients.save(client)
+        return client
+
+    def restore_client(self, *, client_id: int) -> Client:
+        client = self._clients.get(client_id)
+        if not client.is_deleted:
+            return client  # idempotent
+
+        client.restore()
+        self._clients.save(client)
+        return client
+
+    def hard_delete_client(self, *, client_id: int) -> None:
+        """
+        Hard delete should be rare. You can add checks here later,
+        e.g. "cannot hard-delete client if they have tickets".
+        """
+        client = self._clients.get(client_id)
+        # Optional: allow hard delete only if already soft-deleted
+        # if not client.is_deleted:
+        #     raise DomainOperationError("Hard delete requires soft delete first")
+
+        self._clients.hard_delete(client_id)
+
+
+# ---------------------------
+# Optional: in-memory repository for now
+# ---------------------------
+
+class InMemoryClientRepo:
+    def __init__(self) -> None:
+        self._data: dict[int, Client] = {}
+        self._seq: int = 0
+
+    def next_id(self) -> int:
+        self._seq += 1
+        return self._seq
+
+    def get(self, client_id: int) -> Client:
+        try:
+            return self._data[client_id]
+        except KeyError:
+            raise DomainOperationError(f"Client {client_id} not found") from None
+
+    def save(self, client: Client) -> None:
+        self._data[client.client_id] = client
+
+    def hard_delete(self, client_id: int) -> None:
+        self._data.pop(client_id, None)
+
+    def exists_by_name(self, name: str) -> bool:
+        key = name.strip().lower()
+        return any(str(c.name).strip().lower() == key for c in self._data.values())

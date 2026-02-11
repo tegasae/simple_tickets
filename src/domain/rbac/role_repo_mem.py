@@ -3,7 +3,7 @@ from typing import Iterable
 
 from src.domain.rbac.role_new import Role
 from src.domain.rbac.typevar import P
-from src.domain.repositories.role_repository import RoleRepository
+from src.domain.rbac.role_repository import RoleRepository
 
 
 class RoleRepo(RoleRepository):
