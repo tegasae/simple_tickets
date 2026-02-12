@@ -1,16 +1,10 @@
 # src/domain/services/client.py
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Protocol, runtime_checkable, Optional
 
 from src.domain.client import Client
 from src.domain.exceptions import ItemValidationError, DomainOperationError
-
-
-# ---------------------------
-# Repository interface
-# ---------------------------
+from src.domain.repositories.client_repository import ClientRepository
 
 
 # ---------------------------
@@ -34,6 +28,7 @@ class ClientService:
     def create_client(
         self,
         *,
+        client_id:int,
         name: str,
         created_by_admin_id: int,
         email: str | None = None,
@@ -42,18 +37,18 @@ class ClientService:
         enabled: bool = True,
     ) -> Client:
         # Example business rule: unique client name (optional; remove if not needed)
-        if self._clients.exists_by_name(name.strip()):
-            raise ItemValidationError(f"Client with name '{name}' already exists")
 
+        if self._clients.exists_by_name(name):
+            raise ItemValidationError(f"Client with name '{name}' already exists")
         client = Client.create(
-            client_id=self._clients.next_id(),
-            name=name,
-            email=email,
-            address=address,
-            phone=phone,
-            created_by_admin_id=created_by_admin_id,
-            enabled=enabled,
-        )
+                client_id=client_id,
+                name=name,
+                email=email,
+                address=address,
+                phone=phone,
+                created_by_admin_id=created_by_admin_id,
+                enabled=enabled,
+            )
         self._clients.save(client)
         return client
 
@@ -114,7 +109,7 @@ class ClientService:
         Hard delete should be rare. You can add checks here later,
         e.g. "cannot hard-delete client if they have tickets".
         """
-        client = self._clients.get(client_id)
+        self._clients.get(client_id)
         # Optional: allow hard delete only if already soft-deleted
         # if not client.is_deleted:
         #     raise DomainOperationError("Hard delete requires soft delete first")
@@ -122,31 +117,3 @@ class ClientService:
         self._clients.hard_delete(client_id)
 
 
-# ---------------------------
-# Optional: in-memory repository for now
-# ---------------------------
-
-class InMemoryClientRepo:
-    def __init__(self) -> None:
-        self._data: dict[int, Client] = {}
-        self._seq: int = 0
-
-    def next_id(self) -> int:
-        self._seq += 1
-        return self._seq
-
-    def get(self, client_id: int) -> Client:
-        try:
-            return self._data[client_id]
-        except KeyError:
-            raise DomainOperationError(f"Client {client_id} not found") from None
-
-    def save(self, client: Client) -> None:
-        self._data[client.client_id] = client
-
-    def hard_delete(self, client_id: int) -> None:
-        self._data.pop(client_id, None)
-
-    def exists_by_name(self, name: str) -> bool:
-        key = name.strip().lower()
-        return any(str(c.name).strip().lower() == key for c in self._data.values())

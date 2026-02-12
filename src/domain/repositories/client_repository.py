@@ -1,26 +1,39 @@
 # src/domain/repositories/account_repository.py
-
-from typing import Protocol, runtime_checkable
+from abc import ABC, abstractmethod
+from typing import runtime_checkable
 
 from src.domain.client import Client
 
 
-@runtime_checkable
-class ClientRepository(Protocol):
+
+class ClientRepository(ABC):
     """
     Repository for clients.
     """
 
     # -------- Reads --------
-
-    def get(self, client_id: int) -> Client: ...
-    def get_all(self) -> list[Client]: ...
-    def exits(self,client_id:int)->bool: ...
+    @abstractmethod
+    def get(self, client_id: int) -> Client:
+        raise NotImplementedError
+    @abstractmethod
+    def get_all(self) -> list[Client]:
+        raise NotImplementedError
+    @abstractmethod
+    def exits(self,client_id:int)->bool:
+        raise NotImplementedError
 
     #Often useful:
-    def find_by_name(self, name: str) -> Client: ...
+    @abstractmethod
+    def find_by_name(self, name: str) -> Client:
+        raise NotImplementedError
 
+    @abstractmethod
+    def exists_by_name(self, name:str)->bool:
+        raise NotImplementedError
     # -------- Writes --------
-
-    def save(self, client: Client): ...
-    def hard_delete(self, client_id: int): ...
+    @abstractmethod
+    def save(self, client: Client):
+        raise NotImplementedError
+    @abstractmethod
+    def hard_delete(self, client_id: int):
+        raise NotImplementedError
