@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Protocol, runtime_checkable
+
 
 from src.domain.employee import Admin, User
 
@@ -57,6 +57,10 @@ class UserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_all_by_client(self,client_id:int)->list[User]:
+        raise NotImplementedError
+
+    @abstractmethod
     def exists(self, user_id: int) -> bool:
         raise NotImplementedError
 
@@ -71,4 +75,5 @@ class UserRepository(ABC):
     @abstractmethod
     def hard_delete(self, user_id: int):
         raise NotImplementedError
+
 
