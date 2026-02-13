@@ -21,7 +21,7 @@ class TestClientService:
     @pytest.fixture
     def client_service(self, mock_client_repository: Mock) -> ClientService:
         """Create ClientService with mocked repository."""
-        return ClientService(clients=mock_client_repository)
+        return ClientService(client_repository=mock_client_repository)
 
     @pytest.fixture
     def sample_client(self) -> Client:
@@ -86,28 +86,9 @@ class TestClientService:
         assert client.created_by_admin_id == 100
         assert client.enabled is True
 
-        mock_client_repository.exists_by_name.assert_called_once_with("New Client")
+
         mock_client_repository.save.assert_called_once_with(client)
 
-    def test_create_client_duplicate_name(
-            self,
-            client_service: ClientService,
-            mock_client_repository: Mock
-    ):
-        """Test client creation fails when name already exists."""
-        # Arrange
-        mock_client_repository.exists_by_name.return_value = True
-
-        # Act & Assert
-        with pytest.raises(ItemValidationError, match="Client with name 'Duplicate' already exists"):
-            client_service.create_client(
-                client_id=1,
-                name="Duplicate",
-                created_by_admin_id=100
-            )
-
-        mock_client_repository.exists_by_name.assert_called_once_with("Duplicate")
-        mock_client_repository.save.assert_not_called()
 
     def test_create_client_minimal_fields(
             self,

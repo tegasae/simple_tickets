@@ -1,6 +1,7 @@
 # src/domain/repositories/employee_repository.py
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from typing import Protocol, runtime_checkable
 
 from src.domain.employee import Admin, User
@@ -9,23 +10,36 @@ from src.domain.employee import Admin, User
 
 
 
-@runtime_checkable
-class AdminRepository(Protocol):
+class AdminRepository(ABC):
     """
     Optional subtype repo (same note as UserRepository).
     """
-    def get(self, admin_id: int) -> Admin: ...
-    def get_all(self) -> list[Admin]: ...
-    def exists(self, admin_id: int) -> bool: ...
-    def save(self, admin: Admin): ...
-    def soft_delete(self, admin_id: int): ...
-    def hard_delete(self, admin_id: int): ...
+    @abstractmethod
+    def get(self, admin_id: int) -> Admin:
+        raise NotImplementedError
+    @abstractmethod
+    def get_all(self) -> list[Admin]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def exists(self, admin_id: int) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def save(self, admin: Admin):
+        raise NotImplementedError
+
+    @abstractmethod
+    def soft_delete(self, admin_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
+    def hard_delete(self, admin_id: int):
+        raise NotImplementedError
 
 
 
-
-@runtime_checkable
-class UserRepository(Protocol):
+class UserRepository(ABC):
     """
     Optional narrower repository if you prefer using subtype-specific repos.
     Useful when User and Admin are stored differently.
@@ -33,10 +47,28 @@ class UserRepository(Protocol):
     If you keep one table + discriminator, you can skip this interface
     and use only EmployeeRepository.
     """
-    def get(self, user_id: int) -> User: ...
-    def get_all(self) -> list[User]: ...
-    def exists(self, user_id: int) -> bool: ...
-    def save(self, user: User): ...
-    def soft_delete(self, user_id: int): ...
-    def hard_delete(self, user_id: int): ...
+
+    @abstractmethod
+    def get(self, user_id: int) -> User:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_all(self) -> list[User]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def exists(self, user_id: int) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def save(self, user: User):
+        raise NotImplementedError
+
+    @abstractmethod
+    def soft_delete(self, user_id: int):
+        raise NotImplementedError
+
+    @abstractmethod
+    def hard_delete(self, user_id: int):
+        raise NotImplementedError
 

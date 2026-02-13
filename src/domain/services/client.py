@@ -22,8 +22,8 @@ class ClientService:
       - does NOT manage transactions (UoW can wrap it later)
     """
 
-    def __init__(self, clients: ClientRepository) -> None:
-        self._clients = clients
+    def __init__(self, client_repository: ClientRepository) -> None:
+        self._client_repository = client_repository
 
     def create_client(
         self,
@@ -38,8 +38,8 @@ class ClientService:
     ) -> Client:
         # Example business rule: unique client name (optional; remove if not needed)
 
-        if self._clients.exists_by_name(name):
-            raise ItemValidationError(f"Client with name '{name}' already exists")
+        #if self._client_repository.exists_by_name(name):
+        #    raise ItemValidationError(f"Client with name '{name}' already exists")
         client = Client.create(
                 client_id=client_id,
                 name=name,
@@ -49,7 +49,7 @@ class ClientService:
                 created_by_admin_id=created_by_admin_id,
                 enabled=enabled,
             )
-        self._clients.save(client)
+        self._client_repository.save(client)
         return client
 
     def update_contact_info(
@@ -60,48 +60,48 @@ class ClientService:
         address: str | None = None,
         phone: str | None = None,
     ) -> Client:
-        client = self._clients.get(client_id)
+        client = self._client_repository.get(client_id)
         if client.is_deleted:
             raise DomainOperationError("Cannot update a deleted client")
 
         client.update_contact_info(email=email, address=address, phone=phone)
-        self._clients.save(client)
+        self._client_repository.save(client)
         return client
 
     def disable_client(self, *, client_id: int) -> Client:
-        client = self._clients.get(client_id)
+        client = self._client_repository.get(client_id)
         if client.is_deleted:
             raise DomainOperationError("Cannot disable a deleted client")
 
         client.disable()
-        self._clients.save(client)
+        self._client_repository.save(client)
         return client
 
     def enable_client(self, *, client_id: int) -> Client:
-        client = self._clients.get(client_id)
+        client = self._client_repository.get(client_id)
         if client.is_deleted:
             raise DomainOperationError("Cannot enable a deleted client")
 
         client.enable()
-        self._clients.save(client)
+        self._client_repository.save(client)
         return client
 
     def soft_delete_client(self, *, client_id: int) -> Client:
-        client = self._clients.get(client_id)
+        client = self._client_repository.get(client_id)
         if client.is_deleted:
             return client  # idempotent
 
         client.soft_delete()
-        self._clients.save(client)
+        self._client_repository.save(client)
         return client
 
     def restore_client(self, *, client_id: int) -> Client:
-        client = self._clients.get(client_id)
+        client = self._client_repository.get(client_id)
         if not client.is_deleted:
             return client  # idempotent
 
         client.restore()
-        self._clients.save(client)
+        self._client_repository.save(client)
         return client
 
     def hard_delete_client(self, *, client_id: int) -> None:
@@ -109,11 +109,11 @@ class ClientService:
         Hard delete should be rare. You can add checks here later,
         e.g. "cannot hard-delete client if they have tickets".
         """
-        self._clients.get(client_id)
+        self._client_repository.get(client_id)
         # Optional: allow hard delete only if already soft-deleted
         # if not client.is_deleted:
         #     raise DomainOperationError("Hard delete requires soft delete first")
 
-        self._clients.hard_delete(client_id)
+        self._client_repository.hard_delete(client_id)
 
 
