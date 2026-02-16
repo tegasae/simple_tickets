@@ -1,7 +1,6 @@
 # src/domain/services/client.py
 from __future__ import annotations
 
-
 from src.domain.client import Client
 from src.domain.exceptions import DomainOperationError
 from src.domain.repositories.client_repository import ClientRepository
@@ -63,17 +62,12 @@ class ClientService:
         phone: str | None = None,
     ) -> Client:
         client = self._client_repository.get(client_id)
-        if client.is_deleted:
-            raise DomainOperationError("Cannot update a deleted client")
-
         client.update_contact_info(email=email, address=address, phone=phone)
         self._client_repository.save(client)
         return client
 
     def disable(self, *, client_id: int) -> Client:
         client = self._client_repository.get(client_id)
-        if client.is_deleted:
-            raise DomainOperationError("Cannot disable a deleted client")
 
         client.disable()
         self._client_repository.save(client)
@@ -81,8 +75,6 @@ class ClientService:
 
     def enable(self, *, client_id: int) -> Client:
         client = self._client_repository.get(client_id)
-        if client.is_deleted:
-            raise DomainOperationError("Cannot enable a deleted client")
 
         client.enable()
         self._client_repository.save(client)
@@ -97,25 +89,6 @@ class ClientService:
         return bool(len(list_of_users))
 
 
-    def soft_delete(self, *, client_id: int) -> Client:
-        client = self._client_repository.get(client_id)
-        if client.is_deleted:
-            return client  # idempotent
-
-        if self._check_users(client_id=client.client_id):
-            raise DomainOperationError(message=f"Client {client.name} has users")
-        client.soft_delete()
-        self._client_repository.save(client)
-        return client
-
-    def restore(self, *, client_id: int) -> Client:
-        client = self._client_repository.get(client_id)
-        if not client.is_deleted:
-            return client  # idempotent
-
-        client.restore()
-        self._client_repository.save(client)
-        return client
 
     def delete(self, *, client_id: int) -> None:
         """
@@ -123,6 +96,8 @@ class ClientService:
         e.g. "cannot hard-delete client if they have tickets".
         """
         client=self._client_repository.get(client_id)
+        if client.enabled:
+            raise DomainOperationError(message=f"Client {client.name} is active")
         if self._check_users(client_id=client.client_id):
             raise DomainOperationError(message=f"Client {client.name} has users")
         # Optional: allow hard delete only if already soft-deleted

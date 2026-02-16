@@ -58,6 +58,22 @@ class Employee(ABC, HasRoleIds):
             "is_deleted": False,
         }
 
+    def update_base(self, first_name: str|None, last_name: str|None, email: str|None=None, phone: str|None=None)->Self:
+        self.first_name = Name(first_name) if first_name else None
+        self.last_name = Name(last_name) if last_name else None
+        self.email = Email(email) if email else None
+        self.phone = Phone(phone) if phone else None
+        self.version+=1
+        return self
+
+    def enable(self):
+        self.enabled = True
+        self.version+=1
+
+    def disable(self):
+        self.enabled = False
+        self.version+=1
+
     def is_empty(self) -> bool:
         return self._is_empty
 
@@ -111,3 +127,12 @@ class Admin(Employee):
         """Create a new Admin."""
         base_data = cls._create_base(employee_id, first_name, last_name, email, phone)
         return cls(**base_data, job_title=job_title)
+
+    def update(self, job_title:str|None, first_name: str|None, last_name: str|None, email: str|None=None, phone: str|None=None)->Self:
+        self.job_title = job_title
+        self.first_name = Name(first_name) if first_name else None
+        self.last_name = Name(last_name) if last_name else None
+        self.email = Email(email) if email else None
+        self.phone = Phone(phone) if phone else None
+        self.version += 1
+        return self

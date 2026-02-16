@@ -73,6 +73,12 @@ class Account:
             enabled=enabled,
             date_created=date_created or datetime.now(),
         )
+    def change_password(self, *, plain_password: str) -> Self:
+        """Change account password.
+        Args:"""
+
+        self.password = Password.from_plain(plain_password)
+        return self
 
     def verify_password(self, plain_password: str) -> bool:
         """Verify a plain text password against stored hash.
@@ -122,21 +128,15 @@ class NoAccount:
     This explicitly indicates that an employee has no account
     in this system, avoiding None checks throughout the codebase.
     """
+    account_id: int=-1
+    enabled: bool=False
     @staticmethod
     def verify_password(plain_password: str) -> bool:
         """No account means no password to verify."""
         plain_password.encode('utf-8')
         return False
 
-    @property
-    def enabled(self) -> bool:
-        """No account is never enabled."""
-        return False
 
-    @property
-    def account_id(self) -> int:
-        """No account has no ID."""
-        return -1
 
     @property
     def login(self) -> str:
@@ -147,6 +147,15 @@ class NoAccount:
     def date_created(self) -> datetime:
         """No account has no creation date."""
         return datetime.min
+
+    def enable(self) -> None:
+        """Enable the account."""
+        pass
+
+
+    def disable(self) -> None:
+        """Enable the account."""
+        pass
 
     def __bool__(self) -> bool:
         """Always False to indicate no account."""

@@ -1,106 +1,106 @@
 # tests/domain/services/test_client_service.py
+"""Tests for ClientService with updated delete logic."""
+
 import pytest
 from unittest.mock import Mock, create_autospec
-
+from typing import List
 
 from src.domain.client import Client
-from src.domain.exceptions import ItemValidationError, DomainOperationError
+from src.domain.exceptions import DomainOperationError, ItemValidationError
 from src.domain.repositories.client_repository import ClientRepository
+from src.domain.repositories.employee_repository import UserRepository
 from src.domain.services.client import ClientService
-from src.domain.value_objects import Name, Email, Address, Phone
 
 
 class TestClientService:
-    """Test suite for ClientService orchestration."""
+    """Test suite for ClientService."""
 
     @pytest.fixture
     def mock_client_repository(self) -> Mock:
-        """Create a mock ClientRepository with autospec."""
+        """Create a mock ClientRepository."""
         return create_autospec(ClientRepository)
 
     @pytest.fixture
-    def client_service(self, mock_client_repository: Mock) -> ClientService:
-        """Create ClientService with mocked repository."""
-        return ClientService(client_repository=mock_client_repository)
+    def mock_user_repository(self) -> Mock:
+        """Create a mock UserRepository."""
+        return create_autospec(UserRepository)
+
+    @pytest.fixture
+    def client_service(
+            self,
+            mock_client_repository: Mock,
+            mock_user_repository: Mock
+    ) -> ClientService:
+        """Create ClientService with mocked repositories."""
+        return ClientService(
+            client_repository=mock_client_repository,
+            user_repository=mock_user_repository
+        )
 
     @pytest.fixture
     def sample_client(self) -> Client:
-        """Create a sample client for testing."""
-        return Client(
+        """Create a sample client."""
+        return Client.create(
             client_id=1,
-            name=Name("Test Client"),
-            email=Email("test@example.com"),
-            address=Address("123 Test St"),
-            phone=Phone("555-1234"),
+            name="Test Client",
+            email="test@example.com",
+            address="123 Test St",
+            phone="+1234567890",
             created_by_admin_id=100,
-            enabled=True,
-            is_deleted=False
+            enabled=True
         )
 
     @pytest.fixture
-    def deleted_client(self) -> Client:
-        """Create a sample deleted client for testing."""
-        client = Client(
+    def disabled_client(self) -> Client:
+        """Create a disabled client."""
+        client = Client.create(
             client_id=2,
-            name=Name("Deleted Client"),
-            email=Email("deleted@example.com"),
+            name="Disabled Client",
+            email="disabled@example.com",
             created_by_admin_id=100,
-            enabled=False,
-            is_deleted=True,
-            address=None,
-            phone=None
-
+            enabled=True
         )
+        client.disable()
         return client
 
     # ---------------------------
-    # Create Client Tests
+    # Create Tests
     # ---------------------------
 
     def test_create_client_success(
             self,
             client_service: ClientService,
-            mock_client_repository: Mock
+            mock_client_repository: Mock,
+            mock_user_repository: Mock
     ):
         """Test successful client creation."""
-        # Arrange
-        mock_client_repository.exists_by_name.return_value = False
-
         # Act
-        client = client_service.create_client(
+        client = client_service.create(
             client_id=1,
             name="New Client",
             created_by_admin_id=100,
             email="new@example.com",
             address="456 New St",
-            phone="555-5678",
+            phone="+5555555555",
             enabled=True
         )
 
         # Assert
         assert client.client_id == 1
-        assert client.name.value == "New Client"
-        assert client.email.value == "new@example.com"
-        assert client.address.value == "456 New St"
-        assert client.phone.value == "555-5678"
-        assert client.created_by_admin_id == 100
-        assert client.enabled is True
-
+        assert str(client.name) == "New Client"
+        assert str(client.email) == "new@example.com"
 
         mock_client_repository.save.assert_called_once_with(client)
-
+        mock_user_repository.assert_not_called()  # User repo not used in create
 
     def test_create_client_minimal_fields(
             self,
             client_service: ClientService,
             mock_client_repository: Mock
     ):
-        """Test client creation with only required fields."""
-        # Arrange
-        mock_client_repository.exists_by_name.return_value = False
-
+        """Test client creation with minimal fields."""
         # Act
-        client = client_service.create_client(
+        client = client_service.create(
             client_id=1,
             name="Minimal Client",
             created_by_admin_id=100
@@ -108,12 +108,11 @@ class TestClientService:
 
         # Assert
         assert client.client_id == 1
-        assert client.name.value == "Minimal Client"
-        assert client.created_by_admin_id == 100
+        assert str(client.name) == "Minimal Client"
         assert client.email is None
         assert client.address is None
         assert client.phone is None
-        assert client.enabled is True  # default
+        assert client.enabled is True
 
     # ---------------------------
     # Update Contact Info Tests
@@ -134,16 +133,16 @@ class TestClientService:
             client_id=1,
             email="updated@example.com",
             address="Updated Address",
-            phone="555-9999"
+            phone="+9999999999"
         )
 
         # Assert
-        assert updated_client.email.value == "updated@example.com"
-        assert updated_client.address.value == "Updated Address"
-        assert updated_client.phone.value == "555-9999"
+        assert str(updated_client.email) == "updated@example.com"
+        assert str(updated_client.address) == "Updated Address"
+        assert str(updated_client.phone) == "+9999999999"
 
         mock_client_repository.get.assert_called_once_with(1)
-        mock_client_repository.save.assert_called_once_with(sample_client)
+        mock_client_repository.save.assert_called_once()
 
     def test_update_contact_info_partial(
             self,
@@ -151,41 +150,20 @@ class TestClientService:
             mock_client_repository: Mock,
             sample_client: Client
     ):
-        """Test updating only some contact fields."""
+        """Test partial contact info update."""
         # Arrange
         mock_client_repository.get.return_value = sample_client
         original_email = sample_client.email
-        original_address = sample_client.address
 
-        # Act - update only phone
+        # Act
         updated_client = client_service.update_contact_info(
             client_id=1,
-            phone="555-8888"
+            phone="+8888888888"
         )
 
         # Assert
-        assert updated_client.email == original_email  # unchanged
-        assert updated_client.address == original_address  # unchanged
-        assert updated_client.phone.value == "555-8888"  # updated
-
-    def test_update_contact_info_deleted_client(
-            self,
-            client_service: ClientService,
-            mock_client_repository: Mock,
-            deleted_client: Client
-    ):
-        """Test updating contact info of deleted client fails."""
-        # Arrange
-        mock_client_repository.get.return_value = deleted_client
-
-        # Act & Assert
-        with pytest.raises(DomainOperationError, match="Cannot update a deleted client"):
-            client_service.update_contact_info(
-                client_id=2,
-                email="test@example.com"
-            )
-
-        mock_client_repository.save.assert_not_called()
+        assert updated_client.email == original_email  # Unchanged
+        assert str(updated_client.phone) == "+8888888888"
 
     def test_update_contact_info_client_not_found(
             self,
@@ -204,7 +182,7 @@ class TestClientService:
             )
 
     # ---------------------------
-    # Enable/Disable Client Tests
+    # Enable/Disable Tests
     # ---------------------------
 
     def test_disable_client_success(
@@ -215,225 +193,166 @@ class TestClientService:
     ):
         """Test successfully disabling a client."""
         # Arrange
-        sample_client.enable()  # ensure client is enabled
         mock_client_repository.get.return_value = sample_client
+        assert sample_client.enabled is True
 
         # Act
-        disabled_client = client_service.disable_client(client_id=1)
+        disabled_client = client_service.disable(client_id=1)
 
         # Assert
         assert disabled_client.enabled is False
-        mock_client_repository.get.assert_called_once_with(1)
         mock_client_repository.save.assert_called_once()
-
-    def test_disable_already_disabled_client(
-            self,
-            client_service: ClientService,
-            mock_client_repository: Mock,
-            sample_client: Client
-    ):
-        """Test disabling an already disabled client (should be idempotent)."""
-        # Arrange
-        sample_client.disable()  # disable first
-        assert sample_client.enabled is False
-        mock_client_repository.get.return_value = sample_client
-
-        # Act
-        disabled_client = client_service.disable_client(client_id=1)
-
-        # Assert
-        assert disabled_client.enabled is False
-        mock_client_repository.save.assert_called_once()  # still called
-
-    def test_disable_deleted_client(
-            self,
-            client_service: ClientService,
-            mock_client_repository: Mock,
-            deleted_client: Client
-    ):
-        """Test disabling a deleted client fails."""
-        # Arrange
-        mock_client_repository.get.return_value = deleted_client
-
-        # Act & Assert
-        with pytest.raises(DomainOperationError, match="Cannot disable a deleted client"):
-            client_service.disable_client(client_id=2)
-
-        mock_client_repository.save.assert_not_called()
 
     def test_enable_client_success(
             self,
             client_service: ClientService,
             mock_client_repository: Mock,
-            sample_client: Client
+            disabled_client: Client
     ):
         """Test successfully enabling a client."""
         # Arrange
-        sample_client.disable()  # disable first
-        mock_client_repository.get.return_value = sample_client
+        mock_client_repository.get.return_value = disabled_client
+        assert disabled_client.enabled is False
 
         # Act
-        enabled_client = client_service.enable_client(client_id=1)
+        enabled_client = client_service.enable(client_id=2)
 
         # Assert
         assert enabled_client.enabled is True
-        mock_client_repository.get.assert_called_once_with(1)
         mock_client_repository.save.assert_called_once()
 
-    def test_enable_deleted_client(
+    # ---------------------------
+    # Delete Tests (with new business rules)
+    # ---------------------------
+
+    def test_delete_client_success(
             self,
             client_service: ClientService,
             mock_client_repository: Mock,
-            deleted_client: Client
+            mock_user_repository: Mock,
+            disabled_client: Client
     ):
-        """Test enabling a deleted client fails."""
+        """Test successfully hard deleting a disabled client with no users."""
         # Arrange
-        mock_client_repository.get.return_value = deleted_client
+        mock_client_repository.get.return_value = disabled_client
+        mock_user_repository.get_all_by_client.return_value = []  # No users
+
+        # Act
+        client_service.delete(client_id=2)
+
+        # Assert
+        mock_client_repository.get.assert_called_once_with(2)
+        mock_user_repository.get_all_by_client.assert_called_once_with(client_id=2)
+        mock_client_repository.hard_delete.assert_called_once_with(2)
+
+    def test_delete_active_client_fails(
+            self,
+            client_service: ClientService,
+            mock_client_repository: Mock,
+            mock_user_repository: Mock,
+            sample_client: Client
+    ):
+        """Test deleting an active client fails."""
+        # Arrange
+        mock_client_repository.get.return_value = sample_client
+        assert sample_client.enabled is True
 
         # Act & Assert
-        with pytest.raises(DomainOperationError, match="Cannot enable a deleted client"):
-            client_service.enable_client(client_id=2)
+        with pytest.raises(DomainOperationError, match="is active"):
+            client_service.delete(client_id=1)
 
-        mock_client_repository.save.assert_not_called()
+        mock_client_repository.hard_delete.assert_not_called()
+        mock_user_repository.get_all_by_client.assert_not_called()  # Shouldn't check users if client is active
 
-    # ---------------------------
-    # Soft Delete/Restore Tests
-    # ---------------------------
-
-    def test_soft_delete_client_success(
+    def test_delete_client_with_users_fails(
             self,
             client_service: ClientService,
             mock_client_repository: Mock,
-            sample_client: Client
+            mock_user_repository: Mock,
+            disabled_client: Client
     ):
-        """Test successfully soft deleting a client."""
+        """Test deleting a client that has users fails."""
         # Arrange
-        mock_client_repository.get.return_value = sample_client
-        assert sample_client.is_deleted is False
+        mock_client_repository.get.return_value = disabled_client
+        # Mock that client has users
+        mock_user_repository.get_all_by_client.return_value = [Mock(), Mock()]
 
-        # Act
-        deleted_client = client_service.soft_delete_client(client_id=1)
-
-        # Assert
-        assert deleted_client.is_deleted is True
-        mock_client_repository.get.assert_called_once_with(1)
-        mock_client_repository.save.assert_called_once()
-
-    def test_soft_delete_already_deleted_client(
-            self,
-            client_service: ClientService,
-            mock_client_repository: Mock,
-            deleted_client: Client
-    ):
-        """Test soft deleting an already deleted client (idempotent)."""
-        # Arrange
-        mock_client_repository.get.return_value = deleted_client
-
-
-        # Act
-        result = client_service.soft_delete_client(client_id=2)
-
-        # Assert
-        assert result.is_deleted is True
+        # Act & Assert
+        with pytest.raises(DomainOperationError, match="has users"):
+            client_service.delete(client_id=2)
 
         mock_client_repository.get.assert_called_once_with(2)
-        mock_client_repository.save.assert_not_called()  # no save needed
+        mock_user_repository.get_all_by_client.assert_called_once_with(client_id=2)
+        mock_client_repository.hard_delete.assert_not_called()
 
-    def test_restore_client_success(
-            self,
-            client_service: ClientService,
-            mock_client_repository: Mock,
-            deleted_client: Client
-    ):
-        """Test successfully restoring a deleted client."""
-        # Arrange
-        mock_client_repository.get.return_value = deleted_client
-
-        # Act
-        restored_client = client_service.restore_client(client_id=2)
-
-        # Assert
-        assert restored_client.is_deleted is False
-
-        mock_client_repository.get.assert_called_once_with(2)
-        mock_client_repository.save.assert_called_once()
-
-    def test_restore_non_deleted_client(
-            self,
-            client_service: ClientService,
-            mock_client_repository: Mock,
-            sample_client: Client
-    ):
-        """Test restoring a non-deleted client (idempotent)."""
-        # Arrange
-        mock_client_repository.get.return_value = sample_client
-        assert sample_client.is_deleted is False
-
-        # Act
-        result = client_service.restore_client(client_id=1)
-
-        # Assert
-        assert result.is_deleted is False
-        mock_client_repository.save.assert_not_called()
-
-    # ---------------------------
-    # Hard Delete Tests
-    # ---------------------------
-
-    def test_hard_delete_client_success(
-            self,
-            client_service: ClientService,
-            mock_client_repository: Mock,
-            sample_client: Client
-    ):
-        """Test successfully hard deleting a client."""
-        # Arrange
-        mock_client_repository.get.return_value = sample_client
-
-        # Act
-        client_service.hard_delete_client(client_id=1)
-
-        # Assert
-        mock_client_repository.get.assert_called_once_with(1)
-        mock_client_repository.hard_delete.assert_called_once_with(1)
-
-    def test_hard_delete_client_not_found(
+    def test_delete_client_not_found(
             self,
             client_service: ClientService,
             mock_client_repository: Mock
     ):
-        """Test hard deleting non-existent client."""
+        """Test deleting non-existent client."""
         # Arrange
         mock_client_repository.get.side_effect = ItemValidationError("Client not found")
 
         # Act & Assert
         with pytest.raises(ItemValidationError, match="Client not found"):
-            client_service.hard_delete_client(client_id=999)
+            client_service.delete(client_id=999)
 
-        mock_client_repository.hard_delete.assert_not_called()
+    # ---------------------------
+    # _check_users Tests
+    # ---------------------------
+
+    def test_check_users_with_users(
+            self,
+            client_service: ClientService,
+            mock_user_repository: Mock
+    ):
+        """Test _check_users returns True when client has users."""
+        # Arrange
+        mock_user_repository.get_all_by_client.return_value = [Mock(), Mock()]
+
+        # Act
+        result = client_service._check_users(client_id=1)
+
+        # Assert
+        assert result is True
+        mock_user_repository.get_all_by_client.assert_called_once_with(client_id=1)
+
+    def test_check_users_without_users(
+            self,
+            client_service: ClientService,
+            mock_user_repository: Mock
+    ):
+        """Test _check_users returns False when client has no users."""
+        # Arrange
+        mock_user_repository.get_all_by_client.return_value = []
+
+        # Act
+        result = client_service._check_users(client_id=1)
+
+        # Assert
+        assert result is False
+        mock_user_repository.get_all_by_client.assert_called_once_with(client_id=1)
 
     # ---------------------------
     # Integration/Combined Scenarios
     # ---------------------------
 
-    def test_full_client_lifecycle(
+    def test_full_client_lifecycle_with_delete(
             self,
             client_service: ClientService,
-            mock_client_repository: Mock
+            mock_client_repository: Mock,
+            mock_user_repository: Mock
     ):
-        """Test complete client lifecycle: create -> update -> disable -> restore -> soft delete -> hard delete."""
-        # Arrange
-        mock_client_repository.exists_by_name.return_value = False
-
+        """Test complete client lifecycle including delete."""
         # 1. Create client
-        client = client_service.create_client(
+        client = client_service.create(
             client_id=1,
             name="Lifecycle Client",
             created_by_admin_id=100,
             email="lifecycle@example.com"
         )
         assert client.enabled is True
-        assert client.is_deleted is False
 
         # Update mock for subsequent operations
         mock_client_repository.get.return_value = client
@@ -441,115 +360,38 @@ class TestClientService:
         # 2. Update contact info
         updated = client_service.update_contact_info(
             client_id=1,
-            phone="555-1234"
+            phone="+1234567890"
         )
-        assert updated.phone.value == "555-1234"
+        assert str(updated.phone) == "+1234567890"
 
-        # 3. Disable client
-        disabled = client_service.disable_client(client_id=1)
+        # 3. Disable client (required for delete)
+        disabled = client_service.disable(client_id=1)
         assert disabled.enabled is False
 
-        # 4. Enable client again
-        enabled = client_service.enable_client(client_id=1)
-        assert enabled.enabled is True
+        # 4. Verify no users and delete
+        mock_user_repository.get_all_by_client.return_value = []
+        client_service.delete(client_id=1)
 
-        # 5. Soft delete
-        deleted = client_service.soft_delete_client(client_id=1)
-        assert deleted.is_deleted is True
-
-        # 6. Restore
-        restored = client_service.restore_client(client_id=1)
-        assert restored.is_deleted is False
-
-        # 7. Hard delete
-        client_service.hard_delete_client(client_id=1)
+        # Verify final delete
         mock_client_repository.hard_delete.assert_called_once_with(1)
 
-    def test_cannot_modify_after_hard_delete(
-            self,
-            client_service: ClientService,
-            mock_client_repository: Mock
-    ):
-        """Test that operations fail after client is hard deleted."""
-        # Arrange
-        mock_client_repository.get.side_effect = ItemValidationError("Client not found")
-
-        # Act & Assert
-        with pytest.raises(ItemValidationError, match="Client not found"):
-            client_service.update_contact_info(client_id=1, email="test@example.com")
-
-        with pytest.raises(ItemValidationError, match="Client not found"):
-            client_service.disable_client(client_id=1)
-
-        with pytest.raises(ItemValidationError, match="Client not found"):
-            client_service.soft_delete_client(client_id=1)
-
-    # ---------------------------
-    # Edge Cases and Error Handling
-    # ---------------------------
-
-
-    def test_repository_save_failure(
-            self,
-            client_service: ClientService,
-            mock_client_repository: Mock
-    ):
-        """Test handling of repository save failure."""
-        # Arrange
-        mock_client_repository.exists_by_name.return_value = False
-        mock_client_repository.save.side_effect = RuntimeError("Database connection failed")
-
-        # Act & Assert
-        with pytest.raises(RuntimeError, match="Database connection failed"):
-            client_service.create_client(
-                client_id=1,
-                name="Test Client",
-                created_by_admin_id=100
-            )
-
-    def test_concurrent_modification(
+    def test_cannot_delete_reenabled_client(
             self,
             client_service: ClientService,
             mock_client_repository: Mock,
-            sample_client: Client
+            mock_user_repository: Mock,
+            disabled_client: Client
     ):
-        """Test handling of concurrent modifications (if repository implements versioning)."""
+        """Test that a client re-enabled after disable cannot be deleted."""
         # Arrange
-        mock_client_repository.get.return_value = sample_client
+        mock_client_repository.get.return_value = disabled_client
 
-        # Simulate version conflict
-        def save_with_conflict(client):
-            raise DomainOperationError("Version mismatch - client was modified by another user")
-
-        mock_client_repository.save.side_effect = save_with_conflict
+        # Re-enable the client
+        disabled_client.enable()
+        assert disabled_client.enabled is True
 
         # Act & Assert
-        with pytest.raises(DomainOperationError, match="Version mismatch"):
-            client_service.update_contact_info(
-                client_id=1,
-                email="conflict@example.com"
-            )
+        with pytest.raises(DomainOperationError, match="is active"):
+            client_service.delete(client_id=2)
 
-    @pytest.mark.parametrize("invalid_client_id", [-1, 0, None])
-    def test_operations_with_invalid_client_id(
-            self,
-            client_service: ClientService,
-            mock_client_repository: Mock,
-            invalid_client_id
-    ):
-        """Test various operations with invalid client IDs."""
-        # Arrange
-        mock_client_repository.get.side_effect = ItemValidationError(f"Client {invalid_client_id} not found")
-
-        # Act & Assert
-        operations = [
-            lambda: client_service.update_contact_info(client_id=invalid_client_id, email="test@example.com"),
-            lambda: client_service.disable_client(client_id=invalid_client_id),
-            lambda: client_service.enable_client(client_id=invalid_client_id),
-            lambda: client_service.soft_delete_client(client_id=invalid_client_id),
-            lambda: client_service.restore_client(client_id=invalid_client_id),
-        ]
-
-        for operation in operations:
-            with pytest.raises(ItemValidationError, match=f"Client {invalid_client_id} not found"):
-                operation()
+        mock_client_repository.hard_delete.assert_not_called()

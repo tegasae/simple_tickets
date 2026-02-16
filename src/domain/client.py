@@ -25,7 +25,6 @@ class Client:
         created_by_admin_id: ID of admin who created this client
         enabled: Whether the client is active
         date_created: When the client record was created
-        is_deleted: Soft delete flag
         version: Optimistic concurrency control version
     """
     client_id: int
@@ -36,7 +35,6 @@ class Client:
     created_by_admin_id: int = 0
     enabled: bool = True
     date_created: datetime = field(default_factory=datetime.now)
-    is_deleted: bool = False
     version: int = 0
 
     @classmethod
@@ -123,24 +121,9 @@ class Client:
         self.enabled = True
         self.version += 1
 
-    def soft_delete(self) -> None:
-        """Mark client as deleted (soft delete)."""
-        self.is_deleted = True
-        self.version += 1
 
-    def restore(self) -> None:
-        """Restore a soft-deleted client."""
-        self.is_deleted = False
-        self.version += 1
 
-    @property
-    def is_active(self) -> bool:
-        """Check if client is active (enabled and not deleted).
 
-        Returns:
-            True if client is active
-        """
-        return self.enabled and not self.is_deleted
 
     def update_contact_info(
             self,
@@ -161,6 +144,7 @@ class Client:
         try:
             if email is not None:
                 self.email = Email(email) if email else None
+
             if address is not None:
                 self.address = Address(address) if address else None
             if phone is not None:

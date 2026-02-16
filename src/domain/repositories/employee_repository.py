@@ -26,18 +26,21 @@ class AdminRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def save(self, admin: Admin):
+    def save(self, admin: Admin)->Admin:
+        raise NotImplementedError
+
+
+    @abstractmethod
+    def delete(self, admin_id: int):
         raise NotImplementedError
 
     @abstractmethod
-    def soft_delete(self, admin_id: int):
+    def find_by_login(self, *, login: str) -> Admin:
         raise NotImplementedError
 
     @abstractmethod
-    def hard_delete(self, admin_id: int):
+    def exist_login(self, login: str) -> bool:
         raise NotImplementedError
-
-
 
 class UserRepository(ABC):
     """
@@ -65,15 +68,12 @@ class UserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def save(self, user: User):
+    def save(self, user: User)->User:
         raise NotImplementedError
 
-    @abstractmethod
-    def soft_delete(self, user_id: int):
-        raise NotImplementedError
 
     @abstractmethod
-    def hard_delete(self, user_id: int):
+    def delete(self, user_id: int):
         raise NotImplementedError
 
 

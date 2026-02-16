@@ -1,6 +1,6 @@
 # src/domain/repositories/account_repository.py
 from abc import ABC, abstractmethod
-from typing import runtime_checkable
+
 
 from src.domain.client import Client
 
@@ -32,7 +32,7 @@ class ClientRepository(ABC):
         raise NotImplementedError
     # -------- Writes --------
     @abstractmethod
-    def save(self, client: Client):
+    def save(self, client: Client)->Client:
         raise NotImplementedError
     @abstractmethod
     def hard_delete(self, client_id: int):
