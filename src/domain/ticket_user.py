@@ -73,7 +73,7 @@ class TicketUser:
 
 
     # Optional cross-link for future transformation (can be unused now)
-    promoted_ticket_id: Optional[int] = None
+    0
 
     statuses: list[StatusRecordTicketUser] = field(default_factory=list)
     comments: list[Comment] = field(default_factory=list)
