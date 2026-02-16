@@ -65,10 +65,9 @@ class Ticket:
     description: str
 
     text_of_ticket: str = ""
-    created_by_client: bool = False
+    user_id:int=0
 
-    # Optional cross-link for future transformation (can be unused for now)
-    source_user_ticket_id: Optional[int] = None
+
 
     statuses: list[TicketStatusRecord] = field(default_factory=list)
     comments: list[Comment] = field(default_factory=list)

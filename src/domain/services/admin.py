@@ -79,7 +79,7 @@ class AdminService:
         admin = self._admin_repository.save(admin)
         return admin
 
-    def delete(self, *, admin_id: int) -> None:
+    def delete(self, *, admin_id: int, number_of_clients:int, number_of_users:int,number_of_tickets) -> None:
         """
         Hard delete is rare. Optionally also delete the attached account.
         """
@@ -87,6 +87,8 @@ class AdminService:
         #####
         #check if admin has created clients, tickets and other
         #####
+        if number_of_tickets!= 0 or number_of_users!= 0 or number_of_tickets != 0:
+            raise DomainOperationError(f"Admin id {admin_id} cannot be deleted because has other elements")
         self._admin_repository.delete(admin_id=admin_id)
 
 

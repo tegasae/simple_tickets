@@ -9,7 +9,7 @@ from src.domain.exceptions import DomainOperationError, DomainSecurityError
 from src.old.model import AdminsAggregate, Admin
 from src.old.permissions.rbac import RoleRegistry
 from src.old.permissions.permission import PermissionAdmin
-from src.domain.services.roles_admins import AdminRolesManagementService
+from src.old.rbac.roles_admins import AdminRolesManagementService
 from src.services.uow.uowsqlite import AbstractUnitOfWork
 
 logger = logging.getLogger(__name__)
