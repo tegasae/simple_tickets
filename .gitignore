@@ -1,4 +1,4 @@
-.vanv/
+.venv/
 .idea/
 *.pyc
 *.iml
