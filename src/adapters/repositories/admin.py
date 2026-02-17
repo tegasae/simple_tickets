@@ -1,7 +1,17 @@
+from datetime import datetime
+
 from src.domain.account import NoAccount
 from src.domain.employee import Admin
 from src.domain.repositories.admin_repository import AdminRepository
 from utils.db.connect import Connection
+
+
+def date_from_sqlite_iso(date_created: str) -> datetime:
+    try:
+        date = datetime.fromisoformat(date_created)
+    except ValueError:
+        date = datetime.now()
+    return date
 
 
 class AdminRepositorySQLite(AdminRepository):
@@ -117,15 +127,11 @@ class AdminRepositorySQLite(AdminRepository):
                       email=admin_data['email'],phone=admin_data['phone'],enabled=bool(admin_data['is_deleted']),
                       date_created=date_from_sqlite_iso(admin_data['date_created']),
                       is_deleted=bool(admin_data['is_deleted']),job_title=admin_data['job_title'],account=NoAccount())
-            email=admin_data['email'],
-            enabled=bool(admin_data['enabled']),
-            date_created=date_from_sqlite_iso(admin_data['date_created']),
-            roles_ids=self._get_roles(admin_data['roles'])
-        )
+
         return admin
 
     def get_all(self) -> list[Admin]:
-        pass
+
 
     def exists(self, admin_id: int) -> bool:
         pass
