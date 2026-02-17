@@ -4,6 +4,7 @@ from src.domain.account import NoAccount
 from src.domain.employee import Admin
 from src.domain.repositories.admin_repository import AdminRepository
 from utils.db.connect import Connection
+from utils.db.exceptions import DBOperationError
 
 
 def date_from_sqlite_iso(date_created: str) -> datetime:
@@ -116,9 +117,10 @@ class AdminRepositorySQLite(AdminRepository):
             raise DBOperationError(f"Failed to save admins: {str(e)}")
 
     def get(self, admin_id: int) -> Admin:
-        query = self.conn.create_query("SELECT e.employee_id, e.first_name, e.last_name, e.email, e.phone, e.date_created, e.enabled, e.is_deleted, a.admin_id, a.job_title "
+        query = self.conn.create_query("SELECT e.employee_id, e.first_name, e.last_name, e.email, e.phone, e.date_created, e.enabled, "
+                                       "e.is_deleted, e.version, a.admin_id, a.job_title "
                                        "FROM admins a JOIN employees e  ON e.employee_id = a.employee_id WHERE a.admin_id = :admin_id",
-            var=['employee_id', 'first_name', 'last_name', 'email', 'phone', 'enabled', 'is_deleted','admin_id', 'a.job_title'])
+            var=['employee_id', 'first_name', 'last_name', 'email', 'phone', 'date_created', 'enabled', 'is_deleted','version', 'admin_id', 'a.job_title'])
 
         admin_data = query.get_one_result(params={'admin_id': admin_id})
         if not len(admin_data):
@@ -126,12 +128,39 @@ class AdminRepositorySQLite(AdminRepository):
         admin = Admin(employee_id=admin_data['employee_id'],first_name=admin_data['first_name'],last_name=admin_data['last_name'],
                       email=admin_data['email'],phone=admin_data['phone'],enabled=bool(admin_data['is_deleted']),
                       date_created=date_from_sqlite_iso(admin_data['date_created']),
-                      is_deleted=bool(admin_data['is_deleted']),job_title=admin_data['job_title'],account=NoAccount())
+                      is_deleted=bool(admin_data['is_deleted']),version=admin_data['version'],job_title=admin_data['job_title'],account=NoAccount())
 
         return admin
 
     def get_all(self) -> list[Admin]:
+            try:
+                query = self.conn.create_query(
+                    "SELECT e.employee_id, e.first_name, e.last_name, e.email, e.phone, e.date_created, e.enabled, "
+                    "e.is_deleted, e.version, a.admin_id, a.job_title "
+                    "FROM admins a JOIN employees e  ON e.employee_id = a.employee_id",
+                    var=['employee_id', 'first_name', 'last_name', 'email', 'phone', 'date_created', 'enabled',
+                         'is_deleted', 'version', 'admin_id', 'a.job_title'])
 
+                admins_data = query.get_result()
+
+                admins = []
+
+                for admin_data in admins_data:
+                    admin = Admin(employee_id=admin_data['employee_id'], first_name=admin_data['first_name'],
+                                  last_name=admin_data['last_name'],
+                                  email=admin_data['email'], phone=admin_data['phone'],
+                                  enabled=bool(admin_data['is_deleted']),
+                                  date_created=date_from_sqlite_iso(admin_data['date_created']),
+                                  is_deleted=bool(admin_data['is_deleted']), version=admin_data['version'],
+                                  job_title=admin_data['job_title'], account=NoAccount())
+
+
+                    admins.append(admin)
+
+                return admins
+
+            except Exception as e:
+                raise DBOperationError(f"Failed to get admin list: {str(e)}")
 
     def exists(self, admin_id: int) -> bool:
         pass
