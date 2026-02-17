@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Create Admin - Admin Management{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-person-plus"></i> Create New Admin</h5>
+            </div>
+            <div class="card-body">
+                <form id="createAdminForm">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                        <div class="form-text">Full name of the administrator</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email *</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                        <div class="form-text">Email address for login</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password *</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                        <div class="form-text">Minimum 6 characters</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enabled" name="enabled" checked>
+                            <label class="form-check-label" for="enabled">
+                                Account Enabled
+                            </label>
+                        </div>
+                        <div class="form-text">Disable to prevent login</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="roles" class="form-label">Roles (optional)</label>
+                        <select class="form-select" id="roles" name="roles" multiple>
+                            <option value="1">Administrator</option>
+                            <option value="2">Manager</option>
+                            <option value="3">Viewer</option>
+                        </select>
+                        <div class="form-text">Hold Ctrl/Cmd to select multiple roles</div>
+                    </div>
+
+                    <div class="alert alert-danger d-none" id="errorAlert"></div>
+                    <div class="alert alert-success d-none" id="successAlert"></div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="/admins" class="btn btn-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <span id="submitSpinner" class="spinner-border spinner-border-sm d-none"></span>
+                            Create Admin
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/admin.js"></script>
+<script>
+document.getElementById('createAdminForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const form = e.target;
+    const submitBtn = document.getElementById('submitBtn');
+    const spinner = document.getElementById('submitSpinner');
+    const errorAlert = document.getElementById('errorAlert');
+    const successAlert = document.getElementById('successAlert');
+
+    // Show loading
+    submitBtn.disabled = true;
+    spinner.classList.remove('d-none');
+    errorAlert.classList.add('d-none');
+    successAlert.classList.add('d-none');
+
+    // Get roles as array
+    const roleSelect = document.getElementById('roles');
+    const selectedRoles = Array.from(roleSelect.selectedOptions).map(option => parseInt(option.value));
+
+    // Prepare data
+    const adminData = {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value,
+        enabled: document.getElementById('enabled').checked,
+        roles: selectedRoles
+    };
+
+    try {
+        const response = await createAdmin(adminData);
+
+        if (response.ok) {
+            successAlert.textContent = 'Admin created successfully! Redirecting...';
+            successAlert.classList.remove('d-none');
+
+            // Redirect to admins list after 2 seconds
+            setTimeout(() => {
+                window.location.href = '/admins';
+            }, 2000);
+        } else {
+            const errorData = await response.json();
+            errorAlert.textContent = errorData.detail || 'Failed to create admin';
+            errorAlert.classList.remove('d-none');
+        }
+    } catch (error) {
+        errorAlert.textContent = 'Network error. Please try again.';
+        errorAlert.classList.remove('d-none');
+    } finally {
+        submitBtn.disabled = false;
+        spinner.classList.add('d-none');
+    }
+});
+</script>
+{% endblock %}
+
+

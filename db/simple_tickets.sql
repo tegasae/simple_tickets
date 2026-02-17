@@ -2,7 +2,7 @@ PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
 CREATE TABLE employees (
 	employee_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	firts_name TEXT,
+	first_name TEXT,
 	last_name TEXT,
 	email TEXT,
 	phone TEXT,
