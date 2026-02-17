@@ -2,7 +2,7 @@
 from src.domain.employee import User
 from src.domain.exceptions import DomainOperationError
 from src.domain.repositories.ticket_user_repository import TicketUserRepository
-from src.domain.repositories.user_repository import UserRepository
+
 
 
 # ---------- Domain service ----------

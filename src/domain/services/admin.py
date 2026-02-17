@@ -4,8 +4,7 @@
 from src.domain.employee import Admin
 from src.domain.account import Account, NoAccount
 from src.domain.exceptions import DomainOperationError, ItemValidationError
-from src.domain.repositories.employee_repository import AdminRepository
-
+from src.domain.repositories.admin_repository import AdminRepository
 
 
 # ---------------------------
@@ -79,7 +78,7 @@ class AdminService:
         admin = self._admin_repository.save(admin)
         return admin
 
-    def delete(self, *, admin_id: int, number_of_clients:int, number_of_users:int,number_of_tickets) -> None:
+    def delete(self, *, admin_id: int, number_of_client:int, number_of_users:int,number_of_tickets) -> None:
         """
         Hard delete is rare. Optionally also delete the attached account.
         """
@@ -87,12 +86,19 @@ class AdminService:
         #####
         #check if admin has created clients, tickets and other
         #####
-        if number_of_tickets!= 0 or number_of_users!= 0 or number_of_tickets != 0:
+        if number_of_tickets!= 0 or number_of_users!= 0 or number_of_client != 0:
             raise DomainOperationError(f"Admin id {admin_id} cannot be deleted because has other elements")
         self._admin_repository.delete(admin_id=admin_id)
 
 
     # -------- Account attach/detach --------
+class AdminAccountService:
+    def __init__(
+        self,
+        admin_repository: AdminRepository,
+
+    ) -> None:
+        self._admin_repository = admin_repository
 
     def attach_account(
         self,

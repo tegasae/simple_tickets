@@ -73,12 +73,13 @@ class Ticket:
     comments: list[Comment] = field(default_factory=list)
     executors: list[ExecutorAssignment] = field(default_factory=list)
 
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     is_remote:bool=False
     is_closed: bool = False
-    finished_at: Optional[datetime] = None
+    date_finished: Optional[datetime] = None
     version: int = 0
     urgency_level: int = 0
+    user_ticket_id: int = 0
     def __post_init__(self) -> None:
         # Ensure initial status exists
         if not self.statuses:
@@ -90,9 +91,9 @@ class Ticket:
         current = self.current_status()
         if current in (TicketStatus.EXECUTED, TicketStatus.CANCELLED):
             self.is_closed = True
-            if self.finished_at is None:
+            if self.date_finished is None:
                 # If not stored, infer at least "now" (or use last record time if preferred)
-                self.finished_at = self.statuses[-1].created_at
+                self.date_finished = self.statuses[-1].created_at
         else:
             self.is_closed = False
 
@@ -128,7 +129,7 @@ class Ticket:
 
         if new_status in (TicketStatus.EXECUTED, TicketStatus.CANCELLED):
             self.is_closed = True
-            self.finished_at = datetime.now(timezone.utc)
+            self.date_finished = datetime.now(timezone.utc)
 
     def add_comment(self, comment: Comment) -> None:
         if self.is_closed:

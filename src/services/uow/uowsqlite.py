@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import ContextManager
 import logging
 
+import src.domain.repositories.admin_repository
 from src.adapters import repository, repositorysqlite
 from utils.db.connect import Connection
 
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class AbstractUnitOfWork(ContextManager,ABC):
-    admins_repository: repository.AdminRepository
+    admins_repository: src.domain.repositories.admin_repository.AdminRepository
     clients_repository: repository.ClientRepository
     """
     Abstract base class that combines ABC and ContextManager
@@ -39,7 +40,7 @@ class AbstractUnitOfWork(ContextManager,ABC):
 
     @property
     @abstractmethod
-    def admins(self)-> repository.AdminRepository:
+    def admins(self)-> src.domain.repositories.admin_repository.AdminRepository:
         """Admin repository access"""
         raise NotImplementedError
 
@@ -116,7 +117,7 @@ class SqliteUnitOfWork(AbstractUnitOfWork):
             logger.info("SQLite transaction rolled back")
 
     @property
-    def admins(self)->repository.AdminRepository:
+    def admins(self)-> src.domain.repositories.admin_repository.AdminRepository:
 
         # if self._admins_repo is None:
         #    from src.adapters.repository_sqlite import SQLiteAdminRepository

@@ -68,8 +68,7 @@ class TicketUser:
     user_id: int
     description: str
 
-    # User-only fields you mentioned
-    created_by_client: bool = False
+
 
 
     # Optional cross-link for future transformation (can be unused now)

@@ -4,7 +4,7 @@ from __future__ import annotations
 from src.domain.client import Client
 from src.domain.exceptions import DomainOperationError
 from src.domain.repositories.client_repository import ClientRepository
-from src.domain.repositories.employee_repository import UserRepository
+from src.domain.repositories.user_repository import UserRepository
 
 
 # ---------------------------

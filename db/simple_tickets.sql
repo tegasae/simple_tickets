@@ -60,6 +60,8 @@ CREATE TABLE tickets (
 	ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	client_id INTEGER,
 	admin_id INTEGER,
+	user_id INTEGER,
+	user_ticket_id INTEGER,
 	description TEXT,
 	text_of_ticket TEXT,
 	date_created TEXT,
@@ -68,10 +70,11 @@ CREATE TABLE tickets (
 	date_finished INTEGER,
 	vesrion INTEGER,
 	urgency_level INTEGER,
-	user_id INTEGER,
+
 	CONSTRAINT tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
 	CONSTRAINT tickets_admin_FK FOREIGN KEY (admin_id) REFERENCES admin(admin_id) on delete restrict,
-	CONSTRAINT tickets_user_user_FK FOREIGN KEY (user_id) REFERENCES users(user_id) on delete restrict
+	CONSTRAINT tickets_user_user_FK FOREIGN KEY (user_id) REFERENCES users(user_id) on delete restrict,
+	CONSTRAINT tickets_user_ticket_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict
 );
 CREATE TABLE IF NOT EXISTS "tickets_comment" (
 	comment_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
