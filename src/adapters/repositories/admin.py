@@ -1,8 +1,14 @@
 from src.domain.employee import Admin
 from src.domain.repositories.admin_repository import AdminRepository
+from utils.db.connect import Connection
 
 
 class AdminRepositorySQLite(AdminRepository):
+
+    def __init__(self, conn: Connection):
+        self.conn = conn
+
+        self.saved_version = 0
     def get(self, admin_id: int) -> Admin:
         pass
 
