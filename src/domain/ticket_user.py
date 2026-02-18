@@ -66,6 +66,7 @@ class TicketUser:
     ticket_id: int
     client_id: int
     user_id: int
+    contact_user_id: int
     description: str
 
 
@@ -100,6 +101,9 @@ class TicketUser:
                 self.finished_at = self.statuses[-1].created_at
         else:
             self.is_closed = False
+
+        if not self.contact_user_id:
+            self.contact_user_id=self.user_id
 
     # ----------------------------
     # Queries

@@ -66,6 +66,7 @@ class Ticket:
 
     text_of_ticket: str = ""
     user_id:int=0
+    contact_user_id:int=0
 
 
 
