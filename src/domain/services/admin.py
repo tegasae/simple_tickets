@@ -113,6 +113,7 @@ class AdminService:
         self._admin_repository.delete(admin_id=admin_id)
 
 
+if __name__=="__main__":
 
 
 
