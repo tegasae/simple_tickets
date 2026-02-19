@@ -2,14 +2,19 @@
 
 
 from src.domain.employee import Admin
-from src.domain.account import Account, NoAccount
-from src.domain.exceptions import DomainOperationError, ItemValidationError
+from src.domain.account import NoAccount
+from src.domain.exceptions import DomainOperationError
+from src.domain.repositories.account_repository import AccountRepository
 from src.domain.repositories.admin_repository import AdminRepository
+from src.domain.services.employee_account import EmployeeAccountService
 
 
 # ---------------------------
 # Services
 # ---------------------------
+
+# -------- Account attach/detach --------
+
 
 class AdminService:
     """
@@ -28,9 +33,13 @@ class AdminService:
     def __init__(
         self,
         admin_repository: AdminRepository,
+        account_repository: AccountRepository,
 
-    ) -> None:
+
+    ):
         self._admin_repository = admin_repository
+        self._account_repository = account_repository
+        self._account_service = EmployeeAccountService(account_repository=account_repository)
 
 
     # -------- Create / delete admin --------
@@ -44,6 +53,8 @@ class AdminService:
         last_name: str | None = None,
         email: str | None = None,
         phone: str | None = None,
+        login: str | None = None,
+        password: str | None = None
     ) -> Admin:
         admin = Admin.create(
             employee_id=admin_id,
@@ -53,7 +64,13 @@ class AdminService:
             email=email,
             phone=phone,
         )
+
         admin=self._admin_repository.save(admin)
+        if login and password:
+            account=self._account_service.attach_account(employee_id=admin_id, login=login, plain_password=password)
+            admin.account = account
+        else:
+            admin.account=NoAccount()
         return admin
 
     def update_admin(self,*,admin_id:int,job_title: str |None,first_name: str | None = None, last_name: str | None = None, email: str | None = None,phone: str | None = None)->Admin:
@@ -63,18 +80,22 @@ class AdminService:
         return admin
 
 
+    def update_admin_password(self,*,admin_id: int,password: str):
+        admin = self._admin_repository.get(admin_id)
+        self._account_service.update_password(employee_id=admin.employee_id, password=password)
 
-    def disable_admin(self, *, admin_id: int)-> Admin:
+
+    def disable_admin(self, *, admin_id: int):
         admin = self._admin_repository.get(admin_id)
         admin.disable()
-        admin.account.disable()
+        self._account_service.disable_account(employee_id=admin.employee_id)
+
         admin=self._admin_repository.save(admin)
         return admin
 
-    def enable_admin(self, *, admin_id: int)-> Admin:
+    def enable_admin(self, *, admin_id: int):
         admin = self._admin_repository.get(admin_id)
         admin.enable()
-        admin.account.enable()
         admin = self._admin_repository.save(admin)
         return admin
 
@@ -88,87 +109,11 @@ class AdminService:
         #####
         if number_of_tickets!= 0 or number_of_users!= 0 or number_of_client != 0:
             raise DomainOperationError(f"Admin id {admin_id} cannot be deleted because has other elements")
+        self._account_service.detach_account(employee_id=admin_id)
         self._admin_repository.delete(admin_id=admin_id)
 
 
-    # -------- Account attach/detach --------
-class AdminAccountService:
-    def __init__(
-        self,
-        admin_repository: AdminRepository,
 
-    ) -> None:
-        self._admin_repository = admin_repository
-
-    def attach_account(
-        self,
-        *,
-        admin_id: int,
-        login: str,
-        plain_password: str,
-    ) -> int:
-        """
-        Create a new Account and attach it to an Admin.
-
-        Raises:
-          - DomainOperationError if admin already has an account
-          - ItemValidationError if login already exists
-        """
-        admin = self._admin_repository.get(admin_id)
-
-
-        if isinstance(admin.account, Account):
-            raise DomainOperationError(f"Admin {admin_id} already has an account")
-
-        if self._admin_repository.exist_login(login=login):
-            raise ItemValidationError(f"Login '{login}' is already taken")
-
-        account = Account.create(account_id=0,login=login, plain_password=plain_password)
-        admin.account=account
-        admin.version+=1
-        admin=self._admin_repository.save(admin)
-        return admin.account.account_id
-
-    def detach_account(self, *, admin_id: int) -> None:
-        """
-        Detach account from admin (does NOT delete account).
-        """
-        admin=self._admin_repository.get(admin_id)  # ensure exists
-        admin.version+=1
-        admin.account=NoAccount()
-        self._admin_repository.save(admin)
-
-    # -------- Account enable/disable (only if attached) --------
-
-    def disable_account(self, *, admin_id: int) -> None:
-        admin = self._admin_repository.get(admin_id)
-        admin.account.disable()
-        admin.version+=1
-        self._admin_repository.save(admin)
-
-    def enable_account(self, *, admin_id: int) -> None:
-        admin=self._admin_repository.get(admin_id)
-        admin.account.enable()
-        admin.version += 1
-        self._admin_repository.save(admin)
-
-
-    def update_password(self, *, admin_id: int, password:str) -> None:
-        admin=self._admin_repository.get(admin_id)
-
-        if isinstance(admin.account, Account):
-            admin.account.change_password(plain_password=password)
-            admin.version+=1
-        self._admin_repository.save(admin)
-
-
-    def check_password(self, *, admin_id: int, password: str) -> bool:
-        admin=self._admin_repository.get(admin_id=admin_id)
-        return admin.account.verify_password(plain_password=password)
-
-    def find_by_login(self, *, login: str) -> Admin:
-        admin=self._admin_repository.find_by_login(login=login)
-        return admin
 
 
 

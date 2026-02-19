@@ -49,6 +49,10 @@ class ValueObject(Generic[T]):
         """Debug representation of the value object."""
         return f"{self.__class__.__name__}(value={self.value!r})"
 
+@dataclass(frozen=True, order=True)
+class Empty(ValueObject[str]):
+    value: str = ""
+
 
 @dataclass(frozen=True, order=True)
 class Email(ValueObject[str]):
@@ -61,6 +65,9 @@ class Email(ValueObject[str]):
         Allows empty strings. Non-empty emails are validated for format.
     """
     value: str = ""
+
+    def __str__(self) -> str:
+        return str(self.value)
 
     def _validate(self) -> str:
         """Validate email format.

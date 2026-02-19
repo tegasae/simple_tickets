@@ -6,16 +6,16 @@ from typing import FrozenSet, Self, Any
 
 from src.domain.account import AccountType, NoAccount
 from src.domain.rbac.employee_protocol import HasRoleIds
-from src.domain.value_objects import Email, Phone, Name
+from src.domain.value_objects import Email, Phone, Name, Empty
 
 
 @dataclass(kw_only=True,eq=False)
 class Employee(ABC, HasRoleIds):
     employee_id: int
-    first_name: Name|None
-    last_name: Name|None
-    email: Email|None=None
-    phone: Phone|None=None
+    first_name: Name|Empty
+    last_name: Name|Empty
+    email: Email|Empty=Empty
+    phone: Phone|Empty=Empty
     account:AccountType=field(default_factory=NoAccount)
     date_created: datetime = field(default_factory=datetime.now)
     enabled: bool = True
@@ -57,14 +57,13 @@ class Employee(ABC, HasRoleIds):
 
         return {
             "employee_id": employee_id,
-            "first_name": Name(first_name) if first_name else None,
-            "last_name": Name(last_name) if last_name else None,
-            "email": Email(email) if email else None,
-            "phone": Phone(phone) if phone else None,
+            "first_name": Name(first_name) if first_name else Empty(),
+            "last_name": Name(last_name) if last_name else Empty(),
+            "email": Email(email) if email else Empty(),
+            "phone": Phone(phone) if phone else Empty(),
             "enabled": enabled,
             "date_created": date_created or datetime.now(),
             "version": version,
-            "is_deleted": False,
             "account": account,
 
             # "_role_ids": set(),  # not needed; dataclass default_factory will handle it
@@ -99,11 +98,11 @@ class Employee(ABC, HasRoleIds):
 
     def grant_role(self, role_id: int) -> None:
         self._role_ids.add(role_id)
-        self.version += 1
+
 
     def revoke_role(self, role_id: int) -> None:
         self._role_ids.discard(role_id)
-        self.version -= 1
+
 
     def __eq__(self, other) -> bool:
         return isinstance(other, Employee) and self.employee_id == other.employee_id

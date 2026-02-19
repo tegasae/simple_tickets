@@ -18,37 +18,32 @@ class AccountRepository(ABC):
     def get(self, account_id: int) -> AccountType:
         raise NotImplementedError
 
-
     @abstractmethod
-    def get_by_employee_id(self,employee_id:int)->AccountType:
+    def get_employee_id(self, employee_id: int) -> AccountType:
         raise NotImplementedError
 
     @abstractmethod
     def get_all(self) -> list[Account]:
         raise NotImplementedError
+
     @abstractmethod
     def exists(self, account_id: int) -> bool:
         raise NotImplementedError
-    @abstractmethod
-    def account_is_enabled(self,account_id:int)->bool:
-        raise NotImplementedError
-
-
 
     # Often useful:
     @abstractmethod
-    def find_by_login(self, login: str) -> AccountType:
+    def find_by_login(self, login: str) -> int: #employee_id
         raise NotImplementedError
-
-
 
     @abstractmethod
     def account_is_enabled_by_login(self, login: str) -> bool:
         raise NotImplementedError
+
     # -------- Writes --------
     @abstractmethod
     def save(self, account: Account,employee_id=0)->Account:
         raise NotImplementedError
+
     @abstractmethod
-    def delete(self, account_id: int):
+    def delete(self, employee_id: int):
         raise NotImplementedError
