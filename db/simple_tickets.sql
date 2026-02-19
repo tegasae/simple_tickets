@@ -61,6 +61,7 @@ CREATE TABLE tickets (
 	client_id INTEGER,
 	admin_id INTEGER,
 	user_id INTEGER,
+	user_ticket_contact_user_id INTEGER DEFAULT(0),
 	user_ticket_id INTEGER,
 	description TEXT,
 	text_of_ticket TEXT,
@@ -70,11 +71,11 @@ CREATE TABLE tickets (
 	date_finished INTEGER,
 	vesrion INTEGER,
 	urgency_level INTEGER,
-
 	CONSTRAINT tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
-	CONSTRAINT tickets_admin_FK FOREIGN KEY (admin_id) REFERENCES admin(admin_id) on delete restrict,
+	CONSTRAINT tickets_admin_FK FOREIGN KEY (admin_id) REFERENCES admins(admin_id) on delete restrict,
 	CONSTRAINT tickets_user_user_FK FOREIGN KEY (user_id) REFERENCES users(user_id) on delete restrict,
-	CONSTRAINT tickets_user_ticket_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict
+	CONSTRAINT tickets_user_ticket_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict,
+	CONSTRAINT tickets_user_ticket_contact_user_FK FOREIGN KEY (user_ticket_contact_user_id) REFERENCES users(user_id) on delete restrict
 );
 CREATE TABLE IF NOT EXISTS "tickets_comment" (
 	comment_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -106,6 +107,7 @@ CREATE TABLE user_tickets (
 	user_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	client_id INTEGER,
 	user_id INTEGER,
+	user_ticket_contact_user_id INTEGER DEFAULT(0),
 	description TEXT,
 	date_created TEXT,
 	version INTEGER,
@@ -114,7 +116,9 @@ CREATE TABLE user_tickets (
 	promoted_ticket_id INTEGER,
 	CONSTRAINT user_tickets_users_FK FOREIGN KEY (user_id) REFERENCES users(user_id) on delete restrict,
 	CONSTRAINT user_tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
-	CONSTRAINT user_tickets_tickets_FK FOREIGN KEY (promoted_ticket_id) REFERENCES tickets(ticket_id) on delete restrict
+	CONSTRAINT user_tickets_tickets_FK FOREIGN KEY (promoted_ticket_id) REFERENCES tickets(ticket_id) on delete restrict,
+	CONSTRAINT user_tickets_user_ticket_contact_user_FK FOREIGN KEY (user_ticket_contact_user_id) REFERENCES users(user_id) on delete restrict
+
 );
 CREATE TABLE IF NOT EXISTS "user_tickets_comment" (
 	user_comment_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,

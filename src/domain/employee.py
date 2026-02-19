@@ -2,7 +2,7 @@
 from abc import ABC
 from dataclasses import field, dataclass
 from datetime import datetime
-from typing import FrozenSet, Self
+from typing import FrozenSet, Self, Any
 
 from src.domain.account import AccountType, NoAccount
 from src.domain.rbac.employee_protocol import HasRoleIds
@@ -21,8 +21,9 @@ class Employee(ABC, HasRoleIds):
     enabled: bool = True
     version: int = 0
     _is_empty: bool = field(default=False, init=False, repr=False)
-    is_deleted: bool = False
     _role_ids: set[int] = field(default_factory=set, repr=False)
+
+
 
     @classmethod
     def create_empty(cls) -> Self:
@@ -30,39 +31,55 @@ class Employee(ABC, HasRoleIds):
         admin._is_empty = True
         return admin
 
+
+
     @classmethod
     def _create_base(
             cls,
+            *,
             employee_id: int,
             first_name: str | None = None,
             last_name: str | None = None,
             email: str | None = None,
-            phone: str | None = None
-    ) -> dict:
-        """Common base creation logic."""
-        # Convert strings to value objects
-        first_name_obj = Name(first_name) if first_name else None
-        last_name_obj = Name(last_name) if last_name else None
-        email_obj = Email(email) if email else None
-        phone_obj = Phone(phone) if phone else None
+            phone: str | None = None,
+            enabled: bool = True,
+            date_created: datetime | None = None,
+            account: AccountType | NoAccount=NoAccount,
+            version: int = 0,
+    ) -> dict[str, Any]:
+        """
+        Common base creation logic.
+
+        - Converts raw strings to value objects.
+        - Treats empty/whitespace-only strings as "not provided" (None).
+        - Does not set account here (let the caller decide: account_id / Account / None, etc).
+        """
 
         return {
             "employee_id": employee_id,
-            "first_name": first_name_obj,
-            "last_name": last_name_obj,
-            "email": email_obj,
-            "phone": phone_obj,
-            "account": NoAccount(),
-            "enabled": True,
-            "version": 0,
+            "first_name": Name(first_name) if first_name else None,
+            "last_name": Name(last_name) if last_name else None,
+            "email": Email(email) if email else None,
+            "phone": Phone(phone) if phone else None,
+            "enabled": enabled,
+            "date_created": date_created or datetime.now(),
+            "version": version,
             "is_deleted": False,
+            "account": account,
+
+            # "_role_ids": set(),  # not needed; dataclass default_factory will handle it
         }
 
     def update_base(self, first_name: str|None, last_name: str|None, email: str|None=None, phone: str|None=None)->Self:
-        self.first_name = Name(first_name) if first_name else None
-        self.last_name = Name(last_name) if last_name else None
-        self.email = Email(email) if email else None
-        self.phone = Phone(phone) if phone else None
+        if first_name is not None:
+            self.first_name = Name(first_name)
+        if last_name is not None:
+            self.last_name = Name(last_name)
+        if email is not None:
+            self.email = Email(email)
+        if phone is not None:
+            self.phone = Phone(phone)
+
         self.version+=1
         return self
 
@@ -98,15 +115,21 @@ class User(Employee):
     @classmethod
     def create(
             cls,
+            *,
             employee_id: int,
-            client_id: int,
             first_name: str | None = None,
             last_name: str | None = None,
             email: str | None = None,
-            phone: str | None = None
+            phone: str | None = None,
+            enabled: bool = True,
+            date_created: datetime | None = None,
+            account: AccountType | NoAccount = NoAccount,
+            version: int = 0,
+            client_id:int
     ) -> Self:
         """Create a new User with client association."""
-        base_data = cls._create_base(employee_id, first_name, last_name, email, phone)
+        base_data = cls._create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
+                                     phone=phone, enabled=enabled, date_created=date_created,account=account,version=version)
         return cls(**base_data, client_id=client_id)
 
 
@@ -118,14 +141,19 @@ class Admin(Employee):
     def create(
             cls,
             employee_id: int,
-            job_title: str = "",
             first_name: str | None = None,
             last_name: str | None = None,
             email: str | None = None,
-            phone: str | None = None
+            phone: str | None = None,
+            enabled: bool = True,
+            date_created: datetime | None = None,
+            account: AccountType | NoAccount = NoAccount,
+            version: int = 0,
+            job_title:str=""
     ) -> Self:
         """Create a new Admin."""
-        base_data = cls._create_base(employee_id, first_name, last_name, email, phone)
+        base_data = cls._create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
+                                     phone=phone, enabled=enabled, date_created=date_created, account=account,version=version)
         return cls(**base_data, job_title=job_title)
 
     def update(self, job_title:str|None, first_name: str|None, last_name: str|None, email: str|None=None, phone: str|None=None)->Self:
