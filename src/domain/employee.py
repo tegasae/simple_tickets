@@ -12,7 +12,7 @@ from src.domain.value_objects import Email, Phone, Name, Empty
 @dataclass(kw_only=True,eq=False)
 class Employee(ABC, HasRoleIds):
     employee_id: int
-    first_name: Name|Empty
+    first_name: Name
     last_name: Name|Empty
     email: Email|Empty=Empty
     phone: Phone|Empty=Empty
@@ -27,7 +27,7 @@ class Employee(ABC, HasRoleIds):
 
     @classmethod
     def create_empty(cls) -> Self:
-        admin = cls(employee_id=0, first_name=None, last_name=None, email=None,phone=None, account=NoAccount())
+        admin = cls(employee_id=0, first_name=Name("-"), last_name=Empty(), email=Empty(),phone=Empty(), account=NoAccount())
         admin._is_empty = True
         return admin
 
@@ -38,7 +38,7 @@ class Employee(ABC, HasRoleIds):
             cls,
             *,
             employee_id: int,
-            first_name: str | None = None,
+            first_name: str,
             last_name: str | None = None,
             email: str | None = None,
             phone: str | None = None,
@@ -57,7 +57,7 @@ class Employee(ABC, HasRoleIds):
 
         return {
             "employee_id": employee_id,
-            "first_name": Name(first_name) if first_name else Empty(),
+            "first_name": Name(first_name),
             "last_name": Name(last_name) if last_name else Empty(),
             "email": Email(email) if email else Empty(),
             "phone": Phone(phone) if phone else Empty(),
@@ -116,7 +116,7 @@ class User(Employee):
             cls,
             *,
             employee_id: int,
-            first_name: str | None = None,
+            first_name: str,
             last_name: str | None = None,
             email: str | None = None,
             phone: str | None = None,
@@ -140,7 +140,7 @@ class Admin(Employee):
     def create(
             cls,
             employee_id: int,
-            first_name: str | None = None,
+            first_name: str,
             last_name: str | None = None,
             email: str | None = None,
             phone: str | None = None,

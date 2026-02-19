@@ -22,7 +22,7 @@ def date_from_sqlite_iso(s: str | None) -> datetime:
     return datetime.fromisoformat(s)
 
 
-class AccountRepositorySqlite(AccountRepository):
+class AccountRepositorySQLite(AccountRepository):
     """
     SQLite implementation for AccountRepository using your Connection/Query wrapper.
 
@@ -63,7 +63,7 @@ class AccountRepositorySqlite(AccountRepository):
     def get_employee_id(self, employee_id: int) -> AccountType:
         sql = (
             "SELECT account_id, employee_id, enabled, login, password, date_created "
-            "FROM accounts WHERE employee = :employee_id"
+            "FROM accounts WHERE employee_id = :employee_id"
         )
         with self.conn.create_query(
             sql,
@@ -144,7 +144,6 @@ class AccountRepositorySqlite(AccountRepository):
         """
         # Normalize employee_id: store NULL if 0
         emp_fk = None if employee_id == 0 else employee_id
-
         if getattr(account, "account_id", 0) in (0, None):
             sql = (
                 "INSERT INTO accounts (employee_id, enabled, login, password, date_created) "
@@ -156,6 +155,7 @@ class AccountRepositorySqlite(AccountRepository):
                 "login": str(account.login),   # Login VO -> string
                 "password": str(account.password.value) if hasattr(account.password, "value") else str(account.password),
                 "date_created": date_to_sqlite_iso(account.date_created),
+
             }
             with self.conn.create_query(sql, params=params) as q:
                 new_id = q.set_result()

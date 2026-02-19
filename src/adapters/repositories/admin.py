@@ -1,4 +1,4 @@
-import sqlite3
+#src/adapters/repository/admin.py
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -90,14 +90,14 @@ class AdminRepositorySQLite(AdminRepository):
         """Save the entire aggregate to persistence"""
         try:
             # Clear existing admins
-            insert_query_employee=self.conn.create_query("INSERT INTO employees (first_name, last_name, email,phone,date_created,enabled,version) "
-                                                         " VALUES (:first_name, :last_name, :email,:phone,:date_created,:enabled,:version)")
+            insert_query_employee=self.conn.create_query("INSERT INTO employees (first_name, last_name, email,phone,date_created,enabled,version,is_admin) "
+                                                         " VALUES (:first_name, :last_name, :email,:phone,:date_created,:enabled,:version,1)")
 
             insert_query_admin=self.conn.create_query("INSERT INTO admins (employee_id, job_title) VALUES (:employee_id, :job_title)")
 
             update_query_employee = self.conn.create_query(
                 "UPDATE employees SET first_name=:first_name, last_name=:last_name, email=:email,phone=:phone,date_created=:date_created,enabled=:enabled,version = :version +1 "
-                "WHERE employee_id=:employee_id AND version=:version")
+                "WHERE employee_id=:employee_id AND version=:version AND is_admin=1")
 
 
             update_query_admin = self.conn.create_query(
@@ -137,21 +137,3 @@ class AdminRepositorySQLite(AdminRepository):
     def exist_login(self, login: str) -> bool:
         pass
 
-if __name__=="__main__":
-    conn1=Connection.create_connection(url="../../../db/admins.db",engine=sqlite3)
-    repository=AdminRepositorySQLite(conn=conn1)
-    conn1.begin_transaction()
-
-    #admin1 = repository.get(admin_id=1)
-    #print(admin1)
-    admin1=Admin.create(employee_id=0,first_name="first",last_name="last_name",email="email@email.email",phone="phone",date_created=datetime.now(),enabled=True,version=0)
-    admin2=repository.save(admin=admin1)
-    admin2.enabled = False
-    admin2=repository.save(admin=admin2)
-    print(admin2)
-    admins = repository.get_all()
-    print(admins)
-    repository.delete(admin_id=3)
-    print(repository.exists(admin_id=500))
-    conn1.commit()
-    conn1.close()

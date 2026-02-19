@@ -26,18 +26,14 @@ class EmployeeAccountService:
           - DomainOperationError if admin already has an account
           - ItemValidationError if login already exists
         """
-        account = self._account_repository.get_employee_id(employee_id=employee_id)
-
-        if isinstance(account, Account):
+        try:
+            self._account_repository.get_employee_id(employee_id=employee_id)
             raise DomainOperationError(f"Employee {employee_id} already has an account")
-
-        if self._account_repository.find_by_login(login):
-            raise ItemValidationError(f"Login '{login}' is already taken")
-
-        account = Account.create(account_id=0, login=login, plain_password=plain_password)
-
-        account = self._account_repository.save(account=account)
-
+        except DomainOperationError:
+            #if self._account_repository.find_by_login(login):
+            #    raise ItemValidationError(f"Login '{login}' is already taken")
+            account = Account.create(account_id=0, login=login, plain_password=plain_password)
+            account = self._account_repository.save(account=account,employee_id=employee_id)
         return account
 
     def detach_account(self, *, employee_id: int):
@@ -52,7 +48,7 @@ class EmployeeAccountService:
     def disable_account(self, *, employee_id: int):
         account = self._account_repository.get_employee_id(employee_id=employee_id)
         account.disable()
-        account=self._account_repository.save(account=account)
+        self._account_repository.save(account=account)
 
     def enable_account(self, *, employee_id: int):
         account = self._account_repository.get_employee_id(employee_id=employee_id)

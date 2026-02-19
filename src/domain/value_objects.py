@@ -52,7 +52,16 @@ class ValueObject(Generic[T]):
 @dataclass(frozen=True, order=True)
 class Empty(ValueObject[str]):
     value: str = ""
+    def _validate(self)->str:
+        """Validate the value. Must be implemented by subclasses.
 
+        Returns:
+            The validated value
+
+        Raises:
+            ValueError: If validation fails
+        """
+        return ""
 
 @dataclass(frozen=True, order=True)
 class Email(ValueObject[str]):

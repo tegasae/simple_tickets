@@ -49,7 +49,7 @@ class AdminService:
         *,
         admin_id: int,
         job_title: str = "",
-        first_name: str | None = None,
+        first_name: str,
         last_name: str | None = None,
         email: str | None = None,
         phone: str | None = None,
@@ -67,7 +67,7 @@ class AdminService:
 
         admin=self._admin_repository.save(admin)
         if login and password:
-            account=self._account_service.attach_account(employee_id=admin_id, login=login, plain_password=password)
+            account=self._account_service.attach_account(employee_id=admin.employee_id, login=login, plain_password=password)
             admin.account = account
         else:
             admin.account=NoAccount()
@@ -112,8 +112,6 @@ class AdminService:
         self._account_service.detach_account(employee_id=admin_id)
         self._admin_repository.delete(admin_id=admin_id)
 
-
-if __name__=="__main__":
 
 
 
