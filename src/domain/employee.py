@@ -79,16 +79,16 @@ class Employee(ABC, HasRoleIds):
         if phone is not None:
             self.phone = Phone(phone)
 
-        self.version+=1
+
         return self
 
     def enable(self):
         self.enabled = True
-        self.version+=1
+
 
     def disable(self):
         self.enabled = False
-        self.version+=1
+
 
     def is_empty(self) -> bool:
         return self._is_empty

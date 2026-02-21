@@ -64,7 +64,7 @@ class AdminRepositorySQLite(AdminRepository):
         )
 
     def get(self, admin_id: int) -> Admin:
-        sql = _QueryAdmin.ADMIN_SELECT + " AND a.admin_id = :admin_id"
+        sql = _QueryAdmin.ADMIN_SELECT + " AND e.employee_id = :admin_id"
 
         with self.conn.create_query(sql, var=_QueryAdmin.ADMIN_VARS) as q:
             row = q.get_one_result(params={"admin_id": admin_id})

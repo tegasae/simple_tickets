@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.domain.account import Account, AccountType
+from src.domain.account import Account, AccountType, NoAccount
 from src.domain.exceptions import DomainOperationError
 from src.domain.repositories.account_repository import AccountRepository
 
@@ -29,7 +29,6 @@ class AccountRepositorySQLite(AccountRepository):
     Table:
       accounts(account_id PK, employee_id FK, enabled, login UNIQUE, password, date_created)
     """
-
 
     def __init__(self, conn: Connection) -> None:
         self.conn = conn
@@ -74,7 +73,8 @@ class AccountRepositorySQLite(AccountRepository):
         if not row:
             # Your interface says AccountType, but comment says "never returns NoAccount".
             # So raise (recommended) rather than returning a Null object.
-            raise DomainOperationError(f"Account for employee_id {employee_id} not found")
+            #raise DomainOperationError(f"Account for employee_id {employee_id} not found")
+            return NoAccount()
 
         return Account.from_database(
             account_id=row["account_id"],
@@ -125,6 +125,10 @@ class AccountRepositorySQLite(AccountRepository):
             return 0
         # employee_id may be NULL if you allow that; normalize to 0
         return int(row["employee_id"] or 0)
+
+    def does_login_exist(self, login: str) -> bool:
+        employee_id=self.find_by_login(login=login)
+        return bool(employee_id)
 
     def account_is_enabled_by_login(self, login: str) -> bool:
         sql = "SELECT enabled FROM accounts WHERE login = :login LIMIT 1"

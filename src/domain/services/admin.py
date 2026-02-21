@@ -66,6 +66,17 @@ class AdminService:
         )
 
         admin=self._admin_repository.save(admin)
+        self.attach_account(admin,login=login, password=password)
+        return admin
+
+    def update_admin(self,*,admin_id:int,job_title: str |None=None,first_name: str | None = None, last_name: str | None = None, email: str | None = None,phone: str | None = None)->Admin:
+        admin = self._admin_repository.get(admin_id)
+        admin.update(job_title,first_name, last_name, email, phone)
+        admin=self._admin_repository.save(admin)
+        return admin
+
+
+    def attach_account(self,admin:Admin, login:str,password:str)->Admin:
         if login and password:
             account=self._account_service.attach_account(employee_id=admin.employee_id, login=login, plain_password=password)
             admin.account = account
@@ -73,12 +84,12 @@ class AdminService:
             admin.account=NoAccount()
         return admin
 
-    def update_admin(self,*,admin_id:int,job_title: str |None,first_name: str | None = None, last_name: str | None = None, email: str | None = None,phone: str | None = None)->Admin:
-        admin = self._admin_repository.get(admin_id)
-        admin.update(job_title,first_name, last_name, email, phone)
-        admin=self._admin_repository.save(admin)
-        return admin
 
+    def detach_account(self,*,admin_id:int,employee_id:int)->Admin:
+        admin = self._admin_repository.get(admin_id)
+        self._account_service.detach_account(employee_id=employee_id)
+        admin.account = NoAccount()
+        return admin
 
     def update_admin_password(self,*,admin_id: int,password: str):
         admin = self._admin_repository.get(admin_id)

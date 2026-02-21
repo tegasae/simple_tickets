@@ -36,6 +36,10 @@ class AccountRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def does_login_exist(self, login: str) -> bool:  # employee_id
+        raise NotImplementedError
+
+    @abstractmethod
     def account_is_enabled_by_login(self, login: str) -> bool:
         raise NotImplementedError
 
