@@ -11,12 +11,22 @@ class RoleRepository(ABC, Generic[P]):
     """In-memory role registry for ONE realm (Admin OR User)."""
 
     @abstractmethod
-    def add(self, role: Role[P]) -> None:
+    def add(self, role: Role[P]) -> Role[P]:
         raise NotImplementedError
 
     @abstractmethod
     def get(self, role_id: int) -> Role[P]:
         raise NotImplementedError
 
+    @abstractmethod
     def all(self) -> Iterable[Role[P]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete(self,role_id):
+        raise NotImplementedError
+
+
+    @abstractmethod
+    def is_employee_id(self,role_id:int)->bool:
         raise NotImplementedError

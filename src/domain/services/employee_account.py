@@ -1,5 +1,4 @@
-from src.domain.account import Account
-from src.domain.employee import Admin
+from src.domain.account import Account, AccountType
 from src.domain.exceptions import DomainOperationError, ItemValidationError
 from src.domain.repositories.account_repository import AccountRepository
 
@@ -64,6 +63,6 @@ class EmployeeAccountService:
         account = self._account_repository.get(admin_id)
         return account.verify_password(plain_password=password)
 
-    def find_by_login(self, *, login: str) -> Admin:
+    def find_by_login(self, *, login: str) -> AccountType:
         employee_id = self._account_repository.find_by_login(login=login)
         return self._account_repository.get(employee_id)

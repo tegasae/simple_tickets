@@ -38,7 +38,7 @@ class AdminService:
 
     ):
         self._admin_repository = admin_repository
-        self._account_repository = account_repository
+        #self._account_repository = account_repository
         self._account_service = EmployeeAccountService(account_repository=account_repository)
 
 
@@ -123,6 +123,9 @@ class AdminService:
         self._account_service.detach_account(employee_id=admin_id)
         self._admin_repository.delete(admin_id=admin_id)
 
+    def find_by_login(self,login:str)->Admin:
+        admin=self._admin_repository.find_by_login(login=login)
+        return admin
 
 
 

@@ -28,6 +28,7 @@ class RoleManager(Generic[P]):
 
     def revoke_role(self, actor: HasRoleIds, target: HasRoleIds, role_id: int, *, required_permission: P) -> None:
         self._auth.require(actor, required_permission)
+        self._roles.get(role_id)  # validate exists
         target.revoke_role(role_id)
 
 
