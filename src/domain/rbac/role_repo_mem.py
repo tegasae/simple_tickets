@@ -6,8 +6,15 @@ from src.domain.rbac.typevar import P
 from src.domain.rbac.role_repository import RoleRepository
 
 
-class RoleRepo(RoleRepository):
+class RoleRepoMem(RoleRepository):
     """In-memory role registry for ONE realm (Admin OR User)."""
+
+    def delete(self, role_id):
+        pass
+
+    def is_employee_id(self, role_id: int) -> bool:
+        pass
+
     def __init__(self) -> None:
         self._by_id: dict[int, Role] = {}
 

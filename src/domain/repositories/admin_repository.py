@@ -34,3 +34,4 @@ class AdminRepository(ABC):
     @abstractmethod
     def exist_login(self, login: str) -> bool:
         raise NotImplementedError
+
