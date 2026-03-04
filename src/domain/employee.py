@@ -104,6 +104,7 @@ class Employee(ABC, HasRoleIds):
         self._role_ids.discard(role_id)
 
 
+
     def __eq__(self, other) -> bool:
         return isinstance(other, Employee) and self.employee_id == other.employee_id
 

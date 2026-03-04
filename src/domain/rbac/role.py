@@ -32,6 +32,8 @@ class RoleManager(Generic[P]):
         target.revoke_role(role_id)
 
 
+
+
 class Authorizer(Generic[P]):
     def __init__(self, roles: RoleRepository[P]) -> None:
         self._roles = roles

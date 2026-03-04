@@ -27,10 +27,24 @@ class _QueryAdmin:
             "SELECT "
             "e.employee_id, e.first_name, e.last_name, e.email, e.phone, e.date_created, "
             "e.enabled, e.is_deleted, e.version, "
-            "a.admin_id, a.job_title "
+            "a.admin_id, a.job_title"
             "FROM admins a "
             "JOIN employees e ON e.employee_id = a.employee_id WHERE is_admin=1 "
         )
+        ADMIN_SELECT_LOGIN = ("SELECT "
+                              "e.employee_id, e.first_name, e.last_name, e.email, e.phone, e.date_created, "
+                              "e.enabled, e.is_deleted, e.version, "
+                              "a.admin_id, a.job_title"
+                              "FROM admins a "
+                              "JOIN employees e ON e.employee_id = a.employee_id "
+                              " join accounts a2 on e.employee_id =a2.employee_id"
+                              "WHERE is_admin=1 and a2.login=:login")
+
+
+        ADMIN_SELECT_ROLE="SELECT role_id FROM admin_roles WHERE admin_id=:admin_id"
+        # пока не будем делать 4 или 5 join-ов
+
+
 
         ADMIN_VARS = [
             "employee_id", "first_name", "last_name", "email", "phone", "date_created",
@@ -41,7 +55,6 @@ class _QueryAdmin:
 
 
 class AdminRepositorySQLite(AdminRepository):
-
     def __init__(self, conn: Connection):
         self._saved_version=0
         self.conn = conn
@@ -65,19 +78,15 @@ class AdminRepositorySQLite(AdminRepository):
 
     def get(self, admin_id: int) -> Admin:
         sql = _QueryAdmin.ADMIN_SELECT + " AND e.employee_id = :admin_id"
-
         with self.conn.create_query(sql, var=_QueryAdmin.ADMIN_VARS) as q:
             row = q.get_one_result(params={"admin_id": admin_id})
         if not row:
             raise ItemNotFoundError(item_name=f"Admin {admin_id} isn't found") # or raise NotFoundError (better)
-
-
         return self._row_to_admin(row)
 
     def get_all(self) -> list[Admin]:
         with self.conn.create_query(_QueryAdmin.ADMIN_SELECT, var=_QueryAdmin.ADMIN_VARS) as q:
             rows = q.get_result()
-
         return [self._row_to_admin(r) for r in rows]
 
 
@@ -121,21 +130,38 @@ class AdminRepositorySQLite(AdminRepository):
 
     def delete(self, admin_id: int):
         try:
-            delete_query_employee=self.conn.create_query("DELETE FROM employees WHERE employee_id = :employee_id")
-            delete_query_admin=self.conn.create_query("DELETE FROM admins WHERE employee_id = :employee_id")
-            delete_query_employee.set_result(params={'employee_id': admin_id})
+            delete_query_admin = self.conn.create_query("DELETE FROM admins WHERE employee_id = :employee_id")
+            delete_query_roles = self.conn.create_query("DELETE FROM admins_role WHERE employee_id = :employee_id")
+            delete_query_employee=self.conn.create_query("DELETE FROM employees WHERE employee_id = :employee_id AND is_admin=1")
+
+            delete_query_roles.set_result(params={'employee_id': admin_id})
             delete_query_admin.set_result(params={'employee_id': admin_id})
+            delete_query_employee.set_result(params={'employee_id': admin_id})
         except Exception as e:
             raise DBOperationError(f"Failed to delete admin: {str(e)} {admin_id}")
 
 
-
-
     def find_by_login(self, *, login: str) -> Admin:
-        pass
+        sql = _QueryAdmin.ADMIN_SELECT_LOGIN
+        with self.conn.create_query(sql, var=_QueryAdmin.ADMIN_VARS) as q:
+            row = q.get_one_result(params={"login": login})
+        if not row:
+            raise ItemNotFoundError(item_name=f"Admin with login {login} isn't found")  # or raise NotFoundError (better)
+
+        return self._row_to_admin(row)
 
     def exist_login(self, login: str) -> bool:
-        pass
+        sql = _QueryAdmin.ADMIN_SELECT_LOGIN
+        with self.conn.create_query(sql, var=_QueryAdmin.ADMIN_VARS) as q:
+            row = q.get_one_result(params={"login": login})
+        if not row:
+            return False
+        return True
 
     def exist_role(self, role_id: int) -> bool:
-        pass
+        sql="SELECT count(employee_id) FROM employees e JOIN admin_roles ar ON e.employee_id=ar.admin_id WHERE e.is_admin=1 and ar.role_id=:role_id"
+        with self.conn.create_query(sql, var=_QueryAdmin.ADMIN_VARS) as q:
+            row = q.get_one_result(params={'role_id':role_id})
+        if not row:
+            return False
+        return True

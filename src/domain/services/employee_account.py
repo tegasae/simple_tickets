@@ -66,3 +66,7 @@ class EmployeeAccountService:
     def find_by_login(self, *, login: str) -> AccountType:
         employee_id = self._account_repository.find_by_login(login=login)
         return self._account_repository.get(employee_id)
+
+    def find_by_login_id(self, *, login: str) -> int:
+        return self._account_repository.find_by_login(login=login)
+

@@ -34,8 +34,6 @@ class AdminService:
         self,
         admin_repository: AdminRepository,
         account_repository: AccountRepository,
-
-
     ):
         self._admin_repository = admin_repository
         #self._account_repository = account_repository
@@ -104,6 +102,18 @@ class AdminService:
         admin=self._admin_repository.save(admin)
         return admin
 
+    def disable_admin_account(self, *, admin_id: int):
+        admin = self._admin_repository.get(admin_id)
+        self._account_service.disable_account(employee_id=admin.employee_id)
+        admin=self._admin_repository.save(admin)
+        return admin
+
+    def enable_admin_account(self, *, admin_id: int):
+        admin = self._admin_repository.get(admin_id)
+        self._account_service.disable_account(employee_id=admin.employee_id)
+        admin=self._admin_repository.save(admin)
+        return admin
+
     def enable_admin(self, *, admin_id: int):
         admin = self._admin_repository.get(admin_id)
         admin.enable()
@@ -124,8 +134,8 @@ class AdminService:
         self._admin_repository.delete(admin_id=admin_id)
 
     def find_by_login(self,login:str)->Admin:
-        admin=self._admin_repository.find_by_login(login=login)
-        return admin
+        return self._admin_repository.find_by_login(login=login)
+
 
 
 
