@@ -274,7 +274,7 @@ def verify_password(plain: str, password_hash: str) -> bool:
 
 
 @dataclass(frozen=True, slots=True)
-class Password:
+class Password(ValueObject[str]):
     """Immutable password value object storing only hashes.
 
     Attributes:
@@ -400,3 +400,8 @@ class Password:
         return "**hidden**"
 
 
+
+@dataclass(frozen=True, slots=True)
+class FakePassword(ValueObject[str]):
+
+    value: str=""

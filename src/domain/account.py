@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Self
 
-from src.domain.value_objects import Login, Password
+from src.domain.value_objects import Login, Password, FakePassword
 
 
 @dataclass(slots=True)
@@ -121,7 +121,7 @@ class Account:
                 f"date_created={self.date_created})")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True,kw_only=True)
 class NoAccount:
     """Null object representing absence of a system account.
 
@@ -130,6 +130,7 @@ class NoAccount:
     """
     account_id: int=-1
     enabled: bool=False
+    password: FakePassword
     @staticmethod
     def verify_password(plain_password: str) -> bool:
         """No account means no password to verify."""

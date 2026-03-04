@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 
 from src.domain.employee import Admin
@@ -5,16 +7,20 @@ from src.domain.employee import Admin
 
 class AdminRepository(ABC):
     """
-    Repository for the Admin aggregate.
+    Abstract repository for the Admin aggregate.
 
-    Aggregate structure:
+    Aggregate boundary:
         Admin
-          ├ Employee data
-          ├ Admin data
-          ├ Roles
-          └ Optional Account
+            ├ Employee data
+            ├ Admin data
+            ├ Roles
+            └ Optional Account
 
-    All persistence details (tables, joins, etc.) are hidden here.
+    Persistence responsibilities implemented by concrete repositories:
+        - employees table
+        - admins table
+        - admins_roles table
+        - accounts table
     """
 
     # -------------------------
@@ -24,21 +30,25 @@ class AdminRepository(ABC):
     @abstractmethod
     def get(self, admin_id: int) -> Admin:
         """
-        Get admin by employee_id.
+        Retrieve an admin by employee_id.
 
         Raises:
-            ItemNotFoundError if admin does not exist.
+            NotFoundError if admin does not exist.
         """
         raise NotImplementedError
 
     @abstractmethod
     def get_all(self) -> list[Admin]:
-        """Return all admins."""
+        """
+        Retrieve all admins.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def exists(self, admin_id: int) -> bool:
-        """Check whether admin exists."""
+        """
+        Check whether admin exists.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -47,27 +57,29 @@ class AdminRepository(ABC):
         Find admin by account login.
 
         Raises:
-            ItemNotFoundError if login not found.
+            NotFoundError if login not found.
         """
         raise NotImplementedError
 
-
     # -------------------------
-    # Writes (Aggregate)
+    # Persistence
     # -------------------------
 
     @abstractmethod
     def save(self, admin: Admin) -> Admin:
         """
-        Persist the entire Admin aggregate.
+        Persist the Admin aggregate.
 
         Handles:
-            - employees table
-            - admins table
-            - roles
-            - account
+            - employees
+            - admins
+            - admins_roles
+            - accounts
 
-        Uses optimistic locking based on Admin.version.
+        Uses optimistic locking based on `Admin.version`.
+
+        Raises:
+            OptimisticLockError if version mismatch.
         """
         raise NotImplementedError
 
@@ -76,14 +88,10 @@ class AdminRepository(ABC):
         """
         Delete admin aggregate.
 
-        Removes:
-            - account
-            - roles
-            - admin row
-            - employee row
+        Deletes in order:
+            accounts -> admins_roles -> admins -> employees
         """
         raise NotImplementedError
-
 
     # -------------------------
     # Role operations
@@ -91,19 +99,24 @@ class AdminRepository(ABC):
 
     @abstractmethod
     def grant_role(self, *, employee_id: int, role_id: int) -> None:
-        """Assign role to admin."""
+        """
+        Assign role to admin.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def revoke_role(self, *, employee_id: int, role_id: int) -> None:
-        """Remove role from admin."""
+        """
+        Remove role from admin.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def get_role_ids(self, *, employee_id: int) -> set[int]:
-        """Return role ids assigned to admin."""
+        """
+        Return role IDs assigned to admin.
+        """
         raise NotImplementedError
-
 
     # -------------------------
     # Account operations
@@ -111,16 +124,7 @@ class AdminRepository(ABC):
 
     @abstractmethod
     def set_no_account(self, *, employee_id: int) -> None:
-        """Remove account from admin."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def set_account_from_plain_password(
-        self,
-        *,
-        employee_id: int,
-        login: str,
-        plain_password: str
-    ) -> None:
-        """Create or update admin account."""
+        """
+        Remove account associated with admin.
+        """
         raise NotImplementedError
