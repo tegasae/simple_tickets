@@ -36,3 +36,15 @@ class UserRepository(ABC):
     @abstractmethod
     def delete(self, user_id: int):
         raise NotImplementedError
+
+    @abstractmethod
+    def find_by_login(self, *, login: str) -> User:
+        raise NotImplementedError
+
+    @abstractmethod
+    def exist_login(self, login: str) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def exist_role(self, role_id: int) -> bool:
+        raise NotImplementedError

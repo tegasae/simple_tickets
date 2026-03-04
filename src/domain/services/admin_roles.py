@@ -39,10 +39,7 @@ class AdminRoleService:
         return role
 
     def delete_role(self,role_id:int):
-
-
-        ####Поменять! В ркпозитории admin сделать метод поиск admin с таким id role
-        if self.role_repository.is_employee_id(role_id=role_id):
+        if self.admin_repository.exist_role(role_id=role_id)
             raise DomainOperationError(f"Role id {role_id} has admins")
         self.role_repository.delete(role_id=role_id)
 

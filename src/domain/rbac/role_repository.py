@@ -27,6 +27,3 @@ class RoleRepository(ABC, Generic[P]):
         raise NotImplementedError
 
 
-    @abstractmethod
-    def is_employee_id(self,role_id:int)->bool:
-        raise NotImplementedError

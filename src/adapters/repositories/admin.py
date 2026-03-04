@@ -137,3 +137,5 @@ class AdminRepositorySQLite(AdminRepository):
     def exist_login(self, login: str) -> bool:
         pass
 
+    def exist_role(self, role_id: int) -> bool:
+        pass
