@@ -23,7 +23,7 @@ class ClientMapper:
         if row["date_created"]:
             try:
                 client.date_created = datetime.fromisoformat(row["date_created"])
-            except Exception:
+            except ValueError:
                 client.date_created = datetime.now()
 
         return client

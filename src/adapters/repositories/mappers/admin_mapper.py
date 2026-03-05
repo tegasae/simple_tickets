@@ -21,7 +21,7 @@ def _dt_from_sqlite(value: str | int | None) -> datetime:
         # interpret as unix timestamp seconds
         try:
             return datetime.fromtimestamp(value)
-        except Exception:
+        except ValueError:
             return datetime.now()
 
     if isinstance(value, str):
@@ -31,7 +31,7 @@ def _dt_from_sqlite(value: str | int | None) -> datetime:
             # try int-like string
             try:
                 return datetime.fromtimestamp(int(value))
-            except Exception:
+            except ValueError:
                 return datetime.now()
 
     return datetime.now()
