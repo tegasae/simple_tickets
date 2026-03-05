@@ -7,7 +7,6 @@ from src.domain.services.admin import AdminService
 from utils.db.connect import Connection
 
 
-
 def main():
 
     # ---------------------------
@@ -46,7 +45,7 @@ def main():
         admin = admin_service.attach_account(
             admin_id=admin.employee_id,
             login="john_admin",
-            password="secure_password_123",
+            password="secure_password_123S@",
         )
 
         print("Account attached:", admin.account)
@@ -64,7 +63,42 @@ def main():
         print("Admin updated:", admin)
 
         # ---------------------------
-        # 4️⃣ Disable admin account
+        # 4️⃣ Grant roles
+        # ---------------------------
+
+        admin_service.grant_role(
+            admin_id=admin.employee_id,
+            role_id=1,
+        )
+
+        admin_service.grant_role(
+            admin_id=admin.employee_id,
+            role_id=2,
+        )
+
+        roles = admin_service.get_roles(
+            admin_id=admin.employee_id
+        )
+
+        print("Roles granted:", roles)
+
+        # ---------------------------
+        # 5️⃣ Revoke one role
+        # ---------------------------
+
+        admin_service.revoke_role(
+            admin_id=admin.employee_id,
+            role_id=2,
+        )
+
+        roles = admin_service.get_roles(
+            admin_id=admin.employee_id
+        )
+
+        print("Roles after revoke:", roles)
+
+        # ---------------------------
+        # 6️⃣ Disable admin account
         # ---------------------------
 
         admin = admin_service.disable_admin_account(
@@ -74,7 +108,7 @@ def main():
         print("Account disabled:", admin.account)
 
         # ---------------------------
-        # 5️⃣ Enable admin account again
+        # 7️⃣ Enable admin account again
         # ---------------------------
 
         admin = admin_service.enable_admin_account(
@@ -84,7 +118,32 @@ def main():
         print("Account enabled:", admin.account)
 
         # ---------------------------
-        # 6️⃣ Find admin by login
+        # 8️⃣ Change password
+        # ---------------------------
+
+        admin = admin_service.update_password(
+            admin_id=admin.employee_id,
+            password="1234567890@Ww",
+        )
+
+        print("Password updated:", admin)
+
+        # ---------------------------
+        # 9️⃣ Read admin
+        # ---------------------------
+
+        admin_get = admin_service.get_by_id(
+            admin_id=admin.employee_id
+        )
+
+        print("Admin get:", admin_get)
+
+        admin_all = admin_service.get_all()
+
+        print("Admin all:", admin_all)
+
+        # ---------------------------
+        # 🔟 Find admin by login
         # ---------------------------
 
         admin = admin_service.find_by_login("john_admin")
@@ -92,7 +151,7 @@ def main():
         print("Admin found by login:", admin)
 
         # ---------------------------
-        # 7️⃣ Disable entire admin
+        # 11️⃣ Disable entire admin
         # ---------------------------
 
         admin = admin_service.disable_admin(
@@ -102,7 +161,7 @@ def main():
         print("Admin disabled:", admin)
 
         # ---------------------------
-        # 8️⃣ Detach account
+        # 12️⃣ Detach account
         # ---------------------------
 
         admin = admin_service.detach_account(
@@ -116,8 +175,8 @@ def main():
     except Exception as e:
 
         conn.rollback()
-
-        print("ERROR:", e)
+        raise e
+        #print("ERROR:", e)
 
     finally:
 

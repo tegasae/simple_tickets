@@ -4,7 +4,7 @@ from dataclasses import field, dataclass
 from datetime import datetime
 from typing import FrozenSet, Self, Any
 
-from src.domain.account import AccountType, NoAccount
+from src.domain.account import NoAccount, Account
 from src.domain.rbac.employee_protocol import HasRoleIds
 from src.domain.value_objects import Email, Phone, Name, Empty
 
@@ -16,7 +16,7 @@ class Employee(ABC, HasRoleIds):
     last_name: Name|Empty
     email: Email|Empty=Empty
     phone: Phone|Empty=Empty
-    account:AccountType=field(default_factory=NoAccount)
+    account:Account|NoAccount=field(default_factory=NoAccount)
     date_created: datetime = field(default_factory=datetime.now)
     enabled: bool = True
     version: int = 0
@@ -44,7 +44,7 @@ class Employee(ABC, HasRoleIds):
             phone: str | None = None,
             enabled: bool = True,
             date_created: datetime | None = None,
-            account: AccountType | NoAccount=NoAccount,
+            account: Account | None=None,
             version: int = 0,
     ) -> dict[str, Any]:
         """
@@ -64,7 +64,7 @@ class Employee(ABC, HasRoleIds):
             "enabled": enabled,
             "date_created": date_created or datetime.now(),
             "version": version,
-            "account": account,
+            "account": account or NoAccount(),
 
             # "_role_ids": set(),  # not needed; dataclass default_factory will handle it
         }
@@ -123,7 +123,7 @@ class User(Employee):
             phone: str | None = None,
             enabled: bool = True,
             date_created: datetime | None = None,
-            account: AccountType | NoAccount = NoAccount,
+            account: Account | None = None,
             version: int = 0,
             client_id:int
     ) -> Self:
@@ -147,7 +147,7 @@ class Admin(Employee):
             phone: str | None = None,
             enabled: bool = True,
             date_created: datetime | None = None,
-            account: AccountType | NoAccount = NoAccount,
+            account: Account| None = None,
             version: int = 0,
             job_title:str=""
     ) -> Self:

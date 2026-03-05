@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.domain.account import Account, NoAccount, AccountType
+from src.domain.account import Account, NoAccount
 from src.domain.employee import Admin
 
 
@@ -67,7 +67,7 @@ class AdminMapper:
         return admin
 
     @staticmethod
-    def row_to_account(row: dict) -> AccountType:
+    def row_to_account(row: dict) -> Account|NoAccount:
         acc_id = row.get("account_id")
         if not acc_id:
             return NoAccount()

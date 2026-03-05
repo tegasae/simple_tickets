@@ -130,7 +130,7 @@ class NoAccount:
     """
     account_id: int=-1
     enabled: bool=False
-    password: FakePassword
+    password: FakePassword=field(default_factory=FakePassword)
     @staticmethod
     def verify_password(plain_password: str) -> bool:
         """No account means no password to verify."""
@@ -171,4 +171,4 @@ class NoAccount:
         return "NoAccount()"
 
 
-AccountType = Account | NoAccount
+#AccountType = Account | NoAccount

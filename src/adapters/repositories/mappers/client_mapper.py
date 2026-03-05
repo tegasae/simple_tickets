@@ -1,0 +1,44 @@
+from datetime import datetime
+
+from src.domain.client import Client
+
+
+class ClientMapper:
+
+    @staticmethod
+    def row_to_client(row: dict) -> Client:
+
+        client = Client.create(
+            client_id=row["client_id"],
+            name=row["name"],
+            email=row["email"],
+            address=row["address"],
+            phone=row["phone"],
+            created_by_admin_id=row["admin_id"],
+            enabled=bool(row["enabled"]),
+        )
+
+        client.version = int(row["version"])
+
+        if row["date_created"]:
+            try:
+                client.date_created = datetime.fromisoformat(row["date_created"])
+            except Exception:
+                client.date_created = datetime.now()
+
+        return client
+
+    @staticmethod
+    def params(client: Client) -> dict:
+
+        return {
+            "client_id": client.client_id,
+            "name": str(client.name),
+            "address": str(client.address) if client.address else None,
+            "email": str(client.email) if client.email else None,
+            "phone": str(client.phone) if client.phone else None,
+            "admin_id": client.created_by_admin_id,
+            "enabled": int(client.enabled),
+            "version": client.version,
+            "date_created": client.date_created.isoformat(),
+        }

@@ -1,57 +1,55 @@
-# src/domain/services/client.py
-from __future__ import annotations
-
 from src.domain.client import Client
 from src.domain.exceptions import DomainOperationError
 from src.domain.repositories.client_repository import ClientRepository
-from src.domain.repositories.user_repository import UserRepository
 
-
-# ---------------------------
-# Service (use-case orchestration)
-# ---------------------------
 
 class ClientService:
     """
-    Orchestrates client operations.
+    Domain service for Client operations.
 
-    This service:
-      - validates cross-entity rules (like "unique name")
-      - calls entity methods for state changes
-      - persists through ClientRepository
-      - does NOT manage transactions (UoW can wrap it later)
+    Responsibilities:
+        - create client
+        - update client contact info
+        - enable/disable client
+        - delete client
+        - read clients
+
+    Notes:
+        - transaction management should be handled in application layer
+        - repository implements optimistic locking
     """
 
-    def __init__(self, client_repository: ClientRepository, user_repository: UserRepository) -> None:
+    def __init__(self, client_repository: ClientRepository):
         self._client_repository = client_repository
-        self._user_repository= user_repository
 
-    def create(
+    # ---------------------------
+    # Create client
+    # ---------------------------
+
+    def create_client(
         self,
         *,
-        client_id:int,
         name: str,
         created_by_admin_id: int,
         email: str | None = None,
         address: str | None = None,
         phone: str | None = None,
-        enabled: bool = True,
     ) -> Client:
-        # Example business rule: unique client name (optional; remove if not needed)
 
-        #if self._client_repository.exists_by_name(name):
-        #    raise ItemValidationError(f"Client with name '{name}' already exists")
         client = Client.create(
-                client_id=client_id,
-                name=name,
-                email=email,
-                address=address,
-                phone=phone,
-                created_by_admin_id=created_by_admin_id,
-                enabled=enabled,
-            )
-        self._client_repository.save(client)
-        return client
+            client_id=0,
+            name=name,
+            email=email,
+            address=address,
+            phone=phone,
+            created_by_admin_id=created_by_admin_id,
+        )
+
+        return self._client_repository.save(client)
+
+    # ---------------------------
+    # Update contact info
+    # ---------------------------
 
     def update_contact_info(
         self,
@@ -61,49 +59,69 @@ class ClientService:
         address: str | None = None,
         phone: str | None = None,
     ) -> Client:
-        client = self._client_repository.get(client_id)
-        client.update_contact_info(email=email, address=address, phone=phone)
-        self._client_repository.save(client)
-        return client
 
-    def disable(self, *, client_id: int) -> Client:
+        client = self._client_repository.get(client_id)
+
+        client.update_contact_info(
+            email=email,
+            address=address,
+            phone=phone,
+        )
+
+        return self._client_repository.save(client)
+
+    # ---------------------------
+    # Enable / disable client
+    # ---------------------------
+
+    def disable_client(self, *, client_id: int) -> Client:
+
         client = self._client_repository.get(client_id)
 
         client.disable()
-        self._client_repository.save(client)
-        return client
 
-    def enable(self, *, client_id: int) -> Client:
+        return self._client_repository.save(client)
+
+    def enable_client(self, *, client_id: int) -> Client:
+
         client = self._client_repository.get(client_id)
 
         client.enable()
-        self._client_repository.save(client)
-        return client
 
-    def _check_users(self, *, client_id:int)->bool:
+        return self._client_repository.save(client)
+
+    # ---------------------------
+    # Delete client
+    # ---------------------------
+
+    def delete_client(
+        self,
+        *,
+        client_id: int,
+        number_of_users: int,
+        number_of_tickets: int,
+    ) -> None:
+
         """
-        :param client_id:
-        :return: true if number of client users non zere
+        Domain rule:
+            client cannot be deleted if users or tickets exist
         """
-        list_of_users=self._user_repository.get_all_by_client(client_id=client_id)
-        return bool(len(list_of_users))
 
+        if number_of_users != 0 or number_of_tickets != 0:
+            raise DomainOperationError(
+                f"Client {client_id} cannot be deleted because dependent entities exist"
+            )
 
+        self._client_repository.delete(client_id)
 
-    def delete(self, *, client_id: int) -> None:
-        """
-        Hard delete should be rare. You can add checks here later,
-        e.g. "cannot hard-delete client if they have tickets".
-        """
-        client=self._client_repository.get(client_id)
-        if client.enabled:
-            raise DomainOperationError(message=f"Client {client.name} is active")
-        if self._check_users(client_id=client.client_id):
-            raise DomainOperationError(message=f"Client {client.name} has users")
-        # Optional: allow hard delete only if already soft-deleted
-        # if not client.is_deleted:
-        #     raise DomainOperationError("Hard delete requires soft delete first")
+    # ---------------------------
+    # Queries
+    # ---------------------------
 
-        self._client_repository.hard_delete(client_id)
+    def get_by_id(self, *, client_id: int) -> Client:
 
+        return self._client_repository.get(client_id)
 
+    def get_all(self) -> list[Client]:
+
+        return self._client_repository.get_all()

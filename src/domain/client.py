@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Self
 
 from src.domain.exceptions import ItemValidationError
-from src.domain.value_objects import Email, Address, Phone, Name
+from src.domain.value_objects import Email, Address, Phone, Name, Empty
 
 
 @dataclass
@@ -29,9 +29,9 @@ class Client:
     """
     client_id: int
     name: Name
-    email: Email | None
-    address: Address | None
-    phone: Phone | None
+    email: Email | Empty = field(default_factory=Empty)
+    address: Address | Empty = field(default_factory=Empty)
+    phone: Phone |Empty = field(default_factory=Empty)
     created_by_admin_id: int = 0
     enabled: bool = True
     date_created: datetime = field(default_factory=datetime.now)
@@ -43,9 +43,9 @@ class Client:
             *,
             client_id: int,
             name: str,
-            email: str | None = None,
-            address: str | None = None,
-            phone: str | None = None,
+            email: str ="",
+            address: str ="",
+            phone: str ="",
             created_by_admin_id: int = 0,
             enabled: bool = True
     ) -> Self:
@@ -87,9 +87,9 @@ class Client:
         try:
             # Create value objects
             name_obj = Name(name)
-            email_obj = Email(email) if email else None
-            address_obj = Address(address) if address else None
-            phone_obj = Phone(phone) if phone else None
+            email_obj = Email(email) if email else Empty()
+            address_obj = Address(address) if address else Empty()
+            phone_obj = Phone(phone) if phone else Empty()
 
             # Note: client_id is NOT set here - it should be assigned by repository
             # We raise an error to make this explicit
@@ -114,12 +114,12 @@ class Client:
     def disable(self) -> None:
         """Disable the client."""
         self.enabled = False
-        self.version += 1
+
 
     def enable(self) -> None:
         """Enable the client."""
         self.enabled = True
-        self.version += 1
+
 
 
 
@@ -150,7 +150,7 @@ class Client:
             if phone is not None:
                 self.phone = Phone(phone) if phone else None
 
-            self.version += 1
+
         except ValueError as e:
             raise ItemValidationError(f"Invalid contact info: {e}") from e
 

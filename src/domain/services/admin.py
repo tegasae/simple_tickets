@@ -204,3 +204,40 @@ class AdminService:
     def find_by_login(self, login: str) -> Admin:
 
         return self._admin_repository.find_by_login(login=login)
+
+    def get_by_id(self, admin_id:int) -> Admin:
+        return self._admin_repository.get(admin_id=admin_id)
+
+    def get_all(self) -> list[Admin]:
+        return self._admin_repository.get_all()
+
+
+    # --------------------------------
+    # Role operations
+    # --------------------------------
+
+    def grant_role(self, *, admin_id: int, role_id: int):
+
+        admin = self._admin_repository.get(admin_id)
+
+        admin.grant_role(role_id)
+
+        admin = self._admin_repository.save(admin)
+
+        return admin
+
+    def revoke_role(self, *, admin_id: int, role_id: int):
+
+        admin = self._admin_repository.get(admin_id)
+
+        admin.revoke_role(role_id)
+
+        admin = self._admin_repository.save(admin)
+
+        return admin
+
+    def get_roles(self, *, admin_id: int) -> frozenset[int]:
+
+        admin = self._admin_repository.get(admin_id)
+
+        return admin.role_ids()
