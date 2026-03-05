@@ -26,3 +26,9 @@ class EmployeeGateway:
     DELETE FROM employees
     WHERE employee_id = :employee_id
     """
+
+    DELETE_ADMIN_EMPLOYEE = (
+        "DELETE FROM employees "
+        "WHERE employee_id = :employee_id "
+        "  AND is_admin = 1"
+    )

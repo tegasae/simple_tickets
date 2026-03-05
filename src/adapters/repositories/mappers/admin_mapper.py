@@ -96,6 +96,7 @@ class AdminMapper:
             "date_created": _dt_to_sqlite_iso(admin.date_created),
             "enabled": 1 if admin.enabled else 0,
             "version": int(admin.version),
+            "is_admin":1
         }
 
     @staticmethod

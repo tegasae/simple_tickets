@@ -132,6 +132,17 @@ class User(Employee):
                                      phone=phone, enabled=enabled, date_created=date_created,account=account,version=version)
         return cls(**base_data, client_id=client_id)
 
+    def update(
+            self,
+            *,
+            first_name: str | None = None,
+            last_name: str | None = None,
+            email: str | None = None,
+            phone: str | None = None,
+    ) -> Self:
+        self.update_base(first_name, last_name, email, phone)
+        return self
+
 
 @dataclass(kw_only=True,eq=False)
 class Admin(Employee):

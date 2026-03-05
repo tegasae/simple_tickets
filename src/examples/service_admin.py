@@ -104,7 +104,7 @@ def main():
         admin = admin_service.disable_admin_account(
             admin_id=admin.employee_id
         )
-
+        conn.commit()
         print("Account disabled:", admin.account)
 
         # ---------------------------
@@ -116,7 +116,7 @@ def main():
         )
 
         print("Account enabled:", admin.account)
-
+        conn.commit()
         # ---------------------------
         # 8️⃣ Change password
         # ---------------------------
@@ -131,7 +131,7 @@ def main():
         # ---------------------------
         # 9️⃣ Read admin
         # ---------------------------
-
+        conn.commit()
         admin_get = admin_service.get_by_id(
             admin_id=admin.employee_id
         )
