@@ -22,22 +22,7 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
     Optimistic lock is enforced on employees.version for updates.
     """
 
-    VARS = [
-        "employee_id",
-        "first_name",
-        "last_name",
-        "email",
-        "phone",
-        "date_created",
-        "enabled",
-        "version",
-        "job_title",
-        "account_id",
-        "login",
-        "password",
-        "account_enabled",
-        "account_date_created",
-    ]
+
 
     # -------------------------
     # Roles
@@ -80,7 +65,7 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
     # -------------------------
 
     def get(self, admin_id: int) -> Admin:
-        row = self._get_one(AdminGateway.SELECT_BY_ID, var=self.VARS, params={"employee_id": admin_id})
+        row = self._get_one(AdminGateway.SELECT_BY_ID, var=AdminMapper.VARS, params={"employee_id": admin_id})
         if not row:
             raise NotFoundError(f"Admin {admin_id} not found")
 
@@ -89,7 +74,7 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
         return admin
 
     def get_all(self) -> list[Admin]:
-        rows = self._get_many(AdminGateway.SELECT_BASE, var=self.VARS)
+        rows = self._get_many(AdminGateway.SELECT_BASE, var=AdminMapper.VARS)
         admins: list[Admin] = []
         for row in rows:
             admin = AdminMapper.row_to_admin(row)
@@ -101,7 +86,7 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
         return self._exists(AdminGateway.EXISTS, {"employee_id": admin_id})
 
     def find_by_login(self, *, login: str) -> Admin:
-        row = self._get_one(AdminGateway.SELECT_BY_LOGIN, var=self.VARS, params={"login": login})
+        row = self._get_one(AdminGateway.SELECT_BY_LOGIN, var=AdminMapper.VARS, params={"login": login})
         if not row:
             raise NotFoundError(f"Admin with login '{login}' not found")
 
@@ -215,3 +200,11 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
 
     def set_no_account(self, *, employee_id: int) -> None:
         self._exec(AccountGateway.DELETE_BY_EMPLOYEE, {"employee_id": employee_id})
+
+    def exist_login(self, login: str) -> bool:
+        row = self._get_one(
+            AdminGateway.EXISTS_LOGIN,
+            ["one"],
+            {"login": login},
+        )
+        return bool(row)

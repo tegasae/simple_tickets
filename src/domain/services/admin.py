@@ -98,6 +98,8 @@ class AdminService:
         login: str,
         password: str,
     ) -> Admin:
+        if self._admin_repository.exist_login(login):
+            raise DomainOperationError(f"Login {login} already exists")
 
         admin = self._admin_repository.get(admin_id)
 

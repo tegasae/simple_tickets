@@ -128,3 +128,8 @@ class AdminRepository(ABC):
         Remove account associated with admin.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def exist_login(self, login: str) -> bool:
+        """Check whether login exists."""
+        raise NotImplementedError

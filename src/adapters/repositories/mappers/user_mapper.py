@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from src.domain.account import Account, NoAccount
 from src.domain.employee import User
 
 
@@ -29,7 +30,24 @@ def _parse_dt(value) -> datetime:
     return datetime.now()
 
 
+
 class UserMapper:
+    VARS = [
+        "employee_id",
+        "first_name",
+        "last_name",
+        "email",
+        "phone",
+        "date_created",
+        "enabled",
+        "version",
+        "client_id",
+        "account_id",
+        "login",
+        "password",
+        "account_enabled",
+        "account_date_created",
+    ]
 
     @staticmethod
     def row_to_user(row: dict) -> User:
@@ -45,7 +63,7 @@ class UserMapper:
         user.enabled = bool(row["enabled"])
         user.version = int(row["version"] or 0)
         user.date_created = _parse_dt(row.get("date_created"))
-
+        user.account = UserMapper.row_to_account(row)
         return user
 
     @staticmethod
@@ -85,3 +103,17 @@ class UserMapper:
             "date_created": int(user.account.date_created.timestamp()),
         }
 
+    @staticmethod
+    def row_to_account(row: dict) -> Account | NoAccount:
+        acc_id = row.get("account_id")
+        if not acc_id:
+            return NoAccount()
+
+        # Account.from_database expects hash already stored
+        return Account.from_database(
+            account_id=int(acc_id),
+            login=str(row.get("login") or ""),
+            password_hash=str(row.get("password") or ""),
+            enabled=bool(row.get("account_enabled", 1)),
+            date_created=_parse_dt(row.get("account_date_created")),
+        )

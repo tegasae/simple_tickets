@@ -46,6 +46,22 @@ class AdminMapper:
     Converts DB rows <-> Admin aggregate params.
     """
 
+    VARS = [
+        "employee_id",
+        "first_name",
+        "last_name",
+        "email",
+        "phone",
+        "date_created",
+        "enabled",
+        "version",
+        "job_title",
+        "account_id",
+        "login",
+        "password",
+        "account_enabled",
+        "account_date_created",
+    ]
     @staticmethod
     def row_to_admin(row: dict) -> Admin:
         admin = Admin.create(

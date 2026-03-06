@@ -52,3 +52,9 @@ class AdminGateway:
 
     EXISTS = "SELECT 1 AS one FROM admins WHERE employee_id = :employee_id LIMIT 1"
 
+    EXISTS_LOGIN = """
+        SELECT 1 AS one
+        FROM accounts
+        WHERE login = :login
+        LIMIT 1
+        """

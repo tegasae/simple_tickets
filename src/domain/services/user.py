@@ -96,7 +96,8 @@ class UserService:
         login: str,
         password: str,
     ) -> User:
-
+        if self._user_repository.exist_login(login):
+            raise DomainOperationError(f"Login {login} already exists")
         user = self._user_repository.get(user_id)
 
         user.account = Account.create(
@@ -120,7 +121,7 @@ class UserService:
         user = self._user_repository.get(user_id)
 
         if isinstance(user.account, NoAccount):
-            return user
+            raise DomainOperationError("User has no account")
 
         user.account = Account.create(
             account_id=user.account.account_id,
@@ -158,7 +159,7 @@ class UserService:
         user = self._user_repository.get(user_id)
 
         if isinstance(user.account, NoAccount):
-            return user
+            raise DomainOperationError("User has no account")
 
         user.account.disable()
 
@@ -169,7 +170,7 @@ class UserService:
         user = self._user_repository.get(user_id)
 
         if isinstance(user.account, NoAccount):
-            return user
+            raise DomainOperationError("User has no account")
 
         user.account.enable()
 

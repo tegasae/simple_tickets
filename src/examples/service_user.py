@@ -49,7 +49,6 @@ def main():
         )
 
         print("Account attached:", user.account)
-        conn.commit()
 
         # ---------------------------
         # 3️⃣ Update user data
@@ -62,6 +61,7 @@ def main():
 
         print("User updated:", user)
 
+
         # ---------------------------
         # 4️⃣ Disable user account
         # ---------------------------
@@ -71,8 +71,7 @@ def main():
         )
 
         print("Account disabled:", user.account)
-        conn.commit()
-        exit()
+
         # ---------------------------
         # 5️⃣ Enable user account again
         # ---------------------------

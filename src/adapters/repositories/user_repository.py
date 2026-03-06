@@ -15,17 +15,7 @@ from src.domain.exceptions import ItemNotFoundError
 
 class UserRepositorySQLite(BaseRepository, UserRepository):
 
-    VARS = [
-        "employee_id",
-        "first_name",
-        "last_name",
-        "email",
-        "phone",
-        "date_created",
-        "enabled",
-        "version",
-        "client_id",
-    ]
+
 
     # ---------- roles ----------
 
@@ -64,7 +54,7 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
     def get(self, user_id: int) -> User:
         row = self._get_one(
             UserGateway.SELECT_BY_ID,
-            self.VARS,
+            UserMapper.VARS,
             {"employee_id": user_id},
         )
         if not row:
@@ -75,7 +65,7 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
         return user
 
     def get_all(self) -> list[User]:
-        rows = self._get_many(UserGateway.SELECT_ALL, self.VARS)
+        rows = self._get_many(UserGateway.SELECT_BASE, UserMapper.VARS)
 
         users: list[User] = []
         for row in rows:
@@ -96,7 +86,7 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
     def find_by_login(self, *, login: str) -> User:
         row = self._get_one(
             UserGateway.SELECT_BY_LOGIN,
-            self.VARS,
+            UserMapper.VARS,
             {"login": login},
         )
         if not row:
@@ -108,12 +98,11 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
 
     def exist_login(self, login: str) -> bool:
         row = self._get_one(
-            UserGateway.SELECT_BY_LOGIN,
-            ["employee_id"],
+            UserGateway.EXISTS_LOGIN,
+            ["one"],
             {"login": login},
         )
         return bool(row)
-
     # ---------- persistence ----------
 
     def save(self, user: User) -> User:
