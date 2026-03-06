@@ -37,11 +37,12 @@ def main():
         )
 
         print("Created admin:", admin)
-
+        conn.commit()
         # ---------------------------
         # 2️⃣ Attach account
         # ---------------------------
 
+        conn.begin_transaction()
         admin = admin_service.attach_account(
             admin_id=admin.employee_id,
             login="john_admin",
@@ -49,17 +50,18 @@ def main():
         )
 
         print("Account attached:", admin.account)
-
+        conn.commit()
         # ---------------------------
         # 3️⃣ Update admin data
         # ---------------------------
-
+        conn.begin_transaction()
         admin = admin_service.update_admin(
             admin_id=admin.employee_id,
             job_title="Senior Administrator",
             email="john.smith@company.com",
         )
-
+        conn.commit()
+        conn.begin_transaction()
         print("Admin updated:", admin)
 
         # ---------------------------
@@ -82,6 +84,7 @@ def main():
 
         print("Roles granted:", roles)
 
+
         # ---------------------------
         # 5️⃣ Revoke one role
         # ---------------------------
@@ -97,14 +100,15 @@ def main():
 
         print("Roles after revoke:", roles)
 
+        conn.commit()
         # ---------------------------
         # 6️⃣ Disable admin account
         # ---------------------------
-
+        conn.begin_transaction()
         admin = admin_service.disable_admin_account(
             admin_id=admin.employee_id
         )
-        conn.commit()
+
         print("Account disabled:", admin.account)
 
         # ---------------------------
@@ -116,22 +120,23 @@ def main():
         )
 
         print("Account enabled:", admin.account)
-        conn.commit()
+
         # ---------------------------
         # 8️⃣ Change password
         # ---------------------------
-
+        conn.commit()
+        conn.begin_transaction()
         admin = admin_service.update_password(
             admin_id=admin.employee_id,
             password="1234567890@Ww",
         )
 
         print("Password updated:", admin)
-
+        conn.commit()
         # ---------------------------
         # 9️⃣ Read admin
         # ---------------------------
-        conn.commit()
+        conn.begin_transaction()
         admin_get = admin_service.get_by_id(
             admin_id=admin.employee_id
         )
