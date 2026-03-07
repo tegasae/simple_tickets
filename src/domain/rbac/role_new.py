@@ -15,6 +15,6 @@ class Role(Generic[P]):
     description: str = ""
     is_system_role: bool = False
     date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-
+    version: int = 0
     def has_permission(self, permission: P) -> bool:
         return permission in self.permissions

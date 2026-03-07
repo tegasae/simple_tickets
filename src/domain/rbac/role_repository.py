@@ -26,4 +26,9 @@ class RoleRepository(ABC, Generic[P]):
     def delete(self,role_id):
         raise NotImplementedError
 
+    @abstractmethod
+    def is_assigned(self, role_id: int) -> bool:
+        """Check whether role is assigned to any admin or user."""
+        raise NotImplementedError
+
 

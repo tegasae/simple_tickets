@@ -5,7 +5,7 @@ from src.adapters.repositories.gateways.user_gateway import UserGateway
 from src.adapters.repositories.mappers.user_mapper import UserMapper
 from src.adapters.repositories.gateways.employee_gateway import EmployeeGateway
 
-from src.adapters.repositories.gateways.role_gateway import RoleGateway
+from src.adapters.repositories.gateways.employee_role_gateway import RoleEmployeeGateway
 from src.adapters.repositories.gateways.account_gateway import AccountGateway
 
 from src.domain.employee import User
@@ -21,7 +21,7 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
 
     def _load_roles(self, employee_id: int) -> set[int]:
         rows = self._get_many(
-            RoleGateway.SELECT_USER_ROLES,
+            RoleEmployeeGateway.SELECT_USER_ROLES,
             ["role_id"],
             {"employee_id": employee_id},
         )
@@ -29,13 +29,13 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
 
     def _replace_roles(self, user: User) -> None:
         self._exec(
-            RoleGateway.DELETE_ALL_USER_ROLES,
+            RoleEmployeeGateway.DELETE_ALL_USER_ROLES,
             {"employee_id": user.employee_id},
         )
 
         for role_id in user.role_ids():
             self._exec(
-                RoleGateway.INSERT_USER_ROLE,
+                RoleEmployeeGateway.INSERT_USER_ROLE,
                 {"employee_id": user.employee_id, "role_id": role_id},
             )
 
@@ -155,7 +155,7 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
         try:
             # reverse dependencies
             self._exec(AccountGateway.DELETE_BY_EMPLOYEE, {"employee_id": user_id})
-            self._exec(RoleGateway.DELETE_ALL_USER_ROLES, {"employee_id": user_id})
+            self._exec(RoleEmployeeGateway.DELETE_ALL_USER_ROLES, {"employee_id": user_id})
             self._exec(UserGateway.DELETE, {"employee_id": user_id})
             self._exec(EmployeeGateway.DELETE, {"employee_id": user_id})
 

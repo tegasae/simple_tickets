@@ -5,7 +5,7 @@ from src.adapters.repositories.exceptions import NotFoundError, OptimisticLockEr
 from src.adapters.repositories.gateways.account_gateway import AccountGateway
 from src.adapters.repositories.gateways.admin_gateway import AdminGateway
 from src.adapters.repositories.gateways.employee_gateway import EmployeeGateway
-from src.adapters.repositories.gateways.role_gateway import RoleGateway
+from src.adapters.repositories.gateways.employee_role_gateway import RoleEmployeeGateway
 from src.adapters.repositories.mappers.admin_mapper import AdminMapper
 
 from src.domain.employee import Admin
@@ -30,14 +30,14 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
 
     def _load_roles(self, employee_id: int) -> set[int]:
         rows = self._get_many(
-            RoleGateway.SELECT_ADMIN_ROLE_IDS,
+            RoleEmployeeGateway.SELECT_ADMIN_ROLE_IDS,
             var=["role_id"],
             params={"employee_id": employee_id},
         )
         return {int(r["role_id"]) for r in rows}
 
     def _replace_roles(self, admin: Admin) -> None:
-        self._exec(RoleGateway.DELETE_ALL_FOR_ADMIN, {"employee_id": admin.employee_id})
+        self._exec(RoleEmployeeGateway.DELETE_ALL_FOR_ADMIN, {"employee_id": admin.employee_id})
 
         role_ids = set(admin.role_ids())
         if not role_ids:
@@ -45,7 +45,7 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
 
         for role_id in role_ids:
             self._exec(
-                RoleGateway.INSERT_ADMIN_ROLE,
+                RoleEmployeeGateway.INSERT_ADMIN_ROLE,
                 {"employee_id": admin.employee_id, "role_id": int(role_id)},
             )
 
@@ -172,7 +172,7 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
         """
         try:
             self._exec(AccountGateway.DELETE_BY_EMPLOYEE, {"employee_id": admin_id})
-            self._exec(RoleGateway.DELETE_ALL_FOR_ADMIN, {"employee_id": admin_id})
+            self._exec(RoleEmployeeGateway.DELETE_ALL_FOR_ADMIN, {"employee_id": admin_id})
             self._exec(AdminGateway.DELETE, {"employee_id": admin_id})
             self._exec(EmployeeGateway.DELETE_ADMIN_EMPLOYEE, {"employee_id": admin_id})
         except Exception as e:
@@ -184,12 +184,12 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
 
     def grant_role(self, *, employee_id: int, role_id: int) -> None:
         # avoid duplicates (PK handles too, but error is annoying)
-        if self._exists(RoleGateway.EXISTS_ONE, {"employee_id": employee_id, "role_id": role_id}):
+        if self._exists(RoleEmployeeGateway.EXISTS_ONE, {"employee_id": employee_id, "role_id": role_id}):
             return
-        self._exec(RoleGateway.INSERT_ADMIN_ROLE, {"employee_id": employee_id, "role_id": role_id})
+        self._exec(RoleEmployeeGateway.INSERT_ADMIN_ROLE, {"employee_id": employee_id, "role_id": role_id})
 
     def revoke_role(self, *, employee_id: int, role_id: int) -> None:
-        self._exec(RoleGateway.DELETE_ONE, {"employee_id": employee_id, "role_id": role_id})
+        self._exec(RoleEmployeeGateway.DELETE_ONE, {"employee_id": employee_id, "role_id": role_id})
 
     def get_role_ids(self, *, employee_id: int) -> set[int]:
         return self._load_roles(employee_id)
