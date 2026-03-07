@@ -3,6 +3,8 @@ from datetime import datetime
 from src.domain.account import Account, NoAccount
 from src.domain.employee import User
 
+def _dt_to_sqlite_iso(dt: datetime) -> str:
+    return dt.isoformat(timespec="seconds")
 
 def _parse_dt(value) -> datetime:
     """
@@ -77,7 +79,7 @@ class UserMapper:
             "enabled": int(user.enabled),
             "version": int(user.version),
             # you said you prefer INTEGER for date_created:
-            "date_created": int(user.date_created.timestamp()),
+            "date_created":  _dt_to_sqlite_iso(user.date_created),
             # required by EmployeeGateway.UPDATE
             "is_admin": 0,
         }

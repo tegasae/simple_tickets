@@ -4,6 +4,9 @@ from typing import Iterable, Type
 from src.domain.rbac.role_new import Role
 from src.domain.rbac.typevar import P
 
+def _dt_to_sqlite_iso(dt: datetime) -> str:
+    return dt.isoformat(timespec="seconds")
+
 
 class RoleMapper:
     VARS = [
@@ -25,6 +28,7 @@ class RoleMapper:
             "permissions": RoleMapper.permissions_to_string(role.permissions),
             "description": role.description,
             "is_system_role": role.is_system_role,
+            "date_created": _dt_to_sqlite_iso(role.date_created),
             "version": role.version if role.version is not None else 0,
             "is_admin":is_admin
 

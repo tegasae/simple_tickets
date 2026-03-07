@@ -3,8 +3,8 @@ from typing import Generic, Iterable
 
 
 
-from src.domain.rbac.role import P
 from src.domain.rbac.role_new import Role
+from src.domain.rbac.typevar import P
 
 
 class RoleRepository(ABC, Generic[P]):

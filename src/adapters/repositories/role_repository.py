@@ -66,10 +66,13 @@ class RoleRepositorySQLite(BaseRepository,RoleRepository[P], Generic[P]):
 
     def all(self) -> Iterable[Role[P]]:
 
-        rows = self._get_many(RoleGateway.SELECT_BASE, RoleMapper.VARS)
+        rows = self._get_many(RoleGateway.SELECT_BASE, var=RoleMapper.VARS,params={"is_admin":self.is_admin})
 
         roles: list[Role[P]] = []
         for row in rows:
+            if not row["permissions"]:
+                row["permissions"] = ""
+
             role = RoleMapper.row_to_role(row,self.permission_cls)
 
             roles.append(role)

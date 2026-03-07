@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Generic, FrozenSet
 
-from src.domain.rbac.role import P
+from src.domain.rbac.typevar import P
 
 
 @dataclass(frozen=True)
