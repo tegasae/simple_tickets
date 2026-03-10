@@ -59,6 +59,26 @@ INSERT INTO employees VALUES(46,'John','Smith','','','2026-03-06T10:27:35',NULL,
 INSERT INTO employees VALUES(47,'John','Smith','john.smith@company.com','','2026-03-06T10:27:45',NULL,0,10,1);
 INSERT INTO employees VALUES(48,'John','Smith','','','2026-03-06T10:28:29',NULL,1,1,1);
 INSERT INTO employees VALUES(49,'John','Smith','john.smith@company.com','','2026-03-06T10:28:50',NULL,0,10,1);
+INSERT INTO employees VALUES(50,'John','Smith','','','1772821643',NULL,1,1,0);
+INSERT INTO employees VALUES(51,'John','Smith','','','1772821778',NULL,1,0,0);
+INSERT INTO employees VALUES(52,'John','Smith','','','1772821832',NULL,1,1,0);
+INSERT INTO employees VALUES(53,'John','Smith','john.smith@company.com','','1772821887',NULL,1,2,0);
+INSERT INTO employees VALUES(54,'John','Smith','','','2026-03-06T21:34:53',NULL,1,1,1);
+INSERT INTO employees VALUES(55,'John','Smith','','','2026-03-06T21:38:43',NULL,1,0,1);
+INSERT INTO employees VALUES(56,'John','Smith','','','2026-03-06T21:39:15',NULL,1,1,1);
+INSERT INTO employees VALUES(57,'John','Smith','','','2026-03-06T22:05:42',NULL,1,0,1);
+INSERT INTO employees VALUES(58,'John','Smith','john.smith@company.com','','2026-03-06T22:05:59',NULL,0,10,1);
+INSERT INTO employees VALUES(59,'John','Smith','john.smith@company.com','','2026-03-06T22:06:11',NULL,0,10,1);
+INSERT INTO employees VALUES(60,'John','Smith','john.smith@company.com','','1772823975',NULL,1,3,0);
+INSERT INTO employees VALUES(61,'John','Smith','john.smith@company.com','','1772824012',NULL,0,7,0);
+INSERT INTO employees VALUES(62,'John','Smith','john.smith@company.com','','1772824274',NULL,0,7,0);
+INSERT INTO employees VALUES(63,'John','Smith','john.smith@company.com','','1772824279',NULL,0,7,0);
+INSERT INTO employees VALUES(64,'John','Smith','john.smith@company.com','','1772824287',NULL,0,7,0);
+INSERT INTO employees VALUES(65,'John','Smith','john.smith@company.com','','1772824330',NULL,1,5,0);
+INSERT INTO employees VALUES(66,'John','Smith','','','2026-03-07T12:36:47',NULL,1,1,1);
+INSERT INTO employees VALUES(67,'Alice','Brown','','','1772876207',NULL,1,0,0);
+INSERT INTO employees VALUES(68,'John','Smith','','','2026-03-07T12:50:39',NULL,1,1,1);
+INSERT INTO employees VALUES(69,'Alice','Brown','','','1772877039',NULL,1,0,0);
 CREATE TABLE admins (
     employee_id INTEGER NOT NULL PRIMARY KEY,
     job_title TEXT,
@@ -107,6 +127,14 @@ INSERT INTO admins VALUES(46,'System Administrator');
 INSERT INTO admins VALUES(47,'Senior Administrator');
 INSERT INTO admins VALUES(48,'System Administrator');
 INSERT INTO admins VALUES(49,'Senior Administrator');
+INSERT INTO admins VALUES(54,'System Administrator');
+INSERT INTO admins VALUES(55,'System Administrator');
+INSERT INTO admins VALUES(56,'System Administrator');
+INSERT INTO admins VALUES(57,'System Administrator');
+INSERT INTO admins VALUES(58,'Senior Administrator');
+INSERT INTO admins VALUES(59,'Senior Administrator');
+INSERT INTO admins VALUES(66,'System Administrator');
+INSERT INTO admins VALUES(68,'System Administrator');
 CREATE TABLE users (
     employee_id INTEGER NOT NULL PRIMARY KEY,
     client_id INTEGER NOT NULL,
@@ -118,6 +146,18 @@ INSERT INTO users VALUES(9,1);
 INSERT INTO users VALUES(10,1);
 INSERT INTO users VALUES(11,1);
 INSERT INTO users VALUES(12,1);
+INSERT INTO users VALUES(50,1);
+INSERT INTO users VALUES(51,1);
+INSERT INTO users VALUES(52,1);
+INSERT INTO users VALUES(53,1);
+INSERT INTO users VALUES(60,1);
+INSERT INTO users VALUES(61,1);
+INSERT INTO users VALUES(62,1);
+INSERT INTO users VALUES(63,1);
+INSERT INTO users VALUES(64,1);
+INSERT INTO users VALUES(65,1);
+INSERT INTO users VALUES(67,4);
+INSERT INTO users VALUES(69,5);
 CREATE TABLE accounts (
 	account_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	employee_id INTEGER,
@@ -127,6 +167,7 @@ CREATE TABLE accounts (
 	date_created TEXT,
 	CONSTRAINT accounts_employees_FK FOREIGN KEY (employee_id) REFERENCES employees(employee_id) on delete restrict
 );
+INSERT INTO accounts VALUES(170,65,'john_user','537c77bc5f44af2a789aaa5c5df27477036ec34e7a1f1b4ad5f69a38e3c7ea8a',1,'1772824323');
 CREATE TABLE clients (
 	client_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	admin_id INTEGER,
@@ -139,6 +180,8 @@ CREATE TABLE clients (
 	CONSTRAINT clients_admins_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict
 );
 INSERT INTO clients VALUES(1,1,'name',NULL,NULL,NULL,NULL,NULL,NULL);
+INSERT INTO clients VALUES(4,66,'ACME Corporation','','','',1,0,'2026-03-07T12:36:47.340385');
+INSERT INTO clients VALUES(5,68,'ACME Corporation','','','',1,0,'2026-03-07T12:50:39.051346');
 CREATE TABLE roles (
 	role_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	name TEXT,
@@ -172,6 +215,10 @@ INSERT INTO admins_roles VALUES(43,1);
 INSERT INTO admins_roles VALUES(45,1);
 INSERT INTO admins_roles VALUES(47,1);
 INSERT INTO admins_roles VALUES(49,1);
+INSERT INTO admins_roles VALUES(58,1);
+INSERT INTO admins_roles VALUES(59,1);
+INSERT INTO admins_roles VALUES(66,1);
+INSERT INTO admins_roles VALUES(68,1);
 CREATE TABLE users_roles (
   employee_id INTEGER NOT NULL,
   role_id INTEGER NOT NULL,
@@ -266,10 +313,78 @@ CREATE TABLE user_tickets_executor_assignments (
 	CONSTRAINT executor_assignments_tickets_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict
 );
 DELETE FROM sqlite_sequence;
-INSERT INTO sqlite_sequence VALUES('employees',49);
-INSERT INTO sqlite_sequence VALUES('accounts',119);
-INSERT INTO sqlite_sequence VALUES('roles',2);
-INSERT INTO sqlite_sequence VALUES('clients',3);
+INSERT INTO sqlite_sequence VALUES('employees',69);
+INSERT INTO sqlite_sequence VALUES('accounts',174);
+INSERT INTO sqlite_sequence VALUES('roles',4);
+INSERT INTO sqlite_sequence VALUES('clients',5);
 CREATE UNIQUE INDEX accounts_login_IDX ON accounts (login);
 CREATE UNIQUE INDEX accounts_employee_uq ON accounts(employee_id);
 COMMIT;
+1|John|Smith|john.smith@company.com||2026-03-05T11:04:11||0|6|1
+2|John|Smith|john.smith@company.com||2026-03-05T11:23:24||0|7|1
+3|John|Smith|john.smith@company.com||2026-03-05T11:29:03||0|7|1
+4|John|Smith|john.smith@company.com||2026-03-05T11:29:33||0|7|1
+5|John|Smith|john.smith@company.com||2026-03-05T13:11:58||0|10|1
+6|John|Smith|john.smith@company.com||2026-03-05T18:58:24||0|10|1
+7|John|Smith|john.smith@company.com||2026-03-05T20:48:36||0|10|1
+8|John|Smith|||1772733320||1|1|0
+9|John|Smith|||1772733339||1|1|0
+10|John|Smith|||1772733448||1|1|0
+11|John|Smith|||1772733502||1|1|0
+12|John|Smith|||1772733570||1|1|0
+13|John|Smith|john.smith@company.com||2026-03-05T21:01:04||1|6|1
+14|John|Smith|john.smith@company.com||2026-03-05T21:02:08||1|6|1
+15|John|Smith|john.smith@company.com||2026-03-05T21:03:24||1|6|1
+16|John|Smith|john.smith@company.com||2026-03-05T21:04:15||1|6|1
+17|John|Smith|||2026-03-06T09:47:06||1|0|1
+18|John|Smith|||2026-03-06T09:47:56||1|0|1
+19|John|Smith|||2026-03-06T09:48:45||1|0|1
+20|John|Smith|||2026-03-06T09:49:31||1|0|1
+21|John|Smith|||2026-03-06T09:50:40||1|0|1
+22|John|Smith|||2026-03-06T09:51:05||1|0|1
+23|John|Smith|||2026-03-06T09:52:15||1|0|1
+24|John|Smith|||2026-03-06T09:52:40||1|0|1
+25|John|Smith|||2026-03-06T09:52:49||1|0|1
+26|John|Smith|||2026-03-06T09:53:04||1|0|1
+27|John|Smith|||2026-03-06T09:58:42||1|0|1
+28|John|Smith|||2026-03-06T10:02:29||1|0|1
+29|John|Smith|||2026-03-06T10:03:23||1|0|1
+30|John|Smith|||2026-03-06T10:04:33||1|0|1
+31|John|Smith|||2026-03-06T10:06:38||1|0|1
+32|John|Smith|||2026-03-06T10:07:02||1|0|1
+33|John|Smith|||2026-03-06T10:10:07||1|0|1
+34|John|Smith|||2026-03-06T10:11:14||1|0|1
+36|John|Smith|||2026-03-06T10:16:57||1|0|1
+37|John|Smith|||2026-03-06T10:17:23||1|0|1
+38|John|Smith|||2026-03-06T10:18:54||1|0|1
+39|John|Smith|john.smith@company.com||2026-03-06T10:20:13||1|1|1
+40|John|Smith|john.smith@company.com||2026-03-06T10:23:02||1|2|1
+41|John|Smith|||2026-03-06T10:24:09||1|0|1
+42|John|Smith|john.smith@company.com||2026-03-06T10:24:37||1|4|1
+43|John|Smith|john.smith@company.com||2026-03-06T10:25:58||1|7|1
+44|John|Smith|||2026-03-06T10:26:36||1|0|1
+45|John|Smith|john.smith@company.com||2026-03-06T10:26:47||1|8|1
+46|John|Smith|||2026-03-06T10:27:35||1|0|1
+47|John|Smith|john.smith@company.com||2026-03-06T10:27:45||0|10|1
+48|John|Smith|||2026-03-06T10:28:29||1|1|1
+49|John|Smith|john.smith@company.com||2026-03-06T10:28:50||0|10|1
+50|John|Smith|||1772821643||1|1|0
+51|John|Smith|||1772821778||1|0|0
+52|John|Smith|||1772821832||1|1|0
+53|John|Smith|john.smith@company.com||1772821887||1|2|0
+54|John|Smith|||2026-03-06T21:34:53||1|1|1
+55|John|Smith|||2026-03-06T21:38:43||1|0|1
+56|John|Smith|||2026-03-06T21:39:15||1|1|1
+57|John|Smith|||2026-03-06T22:05:42||1|0|1
+58|John|Smith|john.smith@company.com||2026-03-06T22:05:59||0|10|1
+59|John|Smith|john.smith@company.com||2026-03-06T22:06:11||0|10|1
+60|John|Smith|john.smith@company.com||1772823975||1|3|0
+61|John|Smith|john.smith@company.com||1772824012||0|7|0
+62|John|Smith|john.smith@company.com||1772824274||0|7|0
+63|John|Smith|john.smith@company.com||1772824279||0|7|0
+64|John|Smith|john.smith@company.com||1772824287||0|7|0
+65|John|Smith|john.smith@company.com||1772824330||1|5|0
+66|John|Smith|||2026-03-07T12:36:47||1|1|1
+67|Alice|Brown|||1772876207||1|0|0
+68|John|Smith|||2026-03-07T12:50:39||1|1|1
+69|Alice|Brown|||1772877039||1|0|0
