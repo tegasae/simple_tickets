@@ -19,8 +19,9 @@ R = TypeVar("R")  # status record type
 
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class Comment:
+    comment_id:int=0
     employee_id: int
     comment: str
     date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
