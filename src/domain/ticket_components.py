@@ -27,19 +27,15 @@ class Comment:
     date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class ExecutorAssignment:
     """
     Executor assignment uses an admin id in your model.
     Naming it explicitly reduces confusion between 'employee' and 'admin'.
     """
+    executor_id:int=0
     admin_id: int
     date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-
-
-
-
-
 
 
 @dataclass

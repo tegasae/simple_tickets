@@ -31,6 +31,7 @@ class TicketMapper:
         "version",
     ]
     VARS_COMMENT=["comment_ticket_id","admin_id", "comment", "date_created"]
+    VARS_EXECUTORS=["executor_id","admin_id","date_created"]
     @staticmethod
     def row_to_ticket(row: dict) -> Ticket:
         ticket = Ticket(

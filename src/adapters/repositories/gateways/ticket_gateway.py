@@ -94,11 +94,7 @@ class TicketCommentGateway:
     )
     """
 
-    COUNT = """
-    SELECT COUNT(*) AS cnt
-    FROM tickets_comment
-    WHERE ticket_id = :ticket_id
-    """
+
 
     DELETE_ALL = """
     DELETE FROM tickets_comment
@@ -108,7 +104,7 @@ class TicketCommentGateway:
 
 class TicketExecutorGateway:
     SELECT = """
-    SELECT admin_id, date_assignment
+    SELECT executor_assignment_id, admin_id, date_assignment
     FROM tickets_executor_assignment
     WHERE ticket_id = :ticket_id
     ORDER BY executor_assignment_id
