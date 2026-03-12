@@ -95,7 +95,6 @@ class TicketCommentGateway:
     """
 
 
-
     DELETE_ALL = """
     DELETE FROM tickets_comment
     WHERE ticket_id = :ticket_id
@@ -123,11 +122,6 @@ class TicketExecutorGateway:
     )
     """
 
-    COUNT = """
-    SELECT COUNT(*) AS cnt
-    FROM tickets_executor_assignment
-    WHERE ticket_id = :ticket_id
-    """
 
     DELETE_ALL = """
     DELETE FROM tickets_executor_assignment
@@ -137,7 +131,7 @@ class TicketExecutorGateway:
 
 class TicketStatusGateway:
     SELECT = """
-    SELECT admin_id, status, date_created
+    SELECT ticket_status_id, admin_id, status, date_created
     FROM tickets_status_record
     WHERE ticket_id = :ticket_id
     ORDER BY ticket_status_record_id
@@ -158,7 +152,7 @@ class TicketStatusGateway:
     )
     """
 
-    COUNT = """
+    COUNT1 = """
     SELECT COUNT(*) AS cnt
     FROM tickets_status_record
     WHERE ticket_id = :ticket_id

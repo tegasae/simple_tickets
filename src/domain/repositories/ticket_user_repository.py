@@ -1,6 +1,21 @@
-from typing import runtime_checkable, Protocol
+from abc import ABC, abstractmethod
+from src.domain.ticket_user import TicketUser
 
 
-@runtime_checkable
-class TicketUserRepository(Protocol):
-    def exists_for_user(self, user_id: int) -> bool: ...
+class TicketUserRepository(ABC):
+
+    @abstractmethod
+    def get(self, ticket_id: int) -> TicketUser:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_all(self) -> list[TicketUser]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def save(self, ticket: TicketUser) -> TicketUser:
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete(self, ticket_id: int) -> None:
+        raise NotImplementedError

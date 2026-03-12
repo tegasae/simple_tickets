@@ -28,11 +28,12 @@ class TicketStatus(Enum):
         return to_status in transitions.get(from_status, [])
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class TicketStatusRecord:
+    status_id: int=0
     actor_employee_id: int
     status: TicketStatus
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, TicketStatusRecord) and self.status == other.status
@@ -79,7 +80,7 @@ class Ticket:
             if current in (TicketStatus.EXECUTED, TicketStatus.CANCELLED):
                 self.is_closed = True
                 if self.date_finished is None:
-                    self.date_finished = self.statuses[-1].created_at
+                    self.date_finished = self.statuses[-1].date_created
             else:
                 self.is_closed = False
 

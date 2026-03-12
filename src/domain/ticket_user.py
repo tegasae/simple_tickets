@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Any, Optional, Self
 
 from src.domain.exceptions import DomainOperationError
-from src.domain.ticket_components import Comment, ExecutorAssignment
+from src.domain.ticket_components import Comment
 
 
 class StatusTicketOfClient(Enum):
@@ -43,7 +43,9 @@ class StatusRecordTicketUser:
     Immutable record of a TicketUser status change.
     actor_employee_id: who changed status (employee or admin).
     """
+    status_id: int=0
     actor_employee_id: int
+    status: StatusTicketOfClient
     status: StatusTicketOfClient
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -68,42 +70,14 @@ class TicketUser:
     user_id: int
     contact_user_id: int
     description: str
-
-
-
-
     # Optional cross-link for future transformation (can be unused now)
-
-
     statuses: list[StatusRecordTicketUser] = field(default_factory=list)
     comments: list[Comment] = field(default_factory=list)
-    executors: list[ExecutorAssignment] = field(default_factory=list)
-
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     is_closed: bool = False
     finished_at: Optional[datetime] = None
     version: int = 0
 
-    def __post_init__(self) -> None:
-        # Ensure initial status exists
-        if not self.statuses:
-            self.statuses.append(
-                StatusRecordTicketUser(status=StatusTicketOfClient.CREATED, actor_employee_id=self.user_id)
-            )
-
-        # Recompute closure from status history (robust when rehydrating from storage)
-        current = self.current_status()
-        if current in (StatusTicketOfClient.EXECUTED,
-                       StatusTicketOfClient.CANCELED_BY_ADMIN,
-                       StatusTicketOfClient.CANCELED_BY_CLIENT):
-            self.is_closed = True
-            if self.finished_at is None:
-                self.finished_at = self.statuses[-1].created_at
-        else:
-            self.is_closed = False
-
-        if not self.contact_user_id:
-            self.contact_user_id=self.user_id
 
     # ----------------------------
     # Queries
@@ -114,11 +88,6 @@ class TicketUser:
             raise DomainOperationError("TicketUser has no status history")
         return self.statuses[-1].status
 
-    def current_executor(self) -> ExecutorAssignment:
-        try:
-            return self.executors[-1]
-        except IndexError:
-            raise DomainOperationError("No executor available")
 
     # ----------------------------
     # Commands (business methods)
@@ -149,11 +118,6 @@ class TicketUser:
         self.comments.append(comment)
         self.version += 1
 
-    def add_executor(self, assignment: ExecutorAssignment) -> None:
-        if self.is_closed:
-            raise DomainOperationError("TicketUser is closed; cannot assign executors")
-        self.executors.append(assignment)
-        self.version += 1
 
     # Convenience methods (optional)
 

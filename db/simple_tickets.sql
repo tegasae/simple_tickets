@@ -276,7 +276,7 @@ CREATE TABLE user_tickets (
 	user_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	client_id INTEGER, -- заявки от какого клиента
 	user_id INTEGER, -- кто создал заявку
-	user_ticket_contact_user_id INTEGER DEFAULT(0), -- контактное лицо по заявке, может не быть
+	user_ticket_contact_user_id INTEGER DEFAULT NULL, -- контактное лицо по заявке, может не быть
 	text_of_ticket TEXT, -- текст заявки 
 	date_created TEXT,
 	version INTEGER, 

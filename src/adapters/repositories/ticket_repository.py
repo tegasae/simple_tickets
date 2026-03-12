@@ -74,25 +74,11 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
     # count helpers for append-only history
     # ---------------------------
 
-    def _comment_count(self, ticket_id: int) -> int:
-        row = self._get_one(
-            TicketCommentGateway.COUNT,
-            ["cnt"],
-            {"ticket_id": ticket_id},
-        )
-        return int(row["cnt"]) if row else 0
 
-    def _executor_count(self, ticket_id: int) -> int:
-        row = self._get_one(
-            TicketExecutorGateway.COUNT,
-            ["cnt"],
-            {"ticket_id": ticket_id},
-        )
-        return int(row["cnt"]) if row else 0
 
     def _status_count(self, ticket_id: int) -> int:
         row = self._get_one(
-            TicketStatusGateway.COUNT,
+            TicketStatusGateway.COUNT1,
             ["cnt"],
             {"ticket_id": ticket_id},
         )
@@ -103,8 +89,6 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
     # ---------------------------
 
     def _append_new_comments(self, ticket: Ticket) -> None:
-
-
         for c in ticket.comments:
             if c.comment_id!=0:
                 continue
@@ -121,31 +105,18 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
 
 
     def _append_new_executors(self, ticket: Ticket) -> None:
-        existing_count = self._executor_count(ticket.ticket_id)
-
-        for e in ticket.executors[existing_count:]:
-            self._exec(
-                TicketExecutorGateway.INSERT,
-                {
-                    "ticket_id": ticket.ticket_id,
-                    "admin_id": e.admin_id,
-                    "date_assignment": e.date_created.isoformat(),
-                },
-            )
+        for e in ticket.executors:
+            if e.executor_id!=0:
+                continue
+            result=self._exec(TicketExecutorGateway.INSERT,params={"ticket_id": ticket.ticket_id, "admin_id": e.admin_id,"date_assignment": e.date_created})
+            e.executor_id=result.last_row_id
 
     def _append_new_statuses(self, ticket: Ticket) -> None:
-        existing_count = self._status_count(ticket.ticket_id)
-
-        for s in ticket.statuses[existing_count:]:
-            self._exec(
-                TicketStatusGateway.INSERT,
-                {
-                    "ticket_id": ticket.ticket_id,
-                    "admin_id": s.actor_employee_id,
-                    "status": s.status.value,
-                    "date_created": s.created_at.isoformat(),
-                },
-            )
+        for s in ticket.statuses:
+            if s.status_id==0:
+                continue
+            result=self._exec(TicketStatusGateway.INSERT, params={"ticket_id":ticket.ticket_id,"status": s.status, "date_created": s.date_created})
+            s.status_id=result.last_row_id
 
     # ---------------------------
     # reads
