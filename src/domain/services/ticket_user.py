@@ -17,13 +17,11 @@ class TicketUserService:
         description: str,
     ) -> TicketUser:
 
-        ticket = TicketUser(
-            ticket_id=0,
+        ticket = TicketUser.create(ticket_id=0,
             client_id=client_id,
             user_id=user_id,
             contact_user_id=contact_user_id,
-            description=description,
-        )
+            description=description,)
 
         return self._repo.save(ticket)
 

@@ -49,6 +49,12 @@ def main():
 
         ticket = service.change_status(
             ticket_id=ticket.ticket_id,
+            new_status=StatusTicketOfClient.AT_WORK,
+            actor_employee_id=1,
+        )
+
+        ticket = service.change_status(
+            ticket_id=ticket.ticket_id,
             new_status=StatusTicketOfClient.EXECUTED,
             actor_employee_id=1,
         )
@@ -62,6 +68,7 @@ def main():
         conn.rollback()
 
         print("ERROR:", e)
+        raise e
 
     finally:
 

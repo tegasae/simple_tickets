@@ -92,7 +92,7 @@ class TestTicketUser:
         assert sample_ticket_user.description == "Test user ticket"
         assert sample_ticket_user.created_by_client is False
         assert sample_ticket_user.is_closed is False
-        assert sample_ticket_user.finished_at is None
+        assert sample_ticket_user.date_finished is None
         assert sample_ticket_user.version == 0
 
     def test_initial_status_created(self, sample_ticket_user):
@@ -161,7 +161,7 @@ class TestTicketUser:
             ticket.change_status(terminal_status, actor_employee_id=400)
 
             assert ticket.is_closed is True
-            assert ticket.finished_at is not None
+            assert ticket.date_finished is not None
             assert ticket.current_status() == terminal_status
 
     def test_convenience_methods(self, sample_ticket_user):
@@ -218,12 +218,12 @@ class TestTicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=300,
                 status=StatusTicketOfClient.CREATED,
-                created_at=datetime(2024, 1, 1, tzinfo=timezone.utc)
+                date_created=datetime(2024, 1, 1, tzinfo=timezone.utc)
             ),
             StatusRecordTicketUser(
                 actor_employee_id=400,
                 status=StatusTicketOfClient.CANCELED_BY_ADMIN,
-                created_at=datetime(2024, 1, 2, tzinfo=timezone.utc)
+                date_created=datetime(2024, 1, 2, tzinfo=timezone.utc)
             )
         ]
 
@@ -236,7 +236,7 @@ class TestTicketUser:
         )
 
         assert ticket.is_closed is True
-        assert ticket.finished_at == statuses[-1].created_at
+        assert ticket.date_finished == statuses[-1].date_created
         assert ticket.current_status() == StatusTicketOfClient.CANCELED_BY_ADMIN
 
 
@@ -250,7 +250,7 @@ class TestStatusRecordTicketUser:
         )
         assert record.actor_employee_id == 1
         assert record.status == StatusTicketOfClient.CREATED
-        assert isinstance(record.created_at, datetime)
+        assert isinstance(record.date_created, datetime)
 
     def test_record_equality_by_status(self):
         record1 = StatusRecordTicketUser(

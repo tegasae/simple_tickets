@@ -1,139 +1,74 @@
-from datetime import datetime
-
-from src.domain.ticket_user import (
-    TicketUser,
-    StatusRecordTicketUser,
-    StatusTicketOfClient,
-    Comment,
-)
+from src.adapters.repositories.base_repository import BaseRepository
+from src.adapters.repositories.gateways.ticket_user_gateway import TicketUserGateway
+from src.adapters.repositories.gateways.ticket_user_status_gateway import TicketUserStatusGateway
+from src.adapters.repositories.gateways.ticket_user_comment_gateway import TicketUserCommentGateway
+from src.adapters.repositories.mappers.ticket_user_mapper import TicketUserMapper
 
 from src.domain.repositories.ticket_user_repository import TicketUserRepository
-from utils.db.connect import Connection
+from src.domain.exceptions import ItemNotFoundError
 from utils.db.exceptions import DBOperationError
 
 
-class TicketUserRepositorySQLite(TicketUserRepository):
-
-    def __init__(self, conn: Connection):
-        self.conn = conn
+class TicketUserRepositorySQLite(BaseRepository, TicketUserRepository):
 
     # -------------------------
     # Load helpers
     # -------------------------
 
-    def _load_statuses(self, ticket: TicketUser):
+    def _load_statuses(self, ticket):
 
-        query = self.conn.create_query(
-            """
-            SELECT user_ticket_status_record_id, employee_id, status, date_created
-            FROM user_tickets_status_record
-            WHERE user_ticket_id = :ticket_id
-            ORDER BY user_ticket_status_record_id
-            """,
-            var=["status_id", "employee_id", "status", "date_created"],
+        rows = self._get_many(
+            TicketUserStatusGateway.SELECT,
+            TicketUserMapper.VARS_STATUS,
+            {"ticket_id": ticket.ticket_id},
         )
 
-        rows = query.get_result({"ticket_id": ticket.ticket_id})
+        ticket.statuses = [
+            TicketUserMapper.row_to_status(r)
+            for r in rows
+        ]
 
-        ticket.statuses = []
+    def _load_comments(self, ticket):
 
-        for r in rows:
-
-            ticket.statuses.append(
-                StatusRecordTicketUser(
-                    status_id=r["status_id"],
-                    actor_employee_id=r["employee_id"],
-                    status=StatusTicketOfClient(r["status"]),
-                    created_at=datetime.fromisoformat(r["date_created"]),
-                )
-            )
-
-    def _load_comments(self, ticket: TicketUser):
-
-        query = self.conn.create_query(
-            """
-            SELECT user_comment_ticket_id, employee_id, comment, date_created
-            FROM user_tickets_comment
-            WHERE user_ticket_id = :ticket_id
-            ORDER BY user_comment_ticket_id
-            """,
-            var=["comment_id", "employee_id", "comment", "date_created"],
+        rows = self._get_many(
+            TicketUserCommentGateway.SELECT,
+            TicketUserMapper.VARS_COMMENT,
+            {"ticket_id": ticket.ticket_id},
         )
 
-        rows = query.get_result({"ticket_id": ticket.ticket_id})
-
-        ticket.comments = []
-
-        for r in rows:
-
-            ticket.comments.append(
-                Comment(
-                    comment_id=r["comment_id"],
-                    employee_id=r["employee_id"],
-                    comment=r["comment"],
-                    date_created=datetime.fromisoformat(r["date_created"]),
-                )
-            )
+        ticket.comments = [
+            TicketUserMapper.row_to_comment(r)
+            for r in rows
+        ]
 
     # -------------------------
     # Reads
     # -------------------------
 
-    def get(self, ticket_id: int) -> TicketUser:
+    def get(self, ticket_id):
 
-        query = self.conn.create_query(
-            """
-            SELECT user_ticket_id, client_id, user_id,
-                   user_ticket_contact_user_id, text_of_ticket,
-                   date_created, version, date_closed, is_closed
-            FROM user_tickets
-            WHERE user_ticket_id = :ticket_id
-            """,
-            var=[
-                "ticket_id",
-                "client_id",
-                "user_id",
-                "contact_user_id",
-                "description",
-                "date_created",
-                "version",
-                "date_closed",
-                "is_closed",
-            ],
+        row = self._get_one(
+            TicketUserGateway.SELECT_BY_ID,
+            TicketUserMapper.VARS_TICKET,
+            {"ticket_id": ticket_id},
         )
-
-        row = query.get_one_result({"ticket_id": ticket_id})
 
         if not row:
-            raise DBOperationError(f"TicketUser {ticket_id} not found")
+            raise ItemNotFoundError(f"TicketUser {ticket_id} not found")
 
-        ticket = TicketUser(
-            ticket_id=row["ticket_id"],
-            client_id=row["client_id"],
-            user_id=row["user_id"],
-            contact_user_id=row["contact_user_id"] or 0,
-            description=row["description"] or "",
-            date_created=datetime.fromisoformat(row["date_created"]),
-            is_closed=bool(row["is_closed"]),
-            version=row["version"],
-        )
+        ticket = TicketUserMapper.row_to_ticket(row)
 
         self._load_statuses(ticket)
         self._load_comments(ticket)
 
         return ticket
 
-    def get_all(self) -> list[TicketUser]:
+    def get_all(self):
 
-        query = self.conn.create_query(
-            """
-            SELECT user_ticket_id
-            FROM user_tickets
-            """,
-            var=["ticket_id"],
+        rows = self._get_many(
+            TicketUserGateway.SELECT_ALL,
+            ["ticket_id"],
         )
-
-        rows = query.get_result()
 
         tickets = []
 
@@ -146,102 +81,65 @@ class TicketUserRepositorySQLite(TicketUserRepository):
     # Save
     # -------------------------
 
-    def save(self, ticket: TicketUser) -> TicketUser:
+    def save(self, ticket):
 
         try:
 
             if ticket.ticket_id == 0:
 
-                insert_query = self.conn.create_query(
-                    """
-                    INSERT INTO user_tickets
-                    (client_id, user_id, user_ticket_contact_user_id,
-                     text_of_ticket, date_created, version, is_closed)
-                    VALUES (:client_id, :user_id, :contact_user_id,
-                            :description, :date_created, :version, :is_closed)
-                    """
+                result = self._exec(
+                    TicketUserGateway.INSERT,
+                    TicketUserMapper.ticket_params(ticket=ticket)
                 )
-
-                ticket.ticket_id = insert_query.set_result(
-                    {
-                        "client_id": ticket.client_id,
-                        "user_id": ticket.user_id,
-                        "contact_user_id": ticket.contact_user_id,
-                        "description": ticket.description,
-                        "date_created": ticket.date_created.isoformat(),
-                        "version": ticket.version,
-                        "is_closed": int(ticket.is_closed),
-                    }
-                )
-
+                ticket.ticket_id=result.last_row_id
             else:
 
-                update_query = self.conn.create_query(
-                    """
-                    UPDATE user_tickets
-                    SET version = :version + 1,
-                        is_closed = :is_closed,
-                        date_closed = :date_closed
-                    WHERE user_ticket_id = :ticket_id
-                      AND version = :version
-                    """
-                )
-
-                update_query.set_result(
+                result = self._exec(
+                    TicketUserGateway.UPDATE,
                     {
                         "ticket_id": ticket.ticket_id,
                         "version": ticket.version,
                         "is_closed": int(ticket.is_closed),
-                        "date_closed": ticket.finished_at.isoformat()
-                        if ticket.finished_at
+                        "date_closed": ticket.date_finished.isoformat()
+                        if ticket.date_finished
                         else None,
-                    }
+                    },
                 )
 
-                if not update_query.count:
+                if not result:
                     raise DBOperationError("Optimistic lock error")
 
-            # save statuses
+            # insert statuses
             for s in ticket.statuses:
-                if s.status_id == 0:
 
-                    q = self.conn.create_query(
-                        """
-                        INSERT INTO user_tickets_status_record
-                        (employee_id, user_ticket_id, status, date_created)
-                        VALUES (:employee_id, :ticket_id, :status, :date_created)
-                        """
-                    )
+                if s.status_id != 0:
+                    continue
 
-                    q.set_result(
-                        {
-                            "employee_id": s.actor_employee_id,
-                            "ticket_id": ticket.ticket_id,
-                            "status": s.status.value,
-                            "date_created": s.created_at.isoformat(),
-                        }
-                    )
+                self._exec(
+                    TicketUserStatusGateway.INSERT,
+                    {
+                        "employee_id": s.actor_employee_id,
+                        "ticket_id": ticket.ticket_id,
+                        "status": s.status.value,
+                        "date_created": s.date_created.isoformat(),
+                    },
+                )
 
-            # save comments
+            # insert comments
             for c in ticket.comments:
-                if c.comment_id == 0:
 
-                    q = self.conn.create_query(
-                        """
-                        INSERT INTO user_tickets_comment
-                        (user_ticket_id, employee_id, comment, date_created)
-                        VALUES (:ticket_id, :employee_id, :comment, :date_created)
-                        """
-                    )
+                if c.comment_id != 0:
+                    continue
 
-                    q.set_result(
-                        {
-                            "ticket_id": ticket.ticket_id,
-                            "employee_id": c.employee_id,
-                            "comment": c.comment,
-                            "date_created": c.date_created.isoformat(),
-                        }
-                    )
+                self._exec(
+                    TicketUserCommentGateway.INSERT,
+                    {
+                        "ticket_id": ticket.ticket_id,
+                        "employee_id": c.employee_id,
+                        "comment": c.comment,
+                        "date_created": c.date_created.isoformat(),
+                    },
+                )
 
             ticket.version += 1
 
@@ -254,23 +152,24 @@ class TicketUserRepositorySQLite(TicketUserRepository):
     # Delete
     # -------------------------
 
-    def delete(self, ticket_id: int):
+    def delete(self, ticket_id):
 
         try:
 
-            self.conn.create_query(
-                "DELETE FROM user_tickets_comment WHERE user_ticket_id=:id"
-            ).set_result({"id": ticket_id})
+            self._exec(
+                TicketUserCommentGateway.DELETE_ALL,
+                {"ticket_id": ticket_id},
+            )
 
-            self.conn.create_query(
-                "DELETE FROM user_tickets_status_record WHERE user_ticket_id=:id"
-            ).set_result({"id": ticket_id})
+            self._exec(
+                TicketUserStatusGateway.DELETE_ALL,
+                {"ticket_id": ticket_id},
+            )
 
-            self.conn.create_query(
-                "DELETE FROM user_tickets WHERE user_ticket_id=:id"
-            ).set_result({"id": ticket_id})
+            self._exec(
+                TicketUserGateway.DELETE,
+                {"ticket_id": ticket_id},
+            )
 
         except Exception as e:
             raise DBOperationError(f"Delete failed: {str(e)}")
-
-

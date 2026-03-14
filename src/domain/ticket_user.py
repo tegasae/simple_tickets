@@ -47,7 +47,7 @@ class StatusRecordTicketUser:
     actor_employee_id: int
     status: StatusTicketOfClient
     status: StatusTicketOfClient
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __eq__(self, other: Any) -> bool:
         # Equality by status only (optional; remove if you don't need it).
@@ -75,10 +75,43 @@ class TicketUser:
     comments: list[Comment] = field(default_factory=list)
     date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     is_closed: bool = False
-    finished_at: Optional[datetime] = None
+    date_finished: Optional[datetime] = None
     version: int = 0
 
+    @classmethod
+    def create(
+            cls,
+            *,
+            ticket_id: int,
+            client_id: int,
+            user_id: int,
+            contact_user_id: int = 0,
+            description: str,
+    ) -> Self:
+        """
+        Create a new user ticket.
 
+        Invariants:
+            - initial status must be CREATED
+            - version starts from 0
+        """
+
+        ticket = cls(
+            ticket_id=ticket_id,
+            client_id=client_id,
+            user_id=user_id,
+            contact_user_id=contact_user_id,
+            description=description,
+        )
+
+        ticket.statuses.append(
+            StatusRecordTicketUser(
+                actor_employee_id=user_id,
+                status=StatusTicketOfClient.CREATED,
+            )
+        )
+
+        return ticket
     # ----------------------------
     # Queries
     # ----------------------------
@@ -102,7 +135,7 @@ class TicketUser:
             raise DomainOperationError(f"Cannot change status from {cur.value} to {new_status.value}")
 
         self.statuses.append(StatusRecordTicketUser(status=new_status, actor_employee_id=actor_employee_id))
-        self.version += 1
+
 
         if new_status in (
             StatusTicketOfClient.EXECUTED,
@@ -110,13 +143,13 @@ class TicketUser:
             StatusTicketOfClient.CANCELED_BY_CLIENT,
         ):
             self.is_closed = True
-            self.finished_at = datetime.now(timezone.utc)
+            self.date_finished = datetime.now(timezone.utc)
 
     def add_comment(self, comment: Comment) -> None:
         if self.is_closed:
             raise DomainOperationError("TicketUser is closed; cannot add comments")
         self.comments.append(comment)
-        self.version += 1
+
 
 
     # Convenience methods (optional)
