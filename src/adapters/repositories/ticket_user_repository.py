@@ -6,6 +6,7 @@ from src.adapters.repositories.mappers.ticket_user_mapper import TicketUserMappe
 
 from src.domain.repositories.ticket_user_repository import TicketUserRepository
 from src.domain.exceptions import ItemNotFoundError
+from src.domain.ticket_user import TicketUser
 from utils.db.exceptions import DBOperationError
 
 
@@ -81,7 +82,7 @@ class TicketUserRepositorySQLite(BaseRepository, TicketUserRepository):
     # Save
     # -------------------------
 
-    def save(self, ticket):
+    def save(self, ticket:TicketUser):
 
         try:
 

@@ -2,6 +2,7 @@ import sqlite3
 
 from src.adapters.repositories.ticket_user_repository import TicketUserRepositorySQLite
 from src.domain.services.ticket_user import TicketUserService
+
 from src.domain.ticket_user import StatusTicketOfClient
 from utils.db.connect import Connection
 
