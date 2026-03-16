@@ -75,12 +75,20 @@ class Ticket:
         Only normalize / recompute state from loaded fields.
         Do NOT create history entries here.
         """
-        if self.statuses:
-            current = self.current_status()
-            if current in (TicketStatus.EXECUTED, TicketStatus.CANCELLED):
-                self.is_closed = True
-                if self.date_finished is None:
-                    self.date_finished = self.statuses[-1].date_created
+        if not self.statuses:
+            self.statuses.append(
+                TicketStatusRecord(
+                    actor_employee_id=self.user_id,
+                    status=TicketStatus.CREATED,
+                )
+            )
+
+        current = self.current_status()
+
+        if current in (TicketStatus.EXECUTED, TicketStatus.CANCELLED):
+            self.is_closed = True
+            if self.date_finished is None:
+                self.date_finished = self.statuses[-1].date_created
             else:
                 self.is_closed = False
 
