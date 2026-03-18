@@ -65,7 +65,7 @@ class SQLiteUnitOfWork(UnitOfWork):
                 logger.debug("Auto-rollback due to exception")
                 raise
             else:
-                if  self._committed:
+                if  not self._committed:
                     self.commit()
                     logger.warning("Commited")
                 else:
