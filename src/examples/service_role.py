@@ -1,5 +1,6 @@
-import sqlite3
+#src/examples/service_role.py
 
+import sqlite3
 from src.adapters.repositories.role_repository import RoleRepositorySQLite
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.role import RoleService

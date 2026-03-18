@@ -1,13 +1,11 @@
+#domain/rbac/employee_protocol.py
 from typing import FrozenSet
 
-from src.adapters.repositories.admin import AdminRepositorySQLite
-from src.domain.employee import Admin
-from src.domain.exceptions import ItemValidationError, DomainOperationError
+from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.admin_rbac import AdminRole
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.rbac.role import Authorizer, RoleManager
 
-from src.domain.rbac.role_repo_mem import RoleRepoMem
 from src.domain.rbac.role_repository import RoleRepository
 from src.domain.repositories.admin_repository import AdminRepository
 
@@ -39,7 +37,7 @@ class AdminRoleService:
         return role
 
     def delete_role(self,role_id:int):
-        if self.admin_repository.exist_role(role_id=role_id)
+        if self.admin_repository.exist_role(role_id=role_id):
             raise DomainOperationError(f"Role id {role_id} has admins")
         self.role_repository.delete(role_id=role_id)
 
