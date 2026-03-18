@@ -64,10 +64,15 @@ class SQLiteUnitOfWork(UnitOfWork):
                 self.rollback()
                 logger.debug("Auto-rollback due to exception")
                 raise
-            elif not self._committed:
-                # No explicit commit - safety rollback
-                self.rollback()
-                logger.warning("Auto-rollback: no commit called")
+            else:
+                if  self._committed:
+                    self.commit()
+                    logger.warning("Commited")
+                else:
+                    # No explicit commit - safety rollback
+                    self.rollback()
+                    logger.warning("Auto-rollback: no commit called")
+            return True
         except Exception as e:
             logger.error(f"Error during transaction cleanup: {e}")
             # Don't mask original exception

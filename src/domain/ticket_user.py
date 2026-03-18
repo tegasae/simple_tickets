@@ -191,7 +191,7 @@ class TicketUser:
 
         self.statuses.append(record)
 
-        self.version += 1
+
 
         if new_status in (
             StatusTicketOfClient.EXECUTED,
@@ -212,7 +212,7 @@ class TicketUser:
 
         self.comments.append(comment)
 
-        self.version += 1
+
 
     # --------------------------------
     # Convenience methods
