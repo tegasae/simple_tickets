@@ -1,5 +1,5 @@
 # src/application/services/client_service.py
-from src.application.assemblers.client_assembler import ClientAssembler
+from src.application.assemblers.assembler import ClientAssembler
 from src.application.dto.client_dto import CreateClientDTO, ClientResponseDTO, UpdateClientDTO
 from src.domain.client import Client
 from src.domain.exceptions import DomainOperationError
