@@ -1,6 +1,6 @@
 # src/application/services/admin_application_service.py
 from src.application.assemblers.assembler import AdminAssembler
-from src.application.dto.admin_dto import CreateAdminDTO, AdminResponseDTO
+from src.application.dto.admin_dto import AdminDTO, AdminResponseDTO
 from src.domain.employee import Admin
 from src.domain.account import Account, NoAccount
 from src.domain.exceptions import DomainOperationError
@@ -43,33 +43,33 @@ class AdminApplicationService:
     def create_admin(
         self,
         *,
-        create_admin_dto:CreateAdminDTO
+        admin_dto:AdminDTO
 
     ) -> AdminResponseDTO:
 
         with self.uow:
 
-            actor = self.uow.admins.get(create_admin_dto.actor_admin_id)
+            actor = self.uow.admins.get(admin_dto.actor_admin_id)
             self._require(actor, AdminPermission.UPDATE_ADMIN)
 
             admin = Admin.create(
                 employee_id=0,
-                job_title=create_admin_dto.job_title,
-                first_name=create_admin_dto.first_name,
-                last_name=create_admin_dto.last_name,
-                email=create_admin_dto.email,
-                phone=create_admin_dto.phone,
+                job_title=admin_dto.job_title,
+                first_name=admin_dto.first_name,
+                last_name=admin_dto.last_name,
+                email=admin_dto.email,
+                phone=admin_dto.phone,
             )
 
-            if create_admin_dto.login and create_admin_dto.password:
+            if admin_dto.login and admin_dto.password:
 
-                if self.uow.admins.exist_login(create_admin_dto.login):
-                    raise DomainOperationError(f"Login {create_admin_dto.login} already exists")
+                if self.uow.admins.exist_login(admin_dto.login):
+                    raise DomainOperationError(f"Login {admin_dto.login} already exists")
 
                 admin.account = Account.create(
                     account_id=0,
-                    login=create_admin_dto.login,
-                    plain_password=create_admin_dto.password,
+                    login=admin_dto.login,
+                    plain_password=admin_dto.password,
                 )
 
             return  AdminAssembler.to_dto(self.uow.admins.save(admin))
@@ -81,32 +81,24 @@ class AdminApplicationService:
     def update_admin(
         self,
         *,
-        actor_admin_id: int,
-        admin_id: int,
-        job_title: str | None = None,
-        first_name: str | None = None,
-        last_name: str | None = None,
-        email: str | None = None,
-        phone: str | None = None,
-    ) -> Admin:
+        admin_dto: AdminDTO
+    ) -> AdminResponseDTO:
 
         with self.uow:
-
-            actor = self.uow.admins.get(actor_admin_id)
-
+            actor = self.uow.admins.get(admin_dto.actor_admin_id)
             self._require(actor, AdminPermission.UPDATE_ADMIN)
-
-            admin = self.uow.admins.get(admin_id)
+            admin = self.uow.admins.get(admin_dto.admin_id)
 
             admin.update(
-                job_title,
-                first_name,
-                last_name,
-                email,
-                phone,
+                admin_dto.job_title,
+                admin_dto.first_name,
+                admin_dto.last_name,
+                admin_dto.email,
+                admin_dto.phone,
             )
 
-            return self.uow.admins.save(admin)
+            #return self.uow.admins.save(admin)
+            return AdminAssembler.to_dto(self.uow.admins.save(admin))
 
     # --------------------------------
     # Account management
@@ -115,44 +107,41 @@ class AdminApplicationService:
     def attach_account(
         self,
         *,
-        actor_admin_id: int,
-        admin_id: int,
-        login: str,
-        password: str,
-    ) -> Admin:
+        admin_dto: AdminDTO
+    ) -> AdminResponseDTO:
 
         with self.uow:
 
-            actor = self.uow.admins.get(actor_admin_id)
+            actor = self.uow.admins.get(admin_id=admin_dto.actor_admin_id)
 
             self._require(actor, AdminPermission.UPDATE_ADMIN)
 
-            if self.uow.admins.exist_login(login):
-                raise DomainOperationError(f"Login {login} already exists")
+            if self.uow.admins.exist_login(admin_dto.login):
+                raise DomainOperationError(f"Login {admin_dto.login} already exists")
 
-            admin = self.uow.admins.get(admin_id)
+            admin = self.uow.admins.get(admin_dto.admin_id)
 
             admin.account = Account.create(
                 account_id=0,
-                login=login,
-                plain_password=password,
+                login=admin_dto.login,
+                plain_password=admin_dto.password,
             )
 
-            return self.uow.admins.save(admin)
+            return AdminAssembler.to_dto(self.uow.admins.save(admin))
 
-    def detach_account(self, *, actor_admin_id: int, admin_id: int) -> Admin:
+    def detach_account(self, *, admin_dto:AdminDTO) -> AdminResponseDTO:
 
         with self.uow:
 
-            actor = self.uow.admins.get(actor_admin_id)
+            actor = self.uow.admins.get(admin_id=admin_dto.actor_admin_id)
 
             self._require(actor, AdminPermission.UPDATE_ADMIN)
 
-            admin = self.uow.admins.get(admin_id)
+            admin = self.uow.admins.get(admin_id=admin_dto.admin_id)
 
             admin.account = NoAccount()
 
-            return self.uow.admins.save(admin)
+            return AdminAssembler.to_dto(self.uow.admins.save(admin))
 
     # --------------------------------
     # Role operations (IMPORTANT)
@@ -164,7 +153,7 @@ class AdminApplicationService:
         actor_admin_id: int,
         target_admin_id: int,
         role_id: int,
-    ) -> Admin:
+    ) -> AdminResponseDTO:
 
         with self.uow:
 
@@ -180,7 +169,7 @@ class AdminApplicationService:
                 required_permission=AdminPermission.ASSIGN_ROLE,
             )
 
-            return self.uow.admins.save(target)
+        return AdminAssembler.to_dto(self.uow.admins.save(target))
 
     def revoke_role(
         self,
@@ -188,7 +177,7 @@ class AdminApplicationService:
         actor_admin_id: int,
         target_admin_id: int,
         role_id: int,
-    ) -> Admin:
+    ) -> AdminResponseDTO:
 
         with self.uow:
 
@@ -204,13 +193,14 @@ class AdminApplicationService:
                 required_permission=AdminPermission.REVOKE_ROLE,
             )
 
-            return self.uow.admins.save(target)
+        return AdminAssembler.to_dto(self.uow.admins.save(target))
+
 
     # --------------------------------
     # Enable / disable
     # --------------------------------
 
-    def disable_admin(self, *, actor_admin_id: int, admin_id: int) -> Admin:
+    def disable_admin(self, *, actor_admin_id: int, admin_id: int) -> AdminResponseDTO:
 
         with self.uow:
 
@@ -225,9 +215,9 @@ class AdminApplicationService:
             if not isinstance(admin.account, NoAccount):
                 admin.account.disable()
 
-            return self.uow.admins.save(admin)
+            return AdminAssembler.to_dto(self.uow.admins.save(admin))
 
-    def enable_admin(self, *, actor_admin_id: int, admin_id: int) -> Admin:
+    def enable_admin(self, *, actor_admin_id: int, admin_id: int) -> AdminResponseDTO:
 
         with self.uow:
 
@@ -239,13 +229,17 @@ class AdminApplicationService:
 
             admin.enable()
 
-            return self.uow.admins.save(admin)
+            return AdminAssembler.to_dto(self.uow.admins.save(admin))
 
     # --------------------------------
     # Queries
     # --------------------------------
+    def find_by_login(self,login:str)->AdminResponseDTO:
+        with self.uow:
+            admin=self.uow.admins.find_by_login(login=login)
+            return AdminAssembler.to_dto(admin)
 
-    def get_by_id(self, *, actor_admin_id: int, admin_id: int) -> Admin:
+    def get_by_id(self, *, actor_admin_id: int, admin_id: int) -> AdminResponseDTO:
 
         with self.uow:
 
@@ -253,14 +247,13 @@ class AdminApplicationService:
 
             self._require(actor, AdminPermission.VIEW_ADMIN)
 
-            return self.uow.admins.get(admin_id)
 
-    def get_all(self, *, actor_admin_id: int) -> list[Admin]:
+            return AdminAssembler.to_dto(self.uow.admins.get(admin_id))
+
+    def get_all(self, *, actor_admin_id: int) -> list[AdminResponseDTO]:
 
         with self.uow:
-
             actor = self.uow.admins.get(actor_admin_id)
-
             self._require(actor, AdminPermission.VIEW_ADMIN)
 
-            return self.uow.admins.get_all()
+            return [AdminAssembler.to_dto(admin) for admin in self.uow.admins.get_all()]
