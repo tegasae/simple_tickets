@@ -1,3 +1,5 @@
+#src/domain/rbac/permissions.py
+
 from enum import StrEnum
 # ---------------------------
 # Permissions (separate forever)
