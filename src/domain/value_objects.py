@@ -243,6 +243,8 @@ class Login(ValueObject[str]):
 
         return new_value
 
+    def __str__(self) -> str:
+        return str(self.value)
 
 def hash_password(plain: str) -> str:
     """Hash a plain text password.

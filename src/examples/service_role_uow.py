@@ -21,7 +21,9 @@ admin_role = admin_service.create_role(
     permissions={
         AdminPermission.VIEW_ADMIN,
         AdminPermission.ASSIGN_ROLE,
-        AdminPermission.VIEW_AUDIT_LOG
+        AdminPermission.VIEW_AUDIT_LOG,
+        AdminPermission.UPDATE_ADMIN,
+        AdminPermission.REVOKE_ROLE
     },
     description="Full system access",
     is_system_role=True,

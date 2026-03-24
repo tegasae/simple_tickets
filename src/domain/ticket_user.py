@@ -232,3 +232,16 @@ class TicketUser:
 
     def cancel_by_admin(self, actor_employee_id: int) -> None:
         self.change_status(StatusTicketOfClient.CANCELED_BY_ADMIN, actor_employee_id)
+
+    def belong(self, employee_id: int) -> bool:
+        if employee_id == self.user_id:
+            return True
+        if employee_id==self.contact_user_id:
+            return True
+        for status in self.statuses:
+            if status.actor_employee_id == employee_id:
+                return True
+        for comment in self.comments:
+            if comment.employee_id == employee_id:
+                return True
+        return False

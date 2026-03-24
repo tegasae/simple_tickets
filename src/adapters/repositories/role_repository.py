@@ -58,7 +58,11 @@ class RoleRepositorySQLite(BaseRepository,RoleRepository[P], Generic[P]):
         if not row:
             raise DBOperationError(f"Role {role_id} not found")
 
-        return RoleMapper.row_to_role(row,self.permission_cls)
+        try:
+            role=RoleMapper.row_to_role(row, self.permission_cls)
+        except AttributeError as e:
+            raise DBOperationError(f"Role {role_id} not valid") from e
+        return role
 
     # -------------------------
     # All roles

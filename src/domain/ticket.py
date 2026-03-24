@@ -191,3 +191,18 @@ class Ticket:
 
     def cancel(self, actor_employee_id: int) -> None:
         self.change_status(TicketStatus.CANCELLED, actor_employee_id)
+
+    def belong(self,employee_id: int) -> bool:
+        if employee_id==self.admin_id:
+            return True
+        for comment in self.comments:
+            if employee_id==comment.employee_id:
+                return True
+        for status in self.statuses:
+            if employee_id==status.actor_employee_id:
+                return True
+
+        for executor in self.executors:
+            if employee_id==executor.executor_id:
+                return True
+        return False

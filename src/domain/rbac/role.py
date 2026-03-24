@@ -45,6 +45,7 @@ class Authorizer(Generic[P]):
         return perms
 
     def require(self, subject: HasRoleIds, permission: P) -> None:
+        pass
         if permission not in self.permissions_of(subject):
             raise PermissionError(f"Subject lacks permission: {permission.value}")
 

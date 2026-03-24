@@ -84,11 +84,14 @@ class Employee(ABC, HasRoleIds):
 
     def enable(self):
         self.enabled = True
+        if isinstance(self.account,Account):
+            self.account.enable()
 
 
     def disable(self):
         self.enabled = False
-
+        if isinstance(self.account,Account):
+            self.account.disable()
 
     def is_empty(self) -> bool:
         return self._is_empty
@@ -102,8 +105,6 @@ class Employee(ABC, HasRoleIds):
 
     def revoke_role(self, role_id: int) -> None:
         self._role_ids.discard(role_id)
-
-
 
     def __eq__(self, other) -> bool:
         return isinstance(other, Employee) and self.employee_id == other.employee_id

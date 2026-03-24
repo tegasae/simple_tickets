@@ -27,10 +27,12 @@ class AdminAssembler:
     @staticmethod
     def to_dto(admin: Admin) -> AdminResponseDTO:
         return  AdminResponseDTO(admin_id=admin.employee_id,
-                                 first_name=admin.first_name.value,
-                                 email=admin.email.value,
+                                 first_name=str(admin.first_name),
+                                 email=str(admin.email),
+                                 enable=admin.enabled,
                                  job_title=admin.job_title,
-                                 last_name=admin.last_name.value,
-                                 login=admin.account.login,
+                                 last_name=str(admin.last_name),
+                                 login=str(admin.account.login),
+                                 enable_login=admin.account.enabled,
                                  phone=str(admin.phone),
                                  roles=admin.role_ids())
