@@ -1,4 +1,4 @@
-# src/application/services/admin_application_service.py
+# src/application/services/admin_service.py
 from src.application.assemblers.assembler import AdminAssembler
 from src.application.dto.admin_dto import AdminDTO, AdminResponseDTO
 from src.domain.employee import Admin
@@ -229,7 +229,7 @@ class AdminApplicationService:
 
     def delete(self, *, admin_dto: AdminDTO) -> None:
         with self.uow:
-            actor = self.uow.admins.get(admin_id=admin_dto.admin_id)
+            actor = self.uow.admins.get(admin_id=admin_dto.actor_admin_id)
             self._require(actor, AdminPermission.UPDATE_ADMIN)
             admin = self.uow.admins.get(admin_id=admin_dto.admin_id)
 

@@ -1,4 +1,4 @@
-# src/application/assemblers/client_assembler.py
+# src/application/assemblers/assembler.py
 from src.application.dto.admin_dto import AdminResponseDTO
 from src.application.dto.user_dto import UserResponseDTO
 from src.domain.client import Client

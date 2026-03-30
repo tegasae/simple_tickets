@@ -124,19 +124,19 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
 
                 # INSERT users
                 self._exec(UserGateway.INSERT, UserMapper.user_params(user))
+                return user
 
-            else:
-                # UPDATE employees with optimistic lock
-                upd_emp = self._exec(EmployeeGateway.UPDATE, UserMapper.employee_params(user))
-                if upd_emp.rowcount == 0:
-                    if not self.exists(user.employee_id):
-                        raise NotFoundError(f"User {user.employee_id} not found")
-                    raise OptimisticLockError(
-                        f"Optimistic lock failed for User(employee_id={user.employee_id}, version={user.version})"
-                    )
+            # UPDATE employees with optimistic lock
+            upd_emp = self._exec(EmployeeGateway.UPDATE, UserMapper.employee_params(user))
+            if upd_emp.rowcount == 0:
+                if not self.exists(user.employee_id):
+                    raise NotFoundError(f"User {user.employee_id} not found")
+                raise OptimisticLockError(
+                    f"Optimistic lock failed for User(employee_id={user.employee_id}, version={user.version})"
+                )
 
-                # UPDATE users
-                self._exec(UserGateway.UPDATE, UserMapper.user_params(user))
+            # UPDATE users
+            self._exec(UserGateway.UPDATE, UserMapper.user_params(user))
 
             # Replace roles + sync account
             self._replace_roles(user)

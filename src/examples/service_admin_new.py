@@ -29,7 +29,7 @@ def main():
 
 
     try:
-        admin_dto=AdminDTO(actor_admin_id=1,first_name="John",last_name="Smith",email="11@11.fgerg",phone="12345",login="login"+str(time.time()),password="Password1234567890@@@",roles=frozenset({5,9}))
+        admin_dto=AdminDTO(actor_admin_id=1,first_name="John",last_name="Smith",email="11@11.fgerg",phone="12345",login="login"+str(time.time()),password="Password1234567890@@@",roles=frozenset({60,62}))
         admin_response_dto=admin_service.create_admin(admin_dto=admin_dto)
         print("Created admin:", admin_response_dto)
         admin_dto=AdminDTO(actor_admin_id=1,admin_id=admin_response_dto.admin_id,first_name="first name1")
@@ -41,7 +41,7 @@ def main():
         print("Enable admin:", admin_response_dto)
 
         admin_dto = AdminDTO(actor_admin_id=1, first_name="John", last_name="Smith", email="11@11.fgerg", phone="12345",
-                             roles=frozenset({5, 9}))
+                             roles=frozenset({60, 62}))
         admin_response_dto = admin_service.create_admin(admin_dto=admin_dto)
         print("Created admin:", admin_response_dto)
 
@@ -56,22 +56,22 @@ def main():
 
         admin_dto = AdminDTO(actor_admin_id=1, first_name="John", last_name="Smith", email="11@11.fgerg", phone="12345",
                              login="login" + str(time.time()), password="Password1234567890@@@",
-                             roles=frozenset({5, 9}))
+                             roles=frozenset({60, 62}))
         admin_response_dto = admin_service.create_admin(admin_dto=admin_dto)
         print("Created new admin:", admin_response_dto)
         admin_dto = AdminDTO(actor_admin_id=1, admin_id=admin_response_dto.admin_id,password="Password1234567890@@@@@@@@@@@@")
         result=admin_service.change_password(admin_dto=admin_dto)
         print("Change password:", result)
 
-        admin_dto=AdminDTO(actor_admin_id=1,admin_id=admin_response_dto.admin_id,roles=frozenset({5}))
+        admin_dto=AdminDTO(actor_admin_id=1,admin_id=admin_response_dto.admin_id,roles=frozenset({60}))
         admin_response_dto = admin_service.grant_role(admin_dto=admin_dto)
         print("Grant roles", admin_response_dto)
 
-        admin_dto=AdminDTO(actor_admin_id=1,admin_id=admin_response_dto.admin_id,roles=frozenset({5}))
+        admin_dto=AdminDTO(actor_admin_id=1,admin_id=admin_response_dto.admin_id,roles=frozenset({60}))
         admin_response_dto = admin_service.revoke_role(admin_dto=admin_dto)
         print("Revoke roles", admin_response_dto)
 
-        admin_dto = AdminDTO(actor_admin_id=1, admin_id=admin_response_dto.admin_id, roles=frozenset({5}))
+        admin_dto = AdminDTO(actor_admin_id=1, admin_id=admin_response_dto.admin_id, roles=frozenset({60}))
         admin_service.delete(admin_dto=admin_dto)
 
         admin_response_dto = admin_service.find_by_login(login='login1774364689.0212348')

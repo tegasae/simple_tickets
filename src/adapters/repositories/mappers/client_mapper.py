@@ -17,8 +17,10 @@ class ClientMapper:
             created_by_admin_id=row["admin_id"],
             enabled=bool(row["enabled"]),
         )
-
-        client.version = int(row["version"])
+        try:
+            client.version = int(row["version"])
+        except TypeError:
+            client.version=0
 
         if row["date_created"]:
             try:

@@ -1,4 +1,4 @@
-# src/application/services/admin_service.py
+# src/application/services/user_service.py
 from src.application.assemblers.assembler import UserAssembler
 from src.application.dto.user_dto import UserDTO, UserResponseDTO
 from src.domain.account import Account, NoAccount
@@ -27,12 +27,12 @@ class UserApplicationService:
     # --------------------------------
 
     def _rbac(self):
-        roles_repo = self.uow.roles_user
+        roles_repo = self.uow.roles_admin
         authorizer = Authorizer(roles_repo)
         return RoleManager(authorizer, roles_repo)
 
     def _require(self, actor, permission):
-        Authorizer(self.uow.roles_user).require(actor, permission)
+        Authorizer(self.uow.roles_admin).require(actor, permission)
 
     def create_user(
             self,
@@ -59,9 +59,13 @@ class UserApplicationService:
                 user.account = self._create_account(user_dto.login, user_dto.password)
 
             user = self.uow.users.save(user)
-            if user_dto.roles:
-                self._add_roles(actor, user, user_dto.roles)
-                user = self.uow.users.save(user)
+            #if user_dto.roles:
+                #self._add_roles(actor, user, user_dto.roles)
+
+                #for r in user_dto.roles:
+                #    self.uow.roles_user.get(r)
+                #    user.grant_role(role_id=r)
+
 
             return UserAssembler.to_dto(self.uow.users.save(user))
 
@@ -77,7 +81,7 @@ class UserApplicationService:
         return user
 
     def _create_account(self,login:str,password:str) -> Account:
-        if self.uow.admins.exist_login(login):
+        if self.uow.users.exist_login(login):
             raise DomainOperationError(f"Login {login} already exists")
         return Account.create(
             account_id=0,
