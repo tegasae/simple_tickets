@@ -1,7 +1,8 @@
 # src/application/assemblers/client_assembler.py
 from src.application.dto.admin_dto import AdminResponseDTO
+from src.application.dto.user_dto import UserResponseDTO
 from src.domain.client import Client
-from src.domain.employee import Admin
+from src.domain.employee import Admin, User
 from src.domain.value_objects import Empty
 from src.application.dto.client_dto import ClientResponseDTO
 
@@ -36,3 +37,18 @@ class AdminAssembler:
                                  enable_login=admin.account.enabled,
                                  phone=str(admin.phone),
                                  roles=admin.role_ids())
+
+class UserAssembler:
+    @staticmethod
+    def to_dto(user: User) -> UserResponseDTO:
+        return  UserResponseDTO(user_id=user.employee_id,
+                                client_id=user.client_id,
+                                 first_name=str(user.first_name),
+                                 email=str(user.email),
+                                 enable=user.enabled,
+                                 last_name=str(user.last_name),
+                                 login=str(user.account.login),
+                                 enable_login=user.account.enabled,
+                                 phone=str(user.phone),
+                                 roles=user.role_ids())
+

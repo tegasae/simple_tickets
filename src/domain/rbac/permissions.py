@@ -17,6 +17,7 @@ class AdminPermission(PermissionBase):
     ASSIGN_ROLE = "role.assign"
     REVOKE_ROLE = "role.revoke"
     VIEW_AUDIT_LOG = "audit.view"
+    CREATE_USER="creator.user"
 
 
 class UserPermission(PermissionBase):
@@ -24,3 +25,4 @@ class UserPermission(PermissionBase):
     VIEW_OWN_TICKET = "ticket.view.own"
     UPDATE_OWN_TICKET = "ticket.update.own"
     DELETE_OWN_TICKET = "ticket.delete.own"
+
