@@ -1,7 +1,7 @@
 #src/domain/employee.py
 from dataclasses import field, dataclass
 from datetime import datetime
-from typing import FrozenSet, Self
+from typing import FrozenSet, Self, Any
 
 from src.domain.account import NoAccount, Account
 from src.domain.rbac.employee_protocol import HasRoleIds
@@ -46,7 +46,7 @@ class _Employee(HasRoleIds):
             enabled_account: bool =True,
             version: int = 0,
             roles:set[int]|None = None
-    ) -> Self:
+    ) -> dict[str, Any]:
         """
         Common base creation logic.
 
@@ -59,15 +59,27 @@ class _Employee(HasRoleIds):
             account=Account.create(account_id=0,login=login,plain_password=password,enabled=enabled_account)
         else:
             account=NoAccount()
-        employee=cls(employee_id=employee_id,first_name=Name(first_name),
-                     last_name=Name(last_name) if last_name else Empty(),email=Email(email) if email else Empty(),
-                     phone=Phone(phone) if phone else Empty(), enabled=enabled,
-                     date_created=datetime.now(),
-                     account=account,
-                     version=version
-        )
-        employee._role_ids.update(roles or set())
-        return employee
+        #employee=_Employee(employee_id=employee_id,first_name=Name(first_name),
+        #             last_name=Name(last_name) if last_name else Empty(),email=Email(email) if email else Empty(),
+        #             phone=Phone(phone) if phone else Empty(), enabled=enabled,
+        #             date_created=datetime.now(),
+        #             account=account,
+        #             version=version
+        #)
+        roles=roles or set()
+
+        return {
+            "employee_id":employee_id,
+            "first_name": Name(first_name),
+            "last_name" : Name(last_name) if last_name else Empty(),
+             "email" : Email(email) if email else Empty(),
+             "phone": Phone(phone) if phone else Empty(),
+             "enabled": enabled,
+             "date_created": datetime.now(),
+            "account": account,
+            "version":version,
+            "_role_ids": roles
+        }
 
     def update_base(self, first_name: str|None, last_name: str|None, email: str|None=None, phone: str|None=None)->Self:
         if first_name is not None:
@@ -149,12 +161,12 @@ class User(_Employee):
             roles: frozenset[int] | None = None
     ) -> Self:
         """Create a new User with client association."""
-        user = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
+        dict_user = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
                                      phone=phone, enabled=enabled, login=login,password=password,enabled_account=enabled_account,version=version,roles=roles)
 
 
 
-        user.client_id=client_id
+        user=cls.
         return user
 
     def update(
