@@ -3,9 +3,9 @@
 import sqlite3
 import time
 
-from src.application.dto.admin_dto import AdminDTO
+
 from src.application.dto.user_dto import UserDTO
-from src.application.services.admin_service import AdminApplicationService
+
 from src.application.services.user_service import UserApplicationService
 from src.services.uow.uowsqlite import SQLiteUnitOfWork
 
@@ -31,7 +31,7 @@ def main():
 
 
     try:
-        user_dto=UserDTO(actor_admin_id=1,client_id=1,first_name="John",last_name="Smith",email="11@11.fgerg",phone="12345",login="login"+str(time.time()),password="Password1234567890@@@",roles=frozenset({61}))
+        user_dto=UserDTO(actor_admin_id=4,client_id=4,first_name="John",last_name="Smith",email="11@11.fgerg",phone="12345",login="login"+str(time.time()),password="Password1234567890@@@",roles=frozenset({6}))
         user_response_dto = user_service.create_user(user_dto=user_dto)
         print("Created user:", user_response_dto)
 

@@ -27,8 +27,8 @@ class UserApplicationService:
     # --------------------------------
 
     def _rbac(self):
-        roles_repo = self.uow.roles_admin
-        authorizer = Authorizer(roles_repo)
+        roles_repo = self.uow.roles_user
+        authorizer = Authorizer(self.uow.roles_admin)
         return RoleManager(authorizer, roles_repo)
 
     def _require(self, actor, permission):
@@ -55,12 +55,13 @@ class UserApplicationService:
                 client_id=user_dto.client_id
             )
 
+
             if user_dto.login and user_dto.password:
                 user.account = self._create_account(user_dto.login, user_dto.password)
 
             user = self.uow.users.save(user)
-            #if user_dto.roles:
-                #self._add_roles(actor, user, user_dto.roles)
+            if user_dto.roles:
+                self._add_roles(actor, user, user_dto.roles)
 
                 #for r in user_dto.roles:
                 #    self.uow.roles_user.get(r)

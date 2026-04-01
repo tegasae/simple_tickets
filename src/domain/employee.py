@@ -2,7 +2,7 @@
 from abc import ABC
 from dataclasses import field, dataclass
 from datetime import datetime
-from typing import FrozenSet, Self, Any
+from typing import FrozenSet, Self
 
 from src.domain.account import NoAccount, Account
 from src.domain.rbac.employee_protocol import HasRoleIds
@@ -46,7 +46,8 @@ class Employee(ABC, HasRoleIds):
             date_created: datetime | None = None,
             account: Account | None=None,
             version: int = 0,
-    ) -> dict[str, Any]:
+            roles: frozenset[int] | None = None,
+    ) -> Self:
         """
         Common base creation logic.
 
@@ -55,19 +56,17 @@ class Employee(ABC, HasRoleIds):
         - Does not set account here (let the caller decide: account_id / Account / None, etc).
         """
 
-        return {
-            "employee_id": employee_id,
-            "first_name": Name(first_name),
-            "last_name": Name(last_name) if last_name else Empty(),
+        employee=cls(
+            employee_id: employee_id,
+            first_name: Name(first_name),
+            last_name: Name(last_name) if last_name else Empty(),
             "email": Email(email) if email else Empty(),
             "phone": Phone(phone) if phone else Empty(),
             "enabled": enabled,
             "date_created": date_created or datetime.now(),
             "version": version,
             "account": account or NoAccount(),
-
-            # "_role_ids": set(),  # not needed; dataclass default_factory will handle it
-        }
+        )
 
     def update_base(self, first_name: str|None, last_name: str|None, email: str|None=None, phone: str|None=None)->Self:
         if first_name is not None:
@@ -131,6 +130,8 @@ class User(Employee):
         """Create a new User with client association."""
         base_data = cls._create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
                                      phone=phone, enabled=enabled, date_created=date_created,account=account,version=version)
+
+
         return cls(**base_data, client_id=client_id)
 
     def update(
@@ -141,6 +142,7 @@ class User(Employee):
             email: str | None = None,
             phone: str | None = None,
     ) -> Self:
+
         self.update_base(first_name, last_name, email, phone)
         return self
 
