@@ -13,6 +13,8 @@ class UserDTO:
     phone: str |None =None
     login: str|None =None
     password: str |None =None
+    enabled:bool =True
+    enabled_account: bool =True
     roles:frozenset[int]= field(default_factory=frozenset)
 
 @dataclass

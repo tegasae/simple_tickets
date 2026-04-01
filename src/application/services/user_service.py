@@ -1,7 +1,6 @@
 # src/application/services/user_service.py
 from src.application.assemblers.assembler import UserAssembler
 from src.application.dto.user_dto import UserDTO, UserResponseDTO
-from src.domain.account import Account, NoAccount
 from src.domain.employee import User, Admin
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
@@ -31,8 +30,10 @@ class UserApplicationService:
         authorizer = Authorizer(self.uow.roles_admin)
         return RoleManager(authorizer, roles_repo)
 
-    def _require(self, actor, permission):
+    def _require_actor(self, actor_admin_id: int, permission: AdminPermission) -> Admin:
+        actor = self.uow.admins.get(admin_id=actor_admin_id)
         Authorizer(self.uow.roles_admin).require(actor, permission)
+        return actor
 
     def create_user(
             self,
@@ -42,9 +43,9 @@ class UserApplicationService:
     ) -> UserResponseDTO:
 
         with self.uow:
-
-            actor = self.uow.admins.get(user_dto.actor_admin_id)
-            self._require(actor, AdminPermission.CREATE_USER)
+            actor=self._require_actor(actor_admin_id=user_dto.actor_admin_id,permission=AdminPermission.CREATE_USER)
+            if user_dto.login and self.uow.users.exist_login(user_dto.login):
+                    raise DomainOperationError(f"Login {user_dto.login} already exists")
 
             user = User.create(
                 employee_id=0,
@@ -52,21 +53,16 @@ class UserApplicationService:
                 last_name=user_dto.last_name,
                 email=user_dto.email,
                 phone=user_dto.phone,
-                client_id=user_dto.client_id
+                client_id=user_dto.client_id,
+                roles=user_dto.roles,
+                login=user_dto.login,
+                password=user_dto.password,
+                enabled=user_dto.enabled,
+                enabled_account=user_dto.enabled_account
             )
 
-
-            if user_dto.login and user_dto.password:
-                user.account = self._create_account(user_dto.login, user_dto.password)
-
             user = self.uow.users.save(user)
-            if user_dto.roles:
-                self._add_roles(actor, user, user_dto.roles)
-
-                #for r in user_dto.roles:
-                #    self.uow.roles_user.get(r)
-                #    user.grant_role(role_id=r)
-
+            self._add_roles(actor, user, user.role_ids())
 
             return UserAssembler.to_dto(self.uow.users.save(user))
 
@@ -81,14 +77,6 @@ class UserApplicationService:
             )
         return user
 
-    def _create_account(self,login:str,password:str) -> Account:
-        if self.uow.users.exist_login(login):
-            raise DomainOperationError(f"Login {login} already exists")
-        return Account.create(
-            account_id=0,
-            login=login,
-            plain_password=password,
-        )
 
 
     def update_user(
@@ -98,8 +86,7 @@ class UserApplicationService:
     ) -> UserResponseDTO:
 
         with self.uow:
-            actor = self.uow.admins.get(user_dto.actor_admin_id)
-            self._require(actor, AdminPermission.CREATE_USER)
+            self._require_actor(actor_admin_id=user_dto.actor_admin_id,permission=AdminPermission.CREATE_USER)
             user = self.uow.users.get(user_dto.user_id)
 
             user.update(
@@ -119,33 +106,34 @@ class UserApplicationService:
     ) -> UserResponseDTO:
 
         with self.uow:
-            actor = self.uow.admins.get(admin_id=user_dto.actor_admin_id)
-            self._require(actor, AdminPermission.CREATE_USER)
+            self._require_actor(actor_admin_id=user_dto.actor_admin_id,permission=AdminPermission.CREATE_USER)
             user = self.uow.users.get(user_dto.user_id)
-            if isinstance(user.account, NoAccount):
-                account = self._create_account(user_dto.login, user_dto.password)
-                user.account = account
+            user.add_account(login=user_dto.login, password=user_dto.password,enabled_account=user_dto.enabled_account)
             return UserAssembler.to_dto(self.uow.users.save(user))
 
     def detach_account(self, *, user_dto: UserDTO) -> UserResponseDTO:
 
         with self.uow:
-            actor = self.uow.admins.get(admin_id=user_dto.actor_admin_id)
-            self._require(actor, AdminPermission.CREATE_USER)
+            self._require_actor(actor_admin_id=user_dto.actor_admin_id,permission=AdminPermission.CREATE_USER)
             user = self.uow.users.get(user_id=user_dto.user_id)
-            user.account = NoAccount()
+            user.remove_account()
             return UserAssembler.to_dto(self.uow.users.save(user))
 
-    def change_password(self, *, user_dto: UserDTO) -> bool:
+    def change_password(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
-            actor = self.uow.admins.get(admin_id=user_dto.actor_admin_id)
-            self._require(actor, AdminPermission.CREATE_USER)
+            self._require_actor(
+                actor_admin_id=user_dto.actor_admin_id,
+                permission=AdminPermission.CREATE_USER,
+            )
+
+            if not user_dto.password:
+                raise DomainOperationError("Password is required")
+
             user = self.uow.users.get(user_dto.user_id)
-            if isinstance(user.account, Account):
-                user.account.change_password(plain_password=user_dto.password)
-                self.uow.users.save(user)
-                return True
-            return False
+            user.change_password(password=user_dto.password)
+            user = self.uow.users.save(user)
+
+            return UserAssembler.to_dto(user)
 
     def grant_role(
         self,
@@ -154,12 +142,9 @@ class UserApplicationService:
     ) -> UserResponseDTO:
 
         with self.uow:
-
-            actor = self.uow.admins.get(admin_id=user_dto.actor_admin_id)
+            self._require_actor(actor_admin_id=user_dto.actor_admin_id,permission=AdminPermission.CREATE_USER)
             user = self.uow.users.get(user_id=user_dto.user_id)
-            if user_dto.roles:
-                self._add_roles(actor, user, user_dto.roles)
-
+            user.change_password(password=user_dto.password)
             return UserAssembler.to_dto(self.uow.users.save(user))
 
     def revoke_role(
@@ -169,7 +154,7 @@ class UserApplicationService:
     ) -> UserResponseDTO:
 
         with self.uow:
-            actor = self.uow.admins.get(admin_id=user_dto.actor_admin_id)
+            actor=self._require_actor(actor_admin_id=user_dto.actor_admin_id,permission=AdminPermission.CREATE_USER)
             user = self.uow.users.get(user_id=user_dto.user_id)
             rbac = self._rbac()
             if user_dto.roles:
@@ -185,33 +170,27 @@ class UserApplicationService:
 
 
 
-    def disable(self, *, actor_admin_id: int, user_id: int) -> UserResponseDTO:
+    def disable(self, *, user_dto:UserDTO) -> UserResponseDTO:
 
         with self.uow:
-            actor = self.uow.admins.get(actor_admin_id)
-            self._require(actor, AdminPermission.CREATE_USER)
-            user = self.uow.users.get(user_id)
+            self._require_actor(actor_admin_id=user_dto.actor_admin_id,permission=AdminPermission.CREATE_USER)
+            user = self.uow.users.get(user_dto.user_id)
             user.disable()
-
-            if not isinstance(user.account, NoAccount):
-                user.account.disable()
 
             return UserAssembler.to_dto(self.uow.users.save(user))
 
-    def enable(self, *, actor_admin_id: int, user_id: int) -> UserResponseDTO:
+    def enable(self, *, user_dto:UserDTO) -> UserResponseDTO:
 
         with self.uow:
-            actor = self.uow.admins.get(actor_admin_id)
-            self._require(actor, AdminPermission.CREATE_USER)
-            user = self.uow.users.get(user_id)
+            self._require_actor(actor_admin_id=user_dto.actor_admin_id,permission=AdminPermission.CREATE_USER)
+            user = self.uow.users.get(user_dto.user_id)
             user.enable()
 
             return UserAssembler.to_dto(self.uow.users.save(user))
 
     def delete(self, *, user_dto: UserDTO) -> None:
         with self.uow:
-            admin = self.uow.admins.get(admin_id=user_dto.actor_admin_id)
-            self._require(admin, AdminPermission.CREATE_USER)
+            self._require_actor(actor_admin_id=user_dto.actor_admin_id, permission=AdminPermission.CREATE_USER)
             user = self.uow.users.get(user_id=user_dto.user_id)
 
 
@@ -223,22 +202,19 @@ class UserApplicationService:
 
             self.uow.users.delete(user_id=user.employee_id)
 
-    def find_by_login(self,login:str)->UserResponseDTO:
+    def find_by_login(self,user_dto:UserDTO)->UserResponseDTO:
         with self.uow:
-            user=self.uow.users.find_by_login(login=login)
+            user=self.uow.users.find_by_login(login=user_dto.login)
             return UserAssembler.to_dto(user)
 
-    def get_by_id(self, *, actor_admin_id: int, user_id: int) -> UserResponseDTO:
+    def get_by_id(self, *, user_dto:UserDTO) -> UserResponseDTO:
 
         with self.uow:
-            admin = self.uow.admins.get(admin_id=actor_admin_id)
-            self._require(admin, AdminPermission.CREATE_USER)
-            return UserAssembler.to_dto(self.uow.users.get(user_id))
+            self._require_actor(actor_admin_id=user_dto.actor_admin_id, permission=AdminPermission.CREATE_USER)
+            return UserAssembler.to_dto(self.uow.users.get(user_id=user_dto.user_id))
 
-    def get_all(self, *, admin_id: int) -> list[UserResponseDTO]:
+    def get_all(self, *, user_dto:UserDTO) -> list[UserResponseDTO]:
 
         with self.uow:
-            actor = self.uow.admins.get(admin_id=admin_id)
-            self._require(actor, AdminPermission.CREATE_USER)
-
+            self._require_actor(actor_admin_id=user_dto.actor_admin_id, permission=AdminPermission.CREATE_USER)
             return [UserAssembler.to_dto(admin) for admin in self.uow.users.get_all()]

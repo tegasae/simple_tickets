@@ -31,13 +31,14 @@ class Account:
 
 
     @classmethod
-    def create(cls, account_id: int, login: str, plain_password: str) -> Self:
+    def create(cls, account_id: int, login: str, plain_password: str,enabled:bool) -> Self:
         """Create a new account with validated credentials.
 
         Args:
             account_id: Unique account identifier
             login: User's login/username
             plain_password: Plain text password (will be hashed)
+            enabled: Whether the account is active
 
         Returns:
             New Account instance
@@ -49,6 +50,7 @@ class Account:
             account_id=account_id,
             login=Login(login),
             password=Password.from_plain(plain_password),
+            enabled=enabled
         )
 
     @classmethod
@@ -59,9 +61,9 @@ class Account:
         Args:
             account_id: Unique account identifier
             login: User's login/username
-            password_hash: Pre-hashed password from database
+            password_hash: Pre-hashed password from a database
             enabled: Account status from database
-            date_created: Account creation date from database
+            date_created: Account creation date from a database
 
         Returns:
             Reconstructed Account instance

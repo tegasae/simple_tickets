@@ -22,7 +22,8 @@ class Role(Generic[P]):
     def has_permission(self, permission: P) -> bool:
         return permission in self.permissions
 
-
+    def __hash__(self) -> int:
+        return hash(self.role_id)
 
 class AdminRole(Role[AdminPermission]):
     """Role that can only contain admin permissions."""
@@ -41,3 +42,14 @@ class UserRole(Role[UserPermission]):
         for perm in self.permissions:
             if not isinstance(perm, UserPermission):
                 raise ValueError(f"UserRole can only contain UserPermissions, got {type(perm)}")
+@dataclass
+class RoleStore(Generic[P]):
+    roles: set[Role[P]] = field(default_factory=set)
+    def put_role(self, role: Role[P]) -> None:
+        self.roles.add(role)
+
+    def delete_role(self, role: Role[P]) -> None:
+        self.roles.remove(role)
+
+    def check_role(self, role: Role[P]) -> bool:
+        return role in self.roles
