@@ -86,7 +86,7 @@ class UserApplicationService:
             )
 
             self._ensure_login_is_free(user_dto.login)
-
+            self.uow.clients.get(client_id=user_dto.client_id)
             user = User.create(
                 employee_id=0,
                 first_name=user_dto.first_name,

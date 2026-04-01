@@ -45,7 +45,7 @@ class _Employee(HasRoleIds):
             password: str | None = None,
             enabled_account: bool =True,
             version: int = 0,
-            roles:set[int]|None = None
+            roles:set[int] = ()
     ) -> dict[str, Any]:
         """
         Common base creation logic.
@@ -66,8 +66,10 @@ class _Employee(HasRoleIds):
         #             account=account,
         #             version=version
         #)
-        roles=roles or set()
-
+        if roles:
+            roles=set(roles)
+        else:
+            roles=set()
         return {
             "employee_id":employee_id,
             "first_name": Name(first_name),
@@ -161,13 +163,11 @@ class User(_Employee):
             roles: frozenset[int] | None = None
     ) -> Self:
         """Create a new User with client association."""
-        dict_user = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
+        base_data = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
                                      phone=phone, enabled=enabled, login=login,password=password,enabled_account=enabled_account,version=version,roles=roles)
 
+        return cls(**base_data, client_id=client_id)
 
-
-        user=cls.
-        return user
 
     def update(
             self,
@@ -203,11 +203,13 @@ class Admin(_Employee):
             job_title:str=""
     ) -> Self:
         """Create a new Admin."""
-        admin = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
-                                phone=phone, enabled=enabled, login=login, password=password,
-                                enabled_account=enabled_account, version=version, roles=roles)
-        admin.job_title = job_title
-        return admin
+
+        base_data = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
+                                    phone=phone, enabled=enabled, login=login, password=password,
+                                    enabled_account=enabled_account, version=version, roles=roles)
+
+        return cls(**base_data, job_title=job_title)
+
 
     def update(self, job_title:str|None, first_name: str|None, last_name: str|None, email: str|None=None, phone: str|None=None)->Self:
         self.update_base(first_name, last_name, email, phone)

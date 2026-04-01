@@ -24,14 +24,14 @@ def main() -> None:
     # --------------------------------
     create_dto = UserDTO(
         actor_admin_id=4,
-        client_id=0,
+        client_id=4,
         first_name="John",
         last_name="Smith",
         email="john.smith@example.com",
         phone="+1 555 123 4567",
         login="john.smith"+str(time.time()),
         password="StrongPass123!",
-        roles=frozenset({2, 3}),
+        roles=frozenset({6}),
         enabled=True,
         enabled_account=True,
     )
@@ -44,7 +44,7 @@ def main() -> None:
     # Update user
     # --------------------------------
     update_dto = UserDTO(
-        actor_admin_id=1,
+        actor_admin_id=4,
         user_id=created_user.user_id,
         client_id=created_user.client_id,
         first_name="John",
@@ -61,7 +61,7 @@ def main() -> None:
     # Change password
     # --------------------------------
     change_password_dto = UserDTO(
-        actor_admin_id=1,
+        actor_admin_id=4,
         user_id=created_user.user_id,
         client_id=created_user.client_id,
         password="NewStrongPass456!",
@@ -77,7 +77,7 @@ def main() -> None:
     # Disable user
     # --------------------------------
     disabled_user = service.disable(
-        actor_admin_id=1,
+        actor_admin_id=4,
         user_id=created_user.user_id,
     )
     print("Disabled user:")
@@ -87,7 +87,7 @@ def main() -> None:
     # Enable user
     # --------------------------------
     enabled_user = service.enable(
-        actor_admin_id=1,
+        actor_admin_id=4,
         user_id=created_user.user_id,
     )
     print("Enabled user:")
@@ -97,7 +97,7 @@ def main() -> None:
     # Get by id
     # --------------------------------
     found_user = service.get_by_id(
-        actor_admin_id=1,
+        actor_admin_id=4,
         user_id=created_user.user_id,
     )
     print("Found user by id:")
@@ -106,7 +106,7 @@ def main() -> None:
     # --------------------------------
     # Get all users
     # --------------------------------
-    users = service.get_all(actor_admin_id=1)
+    users = service.get_all(actor_admin_id=4)
     print("All users:")
     for user in users:
         print(user)
