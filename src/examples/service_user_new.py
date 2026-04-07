@@ -3,7 +3,7 @@
 import sqlite3
 import time
 
-from src.application.dto.user_dto import UserDTO
+from src.application.dto.employee_dto import UserDTO
 from src.application.services.user_service import UserApplicationService
 from src.services.uow.uowsqlite import SQLiteUnitOfWork
 from utils.db.connect import Connection

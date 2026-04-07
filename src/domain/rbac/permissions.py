@@ -18,6 +18,7 @@ class AdminPermission(PermissionBase):
     REVOKE_ROLE = "role.revoke"
     VIEW_AUDIT_LOG = "audit.view"
     CREATE_USER="create.user"
+    CREATE_ADMIN="admin.create"
 
 
 class UserPermission(PermissionBase):

@@ -1,7 +1,7 @@
 # src/application/services/user_service.py
 
 from src.application.assemblers.assembler import UserAssembler
-from src.application.dto.user_dto import UserDTO, UserResponseDTO
+from src.application.dto.employee_dto import UserDTO, UserResponseDTO
 from src.domain.employee import User, Admin
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
@@ -97,8 +97,8 @@ class UserApplicationService:
                 roles=user_dto.roles,
                 login=user_dto.login,
                 password=user_dto.password,
-                enabled=user_dto.enabled,
-                enabled_account=user_dto.enabled_account,
+                enabled=user_dto.enable,
+                enabled_account=user_dto.enable_account,
             )
 
             user = self.uow.users.save(user)
@@ -119,7 +119,7 @@ class UserApplicationService:
                 permission=AdminPermission.CREATE_USER,
             )
 
-            user = self._get_user(user_id=user_dto.user_id)
+            user = self._get_user(user_id=user_dto.employee_id)
 
             user.update(
                 first_name=user_dto.first_name,
@@ -145,11 +145,11 @@ class UserApplicationService:
 
             self._ensure_login_is_free(user_dto.login)
 
-            user = self._get_user(user_id=user_dto.user_id)
+            user = self._get_user(user_id=user_dto.employee_id)
             user.add_account(
                 login=user_dto.login,
                 password=user_dto.password,
-                enabled_account=user_dto.enabled_account,
+                enabled_account=user_dto.enable_account,
             )
 
             return self._save_and_to_dto(user)
@@ -161,7 +161,7 @@ class UserApplicationService:
                 permission=AdminPermission.CREATE_USER,
             )
 
-            user = self._get_user(user_id=user_dto.user_id)
+            user = self._get_user(user_id=user_dto.employee_id)
             user.remove_account()
 
             return self._save_and_to_dto(user)
@@ -176,7 +176,7 @@ class UserApplicationService:
             if not user_dto.password:
                 raise DomainOperationError("Password is required")
 
-            user = self._get_user(user_id=user_dto.user_id)
+            user = self._get_user(user_id=user_dto.employee_id)
             user.change_password(password=user_dto.password)
 
             return self._save_and_to_dto(user)
@@ -188,7 +188,7 @@ class UserApplicationService:
                 permission=AdminPermission.ASSIGN_ROLE,
             )
 
-            user = self._get_user(user_id=user_dto.user_id)
+            user = self._get_user(user_id=user_dto.employee_id)
 
             if user_dto.roles:
                 self._add_roles(
@@ -206,7 +206,7 @@ class UserApplicationService:
                 permission=AdminPermission.REVOKE_ROLE,
             )
 
-            user = self._get_user(user_id=user_dto.user_id)
+            user = self._get_user(user_id=user_dto.employee_id)
             rbac = self._rbac()
 
             if user_dto.roles:
@@ -220,26 +220,26 @@ class UserApplicationService:
 
             return self._save_and_to_dto(user)
 
-    def disable(self, *, actor_admin_id: int, user_id: int) -> UserResponseDTO:
+    def disable(self, *, user_dto:UserDTO) -> UserResponseDTO:
         with self.uow:
             self._require_actor(
-                actor_admin_id=actor_admin_id,
+                actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.CREATE_USER,
             )
 
-            user = self._get_user(user_id=user_id)
+            user = self._get_user(user_id=user_dto.employee_id)
             user.disable()
 
             return self._save_and_to_dto(user)
 
-    def enable(self, *, actor_admin_id: int, user_id: int) -> UserResponseDTO:
+    def enable(self, *, user_dto:UserDTO) -> UserResponseDTO:
         with self.uow:
             self._require_actor(
-                actor_admin_id=actor_admin_id,
+                actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.CREATE_USER,
             )
 
-            user = self._get_user(user_id=user_id)
+            user = self._get_user(user_id=user_dto.employee_id)
             user.enable()
 
             return self._save_and_to_dto(user)
@@ -251,7 +251,7 @@ class UserApplicationService:
                 permission=AdminPermission.CREATE_USER,
             )
 
-            user = self._get_user(user_id=user_dto.user_id)
+            user = self._get_user(user_id=user_dto.employee_id)
 
             user_tickets = self.uow.user_tickets.get_all()
             for user_ticket in user_tickets:

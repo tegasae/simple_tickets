@@ -215,7 +215,7 @@ class TestClientService:
         assert disabled_client.enabled is False
 
         # Act
-        enabled_client = client_service.enable(client_id=2)
+        enabled_client = client_service.enabled(client_id=2)
 
         # Assert
         assert enabled_client.enabled is True

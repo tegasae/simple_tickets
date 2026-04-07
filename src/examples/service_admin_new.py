@@ -1,20 +1,18 @@
-# src/examples/admin_service_example.py
-
 import sqlite3
 import time
 
-from src.application.dto.admin_dto import AdminDTO
+from src.application.dto.employee_dto import AdminDTO
 from src.application.services.admin_service import AdminApplicationService
-from src.services.uow.uowsqlite import SQLiteUnitOfWork
+from src.domain.exceptions import DomainOperationError
 
+
+from src.services.uow.uowsqlite import SQLiteUnitOfWork
 from utils.db.connect import Connection
 
 
-def main():
+def main() -> None:
 
-    # ---------------------------
-    # Create DB connection
-    # ---------------------------
+
 
     conn = Connection.create_connection(
         url="../../db/admins.db",
@@ -22,75 +20,154 @@ def main():
     )
 
     uow = SQLiteUnitOfWork(conn)
-
-
-    admin_service = AdminApplicationService(uow=uow)
-
-
-
+    service = AdminApplicationService(uow)
     try:
-        admin_dto=AdminDTO(actor_admin_id=1,first_name="John",last_name="Smith",email="11@11.fgerg",phone="12345",login="login"+str(time.time()),password="Password1234567890@@@",roles=frozenset({60,62}))
-        admin_response_dto=admin_service.create_admin(admin_dto=admin_dto)
-        print("Created admin:", admin_response_dto)
-        admin_dto=AdminDTO(actor_admin_id=1,admin_id=admin_response_dto.admin_id,first_name="first name1")
-        admin_response_dto=admin_service.update_admin(admin_dto=admin_dto)
-        print("Update admin:", admin_response_dto)
-        admin_response_dto=admin_service.disable(actor_admin_id=1, admin_id=admin_response_dto.admin_id)
-        print("Disable admin:", admin_response_dto)
-        admin_response_dto = admin_service.enable(actor_admin_id=1, admin_id=admin_response_dto.admin_id)
-        print("Enable admin:", admin_response_dto)
+        # -----------------------------
+        # Create admin
+        # -----------------------------
+        create_dto = AdminDTO(
+            employee_id=0,
+            actor_admin_id=4,
+            first_name="John",
+            last_name="Smith",
+            email="john.smith@example.com",
+            phone="+1 555 123 4567",
+            login="john.smith"+str(time.time()),
+            password="StrongPass123!",
+            enable_account=True,
+            roles=frozenset({60, 62}),
+            job_title="System Administrator",
+        )
 
-        admin_dto = AdminDTO(actor_admin_id=1, first_name="John", last_name="Smith", email="11@11.fgerg", phone="12345",
-                             roles=frozenset({60, 62}))
-        admin_response_dto = admin_service.create_admin(admin_dto=admin_dto)
-        print("Created admin:", admin_response_dto)
+        created_admin = service.create_admin(admin_dto=create_dto)
+        print("Created admin:")
+        print(created_admin)
 
+        # -----------------------------
+        # Get admin by id
+        # -----------------------------
+        get_by_id_dto = AdminDTO(
+            employee_id=created_admin.employee_id,
+            actor_admin_id=1,
+        )
 
-        admin_dto = AdminDTO(actor_admin_id=1, admin_id=admin_response_dto.admin_id,
-                             login="login" + str(time.time()), password="Password1234567890@@@")
-        login=admin_dto.login
-        admin_response_dto=admin_service.attach_account(admin_dto=admin_dto)
-        print("Attach account:", admin_response_dto)
-        admin_response_dto = admin_service.detach_account(admin_dto=admin_dto)
-        print("Detach account:", admin_response_dto)
+        loaded_admin = service.get_by_id(admin_dto=get_by_id_dto)
+        print("Loaded admin:")
+        print(loaded_admin)
 
-        admin_dto = AdminDTO(actor_admin_id=1, first_name="John", last_name="Smith", email="11@11.fgerg", phone="12345",
-                             login="login" + str(time.time()), password="Password1234567890@@@",
-                             roles=frozenset({60, 62}))
-        admin_response_dto = admin_service.create_admin(admin_dto=admin_dto)
-        print("Created new admin:", admin_response_dto)
-        admin_dto = AdminDTO(actor_admin_id=1, admin_id=admin_response_dto.admin_id,password="Password1234567890@@@@@@@@@@@@")
-        result=admin_service.change_password(admin_dto=admin_dto)
-        print("Change password:", result)
+        # -----------------------------
+        # Update admin
+        # -----------------------------
+        update_dto = AdminDTO(
+            employee_id=created_admin.employee_id,
+            actor_admin_id=1,
+            first_name="John",
+            last_name="Johnson",
+            email="john.johnson@example.com",
+            phone="+1 555 999 0000",
+            job_title="Senior System Administrator",
+        )
 
-        admin_dto=AdminDTO(actor_admin_id=1,admin_id=admin_response_dto.admin_id,roles=frozenset({60}))
-        admin_response_dto = admin_service.grant_role(admin_dto=admin_dto)
-        print("Grant roles", admin_response_dto)
+        updated_admin = service.update_admin(admin_dto=update_dto)
+        print("Updated admin:")
+        print(updated_admin)
 
-        admin_dto=AdminDTO(actor_admin_id=1,admin_id=admin_response_dto.admin_id,roles=frozenset({60}))
-        admin_response_dto = admin_service.revoke_role(admin_dto=admin_dto)
-        print("Revoke roles", admin_response_dto)
+        # -----------------------------
+        # Change password
+        # -----------------------------
+        change_password_dto = AdminDTO(
+            employee_id=created_admin.employee_id,
+            actor_admin_id=1,
+            password="NewStrongPass456!",
+        )
 
-        admin_dto = AdminDTO(actor_admin_id=1, admin_id=admin_response_dto.admin_id, roles=frozenset({60}))
-        admin_service.delete(admin_dto=admin_dto)
+        admin_after_password_change = service.change_password(
+            admin_dto=change_password_dto
+        )
+        print("Password changed:")
+        print(admin_after_password_change)
 
-        admin_response_dto = admin_service.find_by_login(login='login1774364689.0212348')
-        print("Found admin login:", admin_response_dto)
-        admin_response_dto=admin_service.get_by_id(actor_admin_id=1,admin_id=71)
-        print("Found admin:", admin_response_dto)
+        # -----------------------------
+        # Grant role
+        # -----------------------------
+        grant_role_dto = AdminDTO(
+            employee_id=created_admin.employee_id,
+            actor_admin_id=1,
+            roles=frozenset({66}),
+        )
 
-        list_admin_response_dto = admin_service.get_all(actor_admin_id=1)
-        print("Found admins:", list_admin_response_dto)
+        admin_after_grant = service.grant_role(admin_dto=grant_role_dto)
+        print("Role granted:")
+        print(admin_after_grant)
 
-    except Exception as e:
+        # -----------------------------
+        # Revoke role
+        # -----------------------------
+        revoke_role_dto = AdminDTO(
+            employee_id=created_admin.employee_id,
+            actor_admin_id=1,
+            roles=frozenset({60}),
+        )
 
-        conn.rollback()
-        raise e
-        #print("ERROR:", e)
+        admin_after_revoke = service.revoke_role(admin_dto=revoke_role_dto)
+        print("Role revoked:")
+        print(admin_after_revoke)
 
-    finally:
+        # -----------------------------
+        # Find by login
+        # -----------------------------
+        find_by_login_dto = AdminDTO(
+            employee_id=0,
+            actor_admin_id=1,
+            login="john.smith",
+        )
 
-        conn.close()
+        found_admin = service.find_by_login(find_by_login_dto)
+        print("Found by login:")
+        print(found_admin)
+
+        # -----------------------------
+        # Disable admin
+        # -----------------------------
+        disable_dto = AdminDTO(
+            employee_id=created_admin.employee_id,
+            actor_admin_id=1,
+        )
+
+        disabled_admin = service.disable(admin_dto=disable_dto)
+        print("Disabled admin:")
+        print(disabled_admin)
+
+        # -----------------------------
+        # Enable admin
+        # -----------------------------
+        enable_dto = AdminDTO(
+            employee_id=created_admin.employee_id,
+            actor_admin_id=1,
+        )
+
+        enabled_admin = service.enable(admin_dto=enable_dto)
+        print("Enabled admin:")
+        print(enabled_admin)
+
+        # -----------------------------
+        # Get all admins
+        # -----------------------------
+        get_all_dto = AdminDTO(
+            employee_id=0,
+            actor_admin_id=1,
+        )
+
+        all_admins = service.get_all(admin_dto=get_all_dto)
+        print("All admins:")
+        for admin in all_admins:
+            print(admin)
+
+    except DomainOperationError as exc:
+        print(f"Domain error: {exc}")
+
+    except Exception as exc:
+        print(f"Unexpected error: {exc}")
 
 
 if __name__ == "__main__":
