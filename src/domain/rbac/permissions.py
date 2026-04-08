@@ -13,13 +13,16 @@ class PermissionBase(StrEnum):
 
 class AdminPermission(PermissionBase):
     VIEW_ADMIN = "admin.view"
+    VIEW_USER = "view.user"
     UPDATE_ADMIN = "admin.update"
     ASSIGN_ROLE = "role.assign"
     REVOKE_ROLE = "role.revoke"
     VIEW_AUDIT_LOG = "audit.view"
     CREATE_USER="create.user"
-    CREATE_ADMIN="admin.create"
-
+    CREATE_ADMIN="create.admin"
+    UPDATE_USER = "update.user"
+    DELETE_ADMIN = "delete.admin"
+    DELETE_USER = "delete.user"
 
 class UserPermission(PermissionBase):
     CREATE_TICKET = "ticket.create"

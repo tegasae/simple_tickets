@@ -49,3 +49,5 @@ class ClientGateway:
     WHERE client_id = :client_id
     LIMIT 1
     """
+
+    SELECT_BY_ADMIN = "SELECT count(client_id) FROM clients WHERE admin_id = :admin_id"

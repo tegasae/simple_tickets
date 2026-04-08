@@ -4,6 +4,7 @@ from typing import Generic, Set
 
 from src.domain.rbac.employee_protocol import HasRoleIds
 
+
 from src.domain.rbac.typevar import P
 from src.domain.rbac.role_repository import RoleRepository
 
@@ -31,7 +32,17 @@ class RoleManager(Generic[P]):
         self._roles.get(role_id)  # validate exists
         target.revoke_role(role_id)
 
+    def grant_roles(self, actor: HasRoleIds, target: HasRoleIds, role_ids:frozenset[int], *, required_permission: P):
+        self._auth.require(actor, required_permission)
+        for role_id in role_ids:
+            self._roles.get(role_id)  # validate exists
+            target.grant_role(role_id)
 
+    def revoke_roles(self, actor: HasRoleIds, target: HasRoleIds, role_ids:frozenset[int], *, required_permission: P):
+        self._auth.require(actor, required_permission)
+        for role_id in role_ids:
+            self._roles.get(role_id)  # validate exists
+            target.revoke_role(role_id)
 
 
 class Authorizer(Generic[P]):
@@ -48,5 +59,7 @@ class Authorizer(Generic[P]):
         pass
         if permission not in self.permissions_of(subject):
             raise PermissionError(f"Subject lacks permission: {permission.value}")
+
+
 
 

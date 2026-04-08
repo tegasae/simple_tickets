@@ -197,7 +197,7 @@ class Admin(_Employee):
             enabled: bool = True,
             login:str | None = None,
             password: str | None = None,
-            enabled_account: bool = True,
+            enable_account: bool = True,
             version: int = 0,
             roles: frozenset[int] | None = None,
             job_title:str=""
@@ -206,7 +206,7 @@ class Admin(_Employee):
 
         base_data = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
                                     phone=phone, enabled=enabled, login=login, password=password,
-                                    enabled_account=enabled_account, version=version, roles=roles)
+                                    enabled_account=enable_account, version=version, roles=roles)
 
         return cls(**base_data, job_title=job_title)
 

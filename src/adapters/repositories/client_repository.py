@@ -13,6 +13,9 @@ from src.domain.repositories.client_repository import ClientRepository
 
 class ClientRepositorySQLite(BaseRepository, ClientRepository):
 
+
+
+
     VARS = [
         "client_id",
         "name",
@@ -106,3 +109,6 @@ class ClientRepositorySQLite(BaseRepository, ClientRepository):
             {"client_id": client_id},
         )
 
+    def create_by_admin(self, *, admin_id) -> int:
+        row=self._get_one(ClientGateway.SELECT_BY_ADMIN,var=['count'],params={'admin_id': admin_id})
+        return row[0]

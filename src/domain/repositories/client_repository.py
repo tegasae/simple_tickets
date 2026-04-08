@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+from src.application.dto.employee_dto import UserDTO
 from src.domain.client import Client
 
 
@@ -23,4 +24,8 @@ class ClientRepository(ABC):
 
     @abstractmethod
     def delete(self, client_id: int) -> None:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def create_by_admin(self, *, admin_id) ->int:
         raise NotImplementedError()
