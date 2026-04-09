@@ -21,6 +21,8 @@ class ClientAssembler:
             address=unwrap(client.address),
             phone=unwrap(client.phone),
             enabled=client.enabled,
+            created_by_admin=client.created_by_admin_id,
+            date_created=str(client.date_created)
         )
 
 class AdminAssembler:
@@ -35,7 +37,8 @@ class AdminAssembler:
                                  login=str(admin.account.login),
                                  enabled_login=admin.account.enabled,
                                  phone=str(admin.phone),
-                                 roles=admin.role_ids())
+                                 roles=admin.role_ids(),
+                                 date_created=str(admin.date_created))
 
 class UserAssembler:
     @staticmethod
@@ -44,10 +47,11 @@ class UserAssembler:
                                 client_id=user.client_id,
                                  first_name=str(user.first_name),
                                  email=str(user.email),
-                                 enable=user.enabled,
+                                 enabled=user.enabled,
                                  last_name=str(user.last_name),
                                  login=str(user.account.login),
-                                 enable_login=user.account.enabled,
+                                 enabled_login=user.account.enabled,
                                  phone=str(user.phone),
-                                 roles=user.role_ids())
+                                 roles=user.role_ids(),
+                                 date_created=str(user.date_created))
 

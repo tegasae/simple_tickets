@@ -70,6 +70,7 @@ class TicketGateway:
     WHERE ticket_id = :ticket_id
     """
 
+    SELECT_BY_CLIENT_ID="SELECT count(ticket_id) FRON tickets WHERE client_id = :client_id"
 
 class TicketCommentGateway:
     SELECT = """

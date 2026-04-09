@@ -174,3 +174,6 @@ class TicketUserRepositorySQLite(BaseRepository, TicketUserRepository):
 
         except Exception as e:
             raise DBOperationError(f"Delete failed: {str(e)}")
+
+    def does_client_exist(self, client_id: int) -> bool:
+        return self._exists(TicketUserGateway.SELECT_BY_ID, {'client_id': client_id})

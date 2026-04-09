@@ -3,24 +3,20 @@
 from dataclasses import dataclass
 
 
-@dataclass
-class CreateClientDTO:
+@dataclass(kw_only=True,frozen=True)
+class ClientDTO:
+    actor_admin_id:int
+    client_id:int=0
     name: str
     email: str = ""
     address: str = ""
     phone: str = ""
-    created_by_admin_id: int = 0
+    enable: bool = True
 
 
-@dataclass
-class UpdateClientDTO:
-    client_id: int
-    email: str | None = None
-    address: str | None = None
-    phone: str | None = None
 
 
-@dataclass
+@dataclass(kw_only=True,frozen=True)
 class ClientResponseDTO:
     client_id: int
     name: str
@@ -28,3 +24,5 @@ class ClientResponseDTO:
     address: str | None
     phone: str | None
     enabled: bool
+    date_created: str
+    created_by_admin:int

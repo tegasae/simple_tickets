@@ -23,6 +23,8 @@ class AdminPermission(PermissionBase):
     UPDATE_USER = "update.user"
     DELETE_ADMIN = "delete.admin"
     DELETE_USER = "delete.user"
+    OPERATION_CLIENT = "operation.client"
+
 
 class UserPermission(PermissionBase):
     CREATE_TICKET = "ticket.create"

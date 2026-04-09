@@ -85,3 +85,8 @@ class UserRepository(ABC):
     def exist_login(self, login: str) -> bool:
         """Check whether login exists."""
         raise NotImplementedError
+
+
+    @abstractmethod
+    def does_client_exist(self, client_id: int) -> bool:
+        raise NotImplementedError

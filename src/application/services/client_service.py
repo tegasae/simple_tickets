@@ -1,8 +1,10 @@
 # src/application/services/client_service.py
 from src.application.assemblers.assembler import ClientAssembler
-from src.application.dto.client_dto import CreateClientDTO, ClientResponseDTO, UpdateClientDTO
+from src.application.dto.client_dto import ClientDTO, ClientResponseDTO
+from src.application.helper.empoyee_helper import EmployeeHelper
 from src.domain.client import Client
 from src.domain.exceptions import DomainOperationError
+from src.domain.rbac.permissions import AdminPermission
 from src.services.uow.uow import UnitOfWork
 
 
@@ -13,75 +15,89 @@ class ClientApplicationService:
 
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
+        self.helper = EmployeeHelper(self.uow)
+
+    def _save_and_to_dto(self, client: Client) -> ClientResponseDTO:
+        saved_client = self.uow.clients.save(client)
+        return ClientAssembler.to_dto(saved_client)
 
     # --------------------------------
     # Create
     # --------------------------------
 
-    def create_client(self, dto: CreateClientDTO) -> ClientResponseDTO:
+    def create_client(self, dto_client: ClientDTO) -> ClientResponseDTO:
 
         with self.uow:
-
+            actor = self.helper.require_actor(
+                actor_admin_id=dto_client.actor_admin_id,
+                permission=AdminPermission.OPERATION_CLIENT,
+            )
             client = Client.create(
                 client_id=0,
-                name=dto.name,
-                email=dto.email,
-                address=dto.address,
-                phone=dto.phone,
-                created_by_admin_id=dto.created_by_admin_id,
+                name=dto_client.name,
+                email=dto_client.email,
+                address=dto_client.address,
+                phone=dto_client.phone,
+                created_by_admin_id=actor.employee_id,
             )
 
             client = self.uow.clients.save(client)
 
-            return ClientAssembler.to_dto(client)
+            return self._save_and_to_dto(client)
 
     # --------------------------------
     # Update
     # --------------------------------
 
-    def update_contact(self, dto: UpdateClientDTO) -> ClientResponseDTO:
+    def update_contact(self, dto_client: ClientDTO) -> ClientResponseDTO:
 
         with self.uow:
-
-            client = self.uow.clients.get(dto.client_id)
+            self.helper.require_actor(
+                actor_admin_id=dto_client.actor_admin_id,
+                permission=AdminPermission.OPERATION_CLIENT,
+            )
+            client = self.uow.clients.get(dto_client.client_id)
 
             client.update_contact_info(
-                email=dto.email,
-                address=dto.address,
-                phone=dto.phone,
+                email=dto_client.email,
+                address=dto_client.address,
+                phone=dto_client.phone,
             )
 
-            client = self.uow.clients.save(client)
-
-            return ClientAssembler.to_dto(client)
+            return self._save_and_to_dto(client)
 
     # --------------------------------
     # Enable / disable
     # --------------------------------
 
-    def disable(self, client_id: int) -> ClientResponseDTO:
+    def disable(self, dto_client:ClientDTO) -> ClientResponseDTO:
 
         with self.uow:
-
-            client = self.uow.clients.get(client_id)
-
+            self.helper.require_actor(
+                actor_admin_id=dto_client.actor_admin_id,
+                permission=AdminPermission.OPERATION_CLIENT,
+            )
+            client = self.uow.clients.get(dto_client.client_id)
             client.disable()
 
-            client = self.uow.clients.save(client)
 
-            return ClientAssembler.to_dto(client)
 
-    def enable(self, client_id: int) -> ClientResponseDTO:
+            return self._save_and_to_dto(client)
+
+    def enable(self, dto_client:ClientDTO) -> ClientResponseDTO:
 
         with self.uow:
+            with self.uow:
+                self.helper.require_actor(
+                    actor_admin_id=dto_client.actor_admin_id,
+                    permission=AdminPermission.OPERATION_CLIENT,
+                )
+                client = self.uow.clients.get(dto_client.client_id)
+                client.enable()
 
-            client = self.uow.clients.get(client_id)
 
-            client.enable()
 
-            client = self.uow.clients.save(client)
-
-            return ClientAssembler.to_dto(client)
+                return self._save_and_to_dto(client)
 
     # --------------------------------
     # Delete
@@ -90,36 +106,44 @@ class ClientApplicationService:
     def delete(
         self,
         *,
-        client_id: int,
-        number_of_users: int,
-        number_of_tickets: int,
+        dto_client: ClientDTO,
     ) -> None:
 
-        with self.uow:
-
-            if number_of_users != 0 or number_of_tickets != 0:
+        with (self.uow):
+            self.helper.require_actor(
+                actor_admin_id=dto_client.actor_admin_id,
+                permission=AdminPermission.OPERATION_CLIENT,
+            )
+            if (self.uow.users.does_client_exist(dto_client.client_id) or
+                self.uow.tickets.does_client_exist(dto_client.client_id) or
+                self.uow.user_tickets.does_client_exist(dto_client.client_id)):
                 raise DomainOperationError(
-                    f"Client {client_id} cannot be deleted"
+                    f"Client {dto_client.name} cannot be deleted"
                 )
 
-            self.uow.clients.delete(client_id)
+            self.uow.clients.delete(dto_client.client_id)
 
     # --------------------------------
     # Queries
     # --------------------------------
 
-    def get_by_id(self, client_id: int) -> ClientResponseDTO:
+    def get_by_id(self, dto_client:ClientDTO) -> ClientResponseDTO:
 
         with self.uow:
-
-            client = self.uow.clients.get(client_id)
-
+            self.helper.require_actor(
+                actor_admin_id=dto_client.actor_admin_id,
+                permission=AdminPermission.OPERATION_CLIENT,
+            )
+            client = self.uow.clients.get(dto_client.client_id)
             return ClientAssembler.to_dto(client)
 
-    def get_all(self) -> list[ClientResponseDTO]:
+    def get_all(self,dto_client:ClientDTO) -> list[ClientResponseDTO]:
 
         with self.uow:
-
+            self.helper.require_actor(
+                actor_admin_id=dto_client.actor_admin_id,
+                permission=AdminPermission.OPERATION_CLIENT,
+            )
             clients = self.uow.clients.get_all()
 
             return [ClientAssembler.to_dto(c) for c in clients]

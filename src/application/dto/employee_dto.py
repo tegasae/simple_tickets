@@ -19,18 +19,8 @@ class EmployeeDTO:
 class AdminDTO(EmployeeDTO):
     job_title: str|None =None
 
-@dataclass
-class AdminResponseDTO:
-    employee_id: int
-    first_name: str
-    job_title: str
-    last_name: str
-    enabled: bool
-    email: str
-    phone: str
-    login: str
-    enabled_login: bool
-    roles: frozenset[int]= field(default_factory=frozenset)
+
+
 
 
 @dataclass(kw_only=True,frozen=True)
@@ -38,15 +28,27 @@ class UserDTO(EmployeeDTO):
     client_id: int
 
 
-@dataclass
-class UserResponseDTO:
+
+
+@dataclass(kw_only=True,frozen=True)
+class EmployeeResponseDTO:
     employee_id: int
-    client_id: int
     first_name: str
     last_name: str
-    enable: bool
+    enabled: bool
     email: str
     phone: str
     login: str
-    enable_login: bool
-    roles: frozenset[int]= field(default_factory=frozenset)
+    enabled_login: bool
+    date_created: str
+    roles: frozenset[int] = field(default_factory=frozenset)
+
+
+@dataclass(kw_only=True,frozen=True)
+class AdminResponseDTO(EmployeeResponseDTO):
+    job_title: str
+
+
+@dataclass(kw_only=True,frozen=True)
+class UserResponseDTO(EmployeeResponseDTO):
+    client_id: int

@@ -20,6 +20,9 @@ from utils.db.exceptions import DBOperationError
 class TicketRepositorySQLite(TicketRepository, BaseRepository):
 
 
+
+
+
     # ---------------------------
     # load helpers
     # ---------------------------
@@ -228,3 +231,6 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             TicketGateway.DELETE,
             {"ticket_id": ticket_id},
         )
+
+    def does_client_exist(self, client_id: int) -> bool:
+        return self._exists(TicketGateway.SELECT_BY_ID, {'client_id': client_id})

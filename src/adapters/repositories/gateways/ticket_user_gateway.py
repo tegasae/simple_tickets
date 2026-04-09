@@ -57,5 +57,5 @@ class TicketUserGateway:
     DELETE FROM user_tickets
     WHERE user_ticket_id = :ticket_id
     """
-
+    SELECT_BY_CLIENT_ID = "SELECT count(user_ticket_id) FRON user_tickets WHERE client_id = :client_id"
     

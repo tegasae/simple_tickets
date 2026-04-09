@@ -162,3 +162,6 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
         except Exception as e:
             raise PersistenceError(f"Failed to delete User {user_id}: {e}") from e
 
+
+    def does_client_exist(self, client_id: int) -> bool:
+        return self._exists(UserGateway.SELECT_BY_ID, {'client_id': client_id})

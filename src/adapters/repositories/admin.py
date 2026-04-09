@@ -168,7 +168,7 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
           accounts -> admins_roles -> admins -> employees(is_admin=1)
 
         Note:
-          employees delete includes is_admin=1 guard to prevent deleting user employees by mistake.
+          employees delete include is_admin=1 guard to prevent deleting user employees by mistake.
         """
         try:
             self._exec(AccountGateway.DELETE_BY_EMPLOYEE, {"employee_id": admin_id})

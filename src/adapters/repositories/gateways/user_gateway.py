@@ -64,6 +64,7 @@ class UserGateway:
     LIMIT 1
     """
 
+    SELECT_BY_CLIENT_ID = "SELECT count(user_id) FRON users WHERE client_id = :client_id"
 
 
 

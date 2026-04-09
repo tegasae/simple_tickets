@@ -31,3 +31,8 @@ class TicketRepository(ABC):
     @abstractmethod
     def delete(self, ticket_id: int) -> None:
         raise NotImplementedError
+
+    @abstractmethod
+    def does_client_exist(self, client_id: int) -> bool:
+        raise NotImplementedError
+
