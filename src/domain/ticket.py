@@ -106,6 +106,8 @@ class Ticket:
         is_remote: bool = False,
         urgency_level: int = 0,
         user_ticket_id: int = 0,
+        executor_id:int=0,
+        comment:str=""
     ) -> Self:
         ticket = cls(
             ticket_id=ticket_id,
@@ -125,6 +127,13 @@ class Ticket:
                 actor_employee_id=admin_id,
             )
         )
+
+        if executor_id:
+            ticket.add_executor(ExecutorAssignment(executor_id=executor_id, admin_id=admin_id))
+
+        if comment:
+            ticket.add_comment(comment=Comment(employee_id=admin_id, comment=comment))
+
         return ticket
 
     # ----------------------------
@@ -189,7 +198,7 @@ class Ticket:
     def execute(self, actor_employee_id: int) -> None:
         self.change_status(TicketStatus.EXECUTED, actor_employee_id)
 
-    def cancel(self, actor_employee_id: int) -> None:
+    def cancel(self, actor_employee_id: int,comment:str) -> None:
         self.change_status(TicketStatus.CANCELLED, actor_employee_id)
 
     def belong(self,employee_id: int) -> bool:
