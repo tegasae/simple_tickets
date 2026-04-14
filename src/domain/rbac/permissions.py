@@ -24,6 +24,11 @@ class AdminPermission(PermissionBase):
     DELETE_ADMIN = "delete.admin"
     DELETE_USER = "delete.user"
     OPERATION_CLIENT = "operation.client"
+    VIEW_TICKET = "ticket.view"
+    CREATE_TICKET = "ticket.create"
+    UPDATE_TICKET = "ticket.update"
+    ASSIGN_TICKET = "ticket.assign"
+    DELETE_TICKET = "ticket.delete"
 
 
 class UserPermission(PermissionBase):

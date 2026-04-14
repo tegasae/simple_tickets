@@ -1,7 +1,9 @@
 # src/application/assemblers/assembler.py
 from src.application.dto.employee_dto import AdminResponseDTO, UserResponseDTO
+from src.application.dto.ticket_dto import TicketResponseDTO
 from src.domain.client import Client
 from src.domain.employee import Admin, User
+from src.domain.ticket import Ticket
 from src.domain.value_objects import Empty
 from src.application.dto.client_dto import ClientResponseDTO
 
@@ -23,6 +25,44 @@ class ClientAssembler:
             enabled=client.enabled,
             created_by_admin=client.created_by_admin_id,
             date_created=str(client.date_created)
+        )
+
+class TicketAssembler:
+    @staticmethod
+    def unwrap(value):
+        return None if isinstance(value, Empty) else str(value)
+
+
+    @staticmethod
+    def to_dto(ticket: Ticket) -> TicketResponseDTO:
+        statuses=[]
+        for status in ticket.statuses:
+             statuses.append({'id':status.status_id,'status':status.status,'actor_id':status.actor_employee_id,'date':str(status.date_created)})
+
+        comments = []
+        for comment in ticket.comments:
+            comments.append({'id': comment.comment_id, 'comment': comment.comment, 'actor_id': comment.employee_id, 'date': str(comment.date_created)})
+
+
+        executors=[]
+        for executor in ticket.executors:
+            executors.append({'id': executor.executor_id, 'admin_id':executor.admin_id,'date': str(executor.date_created)})
+
+
+        return TicketResponseDTO(
+            ticket_id=ticket.ticket_id,
+            date_created=TicketAssembler.unwrap(ticket.date_created),
+            description=TicketAssembler.unwrap(ticket.description),
+            date_finished=TicketAssembler.unwrap(ticket.date_finished),
+            contact_user_id=ticket.contact_user_id,
+            text_of_ticket=ticket.text_of_ticket,
+            is_remote=ticket.is_remote,
+            urgency_level=ticket.urgency_level,
+            user_id=ticket.user_id,
+            user_ticket_id=ticket.user_ticket_id,
+            statuses=statuses,
+            comments=comments,
+            executors=executors
         )
 
 class AdminAssembler:

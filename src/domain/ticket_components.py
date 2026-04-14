@@ -37,6 +37,9 @@ class ExecutorAssignment:
     admin_id: int
     date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
+    @classmethod
+    def empty_executor(cls) -> ExecutorAssignment:
+        return ExecutorAssignment(admin_id=0)
 
 @dataclass
 class CommentThread:
