@@ -37,7 +37,7 @@ class TicketAssembler:
     def to_dto(ticket: Ticket) -> TicketResponseDTO:
         statuses=[]
         for status in ticket.statuses:
-             statuses.append({'id':status.status_id,'status':status.status,'actor_id':status.actor_employee_id,'date':str(status.date_created)})
+             statuses.append({'id':status.status_id,'status':status.status.value,'actor_id':status.actor_employee_id,'date':str(status.date_created)})
 
         comments = []
         for comment in ticket.comments:

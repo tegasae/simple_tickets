@@ -1,7 +1,7 @@
 # src/application/services/client_service.py
 from src.application.assemblers.assembler import ClientAssembler
 from src.application.dto.client_dto import ClientDTO, ClientResponseDTO
-from src.application.helper.empoyee_helper import EmployeeHelper
+from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.client import Client
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
@@ -15,7 +15,7 @@ class ClientApplicationService:
 
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
-        self.helper = EmployeeHelper(self.uow)
+        self.actor = EmployeeActorHelper(self.uow)
 
     def _save_and_to_dto(self, client: Client) -> ClientResponseDTO:
         saved_client = self.uow.clients.save(client)
@@ -28,7 +28,7 @@ class ClientApplicationService:
     def create_client(self, dto_client: ClientDTO) -> ClientResponseDTO:
 
         with self.uow:
-            actor = self.helper.require_actor(
+            actor = self.actor.require_actor_admin(
                 actor_admin_id=dto_client.actor_admin_id,
                 permission=AdminPermission.OPERATION_CLIENT,
             )
@@ -52,7 +52,7 @@ class ClientApplicationService:
     def update_contact(self, dto_client: ClientDTO) -> ClientResponseDTO:
 
         with self.uow:
-            self.helper.require_actor(
+            self.actor.require_actor_admin(
                 actor_admin_id=dto_client.actor_admin_id,
                 permission=AdminPermission.OPERATION_CLIENT,
             )
@@ -73,7 +73,7 @@ class ClientApplicationService:
     def disable(self, dto_client:ClientDTO) -> ClientResponseDTO:
 
         with self.uow:
-            self.helper.require_actor(
+            self.actor.require_actor_admin(
                 actor_admin_id=dto_client.actor_admin_id,
                 permission=AdminPermission.OPERATION_CLIENT,
             )
@@ -88,7 +88,7 @@ class ClientApplicationService:
 
         with self.uow:
             with self.uow:
-                self.helper.require_actor(
+                self.actor.require_actor_admin(
                     actor_admin_id=dto_client.actor_admin_id,
                     permission=AdminPermission.OPERATION_CLIENT,
                 )
@@ -110,7 +110,7 @@ class ClientApplicationService:
     ) -> None:
 
         with (self.uow):
-            self.helper.require_actor(
+            self.actor.require_actor_admin(
                 actor_admin_id=dto_client.actor_admin_id,
                 permission=AdminPermission.OPERATION_CLIENT,
             )
@@ -130,7 +130,7 @@ class ClientApplicationService:
     def get_by_id(self, dto_client:ClientDTO) -> ClientResponseDTO:
 
         with self.uow:
-            self.helper.require_actor(
+            self.actor.require_actor_admin(
                 actor_admin_id=dto_client.actor_admin_id,
                 permission=AdminPermission.OPERATION_CLIENT,
             )
@@ -140,7 +140,7 @@ class ClientApplicationService:
     def get_all(self,dto_client:ClientDTO) -> list[ClientResponseDTO]:
 
         with self.uow:
-            self.helper.require_actor(
+            self.actor.require_actor_admin(
                 actor_admin_id=dto_client.actor_admin_id,
                 permission=AdminPermission.OPERATION_CLIENT,
             )

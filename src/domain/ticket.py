@@ -187,7 +187,7 @@ class Ticket:
         )
 
 
-    def execute(self, actor_employee_id: int,comment:str) -> None:
+    def execute(self, actor_employee_id: int,comment:str="") -> None:
         if comment:
             self.add_comment(comment=Comment(employee_id=actor_employee_id,comment=comment))
         self.change_status(TicketStatus.EXECUTED, actor_employee_id)

@@ -69,7 +69,7 @@ class RoleService(Generic[T]):
         repo = self._get_repository(permission_type)
 
         with self.uow:
-            role = Role[T](
+            role = Role(
                 role_id=0,
                 name=name,
                 permissions=permissions_set,

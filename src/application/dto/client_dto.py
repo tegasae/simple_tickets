@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-
+# todo add admin_id like in ticketdto
 @dataclass(kw_only=True,frozen=True)
 class ClientDTO:
     actor_admin_id:int

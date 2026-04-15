@@ -1,6 +1,7 @@
 #src/application/dto/employee_dto.py
 from dataclasses import dataclass, field
 
+# todo add admin_id like in ticketdto
 @dataclass(kw_only=True,frozen=True)
 class EmployeeDTO:
     employee_id:int

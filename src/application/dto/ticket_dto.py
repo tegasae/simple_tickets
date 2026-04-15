@@ -2,9 +2,10 @@ from dataclasses import dataclass
 from src.domain.ticket import TicketStatus
 
 
-@dataclass(kw_only=True,frozen=True)
+@dataclass(kw_only=True)
 class TicketDTO:
     actor_admin_id: int
+    ticket_id:int=0
     client_id: int=0
     admin_id: int=0
     description: str=""
@@ -18,6 +19,10 @@ class TicketDTO:
     comment: str=""
     status:TicketStatus=TicketStatus.CREATED
 
+    def __post_init__(self):
+        self.admin_id = self.admin_id or self.actor_admin_id
+        if isinstance(self.status,str):
+            self.status = TicketStatus(self.status.lower())
 
 @dataclass(kw_only=True,frozen=True)
 class TicketResponseDTO:
