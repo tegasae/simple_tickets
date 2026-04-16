@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from src.domain.exceptions import ItemNotFoundError
 from src.services.service_layer.admins import AdminService
 from src.services.service_layer.factory import ServiceFactory
-from src.services.uow.uowsqlite import SqliteUnitOfWork
+from src.services.uow.uowsqlite import SQLiteUnitOfWork
 from src.web import settings
 from src.web.auth.exceptions import UserNotValidError
 from src.web.auth.models import UserAuth
@@ -81,12 +81,12 @@ def get_current_user_new(token: str = Depends(oauth2_scheme), auth_manager: Auth
     return auth_manager.token_service.verify_access_token(token)
 
 
-def get_service_factory_admin_name(uow: SqliteUnitOfWork = Depends(get_uow),admin_name:str=Depends(get_current_user_new)):
+def get_service_factory_admin_name(uow: SQLiteUnitOfWork = Depends(get_uow),admin_name:str=Depends(get_current_user_new)):
     return ServiceFactory(uow=uow,admin_name=admin_name)
 
 
 
-def get_service_factory_admin_name_new(token: str = Depends(oauth2_scheme), uow: SqliteUnitOfWork = Depends(get_uow)):
+def get_service_factory_admin_name_new(token: str = Depends(oauth2_scheme), uow: SQLiteUnitOfWork = Depends(get_uow)):
     username=TokenService.verify_access_token(token)
     return ServiceFactory(uow=uow,admin_name=username)
 
@@ -109,7 +109,7 @@ def get_current_username(request: Request) -> str:
 
 async def get_service_factory_auth(
     request: Request,  # ← Get request to extract username
-    uow: SqliteUnitOfWork = Depends(get_uow)
+    uow: SQLiteUnitOfWork = Depends(get_uow)
 ) -> ServiceFactory:
     """
     Creates ServiceFactory with authenticated username

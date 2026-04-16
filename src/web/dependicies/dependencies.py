@@ -4,7 +4,7 @@ import sqlite3
 
 
 from src.services.service_layer.factory import ServiceFactory  # Fixed import
-from src.services.uow.uowsqlite import SqliteUnitOfWork  # Add this import
+from src.services.uow.uowsqlite import SQLiteUnitOfWork  # Add this import
 from src.web.config import get_settings, Settings
 from utils.db.connect import Connection
 
@@ -23,10 +23,10 @@ def get_db_connection():
 
 # The rest of your dependencies stay the same
 def get_uow(conn: Connection = Depends(get_db_connection)):
-    return SqliteUnitOfWork(connection=conn)
+    return SQLiteUnitOfWork(connection=conn)
 
 
-def get_service_factory(uow: SqliteUnitOfWork = Depends(get_uow)):
+def get_service_factory(uow: SQLiteUnitOfWork = Depends(get_uow)):
     return ServiceFactory(uow=uow)
 
 
