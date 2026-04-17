@@ -12,7 +12,7 @@ from starlette import status
 from src.web.auth.services import AuthManager
 
 from src.web.config import Settings
-from src.adapters.repositorysqlite import CreateDB
+#from src.adapters.repositorysqlite import CreateDB
 from src.web.dependicies.dependencies import get_app_settings
 from src.web.dependicies.dependicies_auth import oauth2_scheme, \
     get_auth_manager, get_current_user_new
@@ -134,9 +134,9 @@ async def create_database(settings: Settings = Depends(get_app_settings)):
         conn = Connection.create_connection(url=settings.DATABASE_URL, engine=sqlite3)
 
         # Initialize database schema
-        create_db = CreateDB(conn)
-        create_db.init_data()
-        create_db.create_indexes()
+        #create_db = CreateDB(conn)
+        #create_db.init_data()
+        #create_db.create_indexes()
 
         conn.close()
 
