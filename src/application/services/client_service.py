@@ -7,6 +7,8 @@ from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
 from src.services.uow.uow import UnitOfWork
 
+#todo Добавить проверки валидности данных как в ticket_service
+#todo Учесть, что в ClientDTO теперь есть admin_id
 
 class ClientApplicationService:
     """

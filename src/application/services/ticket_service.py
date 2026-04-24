@@ -2,8 +2,7 @@ from src.application.assemblers.assembler import TicketAssembler
 from src.application.dto.ticket_dto import TicketDTO, TicketResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
 
-from src.domain.exceptions import DomainOperationError
-from src.domain.policy.ticket_creation import TicketCreationPolicy
+from src.domain.policy.ticket import TicketCreationPolicy
 
 from src.domain.ticket import Ticket
 from src.domain.ticket_components import Comment, ExecutorAssignment
@@ -45,7 +44,7 @@ class TicketApplicationService:
 
 
 
-    def _validate_references(self, ticket_dto: TicketDTO) -> int:
+    def _validate_references(self, ticket_dto: TicketDTO):
         """
         Validates referenced entities and returns the effective admin_id.
         """
@@ -74,13 +73,10 @@ class TicketApplicationService:
 
         if ticket_dto.user_ticket_id:
             user_ticket = self.uow.user_tickets.get(ticket_dto.user_ticket_id)
-            #todo create policy for user ticket and move it there.
-            if user_ticket.client_id != client.client_id:
-                raise DomainOperationError(
-                    f"UserTicket {user_ticket.ticket_id} does not belong to client {client.client_id}"
-                )
+            TicketCreationPolicy.ensure_ticket_user_belongs_to_client(user_ticket,client)
 
-        return admin.employee_id
+
+
 
     # --------------------------------
     # Create
@@ -96,12 +92,12 @@ class TicketApplicationService:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
                                            permission=AdminPermission.CREATE_TICKET)
 
-            admin_id = self._validate_references(ticket_dto)
+            self._validate_references(ticket_dto)
 
             ticket = Ticket.create(
                 ticket_id=0,
                 client_id=ticket_dto.client_id,
-                admin_id=admin_id,
+                admin_id=ticket_dto.admin_id,
                 description=ticket_dto.description,
                 text_of_ticket=ticket_dto.text_of_ticket,
                 user_id=ticket_dto.user_id,
@@ -130,12 +126,12 @@ class TicketApplicationService:
 
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
                                            permission=AdminPermission.UPDATE_TICKET)
-            admin_id=self._validate_references(ticket_dto)
+            self._validate_references(ticket_dto)
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
             ticket.change_status(
                 new_status=ticket_dto.status,
-                actor_employee_id=admin_id,
+                actor_employee_id=ticket_dto.admin_id,
             )
 
             return self._save_and_to_dto(ticket)
@@ -151,9 +147,9 @@ class TicketApplicationService:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
                                            permission=AdminPermission.UPDATE_TICKET)
 
-            admin_id = self._validate_references(ticket_dto)
+            self._validate_references(ticket_dto)
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
-            ticket.defer(actor_employee_id=admin_id)
+            ticket.defer(actor_employee_id=ticket_dto.admin_id)
 
             return self._save_and_to_dto(ticket)
 
@@ -167,14 +163,14 @@ class TicketApplicationService:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
                                            permission=AdminPermission.UPDATE_TICKET)
 
-            admin_id = self._validate_references(ticket_dto)
+            self._validate_references(ticket_dto)
             if ticket_dto.executor_id:
                 executor = self.uow.admins.get(ticket_dto.executor_id)
                 TicketCreationPolicy.ensure_admin_enabled(executor)
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
             ticket.at_work(
-                actor_employee_id=admin_id,
+                actor_employee_id=ticket_dto.admin_id,
                 executor_id=ticket_dto.executor_id,
             )
 
@@ -190,10 +186,10 @@ class TicketApplicationService:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
                                            permission=AdminPermission.UPDATE_TICKET)
 
-            admin_id = self._validate_references(ticket_dto)
+            self._validate_references(ticket_dto)
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
-            ticket.execute(actor_employee_id=admin_id)
+            ticket.execute(actor_employee_id=ticket_dto.admin_id)
 
             return self._save_and_to_dto(ticket)
 
@@ -207,11 +203,11 @@ class TicketApplicationService:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
                                            permission=AdminPermission.UPDATE_TICKET)
 
-            admin_id = self._validate_references(ticket_dto)
+            self._validate_references(ticket_dto)
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
             ticket.cancel(
-                actor_employee_id=admin_id,
+                actor_employee_id=ticket_dto.admin_id,
                 comment=ticket_dto.comment,
             )
 
@@ -231,12 +227,12 @@ class TicketApplicationService:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
                                            permission=AdminPermission.UPDATE_TICKET)
 
-            admin_id = self._validate_references(ticket_dto)
+            self._validate_references(ticket_dto)
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
             ticket.add_comment(
                 Comment(
-                    employee_id=admin_id,
+                    employee_id=ticket_dto.admin_id,
                     comment=ticket_dto.comment,
                 )
             )
@@ -257,14 +253,14 @@ class TicketApplicationService:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
                                            permission=AdminPermission.UPDATE_TICKET)
 
-            admin_id = self._validate_references(ticket_dto)
+            self._validate_references(ticket_dto)
             executor = self.uow.admins.get(ticket_dto.executor_id)
             TicketCreationPolicy.ensure_admin_enabled(executor)
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
             ticket.add_executor(
                 ExecutorAssignment(
-                    admin_id=admin_id,
+                    admin_id=ticket_dto.admin_id,
                     executor_id=ticket_dto.executor_id,
                 )
             )
@@ -283,11 +279,14 @@ class TicketApplicationService:
 
         with self.uow:
             #todo add here a policy user ticket
+
+
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
                                            permission=AdminPermission.DELETE_TICKET)
 
-
-
+            self._validate_references(ticket_dto)
+            ticket=self.uow.tickets.get(ticket_dto.ticket_id)
+            TicketCreationPolicy.ensure_ticket_does_not_have_ticket_user(ticket)
 
             self.uow.tickets.delete(ticket_dto.ticket_id)
 

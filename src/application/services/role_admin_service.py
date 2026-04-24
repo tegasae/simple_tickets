@@ -10,6 +10,9 @@ from src.services.uow.uow import UnitOfWork
 # Type variables for different permission types
 T = TypeVar("T", bound=PermissionBase)
 
+#todo Добавить проверки на валидлнсть как ticket_service
+
+
 
 class RoleService(Generic[T]):
     """

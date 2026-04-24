@@ -2,16 +2,19 @@
 
 from dataclasses import dataclass
 
-# todo add admin_id like in ticketdto
-@dataclass(kw_only=True,frozen=True)
+@dataclass(kw_only=True)
 class ClientDTO:
     actor_admin_id:int
+    admin_id: int = 0
     client_id:int=0
     name: str
     email: str = ""
     address: str = ""
     phone: str = ""
     enable: bool = True
+
+    def __post_init__(self):
+        self.admin_id = self.admin_id or self.actor_admin_id
 
 
 
