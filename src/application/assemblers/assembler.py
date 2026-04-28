@@ -1,9 +1,10 @@
 # src/application/assemblers/assembler.py
 from src.application.dto.employee_dto import AdminResponseDTO, UserResponseDTO
-from src.application.dto.ticket_dto import TicketResponseDTO
+from src.application.dto.ticket_dto import TicketResponseDTO, TicketUserResponseDTO
 from src.domain.client import Client
 from src.domain.employee import Admin, User
 from src.domain.ticket import Ticket
+from src.domain.ticket_user import TicketUser
 from src.domain.value_objects import Empty
 from src.application.dto.client_dto import ClientResponseDTO
 
@@ -64,6 +65,40 @@ class TicketAssembler:
             comments=comments,
             executors=executors
         )
+
+
+
+class TicketUserAssembler:
+    @staticmethod
+    def unwrap(value):
+        return None if isinstance(value, Empty) else str(value)
+
+
+    @staticmethod
+    def to_dto(ticket_user: TicketUser) -> TicketUserResponseDTO:
+        statuses=[]
+        for status in ticket_user.statuses:
+             statuses.append({'id':status.status_id,'status':status.status.value,'actor_id':status.actor_employee_id,'date':str(status.date_created)})
+
+        comments = []
+        for comment in ticket_user.comments:
+            comments.append({'id': comment.comment_id, 'comment': comment.comment, 'actor_id': comment.employee_id, 'date': str(comment.date_created)})
+
+
+
+
+        return TicketUserResponseDTO(
+            ticket_id=ticket_user.ticket_id,
+            date_created=TicketAssembler.unwrap(ticket_user.date_created),
+            description=TicketAssembler.unwrap(ticket_user.description),
+            date_finished=TicketAssembler.unwrap(ticket_user.date_finished),
+            contact_user_id=ticket_user.contact_user_id,
+            user_id=ticket_user.user_id,
+            statuses=statuses,
+            comments=comments,
+            is_closed=ticket_user.is_closed
+        )
+
 
 class AdminAssembler:
     @staticmethod

@@ -5,11 +5,10 @@ from src.application.helper.actor_helper import EmployeeActorHelper
 from src.application.helper.empoyee_helper import EmployeeHelper
 from src.domain.employee import Admin
 from src.domain.exceptions import DomainOperationError
+from src.domain.policy.ticket import CreationPolicy
 from src.domain.rbac.permissions import AdminPermission
 from src.services.uow.uow import UnitOfWork
 
-#todo Добавить проверки на валидлнсть как ticket_service
-#todo Учесть что AdminDTO теперь имеет admin_id
 class AdminApplicationService:
     """
     Application service for Admin.
@@ -19,7 +18,6 @@ class AdminApplicationService:
         - RoleManager (RBAC)
         - Authorizer (permissions)
     """
-
 
 
 
@@ -91,7 +89,8 @@ class AdminApplicationService:
 
             self.actor.require_actor_admin(actor_admin_id=admin_dto.actor_admin_id,
                                                    permission=AdminPermission.UPDATE_ADMIN)
-            admin=self.uow.admins.get(admin_id=admin_dto.employee_id)
+            admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
+
             admin.update(
                 admin_dto.job_title,
                 admin_dto.first_name,
@@ -120,7 +119,7 @@ class AdminApplicationService:
             self.helper.ensure_login_is_free(login=admin_dto.login)
             self.actor.require_actor_admin(actor_admin_id=admin_dto.actor_admin_id,
                                            permission=AdminPermission.UPDATE_ADMIN)
-            admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
+            admin=self._validate_references(admin_dto=admin_dto)
 
 
             admin.add_account(
@@ -149,7 +148,7 @@ class AdminApplicationService:
 
             self.actor.require_actor_admin(actor_admin_id=admin_dto.actor_admin_id,
                                            permission=AdminPermission.UPDATE_ADMIN)
-            admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
+            admin = self._validate_references(admin_dto=admin_dto)
             admin.change_password(password=admin_dto.password)
 
             return self._save_and_to_dto(admin)
@@ -208,9 +207,13 @@ class AdminApplicationService:
 
     def delete(self, *, admin_dto: AdminDTO) -> None:
         with self.uow:
+
             self.actor.require_actor_admin(actor_admin_id=admin_dto.actor_admin_id,
                                            permission=AdminPermission.UPDATE_ADMIN)
             admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
+            # todo потом это переписать, создать доменную политику, учитывая что нельзя удалить клиента который
+            #  создал этот admin, нельзя удалить заявки, которые создал этот admin или где написал комментарий или
+            #  где он исполнитель
 
             if self.uow.clients.create_by_admin(admin_id=admin_dto.employee_id):
                     raise DomainOperationError("You can't delete this admin because it has clients")

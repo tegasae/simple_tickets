@@ -4,7 +4,7 @@ from src.domain.exceptions import DomainOperationError
 from src.domain.ticket_user import TicketUser
 from src.domain.ticket import Ticket
 
-class TicketCreationPolicy:
+class CreationPolicy:
     """
     Domain policy for ticket creation rules.
     """
@@ -68,3 +68,5 @@ class TicketCreationPolicy:
             raise DomainOperationError(
                 f"Ticket  {ticket.ticket_id} has a ticket user {ticket.user_ticket_id}"
             )
+
+

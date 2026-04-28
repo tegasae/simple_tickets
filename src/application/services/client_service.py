@@ -7,8 +7,8 @@ from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
 from src.services.uow.uow import UnitOfWork
 
-#todo Добавить проверки валидности данных как в ticket_service
-#todo Учесть, что в ClientDTO теперь есть admin_id
+
+
 
 class ClientApplicationService:
     """
@@ -22,6 +22,39 @@ class ClientApplicationService:
     def _save_and_to_dto(self, client: Client) -> ClientResponseDTO:
         saved_client = self.uow.clients.save(client)
         return ClientAssembler.to_dto(saved_client)
+
+
+    def _validate_references(self, client_dto: ClientDTO):
+        """
+        Validates referenced entities and returns the effective admin_id.
+        """
+
+        admin_id = ticket_dto.admin_id
+
+        admin = self.uow.admins.get(admin_id)
+        client = self.uow.clients.get(ticket_dto.client_id)
+
+        CreationPolicy.ensure_admin_enabled(admin)
+        CreationPolicy.ensure_client_enabled(client)
+
+        if ticket_dto.user_id:
+            user = self.uow.users.get(ticket_dto.user_id)
+            CreationPolicy.ensure_user_enabled(user)
+            CreationPolicy.ensure_user_belongs_to_client(user, client)
+
+        if ticket_dto.contact_user_id:
+            contact_user = self.uow.users.get(ticket_dto.contact_user_id)
+            CreationPolicy.ensure_user_enabled(contact_user)
+            CreationPolicy.ensure_user_belongs_to_client(contact_user, client)
+
+        if ticket_dto.executor_id:
+            executor = self.uow.admins.get(ticket_dto.executor_id)
+            CreationPolicy.ensure_admin_enabled(executor)
+
+        if ticket_dto.user_ticket_id:
+            user_ticket = self.uow.user_tickets.get(ticket_dto.user_ticket_id)
+            CreationPolicy.ensure_ticket_user_belongs_to_client(user_ticket, client)
+
 
     # --------------------------------
     # Create
@@ -40,7 +73,7 @@ class ClientApplicationService:
                 email=dto_client.email,
                 address=dto_client.address,
                 phone=dto_client.phone,
-                created_by_admin_id=actor.employee_id,
+                created_by_admin_id=dto_client.admin_id
             )
 
             client = self.uow.clients.save(client)
@@ -116,6 +149,7 @@ class ClientApplicationService:
                 actor_admin_id=dto_client.actor_admin_id,
                 permission=AdminPermission.OPERATION_CLIENT,
             )
+            # todo сделать доменную политику, которая учитывает что нельзя удалить клиента у которого есть user и заявки
             if (self.uow.users.does_client_exist(dto_client.client_id) or
                 self.uow.tickets.does_client_exist(dto_client.client_id) or
                 self.uow.user_tickets.does_client_exist(dto_client.client_id)):

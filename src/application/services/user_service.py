@@ -9,8 +9,8 @@ from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
 from src.services.uow.uow import UnitOfWork
 
-#todo Добавить проверки на валидность как ticket_service
-#todo Учесть что UserDTO теперь имеет admin_id
+
+
 
 class UserApplicationService:
     """
@@ -38,9 +38,6 @@ class UserApplicationService:
     # --------------------------------
     # Helpers
     # --------------------------------
-
-
-
 
 
 
@@ -208,6 +205,9 @@ class UserApplicationService:
             user = self.uow.users.get(user_id=user_dto.employee_id)
 
             user_tickets = self.uow.user_tickets.get_all()
+            # todo потом создать доменную политику учитывая, что нельзя удалить user, который создавал user_ticket
+            #  или комментировал user_ticket
+
             for user_ticket in user_tickets:
                 if user_ticket.belong(employee_id=user.employee_id):
                     raise DomainOperationError(

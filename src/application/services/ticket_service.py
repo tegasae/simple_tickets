@@ -2,7 +2,7 @@ from src.application.assemblers.assembler import TicketAssembler
 from src.application.dto.ticket_dto import TicketDTO, TicketResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
 
-from src.domain.policy.ticket import TicketCreationPolicy
+from src.domain.policy.ticket import CreationPolicy
 
 from src.domain.ticket import Ticket
 from src.domain.ticket_components import Comment, ExecutorAssignment
@@ -54,26 +54,26 @@ class TicketApplicationService:
         admin = self.uow.admins.get(admin_id)
         client = self.uow.clients.get(ticket_dto.client_id)
 
-        TicketCreationPolicy.ensure_admin_enabled(admin)
-        TicketCreationPolicy.ensure_client_enabled(client)
+        CreationPolicy.ensure_admin_enabled(admin)
+        CreationPolicy.ensure_client_enabled(client)
 
         if ticket_dto.user_id:
             user = self.uow.users.get(ticket_dto.user_id)
-            TicketCreationPolicy.ensure_user_enabled(user)
-            TicketCreationPolicy.ensure_user_belongs_to_client(user, client)
+            CreationPolicy.ensure_user_enabled(user)
+            CreationPolicy.ensure_user_belongs_to_client(user, client)
 
         if ticket_dto.contact_user_id:
             contact_user = self.uow.users.get(ticket_dto.contact_user_id)
-            TicketCreationPolicy.ensure_user_enabled(contact_user)
-            TicketCreationPolicy.ensure_user_belongs_to_client(contact_user, client)
+            CreationPolicy.ensure_user_enabled(contact_user)
+            CreationPolicy.ensure_user_belongs_to_client(contact_user, client)
 
         if ticket_dto.executor_id:
             executor = self.uow.admins.get(ticket_dto.executor_id)
-            TicketCreationPolicy.ensure_admin_enabled(executor)
+            CreationPolicy.ensure_admin_enabled(executor)
 
         if ticket_dto.user_ticket_id:
             user_ticket = self.uow.user_tickets.get(ticket_dto.user_ticket_id)
-            TicketCreationPolicy.ensure_ticket_user_belongs_to_client(user_ticket,client)
+            CreationPolicy.ensure_ticket_user_belongs_to_client(user_ticket, client)
 
 
 
@@ -166,7 +166,7 @@ class TicketApplicationService:
             self._validate_references(ticket_dto)
             if ticket_dto.executor_id:
                 executor = self.uow.admins.get(ticket_dto.executor_id)
-                TicketCreationPolicy.ensure_admin_enabled(executor)
+                CreationPolicy.ensure_admin_enabled(executor)
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
             ticket.at_work(
@@ -255,7 +255,7 @@ class TicketApplicationService:
 
             self._validate_references(ticket_dto)
             executor = self.uow.admins.get(ticket_dto.executor_id)
-            TicketCreationPolicy.ensure_admin_enabled(executor)
+            CreationPolicy.ensure_admin_enabled(executor)
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
             ticket.add_executor(
@@ -286,7 +286,7 @@ class TicketApplicationService:
 
             self._validate_references(ticket_dto)
             ticket=self.uow.tickets.get(ticket_dto.ticket_id)
-            TicketCreationPolicy.ensure_ticket_does_not_have_ticket_user(ticket)
+            CreationPolicy.ensure_ticket_does_not_have_ticket_user(ticket)
 
             self.uow.tickets.delete(ticket_dto.ticket_id)
 

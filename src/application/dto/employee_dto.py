@@ -3,9 +3,8 @@ from dataclasses import dataclass, field
 
 @dataclass(kw_only=True)
 class EmployeeDTO:
-    employee_id:int
+    employee_id:int=0
     actor_admin_id: int
-    admin_id:int=0
     first_name: str | None = None
     last_name: str | None = None
     enable:bool=True
@@ -16,8 +15,6 @@ class EmployeeDTO:
     enable_account: bool=True
     roles: frozenset[int] = field(default_factory=frozenset)
 
-    def __post_init__(self):
-        self.admin_id = self.admin_id or self.actor_admin_id
 
 
 @dataclass(kw_only=True)

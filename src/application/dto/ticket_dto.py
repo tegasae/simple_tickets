@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from src.domain.ticket import TicketStatus
+from src.domain.ticket_user import StatusTicketOfClient
 
 
 @dataclass(kw_only=True)
@@ -28,7 +29,7 @@ class TicketDTO:
 class TicketResponseDTO:
     ticket_id: int
     date_created: str
-    date_finished: str
+    date_finished:str
     description:str
     text_of_ticket:str
     user_id: int
@@ -40,3 +41,29 @@ class TicketResponseDTO:
     comments: list[dict]
     executors: list[dict]
 
+
+
+
+
+@dataclass(kw_only=True,frozen=True)
+class TicketUserDTO:
+    ticket_id:int
+    client_id:int
+    user_id: int
+    contact_user_id: int=0
+    description: str=""
+    status:StatusTicketOfClient=StatusTicketOfClient.CREATED
+    comment:str=""
+
+
+@dataclass(kw_only=True,frozen=True)
+class TicketUserResponseDTO:
+    ticket_id:int
+    date_created:str
+    date_finished:str
+    description:str
+    is_closed:bool
+    user_id:int
+    contact_user_id:int
+    statuses: list[dict]
+    comments: list[dict]
