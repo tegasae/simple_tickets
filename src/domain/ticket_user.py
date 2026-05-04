@@ -30,7 +30,6 @@ class StatusTicketOfClient(Enum):
         transitions = {
             cls.CREATED: [
                 cls.CONFIRMED,
-                cls.AT_WORK,
                 cls.CANCELED_BY_CLIENT,
                 cls.CANCELED_BY_ADMIN,
             ],
