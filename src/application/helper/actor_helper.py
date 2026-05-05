@@ -26,5 +26,5 @@ class EmployeeActorHelper:
         permission: UserPermission,
     ) -> User:
         actor = self.uow.users.get(user_id=actor_user_id)
-        Authorizer(self.uow.roles_admin).require(actor, permission)
+        Authorizer(self.uow.roles_user).require(actor, permission)
         return actor

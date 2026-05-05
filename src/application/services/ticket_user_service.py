@@ -2,6 +2,7 @@ from src.application.assemblers.assembler import TicketUserAssembler
 from src.application.dto.ticket_dto import TicketUserResponseDTO, TicketUserDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.rbac.permissions import UserPermission
+from src.domain.ticket_components import Comment
 from src.domain.ticket_user import TicketUser
 from src.services.uow.uow import UnitOfWork
 
@@ -14,11 +15,6 @@ class TicketUserApplicationService:
     def _save_and_to_dto(self, ticket_user: TicketUser) -> TicketUserResponseDTO:
         saved_ticket = self.uow.user_tickets.save(ticket=ticket_user)
         return TicketUserAssembler.to_dto(saved_ticket)
-
-    def _require_user_actor_for_create(self, ticket_user_dto: TicketUserDTO):
-        user_actor = self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
-                                               permission=UserPermission.CREATE_TICKET)
-        return user_actor
 
     def _validate_references(self,ticket_user_dto: TicketUserDTO):
         raise NotImplementedError
@@ -45,78 +41,92 @@ class TicketUserApplicationService:
 
             return self._save_and_to_dto(ticket_user)
 
-    # todo методы и вынести в доменный слой что нужно
-    def cancel_by_client_user(self):
-        """Метод позволяет снять заявку от любоого пользователя этого клиента если есть права.
-        Надо добавить в домен эту логику, снятие там"""
-        raise NotImplementedError
 
-
-    def cancel_user(
-        self,
-        *,
-        ticket_user_dto: TicketUserDTO,
-    ) -> TicketUserResponseDTO:
-        """Пользотватель снимает свою заявку"""
+    def add_comment(self,*, ticket_user_dto: TicketUserDTO)->TicketUserResponseDTO:
+        """Добавление комментария автором заявки или тем, кто имеет право делать"""
         with self.uow:
-            self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
-                                           permission=UserPermission.UPDATE_OWN_TICKET)
-
             self._validate_references(ticket_user_dto)
-
-            ticket_user = self.uow.user_tickets.get(ticket_user_dto.ticket_id)
-            ticket_user.cancel(
-                actor_employee_id=ticket_dto.admin_id,
-                comment=ticket_dto.comment,
-            )
-
-            return self._save_and_to_dto(ticket)
-
-    def cancel_admin(self):
-        """Админ может снять заявку"""
-        raise NotImplementedError
-
-    def add_comment_user(self):
-        """Метод добавляет комментарий к заявке от пользователя"""
-        raise NotImplementedError
-
-    def add_comment_admin(self):
-        """Метод добавляет комментарий к заявкке от админма"""
-        raise NotImplementedError
-
-    def link_to_ticket(self):
-        """Админ привязяывет заявку к обычной заявку. И ее статус будет CONFIRMED, проверить в доменной модели"""
-        raise NotImplementedError
-
-    def at_work(self):
-        """Админ переводит заявку в состоянии AT_WORK. Ее уже невозможно удалить"""
-        raise NotImplementedError
-
-    def delete_admin(self):
-        """Админ удалает заявку, проверка что нет привзяанной заявки"""
-        raise NotImplementedError
-
-    def delete_user(self):
-        """Пользователь удаляет заявку. Проверка что нет привязанной заявку"""
-        raise NotImplementedError
+            ticket_user = self.uow.user_tickets.get(ticket_id=ticket_user_dto.ticket_id)
+            if ticket_user.user_id==ticket_user_dto.user_id:
+                self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
+                                              permission=UserPermission.UPDATE_OWN_TICKET)
+            else:
+                self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
+                                              permission=UserPermission.UPDATE_ALL_TICKET)
+            commet=Comment(employee_id=ticket_user_dto.user_id,comment=ticket_user_dto.comment)
+            ticket_user.add_comment(commet)
+            return self._save_and_to_dto(ticket_user)
 
 
-    def view_user_ticket_id(self):
-        """Просмотр заявку"""
-        raise NotImplementedError
 
-    def view_all_user_tickets(self):
-        """Просмор всех заявок пользователя"""
-        raise NotImplementedError
+    def cancel(self,*,ticket_user_dto:TicketUserDTO)->TicketUserResponseDTO:
+        """Снятие заявки либо автором, либо кто имеет право. Снятие заявки возможно, если нет связи с заявкой админа"""
+        with self.uow:
+            self._validate_references(ticket_user_dto)
+            ticket_user = self.uow.user_tickets.get(ticket_id=ticket_user_dto.ticket_id)
+            if ticket_user.user_id==ticket_user_dto.user_id:
+                self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
+                                              permission=UserPermission.UPDATE_OWN_TICKET)
+            else:
+                self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
+                                              permission=UserPermission.UPDATE_ALL_TICKET)
+
+            # todo здесь сделать снятие заявки доменной политикой
+            if self.uow.tickets.does_user_tickets_exist(user_ticket_id=ticket_user_dto.ticket_id):
+                raise
+            ticket_user.cancel_by_client(ticket_user_dto.user_id)
+            return self._save_and_to_dto(ticket_user)
 
 
-    def view_all_user_ticket_client(self):
-        """Просмотр всех заявок клиента. могут смотреть либо пользовятели с правами, либо админ"""
-        raise NotImplementedError
+    def delete_user(self,*,ticket_user_dto:TicketUserDTO)->None:
+        """Заявку может удалить автор, либо кто имеет на это право. Удалить можно, если не привязана заявка админа"""
+        self._validate_references(ticket_user_dto)
+        ticket_user = self.uow.user_tickets.get(ticket_id=ticket_user_dto.ticket_id)
+        if ticket_user.user_id == ticket_user_dto.user_id:
+            self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
+                                          permission=UserPermission.DELETE_OWN_TICKET)
+        else:
+            self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
+                                          permission=UserPermission.DELETE_ALL_TICKET)
 
+        # todo здесь сделать снятие заявки доменной политикой
+        if self.uow.tickets.does_user_tickets_exist(user_ticket_id=ticket_user_dto.ticket_id):
+                raise
 
-    def view_all_user_tickets_admin(self):
-        """Просмотр всех заявок админом"""
-        raise NotImplementedError
+        CreationPolicy.ensure_ticket_does_not_have_ticket_user(ticket)
+
+        self.uow.user_tickets.delete(ticket_user_dto.ticket_id)
+
+    def get_by_ticket_id(self,*,ticket_user_dto:TicketUserDTO)->TicketUserResponseDTO:
+        with self.uow:
+            self._validate_references(ticket_user_dto)
+            ticket_user = self.uow.user_tickets.get(ticket_id=ticket_user_dto.ticket_id)
+            if ticket_user.user_id == ticket_user_dto.user_id:
+                self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
+                                              permission=UserPermission.VIEW_OWN_TICKET)
+            else:
+                self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
+                                              permission=UserPermission.VIEW_ALL_TICKET)
+
+            return TicketUserAssembler.to_dto(ticket_user)
+
+    def get_all_own(self, *, ticket_user_dto: TicketUserDTO) -> list[TicketUserResponseDTO]:
+        with self.uow:
+            self._validate_references(ticket_user_dto)
+            self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
+                                              permission=UserPermission.VIEW_OWN_TICKET)
+            tickets = self.uow.user_tickets.get_all()
+
+            return [TicketUserAssembler.to_dto(ticket) for ticket in tickets if ticket.user_id == ticket_user_dto.user_id]
+
+    def get_all(self, *, ticket_user_dto: TicketUserDTO) -> list[TicketUserResponseDTO]:
+        with self.uow:
+            self._validate_references(ticket_user_dto)
+            self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
+                                          permission=UserPermission.VIEW_ALL_TICKET)
+            tickets = self.uow.user_tickets.get_all()
+
+            return [TicketUserAssembler.to_dto(ticket) for ticket in tickets]
+
 
 

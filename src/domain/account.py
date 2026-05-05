@@ -173,4 +173,4 @@ class NoAccount:
         return "NoAccount()"
 
 
-#AccountType = Account | NoAccount
+AccountType = Account | NoAccount

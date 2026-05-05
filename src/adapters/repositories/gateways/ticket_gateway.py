@@ -21,6 +21,8 @@ class TicketGateway:
 
     SELECT_BY_ID=SELECT_BASE+" WHERE ticket_id = :ticket_id"
 
+
+
     INSERT = """
     INSERT INTO tickets (
         client_id,
@@ -71,6 +73,8 @@ class TicketGateway:
     """
 
     SELECT_BY_CLIENT_ID="SELECT count(ticket_id) FRON tickets WHERE client_id = :client_id"
+    SELECT_BY_TICKET_USER_ID = "SELECT count(ticket_id) FRON tickets WHERE user_ticket_id=:user_ticket_id"
+
 
 class TicketCommentGateway:
     SELECT = """

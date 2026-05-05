@@ -23,6 +23,7 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
 
 
 
+
     # ---------------------------
     # load helpers
     # ---------------------------
@@ -233,4 +234,7 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
         )
 
     def does_client_exist(self, client_id: int) -> bool:
-        return self._exists(TicketGateway.SELECT_BY_ID, {'client_id': client_id})
+        return self._exists(TicketGateway.SELECT_BY_CLIENT_ID, {'client_id': client_id})
+
+    def does_user_tickets_exist(self, user_ticket_id: int) -> bool:
+        return self._exists(TicketGateway.SELECT_BY_TICKET_USER_ID, {'user_ticket_id': user_ticket_id})

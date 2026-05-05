@@ -36,4 +36,6 @@ class UserPermission(PermissionBase):
     VIEW_OWN_TICKET = "ticket.view.own"
     UPDATE_OWN_TICKET = "ticket.update.own"
     DELETE_OWN_TICKET = "ticket.delete.own"
-
+    VIEW_ALL_TICKET = "ticket.view.all"
+    UPDATE_ALL_TICKET = "ticket.update.all"
+    DELETE_ALL_TICKET = "ticket.delete.all"

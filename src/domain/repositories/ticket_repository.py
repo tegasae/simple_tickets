@@ -36,3 +36,7 @@ class TicketRepository(ABC):
     def does_client_exist(self, client_id: int) -> bool:
         raise NotImplementedError
 
+    @abstractmethod
+    def does_user_tickets_exist(self, user_ticket_id: int) -> bool:
+        raise NotImplementedError
+
