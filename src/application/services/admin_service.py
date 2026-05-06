@@ -5,7 +5,7 @@ from src.application.helper.actor_helper import EmployeeActorHelper
 from src.application.helper.empoyee_helper import EmployeeHelper
 from src.domain.employee import Admin
 from src.domain.exceptions import DomainOperationError
-from src.domain.policy.ticket import CreationPolicy
+from src.domain.policy.ticket import TicketPolicy
 from src.domain.rbac.permissions import AdminPermission
 from src.services.uow.uow import UnitOfWork
 

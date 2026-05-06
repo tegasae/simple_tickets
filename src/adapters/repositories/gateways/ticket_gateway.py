@@ -20,7 +20,7 @@ class TicketGateway:
     """
 
     SELECT_BY_ID=SELECT_BASE+" WHERE ticket_id = :ticket_id"
-
+    SELECT_BY_USER_TICKET_ID = SELECT_BASE + " WHERE user_ticket_id = :user_ticket_id"
 
 
     INSERT = """

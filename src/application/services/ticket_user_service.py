@@ -1,6 +1,9 @@
 from src.application.assemblers.assembler import TicketUserAssembler
 from src.application.dto.ticket_dto import TicketUserResponseDTO, TicketUserDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
+from src.domain.exceptions import ItemNotFoundError
+from src.domain.policy.ticket import TicketPolicy
+from src.domain.policy.ticket_user_ticket import TicketUserTicketPolicy
 from src.domain.rbac.permissions import UserPermission
 from src.domain.ticket_components import Comment
 from src.domain.ticket_user import TicketUser
@@ -17,7 +20,29 @@ class TicketUserApplicationService:
         return TicketUserAssembler.to_dto(saved_ticket)
 
     def _validate_references(self,ticket_user_dto: TicketUserDTO):
-        raise NotImplementedError
+        """
+                Validates referenced entities and returns the effective admin_id.
+                """
+
+        client = self.uow.clients.get(ticket_user_dto.client_id)
+
+
+        TicketPolicy.ensure_client_enabled(client)
+
+        if ticket_user_dto.user_id:
+            user = self.uow.users.get(ticket_user_dto.user_id)
+            TicketPolicy.ensure_user_enabled(user)
+            TicketPolicy.ensure_user_belongs_to_client(user, client)
+
+        if ticket_user_dto.contact_user_id:
+            contact_user = self.uow.users.get(ticket_user_dto.contact_user_id)
+            TicketPolicy.ensure_user_enabled(contact_user)
+            TicketPolicy.ensure_user_belongs_to_client(contact_user, client)
+
+
+        if ticket_user_dto.ticket_id:
+            user_ticket = self.uow.user_tickets.get(ticket_user_dto.ticket_id)
+            TicketPolicy.ensure_ticket_user_belongs_to_client(user_ticket, client)
 
     def create_ticket(
         self,
@@ -71,14 +96,17 @@ class TicketUserApplicationService:
                 self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
                                               permission=UserPermission.UPDATE_ALL_TICKET)
 
-            # todo здесь сделать снятие заявки доменной политикой
-            if self.uow.tickets.does_user_tickets_exist(user_ticket_id=ticket_user_dto.ticket_id):
-                raise
-            ticket_user.cancel_by_client(ticket_user_dto.user_id)
+
+
+            try:
+                ticket=self.uow.tickets.get_by_user_ticket_id(user_ticket_id=ticket_user_dto.ticket_id)
+            except ItemNotFoundError:
+                ticket=None
+            TicketUserTicketPolicy.can_cancel_user_ticket(ticket_user,ticket)
             return self._save_and_to_dto(ticket_user)
 
 
-    def delete_user(self,*,ticket_user_dto:TicketUserDTO)->None:
+    def delete(self,*,ticket_user_dto:TicketUserDTO)->None:
         """Заявку может удалить автор, либо кто имеет на это право. Удалить можно, если не привязана заявка админа"""
         self._validate_references(ticket_user_dto)
         ticket_user = self.uow.user_tickets.get(ticket_id=ticket_user_dto.ticket_id)
@@ -89,11 +117,13 @@ class TicketUserApplicationService:
             self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
                                           permission=UserPermission.DELETE_ALL_TICKET)
 
-        # todo здесь сделать снятие заявки доменной политикой
-        if self.uow.tickets.does_user_tickets_exist(user_ticket_id=ticket_user_dto.ticket_id):
-                raise
 
-        CreationPolicy.ensure_ticket_does_not_have_ticket_user(ticket)
+        try:
+            ticket = self.uow.tickets.get_by_user_ticket_id(user_ticket_id=ticket_user_dto.ticket_id)
+        except ItemNotFoundError:
+            ticket = None
+        TicketUserTicketPolicy.can_delete_user_ticket(ticket_user, ticket)
+
 
         self.uow.user_tickets.delete(ticket_user_dto.ticket_id)
 

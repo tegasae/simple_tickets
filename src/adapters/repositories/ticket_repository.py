@@ -122,6 +122,17 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             result=self._exec(TicketStatusGateway.INSERT, params={"ticket_id":ticket.ticket_id,"status": s.status, "date_created": s.date_created})
             s.status_id=result.last_row_id
 
+
+    def _load_ticket(self,row:dict)->Ticket:
+        ticket = TicketMapper.row_to_ticket(row)
+
+        self._load_statuses(ticket)
+        self._load_comments(ticket)
+        self._load_executors(ticket)
+
+        # recompute closure safely after histories are loaded
+        ticket.__post_init__()
+        return ticket
     # ---------------------------
     # reads
     # ---------------------------
@@ -136,16 +147,7 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
         if not row:
             raise ItemNotFoundError(f"Ticket {ticket_id} not found")
 
-        ticket = TicketMapper.row_to_ticket(row)
-
-        self._load_statuses(ticket)
-        self._load_comments(ticket)
-        self._load_executors(ticket)
-
-        # recompute closure safely after histories are loaded
-        ticket.__post_init__()
-
-        return ticket
+        return self._load_ticket(row)
 
     def get_all(self) -> list[Ticket]:
         rows = self._get_many(
@@ -156,12 +158,7 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
         tickets: list[Ticket] = []
 
         for r in rows:
-            ticket = TicketMapper.row_to_ticket(r)
-            self._load_statuses(ticket)
-            self._load_comments(ticket)
-            self._load_executors(ticket)
-            ticket.__post_init__()
-            tickets.append(ticket)
+            tickets.append(self._load_ticket(r))
 
         return tickets
 
@@ -238,3 +235,16 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
 
     def does_user_tickets_exist(self, user_ticket_id: int) -> bool:
         return self._exists(TicketGateway.SELECT_BY_TICKET_USER_ID, {'user_ticket_id': user_ticket_id})
+
+
+    def get_by_user_ticket_id(self, user_ticket_id: int) -> Ticket:
+        row = self._get_one(
+            TicketGateway.SELECT_BY_USER_TICKET_ID,
+            TicketMapper.VARS,
+            {"user_ticket_id": user_ticket_id},
+        )
+
+        if not row:
+            raise ItemNotFoundError(f"User ticket id {user_ticket_id} not found")
+
+        return self._load_ticket(row)

@@ -4,7 +4,7 @@ from src.domain.exceptions import DomainOperationError
 from src.domain.ticket_user import TicketUser
 from src.domain.ticket import Ticket
 
-class CreationPolicy:
+class TicketPolicy:
     """
     Domain policy for ticket creation rules.
     """

@@ -40,3 +40,8 @@ class TicketRepository(ABC):
     def does_user_tickets_exist(self, user_ticket_id: int) -> bool:
         raise NotImplementedError
 
+    @abstractmethod
+    def get_by_user_ticket_id(self, user_ticket_id: int) -> Ticket:
+        raise NotImplementedError
+
+
