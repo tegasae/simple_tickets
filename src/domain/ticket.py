@@ -79,6 +79,7 @@ class Ticket:
         client_id: int,
         admin_id: int,
         description: str,
+        user_description:str="",
         text_of_ticket: str = "",
         user_id: int = 0,
         contact_user_id: int = 0,
@@ -88,6 +89,7 @@ class Ticket:
         executor_id:int=0,
         comment:str=""
     ) -> Self:
+        description+=user_description
         ticket = cls(
             ticket_id=ticket_id,
             client_id=client_id,

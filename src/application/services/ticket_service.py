@@ -93,12 +93,17 @@ class TicketApplicationService:
                                            permission=AdminPermission.CREATE_TICKET)
 
             self._validate_references(ticket_dto)
+            user_description=""
+            if ticket_dto.user_ticket_id:
+                user_ticket=self.uow.user_tickets.get(ticket_id=ticket_dto.user_ticket_id)
+                user_description=user_ticket.description
 
             ticket = Ticket.create(
                 ticket_id=0,
                 client_id=ticket_dto.client_id,
                 admin_id=ticket_dto.admin_id,
                 description=ticket_dto.description,
+                user_description=user_description,
                 text_of_ticket=ticket_dto.text_of_ticket,
                 user_id=ticket_dto.user_id,
                 contact_user_id=ticket_dto.contact_user_id,
@@ -108,8 +113,13 @@ class TicketApplicationService:
                 executor_id=ticket_dto.executor_id,
                 comment=ticket_dto.comment,
             )
-
+            if user_ticket.ticket_id:
+                user_ticket.confirm(actor_employee_id=ticket.admin_id)
+                self.uow.user_tickets.save(user_ticket)
             return self._save_and_to_dto(ticket)
+
+
+
 
     # --------------------------------
     # Status operations
@@ -169,10 +179,16 @@ class TicketApplicationService:
                 TicketPolicy.ensure_admin_enabled(executor)
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
+
             ticket.at_work(
                 actor_employee_id=ticket_dto.admin_id,
                 executor_id=ticket_dto.executor_id,
             )
+
+            if ticket.user_ticket_id:
+                user_ticket=self.uow.user_tickets.get(ticket_id=ticket_dto.user_ticket_id)
+                user_ticket.start_work(actor_employee_id=ticket_dto.executor_id)
+                self.uow.user_tickets.save(user_ticket)
 
             return self._save_and_to_dto(ticket)
 
@@ -190,6 +206,11 @@ class TicketApplicationService:
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
             ticket.execute(actor_employee_id=ticket_dto.admin_id)
+
+            if ticket.user_ticket_id:
+                user_ticket=self.uow.user_tickets.get(ticket_id=ticket_dto.user_ticket_id)
+                user_ticket.execute(actor_employee_id=ticket_dto.admin_id)
+                self.uow.user_tickets.save(user_ticket)
 
             return self._save_and_to_dto(ticket)
 
@@ -210,6 +231,12 @@ class TicketApplicationService:
                 actor_employee_id=ticket_dto.admin_id,
                 comment=ticket_dto.comment,
             )
+
+            if ticket.user_ticket_id:
+                user_ticket=self.uow.user_tickets.get(ticket_id=ticket_dto.user_ticket_id)
+                user_ticket.cancel_by_admin(actor_employee_id=ticket_dto.admin_id)
+                self.uow.user_tickets.save(user_ticket)
+
 
             return self._save_and_to_dto(ticket)
 
@@ -278,15 +305,19 @@ class TicketApplicationService:
     ) -> None:
 
         with self.uow:
-            #todo add here a policy user ticket
-            # todo сделать проверку в TicketUserTicketPolicy
+
 
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
                                            permission=AdminPermission.DELETE_TICKET)
 
             self._validate_references(ticket_dto)
             ticket=self.uow.tickets.get(ticket_dto.ticket_id)
-            TicketPolicy.ensure_ticket_does_not_have_ticket_user(ticket)
+
+
+            if ticket.user_ticket_id:
+                self.uow.user_tickets.get(ticket_id=ticket_dto.user_ticket_id)
+                self.uow.user_tickets.delete(ticket.user_ticket_id)
+
 
             self.uow.tickets.delete(ticket_dto.ticket_id)
 
