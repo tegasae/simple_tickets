@@ -9,49 +9,314 @@ CREATE TABLE employees (
 	date_created TEXT,
 	address TEXT,
 	enabled INTEGER DEFAULT (1),
-	is_deleted INTEGER DEFAULT (0),
-	version INTEGER
-, is_admin INTEGER);
-INSERT INTO employees VALUES(2,'1','2','3',NULL,NULL,NULL,1,0,NULL,1);
-INSERT INTO employees VALUES(4,'first','last_name','email@email.email','phone','2026-02-19T16:08:55.028177',NULL,1,0,0,1);
-INSERT INTO employees VALUES(5,'first','last_name','email@email.email','phone','2026-02-19T16:11:03.355452',NULL,0,0,1,1);
-INSERT INTO employees VALUES(6,'first','last_name','email@email.email','phone','2026-02-19T16:11:19.293495',NULL,0,0,1,1);
-INSERT INTO employees VALUES(7,'first','last_name','email@email.email','phone','2026-02-19T16:11:46.396481',NULL,0,0,1,1);
-INSERT INTO employees VALUES(8,'first','last_name','email@email.email','phone','2026-02-19T16:11:51.815801',NULL,0,0,1,1);
-INSERT INTO employees VALUES(9,'first','last_name','email@email.email','phone','2026-02-19T16:11:57.300443',NULL,0,0,1,1);
-INSERT INTO employees VALUES(10,'first','last_name','email@email.email','phone','2026-02-19T16:27:07.512491',NULL,0,0,1,1);
-INSERT INTO employees VALUES(11,'first','last_name','email@email.email','phone','2026-02-19T16:27:16.037230',NULL,0,0,1,1);
-INSERT INTO employees VALUES(12,'first','last_name','email@email.email','phone','2026-02-19T16:28:20.305448',NULL,0,0,1,NULL);
-INSERT INTO employees VALUES(13,'first','last_name','email@email.email','phone','2026-02-19T16:28:26.433405',NULL,0,0,1,NULL);
-INSERT INTO employees VALUES(14,'first','last_name','email@email.email','phone','2026-02-19T16:32:28.825437',NULL,0,0,1,NULL);
-INSERT INTO employees VALUES(15,'first','last_name','email@email.email','phone','2026-02-19T16:32:29.273525',NULL,0,0,1,NULL);
-INSERT INTO employees VALUES(16,'first','last_name','email@email.email','phone','2026-02-19T16:32:29.865000',NULL,0,0,1,NULL);
-INSERT INTO employees VALUES(17,'first','last_name','email@email.email','phone','2026-02-19T16:44:55.889807',NULL,0,0,1,NULL);
-INSERT INTO employees VALUES(18,'first','last_name','email@email.email','phone','2026-02-19T16:45:17.987471',NULL,0,0,1,NULL);
-INSERT INTO employees VALUES(19,'first','last_name','email@email.email','phone','2026-02-19T18:29:57.688467',NULL,0,0,1,NULL);
-INSERT INTO employees VALUES(20,'None','None','None','None','2026-02-19T18:35:53.721741',NULL,1,0,0,NULL);
-INSERT INTO employees VALUES(21,'None','None','None','None','2026-02-19T18:36:05.551171',NULL,1,0,0,NULL);
-INSERT INTO employees VALUES(22,'None','None','None','None','2026-02-19T18:37:26.651150',NULL,1,0,0,NULL);
-INSERT INTO employees VALUES(23,'None','None','None','None','2026-02-19T18:38:26.877877',NULL,1,0,0,NULL);
-INSERT INTO employees VALUES(24,'None','None','None','None','2026-02-19T18:39:04.032588',NULL,1,0,0,NULL);
-INSERT INTO employees VALUES(25,'first_name','last_name','None','None','2026-02-19T18:41:20.376339',NULL,1,0,0,NULL);
-INSERT INTO employees VALUES(26,'first_name','last_name','','','2026-02-19T18:42:40.513683',NULL,1,0,0,NULL);
-INSERT INTO employees VALUES(27,'first_name','last_name','','','2026-02-19T18:43:33.309114',NULL,1,0,0,1);
-INSERT INTO employees VALUES(28,'first_name','last_name','','','2026-02-19T18:43:52.597229',NULL,1,0,0,1);
-INSERT INTO employees VALUES(29,'first_name','last_name','','','2026-02-19T18:51:28.687242',NULL,1,0,0,1);
-INSERT INTO employees VALUES(30,'first_name','last_name','','','2026-02-19T18:56:17.211404',NULL,1,0,0,1);
-INSERT INTO employees VALUES(31,'first_name','last_name','','','2026-02-21T13:23:26.534094',NULL,1,0,0,1);
-INSERT INTO employees VALUES(32,'first_name','last_name','','','2026-02-21T14:29:15.380839',NULL,1,0,0,1);
-INSERT INTO employees VALUES(33,'first_name','last_name','','','2026-02-21T14:29:15.381928',NULL,1,0,0,1);
-INSERT INTO employees VALUES(34,'first_name','last_name','','','2026-02-21T14:38:16.302733',NULL,1,0,0,1);
-INSERT INTO employees VALUES(35,'first_name','last_name','','','2026-02-21T14:38:16.303235',NULL,1,0,0,1);
-INSERT INTO employees VALUES(36,'first_name','last_name','','','2026-02-21T14:45:34.924896',NULL,1,0,1,1);
-INSERT INTO employees VALUES(37,'first_name','last_name','','','2026-02-21T14:45:34.926165',NULL,1,0,1,1);
-INSERT INTO employees VALUES(38,'first_name','last_name','','','2026-02-21T14:46:26.379592',NULL,1,0,1,1);
-INSERT INTO employees VALUES(39,'first_name','last_name','','','2026-02-21T14:46:26.380454',NULL,1,0,1,1);
-INSERT INTO employees VALUES(40,'first_name','last_name','','','2026-02-21T14:48:35.415689',NULL,1,0,0,1);
-INSERT INTO employees VALUES(41,'first_name','last_name','','','2026-02-21T14:48:35.416313',NULL,1,0,0,1);
-INSERT INTO employees VALUES(42,'first_name11111','last_name','','','2026-02-21T15:19:11.867659',NULL,1,0,1,1);
+	version INTEGER,
+	is_admin INTEGER);
+INSERT INTO employees VALUES(1,'John','Smith','john.smith@company.com','','2026-03-05T11:04:11',NULL,0,6,1);
+INSERT INTO employees VALUES(2,'John','Smith','john.smith@company.com','','2026-03-05T11:23:24',NULL,0,7,1);
+INSERT INTO employees VALUES(3,'John','Smith','john.smith@company.com','','2026-03-05T11:29:03',NULL,0,7,1);
+INSERT INTO employees VALUES(4,'John','Smith','john.smith@company.com','','2026-03-05T11:29:33',NULL,0,7,1);
+INSERT INTO employees VALUES(5,'John','Smith','john.smith@company.com','','2026-03-05T13:11:58',NULL,0,10,1);
+INSERT INTO employees VALUES(6,'John','Smith','john.smith@company.com','','2026-03-05T18:58:24',NULL,0,10,1);
+INSERT INTO employees VALUES(7,'John','Smith','john.smith@company.com','','2026-03-05T20:48:36',NULL,0,10,1);
+INSERT INTO employees VALUES(8,'John','Smith','','','1772733320',NULL,1,1,0);
+INSERT INTO employees VALUES(9,'John','Smith','','','1772733339',NULL,1,1,0);
+INSERT INTO employees VALUES(10,'John','Smith','','','1772733448',NULL,1,1,0);
+INSERT INTO employees VALUES(11,'John','Smith','','','1772733502',NULL,1,1,0);
+INSERT INTO employees VALUES(12,'John','Smith','','','1772733570',NULL,1,1,0);
+INSERT INTO employees VALUES(13,'John','Smith','john.smith@company.com','','2026-03-05T21:01:04',NULL,1,6,1);
+INSERT INTO employees VALUES(14,'John','Smith','john.smith@company.com','','2026-03-05T21:02:08',NULL,1,6,1);
+INSERT INTO employees VALUES(15,'John','Smith','john.smith@company.com','','2026-03-05T21:03:24',NULL,1,6,1);
+INSERT INTO employees VALUES(16,'John','Smith','john.smith@company.com','','2026-03-05T21:04:15',NULL,1,6,1);
+INSERT INTO employees VALUES(17,'John','Smith','','','2026-03-06T09:47:06',NULL,1,0,1);
+INSERT INTO employees VALUES(18,'John','Smith','','','2026-03-06T09:47:56',NULL,1,0,1);
+INSERT INTO employees VALUES(19,'John','Smith','','','2026-03-06T09:48:45',NULL,1,0,1);
+INSERT INTO employees VALUES(20,'John','Smith','','','2026-03-06T09:49:31',NULL,1,0,1);
+INSERT INTO employees VALUES(21,'John','Smith','','','2026-03-06T09:50:40',NULL,1,0,1);
+INSERT INTO employees VALUES(22,'John','Smith','','','2026-03-06T09:51:05',NULL,1,0,1);
+INSERT INTO employees VALUES(23,'John','Smith','','','2026-03-06T09:52:15',NULL,1,0,1);
+INSERT INTO employees VALUES(24,'John','Smith','','','2026-03-06T09:52:40',NULL,1,0,1);
+INSERT INTO employees VALUES(25,'John','Smith','','','2026-03-06T09:52:49',NULL,1,0,1);
+INSERT INTO employees VALUES(26,'John','Smith','','','2026-03-06T09:53:04',NULL,1,0,1);
+INSERT INTO employees VALUES(27,'John','Smith','','','2026-03-06T09:58:42',NULL,1,0,1);
+INSERT INTO employees VALUES(28,'John','Smith','','','2026-03-06T10:02:29',NULL,1,0,1);
+INSERT INTO employees VALUES(29,'John','Smith','','','2026-03-06T10:03:23',NULL,1,0,1);
+INSERT INTO employees VALUES(30,'John','Smith','','','2026-03-06T10:04:33',NULL,1,0,1);
+INSERT INTO employees VALUES(31,'John','Smith','','','2026-03-06T10:06:38',NULL,1,0,1);
+INSERT INTO employees VALUES(32,'John','Smith','','','2026-03-06T10:07:02',NULL,1,0,1);
+INSERT INTO employees VALUES(33,'John','Smith','','','2026-03-06T10:10:07',NULL,1,0,1);
+INSERT INTO employees VALUES(34,'John','Smith','','','2026-03-06T10:11:14',NULL,1,0,1);
+INSERT INTO employees VALUES(36,'John','Smith','','','2026-03-06T10:16:57',NULL,1,0,1);
+INSERT INTO employees VALUES(37,'John','Smith','','','2026-03-06T10:17:23',NULL,1,0,1);
+INSERT INTO employees VALUES(38,'John','Smith','','','2026-03-06T10:18:54',NULL,1,0,1);
+INSERT INTO employees VALUES(39,'John','Smith','john.smith@company.com','','2026-03-06T10:20:13',NULL,1,1,1);
+INSERT INTO employees VALUES(40,'John','Smith','john.smith@company.com','','2026-03-06T10:23:02',NULL,1,2,1);
+INSERT INTO employees VALUES(41,'John','Smith','','','2026-03-06T10:24:09',NULL,1,0,1);
+INSERT INTO employees VALUES(42,'John','Smith','john.smith@company.com','','2026-03-06T10:24:37',NULL,1,4,1);
+INSERT INTO employees VALUES(43,'John','Smith','john.smith@company.com','','2026-03-06T10:25:58',NULL,1,7,1);
+INSERT INTO employees VALUES(44,'John','Smith','','','2026-03-06T10:26:36',NULL,1,0,1);
+INSERT INTO employees VALUES(45,'John','Smith','john.smith@company.com','','2026-03-06T10:26:47',NULL,1,8,1);
+INSERT INTO employees VALUES(46,'John','Smith','','','2026-03-06T10:27:35',NULL,1,0,1);
+INSERT INTO employees VALUES(47,'John','Smith','john.smith@company.com','','2026-03-06T10:27:45',NULL,0,10,1);
+INSERT INTO employees VALUES(48,'John','Smith','','','2026-03-06T10:28:29',NULL,1,1,1);
+INSERT INTO employees VALUES(49,'John','Smith','john.smith@company.com','','2026-03-06T10:28:50',NULL,0,10,1);
+INSERT INTO employees VALUES(50,'John','Smith','','','1772821643',NULL,1,1,0);
+INSERT INTO employees VALUES(51,'John','Smith','','','1772821778',NULL,1,0,0);
+INSERT INTO employees VALUES(52,'John','Smith','','','1772821832',NULL,1,1,0);
+INSERT INTO employees VALUES(53,'John','Smith','john.smith@company.com','','1772821887',NULL,1,2,0);
+INSERT INTO employees VALUES(54,'John','Smith','','','2026-03-06T21:34:53',NULL,1,1,1);
+INSERT INTO employees VALUES(55,'John','Smith','','','2026-03-06T21:38:43',NULL,1,0,1);
+INSERT INTO employees VALUES(56,'John','Smith','','','2026-03-06T21:39:15',NULL,1,1,1);
+INSERT INTO employees VALUES(57,'John','Smith','','','2026-03-06T22:05:42',NULL,1,0,1);
+INSERT INTO employees VALUES(58,'John','Smith','john.smith@company.com','','2026-03-06T22:05:59',NULL,0,10,1);
+INSERT INTO employees VALUES(59,'John','Smith','john.smith@company.com','','2026-03-06T22:06:11',NULL,0,10,1);
+INSERT INTO employees VALUES(60,'John','Smith','john.smith@company.com','','1772823975',NULL,1,3,0);
+INSERT INTO employees VALUES(61,'John','Smith','john.smith@company.com','','1772824012',NULL,0,7,0);
+INSERT INTO employees VALUES(62,'John','Smith','john.smith@company.com','','1772824274',NULL,0,7,0);
+INSERT INTO employees VALUES(63,'John','Smith','john.smith@company.com','','1772824279',NULL,0,7,0);
+INSERT INTO employees VALUES(64,'John','Smith','john.smith@company.com','','1772824287',NULL,0,7,0);
+INSERT INTO employees VALUES(65,'John','Smith','john.smith@company.com','','1772824330',NULL,1,5,0);
+INSERT INTO employees VALUES(66,'John','Smith','','','2026-03-07T12:36:47',NULL,1,1,1);
+INSERT INTO employees VALUES(67,'Alice','Brown','','','1772876207',NULL,1,0,0);
+INSERT INTO employees VALUES(68,'John','Smith','','','2026-03-07T12:50:39',NULL,1,1,1);
+INSERT INTO employees VALUES(69,'Alice','Brown','','','1772877039',NULL,1,0,0);
+INSERT INTO employees VALUES(70,'first name1','Smith','11@11.fgerg','12345','2026-03-30T17:23:22',NULL,1,5,1);
+INSERT INTO employees VALUES(71,'first name1','Smith','11@11.fgerg','12345','2026-03-30T17:23:52',NULL,1,5,1);
+INSERT INTO employees VALUES(72,'John','Smith','11@11.fgerg','12345','2026-03-30T17:23:52',NULL,1,4,1);
+INSERT INTO employees VALUES(73,'John','Smith','11@11.fgerg','12345','2026-03-30T17:23:52',NULL,1,4,1);
+INSERT INTO employees VALUES(74,'first name1','Smith','11@11.fgerg','12345','2026-03-30T17:24:37',NULL,1,5,1);
+INSERT INTO employees VALUES(75,'John','Smith','11@11.fgerg','12345','2026-03-30T17:24:38',NULL,1,4,1);
+INSERT INTO employees VALUES(76,'John','Smith','11@11.fgerg','12345','2026-03-30T17:24:38',NULL,1,5,1);
+INSERT INTO employees VALUES(77,'first name1','Smith','11@11.fgerg','12345','2026-03-30T17:24:50',NULL,1,5,1);
+INSERT INTO employees VALUES(78,'John','Smith','11@11.fgerg','12345','2026-03-30T17:24:50',NULL,1,4,1);
+INSERT INTO employees VALUES(79,'John','Smith','11@11.fgerg','12345','2026-03-30T17:24:50',NULL,1,5,1);
+INSERT INTO employees VALUES(80,'first name1','Smith','11@11.fgerg','12345','2026-03-30T17:25:32',NULL,1,5,1);
+INSERT INTO employees VALUES(81,'John','Smith','11@11.fgerg','12345','2026-03-30T17:25:32',NULL,1,4,1);
+INSERT INTO employees VALUES(82,'John','Smith','11@11.fgerg','12345','2026-03-30T17:25:32',NULL,1,5,1);
+INSERT INTO employees VALUES(83,'first name1','Smith','11@11.fgerg','12345','2026-03-30T17:26:54',NULL,1,5,1);
+INSERT INTO employees VALUES(84,'John','Smith','11@11.fgerg','12345','2026-03-30T17:26:54',NULL,1,4,1);
+INSERT INTO employees VALUES(85,'John','Smith','11@11.fgerg','12345','2026-03-30T17:26:54',NULL,1,5,1);
+INSERT INTO employees VALUES(86,'first name1','Smith','11@11.fgerg','12345','2026-03-30T17:27:30',NULL,1,5,1);
+INSERT INTO employees VALUES(87,'John','Smith','11@11.fgerg','12345','2026-03-30T17:27:30',NULL,1,4,1);
+INSERT INTO employees VALUES(88,'John','Smith','11@11.fgerg','12345','2026-03-30T17:27:30',NULL,1,5,1);
+INSERT INTO employees VALUES(89,'first name1','Smith','11@11.fgerg','12345','2026-03-30T17:27:39',NULL,1,5,1);
+INSERT INTO employees VALUES(90,'John','Smith','11@11.fgerg','12345','2026-03-30T17:27:39',NULL,1,4,1);
+INSERT INTO employees VALUES(91,'John','Smith','11@11.fgerg','12345','2026-03-30T17:27:39',NULL,1,5,1);
+INSERT INTO employees VALUES(92,'first name1','Smith','11@11.fgerg','12345','2026-03-30T17:27:53',NULL,1,5,1);
+INSERT INTO employees VALUES(93,'John','Smith','11@11.fgerg','12345','2026-03-30T17:27:53',NULL,1,4,1);
+INSERT INTO employees VALUES(94,'John','Smith','11@11.fgerg','12345','2026-03-30T17:27:53',NULL,1,5,1);
+INSERT INTO employees VALUES(95,'first name1','Smith','11@11.fgerg','12345','2026-03-30T17:28:31',NULL,1,5,1);
+INSERT INTO employees VALUES(96,'John','Smith','11@11.fgerg','12345','2026-03-30T17:28:31',NULL,1,4,1);
+INSERT INTO employees VALUES(97,'John','Smith','11@11.fgerg','12345','2026-03-30T17:28:31',NULL,1,5,1);
+INSERT INTO employees VALUES(98,'first name1','Smith','11@11.fgerg','12345','2026-03-30T17:30:24',NULL,1,5,1);
+INSERT INTO employees VALUES(99,'John','Smith','11@11.fgerg','12345','2026-03-30T17:30:24',NULL,1,4,1);
+INSERT INTO employees VALUES(100,'John','Smith','11@11.fgerg','12345','2026-03-30T17:30:24',NULL,1,5,1);
+INSERT INTO employees VALUES(101,'first name1','Smith','11@11.fgerg','12345','2026-03-30T17:31:56',NULL,1,5,1);
+INSERT INTO employees VALUES(102,'John','Smith','11@11.fgerg','12345','2026-03-30T17:31:56',NULL,1,4,1);
+INSERT INTO employees VALUES(103,'John','Smith','11@11.fgerg','12345','2026-03-30T17:31:56',NULL,1,5,1);
+INSERT INTO employees VALUES(104,'first name1','Smith','11@11.fgerg','12345','2026-03-30T17:33:58',NULL,1,5,1);
+INSERT INTO employees VALUES(105,'John','Smith','11@11.fgerg','12345','2026-03-30T17:33:58',NULL,1,4,1);
+INSERT INTO employees VALUES(106,'John','Smith','11@11.fgerg','12345','2026-03-30T17:33:58',NULL,1,5,1);
+INSERT INTO employees VALUES(107,'John','Smith','11@11.fgerg','12345','2026-03-30T18:33:38',NULL,1,1,0);
+INSERT INTO employees VALUES(108,'John','Smith','11@11.fgerg','12345','2026-03-30T18:41:52',NULL,1,1,0);
+INSERT INTO employees VALUES(109,'John','Smith','11@11.fgerg','12345','2026-03-30T18:41:56',NULL,1,1,0);
+INSERT INTO employees VALUES(110,'John','Johnson','john.johnson@example.com','+1 555 999 0000','2026-04-07T15:30:48',NULL,1,4,1);
+INSERT INTO employees VALUES(111,'John','Johnson','john.johnson@example.com','+1 555 999 0000','2026-04-07T15:31:35',NULL,1,5,1);
+INSERT INTO employees VALUES(112,'John','Johnson','john.johnson@example.com','+1 555 999 0000','2026-04-07T15:31:55',NULL,1,5,1);
+INSERT INTO employees VALUES(113,'John','Johnson','john.johnson@example.com','+1 555 999 0000','2026-04-07T15:32:00',NULL,1,8,1);
+INSERT INTO employees VALUES(114,'John','Johnson','john.johnson@example.com','+1 555 999 0000','2026-04-07T15:32:01',NULL,1,8,1);
+INSERT INTO employees VALUES(115,'John','Johnson','john.johnson@example.com','+1 555 999 0000','2026-04-07T15:32:09',NULL,1,8,1);
+INSERT INTO employees VALUES(116,'John','Johnson','john.johnson@example.com','+1 555 999 0000','2026-04-07T15:33:09',NULL,1,4,1);
+INSERT INTO employees VALUES(117,'John','Johnson','john.johnson@example.com','+1 555 999 0000','2026-04-07T15:33:22',NULL,1,4,1);
+INSERT INTO employees VALUES(118,'John','Smith','john.smith@example.com','+1 555 123 4567','2026-04-07T15:34:39',NULL,1,2,1);
+CREATE TABLE admins (
+    employee_id INTEGER NOT NULL PRIMARY KEY,
+    job_title TEXT,
+    FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE RESTRICT
+);
+INSERT INTO admins VALUES(1,'Senior Administrator');
+INSERT INTO admins VALUES(2,'Senior Administrator');
+INSERT INTO admins VALUES(3,'Senior Administrator');
+INSERT INTO admins VALUES(4,'Senior Administrator');
+INSERT INTO admins VALUES(5,'Senior Administrator');
+INSERT INTO admins VALUES(6,'Senior Administrator');
+INSERT INTO admins VALUES(7,'Senior Administrator');
+INSERT INTO admins VALUES(13,'Senior Administrator');
+INSERT INTO admins VALUES(14,'Senior Administrator');
+INSERT INTO admins VALUES(15,'Senior Administrator');
+INSERT INTO admins VALUES(16,'Senior Administrator');
+INSERT INTO admins VALUES(17,'System Administrator');
+INSERT INTO admins VALUES(18,'System Administrator');
+INSERT INTO admins VALUES(20,'System Administrator');
+INSERT INTO admins VALUES(21,'System Administrator');
+INSERT INTO admins VALUES(22,'System Administrator');
+INSERT INTO admins VALUES(23,'System Administrator');
+INSERT INTO admins VALUES(24,'System Administrator');
+INSERT INTO admins VALUES(25,'System Administrator');
+INSERT INTO admins VALUES(26,'System Administrator');
+INSERT INTO admins VALUES(27,'System Administrator');
+INSERT INTO admins VALUES(28,'System Administrator');
+INSERT INTO admins VALUES(29,'System Administrator');
+INSERT INTO admins VALUES(30,'System Administrator');
+INSERT INTO admins VALUES(31,'System Administrator');
+INSERT INTO admins VALUES(32,'System Administrator');
+INSERT INTO admins VALUES(33,'System Administrator');
+INSERT INTO admins VALUES(34,'System Administrator');
+INSERT INTO admins VALUES(35,'System Administrator');
+INSERT INTO admins VALUES(36,'System Administrator');
+INSERT INTO admins VALUES(37,'System Administrator');
+INSERT INTO admins VALUES(38,'System Administrator');
+INSERT INTO admins VALUES(39,'Senior Administrator');
+INSERT INTO admins VALUES(40,'Senior Administrator');
+INSERT INTO admins VALUES(41,'System Administrator');
+INSERT INTO admins VALUES(42,'Senior Administrator');
+INSERT INTO admins VALUES(43,'Senior Administrator');
+INSERT INTO admins VALUES(44,'System Administrator');
+INSERT INTO admins VALUES(45,'Senior Administrator');
+INSERT INTO admins VALUES(46,'System Administrator');
+INSERT INTO admins VALUES(47,'Senior Administrator');
+INSERT INTO admins VALUES(48,'System Administrator');
+INSERT INTO admins VALUES(49,'Senior Administrator');
+INSERT INTO admins VALUES(54,'System Administrator');
+INSERT INTO admins VALUES(55,'System Administrator');
+INSERT INTO admins VALUES(56,'System Administrator');
+INSERT INTO admins VALUES(57,'System Administrator');
+INSERT INTO admins VALUES(58,'Senior Administrator');
+INSERT INTO admins VALUES(59,'Senior Administrator');
+INSERT INTO admins VALUES(66,'System Administrator');
+INSERT INTO admins VALUES(68,'System Administrator');
+INSERT INTO admins VALUES(70,'');
+INSERT INTO admins VALUES(71,'');
+INSERT INTO admins VALUES(72,'');
+INSERT INTO admins VALUES(73,'');
+INSERT INTO admins VALUES(74,'');
+INSERT INTO admins VALUES(75,'');
+INSERT INTO admins VALUES(76,'');
+INSERT INTO admins VALUES(77,'');
+INSERT INTO admins VALUES(78,'');
+INSERT INTO admins VALUES(79,'');
+INSERT INTO admins VALUES(80,'');
+INSERT INTO admins VALUES(81,'');
+INSERT INTO admins VALUES(82,'');
+INSERT INTO admins VALUES(83,'');
+INSERT INTO admins VALUES(84,'');
+INSERT INTO admins VALUES(85,'');
+INSERT INTO admins VALUES(86,'');
+INSERT INTO admins VALUES(87,'');
+INSERT INTO admins VALUES(88,'');
+INSERT INTO admins VALUES(89,'');
+INSERT INTO admins VALUES(90,'');
+INSERT INTO admins VALUES(91,'');
+INSERT INTO admins VALUES(92,'');
+INSERT INTO admins VALUES(93,'');
+INSERT INTO admins VALUES(94,'');
+INSERT INTO admins VALUES(95,'');
+INSERT INTO admins VALUES(96,'');
+INSERT INTO admins VALUES(97,'');
+INSERT INTO admins VALUES(98,'');
+INSERT INTO admins VALUES(99,'');
+INSERT INTO admins VALUES(100,'');
+INSERT INTO admins VALUES(101,'');
+INSERT INTO admins VALUES(102,'');
+INSERT INTO admins VALUES(103,'');
+INSERT INTO admins VALUES(104,'');
+INSERT INTO admins VALUES(105,'');
+INSERT INTO admins VALUES(106,'');
+INSERT INTO admins VALUES(110,'Senior System Administrator');
+INSERT INTO admins VALUES(111,'Senior System Administrator');
+INSERT INTO admins VALUES(112,'Senior System Administrator');
+INSERT INTO admins VALUES(113,'Senior System Administrator');
+INSERT INTO admins VALUES(114,'Senior System Administrator');
+INSERT INTO admins VALUES(115,'Senior System Administrator');
+INSERT INTO admins VALUES(116,'Senior System Administrator');
+INSERT INTO admins VALUES(117,'Senior System Administrator');
+INSERT INTO admins VALUES(118,'System Administrator');
+CREATE TABLE users (
+    employee_id INTEGER NOT NULL PRIMARY KEY,
+    client_id INTEGER NOT NULL,
+    FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE RESTRICT,
+    FOREIGN KEY (client_id) REFERENCES clients(client_id) ON DELETE RESTRICT
+);
+INSERT INTO users VALUES(8,1);
+INSERT INTO users VALUES(9,1);
+INSERT INTO users VALUES(10,1);
+INSERT INTO users VALUES(11,1);
+INSERT INTO users VALUES(12,1);
+INSERT INTO users VALUES(50,1);
+INSERT INTO users VALUES(51,1);
+INSERT INTO users VALUES(52,1);
+INSERT INTO users VALUES(53,1);
+INSERT INTO users VALUES(60,1);
+INSERT INTO users VALUES(61,1);
+INSERT INTO users VALUES(62,1);
+INSERT INTO users VALUES(63,1);
+INSERT INTO users VALUES(64,1);
+INSERT INTO users VALUES(65,1);
+INSERT INTO users VALUES(67,4);
+INSERT INTO users VALUES(69,5);
+INSERT INTO users VALUES(107,1);
+INSERT INTO users VALUES(108,1);
+INSERT INTO users VALUES(109,1);
+CREATE TABLE accounts (
+	account_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	employee_id INTEGER,
+	login TEXT,
+	password TEXT,
+	enabled INTEGER DEFAULT (1),
+	date_created TEXT,
+	CONSTRAINT accounts_employees_FK FOREIGN KEY (employee_id) REFERENCES employees(employee_id) on delete restrict
+);
+INSERT INTO accounts VALUES(170,65,'john_user','537c77bc5f44af2a789aaa5c5df27477036ec34e7a1f1b4ad5f69a38e3c7ea8a',1,'1772824323');
+INSERT INTO accounts VALUES(175,70,'login1774880602.1020184','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'2026-03-30T17:23:22');
+INSERT INTO accounts VALUES(181,71,'login1774880632.2759092','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'2026-03-30T17:23:52');
+INSERT INTO accounts VALUES(188,73,'login1774880632.3632379','6246707bec8ed96df9cf8e66d1f950e68b587646f19c429c61ee01f7b7ad3800',1,'2026-03-30T17:23:52');
+INSERT INTO accounts VALUES(193,74,'login1774880677.939701','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'2026-03-30T17:24:37');
+INSERT INTO accounts VALUES(200,76,'login1774880678.0294404','6246707bec8ed96df9cf8e66d1f950e68b587646f19c429c61ee01f7b7ad3800',1,'2026-03-30T17:24:38');
+INSERT INTO accounts VALUES(206,77,'login1774880690.0404623','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'2026-03-30T17:24:50');
+INSERT INTO accounts VALUES(213,79,'login1774880690.1236687','6246707bec8ed96df9cf8e66d1f950e68b587646f19c429c61ee01f7b7ad3800',1,'2026-03-30T17:24:50');
+INSERT INTO accounts VALUES(219,80,'login1774880727.9570894','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'2026-03-30T17:25:32');
+INSERT INTO accounts VALUES(226,82,'login1774880732.0885665','6246707bec8ed96df9cf8e66d1f950e68b587646f19c429c61ee01f7b7ad3800',1,'2026-03-30T17:25:32');
+INSERT INTO accounts VALUES(232,83,'login1774880814.2065163','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'2026-03-30T17:26:54');
+INSERT INTO accounts VALUES(239,85,'login1774880814.294652','6246707bec8ed96df9cf8e66d1f950e68b587646f19c429c61ee01f7b7ad3800',1,'2026-03-30T17:26:54');
+INSERT INTO accounts VALUES(245,86,'login1774880850.7872686','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'2026-03-30T17:27:30');
+INSERT INTO accounts VALUES(252,88,'login1774880850.8714156','6246707bec8ed96df9cf8e66d1f950e68b587646f19c429c61ee01f7b7ad3800',1,'2026-03-30T17:27:30');
+INSERT INTO accounts VALUES(258,89,'login1774880859.1478918','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'2026-03-30T17:27:39');
+INSERT INTO accounts VALUES(265,91,'login1774880859.2236402','6246707bec8ed96df9cf8e66d1f950e68b587646f19c429c61ee01f7b7ad3800',1,'2026-03-30T17:27:39');
+INSERT INTO accounts VALUES(271,92,'login1774880873.855402','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'2026-03-30T17:27:53');
+INSERT INTO accounts VALUES(278,94,'login1774880873.9396765','6246707bec8ed96df9cf8e66d1f950e68b587646f19c429c61ee01f7b7ad3800',1,'2026-03-30T17:27:53');
+INSERT INTO accounts VALUES(284,95,'login1774880911.0611806','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'2026-03-30T17:28:31');
+INSERT INTO accounts VALUES(291,97,'login1774880911.137066','6246707bec8ed96df9cf8e66d1f950e68b587646f19c429c61ee01f7b7ad3800',1,'2026-03-30T17:28:31');
+INSERT INTO accounts VALUES(297,98,'login1774881024.2941914','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'2026-03-30T17:30:24');
+INSERT INTO accounts VALUES(304,100,'login1774881024.3730721','6246707bec8ed96df9cf8e66d1f950e68b587646f19c429c61ee01f7b7ad3800',1,'2026-03-30T17:30:24');
+INSERT INTO accounts VALUES(310,101,'login1774881116.804021','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'2026-03-30T17:31:56');
+INSERT INTO accounts VALUES(317,103,'login1774881116.8849137','6246707bec8ed96df9cf8e66d1f950e68b587646f19c429c61ee01f7b7ad3800',1,'2026-03-30T17:31:56');
+INSERT INTO accounts VALUES(323,104,'login1774881238.460931','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'2026-03-30T17:33:58');
+INSERT INTO accounts VALUES(330,106,'login1774881238.5499492','6246707bec8ed96df9cf8e66d1f950e68b587646f19c429c61ee01f7b7ad3800',1,'2026-03-30T17:33:58');
+INSERT INTO accounts VALUES(336,107,'login1774884816.7733634','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'1774884818');
+INSERT INTO accounts VALUES(338,108,'login1774885312.306541','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'1774885312');
+INSERT INTO accounts VALUES(339,109,'login1774885316.7065036','0ecb68654b7fd17640463b33130e0f928633fd53ff6c7a9831622aa1ae7acf0c',1,'1774885316');
+INSERT INTO accounts VALUES(340,110,'john.smith','1a6570efcd82a670697bb2d2e0bef083b1a0ce20b916f1d0336994f1aa70a336',1,'2026-04-07T15:30:48');
+INSERT INTO accounts VALUES(345,111,'john.smith1775565095.2352347','1a6570efcd82a670697bb2d2e0bef083b1a0ce20b916f1d0336994f1aa70a336',1,'2026-04-07T15:31:35');
+INSERT INTO accounts VALUES(351,112,'john.smith1775565115.2233677','1a6570efcd82a670697bb2d2e0bef083b1a0ce20b916f1d0336994f1aa70a336',1,'2026-04-07T15:31:55');
+INSERT INTO accounts VALUES(357,113,'john.smith1775565120.6205187','1a6570efcd82a670697bb2d2e0bef083b1a0ce20b916f1d0336994f1aa70a336',1,'2026-04-07T15:32:00');
+INSERT INTO accounts VALUES(366,114,'john.smith1775565121.1097398','1a6570efcd82a670697bb2d2e0bef083b1a0ce20b916f1d0336994f1aa70a336',1,'2026-04-07T15:32:01');
+INSERT INTO accounts VALUES(375,115,'john.smith1775565129.608966','1a6570efcd82a670697bb2d2e0bef083b1a0ce20b916f1d0336994f1aa70a336',1,'2026-04-07T15:32:09');
+INSERT INTO accounts VALUES(384,116,'john.smith1775565189.1279886','1a6570efcd82a670697bb2d2e0bef083b1a0ce20b916f1d0336994f1aa70a336',1,'2026-04-07T15:33:09');
+INSERT INTO accounts VALUES(389,117,'john.smith1775565202.2509465','1a6570efcd82a670697bb2d2e0bef083b1a0ce20b916f1d0336994f1aa70a336',1,'2026-04-07T15:33:22');
+INSERT INTO accounts VALUES(394,118,'john.smith1775565279.7358196','805bd951772627f3d1a607084df1727c6caad60447c5d73febf7be2d2fe17fd8',1,'2026-04-07T15:34:39');
+CREATE TABLE clients (
+	client_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	admin_id INTEGER,
+	name TEXT,
+	address TEXT,
+	email TEXT,
+	phone TEXT,
+	enabled INTEGER, version INTEGER,
+	date_created TEXT,
+	CONSTRAINT clients_admins_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict
+);
+INSERT INTO clients VALUES(1,1,'name',NULL,NULL,NULL,NULL,NULL,NULL);
+INSERT INTO clients VALUES(4,66,'ACME Corporation','','','',1,0,'2026-03-07T12:36:47.340385');
+INSERT INTO clients VALUES(5,68,'ACME Corporation','','','',1,0,'2026-03-07T12:50:39.051346');
 CREATE TABLE roles (
 	role_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	name TEXT,
@@ -59,162 +324,189 @@ CREATE TABLE roles (
 	description TEXT,
 	is_system_role INTEGER,
 	date_created TEXT,
-	is_admin INTEGER DEFAULT (1)
-, version INTEGER);
-CREATE TABLE accounts (
-	account_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	employee_id INTEGER,
-	enabled INTEGER DEFAULT (1),
-	login TEXT,
-	password TEXT,
-	date_created TEXT,
-	CONSTRAINT accounts_employees_FK FOREIGN KEY (employee_id) REFERENCES employees(employee_id) on delete restrict
-);
-INSERT INTO accounts VALUES(1,NULL,1,'login','6e866f893e64abaacda283976d6b3fd7ac2fcc708e42687193d3dbbe1249544b','2026-02-19T18:51:28');
-INSERT INTO accounts VALUES(2,30,1,'login1','6e866f893e64abaacda283976d6b3fd7ac2fcc708e42687193d3dbbe1249544b','2026-02-19T18:56:17');
-INSERT INTO accounts VALUES(3,33,1,'login11771673355.3818662','6e866f893e64abaacda283976d6b3fd7ac2fcc708e42687193d3dbbe1249544b','2026-02-21T14:29:15');
-INSERT INTO accounts VALUES(4,35,1,'login11771673896.3032212','6e866f893e64abaacda283976d6b3fd7ac2fcc708e42687193d3dbbe1249544b','2026-02-21T14:38:16');
-INSERT INTO accounts VALUES(5,34,1,'login21771673896.3038576','76c7e935b12e2ffd303018fb23b1919ab65b31e4003078bfbd8fec04c8768e76','2026-02-21T14:38:16');
-INSERT INTO accounts VALUES(6,37,1,'login11771674334.926153','6e866f893e64abaacda283976d6b3fd7ac2fcc708e42687193d3dbbe1249544b','2026-02-21T14:45:34');
-INSERT INTO accounts VALUES(7,39,1,'login11771674386.3804402','6e866f893e64abaacda283976d6b3fd7ac2fcc708e42687193d3dbbe1249544b','2026-02-21T14:46:26');
-INSERT INTO accounts VALUES(8,41,1,'login11771674515.4162424','6e866f893e64abaacda283976d6b3fd7ac2fcc708e42687193d3dbbe1249544b','2026-02-21T14:48:35');
-CREATE TABLE admins (
-	admin_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	employee_id INTEGER,
-	job_title TEXT,
-	CONSTRAINT employee_FK FOREIGN KEY (employee_id) REFERENCES employees(employee_id) on delete restrict
-	
-);
-INSERT INTO admins VALUES(2,4,'');
-INSERT INTO admins VALUES(3,5,'');
-INSERT INTO admins VALUES(4,6,'');
-INSERT INTO admins VALUES(5,7,'');
-INSERT INTO admins VALUES(6,8,'');
-INSERT INTO admins VALUES(7,9,'');
-INSERT INTO admins VALUES(8,10,'');
-INSERT INTO admins VALUES(9,11,'');
-INSERT INTO admins VALUES(10,12,'');
-INSERT INTO admins VALUES(11,13,'');
-INSERT INTO admins VALUES(12,14,'');
-INSERT INTO admins VALUES(13,15,'');
-INSERT INTO admins VALUES(14,16,'');
-INSERT INTO admins VALUES(15,17,'');
-INSERT INTO admins VALUES(16,18,'');
-INSERT INTO admins VALUES(17,19,'');
-INSERT INTO admins VALUES(18,20,'');
-INSERT INTO admins VALUES(19,21,'');
-INSERT INTO admins VALUES(20,22,'');
-INSERT INTO admins VALUES(21,23,'');
-INSERT INTO admins VALUES(22,24,'');
-INSERT INTO admins VALUES(23,25,'');
-INSERT INTO admins VALUES(24,26,'');
-INSERT INTO admins VALUES(25,27,'');
-INSERT INTO admins VALUES(26,28,'');
-INSERT INTO admins VALUES(27,29,'');
-INSERT INTO admins VALUES(28,30,'');
-INSERT INTO admins VALUES(29,31,'');
-INSERT INTO admins VALUES(30,32,'');
-INSERT INTO admins VALUES(31,33,'');
-INSERT INTO admins VALUES(32,34,'');
-INSERT INTO admins VALUES(33,35,'');
-INSERT INTO admins VALUES(34,36,'');
-INSERT INTO admins VALUES(35,37,'');
-INSERT INTO admins VALUES(36,38,'');
-INSERT INTO admins VALUES(37,39,'');
-INSERT INTO admins VALUES(38,40,'');
-INSERT INTO admins VALUES(39,41,'');
-INSERT INTO admins VALUES(40,42,NULL);
+	is_admin INTEGER DEFAULT (1), 
+	version INTEGER);
+INSERT INTO roles VALUES(60,'Super Admin','admin.view,role.assign,audit.view,admin.update,role.revoke,create.user','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
+INSERT INTO roles VALUES(61,'Ticket Creator','ticket.view.own,ticket.create','Can create and view own tickets',0,'2026-03-23T12:21:42+00:00',0,0);
+INSERT INTO roles VALUES(62,'Super Admin','audit.view,role.assign,admin.view','Full system access',1,'2026-03-23T12:22:06+00:00',1,0);
+INSERT INTO roles VALUES(63,'Ticket Creator','ticket.create,ticket.view.own','Can create and view own tickets',0,'2026-03-23T12:22:06+00:00',0,0);
+INSERT INTO roles VALUES(64,'Super Admin','audit.view,role.assign,admin.view','Full system access',1,'2026-03-23T12:22:34+00:00',1,0);
+INSERT INTO roles VALUES(65,'Ticket Creator','ticket.view.own,ticket.create','Can create and view own tickets',0,'2026-03-23T12:22:34+00:00',0,0);
+INSERT INTO roles VALUES(66,'Super Admin','audit.view,role.assign,admin.view','Full system access',1,'2026-03-23T12:22:49+00:00',1,0);
 CREATE TABLE admins_roles (
-	admin_role INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	admin_id INTEGER,
-	role_id INTEGER,
-	CONSTRAINT admins_roles_admins_FK FOREIGN KEY (admin_id) REFERENCES admins(admin_id) on DELETE restrict,
-	CONSTRAINT admins_roles_roles_FK FOREIGN KEY (role_id) REFERENCES roles(role_id) on DELETE restrict
+  employee_id INTEGER NOT NULL,
+  role_id INTEGER NOT NULL,
+  PRIMARY KEY (employee_id, role_id),
+  FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE RESTRICT,
+  FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE RESTRICT
 );
-CREATE TABLE clients (
-	client_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	name TEXT,
-	address TEXT,
-	email TEXT,
-	phone TEXT,
-	admin_id INTEGER,
-	date_created INTEGER,
-	enabled INTEGER, version INTEGER,
-	CONSTRAINT clients_admins_FK FOREIGN KEY (admin_id) REFERENCES admins(admin_id) on delete restrict
+INSERT INTO admins_roles VALUES(4,60);
+INSERT INTO admins_roles VALUES(3,1);
+INSERT INTO admins_roles VALUES(5,1);
+INSERT INTO admins_roles VALUES(6,1);
+INSERT INTO admins_roles VALUES(7,1);
+INSERT INTO admins_roles VALUES(13,1);
+INSERT INTO admins_roles VALUES(14,1);
+INSERT INTO admins_roles VALUES(15,1);
+INSERT INTO admins_roles VALUES(16,1);
+INSERT INTO admins_roles VALUES(42,1);
+INSERT INTO admins_roles VALUES(42,2);
+INSERT INTO admins_roles VALUES(43,1);
+INSERT INTO admins_roles VALUES(45,1);
+INSERT INTO admins_roles VALUES(47,1);
+INSERT INTO admins_roles VALUES(49,1);
+INSERT INTO admins_roles VALUES(58,1);
+INSERT INTO admins_roles VALUES(59,1);
+INSERT INTO admins_roles VALUES(66,1);
+INSERT INTO admins_roles VALUES(68,1);
+INSERT INTO admins_roles VALUES(70,60);
+INSERT INTO admins_roles VALUES(70,62);
+INSERT INTO admins_roles VALUES(71,60);
+INSERT INTO admins_roles VALUES(71,62);
+INSERT INTO admins_roles VALUES(72,60);
+INSERT INTO admins_roles VALUES(72,62);
+INSERT INTO admins_roles VALUES(73,60);
+INSERT INTO admins_roles VALUES(73,62);
+INSERT INTO admins_roles VALUES(74,60);
+INSERT INTO admins_roles VALUES(74,62);
+INSERT INTO admins_roles VALUES(75,60);
+INSERT INTO admins_roles VALUES(75,62);
+INSERT INTO admins_roles VALUES(76,62);
+INSERT INTO admins_roles VALUES(77,60);
+INSERT INTO admins_roles VALUES(77,62);
+INSERT INTO admins_roles VALUES(78,60);
+INSERT INTO admins_roles VALUES(78,62);
+INSERT INTO admins_roles VALUES(79,62);
+INSERT INTO admins_roles VALUES(80,60);
+INSERT INTO admins_roles VALUES(80,62);
+INSERT INTO admins_roles VALUES(81,60);
+INSERT INTO admins_roles VALUES(81,62);
+INSERT INTO admins_roles VALUES(82,62);
+INSERT INTO admins_roles VALUES(83,60);
+INSERT INTO admins_roles VALUES(83,62);
+INSERT INTO admins_roles VALUES(84,60);
+INSERT INTO admins_roles VALUES(84,62);
+INSERT INTO admins_roles VALUES(85,62);
+INSERT INTO admins_roles VALUES(86,60);
+INSERT INTO admins_roles VALUES(86,62);
+INSERT INTO admins_roles VALUES(87,60);
+INSERT INTO admins_roles VALUES(87,62);
+INSERT INTO admins_roles VALUES(88,62);
+INSERT INTO admins_roles VALUES(89,60);
+INSERT INTO admins_roles VALUES(89,62);
+INSERT INTO admins_roles VALUES(90,60);
+INSERT INTO admins_roles VALUES(90,62);
+INSERT INTO admins_roles VALUES(91,62);
+INSERT INTO admins_roles VALUES(92,60);
+INSERT INTO admins_roles VALUES(92,62);
+INSERT INTO admins_roles VALUES(93,60);
+INSERT INTO admins_roles VALUES(93,62);
+INSERT INTO admins_roles VALUES(94,62);
+INSERT INTO admins_roles VALUES(95,60);
+INSERT INTO admins_roles VALUES(95,62);
+INSERT INTO admins_roles VALUES(96,60);
+INSERT INTO admins_roles VALUES(96,62);
+INSERT INTO admins_roles VALUES(97,62);
+INSERT INTO admins_roles VALUES(98,60);
+INSERT INTO admins_roles VALUES(98,62);
+INSERT INTO admins_roles VALUES(99,60);
+INSERT INTO admins_roles VALUES(99,62);
+INSERT INTO admins_roles VALUES(100,62);
+INSERT INTO admins_roles VALUES(101,60);
+INSERT INTO admins_roles VALUES(101,62);
+INSERT INTO admins_roles VALUES(102,60);
+INSERT INTO admins_roles VALUES(102,62);
+INSERT INTO admins_roles VALUES(103,62);
+INSERT INTO admins_roles VALUES(104,60);
+INSERT INTO admins_roles VALUES(104,62);
+INSERT INTO admins_roles VALUES(105,60);
+INSERT INTO admins_roles VALUES(105,62);
+INSERT INTO admins_roles VALUES(106,62);
+INSERT INTO admins_roles VALUES(110,60);
+INSERT INTO admins_roles VALUES(110,62);
+INSERT INTO admins_roles VALUES(111,66);
+INSERT INTO admins_roles VALUES(111,60);
+INSERT INTO admins_roles VALUES(111,62);
+INSERT INTO admins_roles VALUES(112,66);
+INSERT INTO admins_roles VALUES(112,60);
+INSERT INTO admins_roles VALUES(112,62);
+INSERT INTO admins_roles VALUES(113,66);
+INSERT INTO admins_roles VALUES(113,62);
+INSERT INTO admins_roles VALUES(114,66);
+INSERT INTO admins_roles VALUES(114,62);
+INSERT INTO admins_roles VALUES(115,66);
+INSERT INTO admins_roles VALUES(115,62);
+INSERT INTO admins_roles VALUES(116,60);
+INSERT INTO admins_roles VALUES(116,62);
+INSERT INTO admins_roles VALUES(117,60);
+INSERT INTO admins_roles VALUES(117,62);
+INSERT INTO admins_roles VALUES(118,60);
+INSERT INTO admins_roles VALUES(118,62);
+INSERT INTO admins_roles VALUES(1,60);
+CREATE TABLE users_roles (
+  employee_id INTEGER NOT NULL,
+  role_id INTEGER NOT NULL,
+  PRIMARY KEY (employee_id, role_id),
+  FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE RESTRICT,
+  FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE RESTRICT
 );
-CREATE TABLE tickets (
-	ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	client_id INTEGER,
-	admin_id INTEGER,
-	user_id INTEGER,
-	user_ticket_contact_user_id INTEGER DEFAULT(0),
-	user_ticket_id INTEGER,
-	description TEXT,
-	text_of_ticket TEXT,
-	date_created TEXT,
-	is_remote INTEGER DEFAULT (0),
-	is_finished INTEGER DEFAULT (0),
-	date_finished INTEGER,
-	vesrion INTEGER,
-	urgency_level INTEGER,
-	CONSTRAINT tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
-	CONSTRAINT tickets_admin_FK FOREIGN KEY (admin_id) REFERENCES admins(admin_id) on delete restrict,
-	CONSTRAINT tickets_user_user_FK FOREIGN KEY (user_id) REFERENCES users(user_id) on delete restrict,
-	CONSTRAINT tickets_user_ticket_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict,
-	CONSTRAINT tickets_user_ticket_contact_user_FK FOREIGN KEY (user_ticket_contact_user_id) REFERENCES users(user_id) on delete restrict
-);
-CREATE TABLE IF NOT EXISTS "tickets_comment" (
+CREATE TABLE tickets_comment (
 	comment_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	comment TEXT,
 	ticket_id INTEGER,
-	admin_id INTEGER,
+	admin_id INTEGER, -- кто оставил комментарий
+	comment TEXT,
 	date_created TEXT,
-	CONSTRAINT comment_tickets_admin_FK FOREIGN KEY (admin_id) REFERENCES admins(admin_id) on DELETE restrict,
+	CONSTRAINT comment_tickets_admin_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on DELETE restrict,
 	CONSTRAINT comment_tickets_tickets_FK FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) on delete restrict
 );
-CREATE TABLE IF NOT EXISTS "tickets_executor_assigments" (
-	executor_assigment_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	admin_id INTEGER,
-	date_assigment TEXT,
+INSERT INTO tickets_comment VALUES(1,2,2,'Investigating the issue','2026-03-10T14:07:20.878841+00:00');
+INSERT INTO tickets_comment VALUES(2,3,2,'Investigating the issue','2026-03-10T14:52:29.176047+00:00');
+INSERT INTO tickets_comment VALUES(3,4,2,'Investigating the issue','2026-03-10T14:54:39.987280+00:00');
+INSERT INTO tickets_comment VALUES(4,5,2,'Investigating the issue','2026-03-10T15:59:38.566972+00:00');
+CREATE TABLE tickets_executor_assignment (
+	executor_assignment_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	admin_id INTEGER, -- кто назначен
 	ticket_id INTEGER,
-	CONSTRAINT executor_assigments_admin_FK FOREIGN KEY (admin_id) REFERENCES admins(admin_id) on delete RESTRICT,
-	CONSTRAINT executor_assigments_tickets_FK FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) on DELETE restrict
+	date_assignment TEXT,  
+	CONSTRAINT executor_assignments_admin_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete RESTRICT,
+	CONSTRAINT executor_assignments_tickets_FK FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) on DELETE restrict
 );
+INSERT INTO tickets_executor_assignment VALUES(1,2,2,'2026-03-10T14:07:20.878523+00:00');
+INSERT INTO tickets_executor_assignment VALUES(2,2,3,'2026-03-10T14:52:29.175756+00:00');
+INSERT INTO tickets_executor_assignment VALUES(3,2,4,'2026-03-10T14:54:39.987042+00:00');
+INSERT INTO tickets_executor_assignment VALUES(4,2,5,'2026-03-10T15:59:38.566729+00:00');
 CREATE TABLE tickets_status_record (
 	ticket_status_record_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	admin_id INTEGER,
 	ticket_id INTEGER,
+	admin_id INTEGER, -- кто установил статус
 	status TEXT,
 	date_created TEXT,
 	CONSTRAINT tickets_status_record_tickets_FK FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) on delete restrict,
-	CONSTRAINT tickets_status_record_employees_FK FOREIGN KEY (admin_id) REFERENCES admins(admin_id) on DELETE restrict
+	CONSTRAINT tickets_status_record_employees_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on DELETE restrict
 );
-CREATE TABLE user_tickets (
-	user_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	client_id INTEGER,
-	user_id INTEGER,
-	user_ticket_contact_user_id INTEGER DEFAULT(0),
-	description TEXT,
-	date_created TEXT,
-	version INTEGER,
-	date_finished TEXT,
-	is_closed INTEGER,
-	promoted_ticket_id INTEGER,
-	CONSTRAINT user_tickets_users_FK FOREIGN KEY (user_id) REFERENCES users(user_id) on delete restrict,
-	CONSTRAINT user_tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
-	CONSTRAINT user_tickets_tickets_FK FOREIGN KEY (promoted_ticket_id) REFERENCES tickets(ticket_id) on delete restrict,
-	CONSTRAINT user_tickets_user_ticket_contact_user_FK FOREIGN KEY (user_ticket_contact_user_id) REFERENCES users(user_id) on delete restrict
-
-);
-CREATE TABLE IF NOT EXISTS "user_tickets_comment" (
+INSERT INTO tickets_status_record VALUES(1,2,1,'created','2026-03-10T14:07:20.876688+00:00');
+INSERT INTO tickets_status_record VALUES(2,2,2,'at_work','2026-03-10T14:07:20.879072+00:00');
+INSERT INTO tickets_status_record VALUES(3,2,2,'executed','2026-03-10T14:07:20.879245+00:00');
+INSERT INTO tickets_status_record VALUES(4,3,1,'created','2026-03-10T14:52:29.171204+00:00');
+INSERT INTO tickets_status_record VALUES(5,3,2,'at_work','2026-03-10T14:52:29.176268+00:00');
+INSERT INTO tickets_status_record VALUES(6,3,2,'executed','2026-03-10T14:52:29.176420+00:00');
+INSERT INTO tickets_status_record VALUES(7,4,1,'created','2026-03-10T14:54:39.986088+00:00');
+INSERT INTO tickets_status_record VALUES(8,4,2,'at_work','2026-03-10T14:54:39.987494+00:00');
+INSERT INTO tickets_status_record VALUES(9,4,2,'executed','2026-03-10T14:54:39.987651+00:00');
+INSERT INTO tickets_status_record VALUES(10,5,1,'created','2026-03-10T15:59:38.565566+00:00');
+INSERT INTO tickets_status_record VALUES(11,5,2,'at_work','2026-03-10T15:59:38.567180+00:00');
+INSERT INTO tickets_status_record VALUES(12,5,2,'executed','2026-03-10T15:59:38.567643+00:00');
+CREATE TABLE user_tickets_comment (
 	user_comment_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	comment TEXT,
 	user_ticket_id INTEGER,
 	employee_id INTEGER,
+	comment TEXT,
 	date_created TEXT,
 	CONSTRAINT comment_tickets_employees_FK FOREIGN KEY (employee_id) REFERENCES employees(employee_id) on delete restrict,
 	CONSTRAINT comment_tickets_tickets_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict
 );
+INSERT INTO user_tickets_comment VALUES(1,1,10,'Please fix ASAP','2026-03-16T11:29:27.227543+00:00');
+INSERT INTO user_tickets_comment VALUES(2,2,10,'Please fix ASAP','2026-03-16T11:29:39.228139+00:00');
 CREATE TABLE user_tickets_status_record (
 	user_ticket_status_record_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	employee_id INTEGER,
@@ -224,31 +516,77 @@ CREATE TABLE user_tickets_status_record (
 	CONSTRAINT tickets_status_record_tickets_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict,
 	CONSTRAINT tickets_status_record_employees_FK FOREIGN KEY (employee_id) REFERENCES employees(employee_id) on delete restrict
 );
-CREATE TABLE users (
-	user_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	employee_id INTEGER,
-	client_id INTEGER,
-	CONSTRAINT users_employees_FK FOREIGN KEY (employee_id) REFERENCES employees(employee_id) on delete restrict,
-	CONSTRAINT users_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on DELETE restrict
-);
-CREATE TABLE users_roles (
-	user_role_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	role_id INTEGER,
-	user_id INTEGER,
-	CONSTRAINT users_roles_roles_FK FOREIGN KEY (role_id) REFERENCES roles(role_id) on delete restrict,
-	CONSTRAINT users_roles_users_FK FOREIGN KEY (user_id) REFERENCES users(user_id) on delete restrict
-);
-CREATE TABLE IF NOT EXISTS "uset_tickets_executor_assigments" (
-	user_executor_assigment_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	admin_id INTEGER,
-	date_assigment TEXT,
+INSERT INTO user_tickets_status_record VALUES(1,10,1,'created','2026-03-16T11:29:27.225254+00:00');
+INSERT INTO user_tickets_status_record VALUES(2,10,1,'created','2026-03-16T11:29:27.225262+00:00');
+INSERT INTO user_tickets_status_record VALUES(3,10,1,'confirmed','2026-03-16T11:29:27.226731+00:00');
+INSERT INTO user_tickets_status_record VALUES(4,1,1,'at_work','2026-03-16T11:29:27.227832+00:00');
+INSERT INTO user_tickets_status_record VALUES(5,1,1,'executed','2026-03-16T11:29:27.227974+00:00');
+INSERT INTO user_tickets_status_record VALUES(6,10,2,'created','2026-03-16T11:29:39.226973+00:00');
+INSERT INTO user_tickets_status_record VALUES(7,10,2,'created','2026-03-16T11:29:39.226981+00:00');
+INSERT INTO user_tickets_status_record VALUES(8,10,2,'confirmed','2026-03-16T11:29:39.227934+00:00');
+INSERT INTO user_tickets_status_record VALUES(9,1,2,'at_work','2026-03-16T11:29:39.228344+00:00');
+INSERT INTO user_tickets_status_record VALUES(10,1,2,'executed','2026-03-16T11:29:39.228457+00:00');
+CREATE TABLE user_tickets_executor_assignments (
+	user_executor_assignment_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	user_ticket_id INTEGER,
-	CONSTRAINT executor_assigments_admin_FK FOREIGN KEY (admin_id) REFERENCES admins(admin_id) on delete restrict,
-	CONSTRAINT executor_assigments_tickets_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict
+	admin_id INTEGER,
+	date_assignment TEXT,
+	CONSTRAINT executor_assignments_admin_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict,
+	CONSTRAINT executor_assignments_tickets_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict
 );
+CREATE TABLE tickets (
+	ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	client_id INTEGER, -- клиент
+	admin_id INTEGER, -- создатель заявки
+	user_id INTEGER DEFAULT NULL, -- заявитель от клиента, может не быть
+	user_ticket_contact_user_id INTEGER NULL, -- контактное лицо от клиента. может не быть
+	user_ticket_id INTEGER DEFAULT NULL, -- связь с заявкой созданной пользователем клиентом, может не быть 
+	text_of_ticket TEXT, -- текст заявки
+	date_created TEXT, -- дата создания
+	is_remote INTEGER DEFAULT (0), -- сделана удаленно, возможно удаленное решение
+	is_closed INTEGER DEFAULT (0), -- заявка завершена
+	date_closed TEXT, -- дата завершения или снятия заявки
+	urgency_level INTEGER DEFAULT (0), -- срочная или несрочная 
+	version INTEGER, -- версия
+	CONSTRAINT tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
+	CONSTRAINT tickets_admin_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict,
+	CONSTRAINT tickets_user_user_FK FOREIGN KEY (user_id) REFERENCES employees(employee_id) on delete restrict,
+	CONSTRAINT tickets_user_ticket_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict,
+	CONSTRAINT tickets_user_ticket_contact_user_FK FOREIGN KEY (user_ticket_contact_user_id) REFERENCES employees(employee_id) on delete restrict
+);
+INSERT INTO tickets VALUES(1,1,1,NULL,NULL,NULL,'11111','2026-03-10T13:48:03.830911+00:00',0,0,NULL,1,0);
+INSERT INTO tickets VALUES(2,1,1,NULL,NULL,NULL,'Internet does not work','2026-03-10T14:07:20.876669+00:00',0,1,'2026-03-10T14:07:20.879247+00:00',1,4);
+INSERT INTO tickets VALUES(3,1,1,NULL,NULL,NULL,'Internet does not work','2026-03-10T14:52:29.171187+00:00',0,1,'2026-03-10T14:52:29.176422+00:00',1,4);
+INSERT INTO tickets VALUES(4,1,1,NULL,NULL,NULL,'Internet does not work','2026-03-10T14:54:39.986069+00:00',0,1,'2026-03-10T14:54:39.987652+00:00',1,4);
+INSERT INTO tickets VALUES(5,1,1,NULL,NULL,NULL,'Internet does not work','2026-03-10T15:59:38.565549+00:00',0,1,'2026-03-10T15:59:38.567645+00:00',1,4);
+CREATE TABLE user_tickets (
+	user_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	client_id INTEGER, -- заявки от какого клиента
+	user_id INTEGER, -- кто создал заявку
+	user_ticket_contact_user_id INTEGER DEFAULT NULL, -- контактное лицо по заявке, может не быть
+	text_of_ticket TEXT, -- текст заявки 
+	date_created TEXT,
+	version INTEGER, 
+	date_closed TEXT, -- дата завершения или снятия заявки 
+	is_closed INTEGER,
+	CONSTRAINT user_tickets_users_FK FOREIGN KEY (user_id) REFERENCES employees(employee_id) on delete restrict,
+	CONSTRAINT user_tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
+	CONSTRAINT user_tickets_user_ticket_contact_user_FK FOREIGN KEY (user_ticket_contact_user_id) REFERENCES employees(employee_id) on delete restrict
+);
+INSERT INTO user_tickets VALUES(1,1,10,NULL,'Printer does not work','2026-03-16T11:29:27.225216+00:00',0,NULL,0);
+INSERT INTO user_tickets VALUES(2,1,10,NULL,'Printer does not work','2026-03-16T11:29:39.226955+00:00',0,NULL,0);
 DELETE FROM sqlite_sequence;
-INSERT INTO sqlite_sequence VALUES('employees',42);
-INSERT INTO sqlite_sequence VALUES('admins',40);
-INSERT INTO sqlite_sequence VALUES('accounts',8);
+INSERT INTO sqlite_sequence VALUES('employees',118);
+INSERT INTO sqlite_sequence VALUES('accounts',396);
+INSERT INTO sqlite_sequence VALUES('roles',66);
+INSERT INTO sqlite_sequence VALUES('clients',5);
+INSERT INTO sqlite_sequence VALUES('tickets',5);
+INSERT INTO sqlite_sequence VALUES('tickets_status_record',12);
+INSERT INTO sqlite_sequence VALUES('tickets_executor_assignment',4);
+INSERT INTO sqlite_sequence VALUES('tickets_comment',4);
+INSERT INTO sqlite_sequence VALUES('user_tickets',2);
+INSERT INTO sqlite_sequence VALUES('user_tickets_status_record',10);
+INSERT INTO sqlite_sequence VALUES('user_tickets_comment',2);
 CREATE UNIQUE INDEX accounts_login_IDX ON accounts (login);
+CREATE UNIQUE INDEX accounts_employee_uq ON accounts(employee_id);
 COMMIT;
