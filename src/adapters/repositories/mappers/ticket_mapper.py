@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
-from src.domain.ticket import Ticket
+from src.domain.ticket import Ticket, TicketStatusRecord
+from src.domain.ticket_components import ExecutorAssignment, Comment
 
 
 def _parse_dt(value: str | None) -> datetime | None:
@@ -34,9 +35,12 @@ class TicketMapper:
     VARS_EXECUTORS=["executor_id","admin_id","date_assigned"]
     VARS_STATUS = ["status_id", "executor_id", "admin_id", "status","date_created"]
     @staticmethod
-    def row_to_ticket(row: dict) -> Ticket:
-        ticket = Ticket(
-            ticket_id=row["ticket_id"],
+    def row_to_ticket(row: dict,statuses:list[TicketStatusRecord],executors:list[ExecutorAssignment],comments:list[Comment]) -> Ticket:
+
+
+        created = _parse_dt(row.get("date_created"))
+
+        ticket=Ticket.rehydrate(ticket_id=row["ticket_id"],
             client_id=row["client_id"],
             admin_id=row["admin_id"],
             description=row["text_of_ticket"] or "",
@@ -47,17 +51,14 @@ class TicketMapper:
             is_remote=bool(row["is_remote"]),
             urgency_level=row["urgency_level"] or 0,
             version=row["version"] or 0,
-        )
+            is_closed=bool(row["is_closed"]),
+            date_created=created,
+            statuses=statuses,
+            executors=executors,
+            comments=comments
+            )
 
-        created = _parse_dt(row.get("date_created"))
-        if created is not None:
-            ticket.date_created = created
 
-        finished = _parse_dt(row.get("date_closed"))
-        if finished is not None:
-            ticket.date_finished = finished
-
-        ticket.is_closed = bool(row["is_closed"])
         return ticket
 
     @staticmethod

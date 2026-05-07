@@ -70,27 +70,92 @@ class Ticket:
     urgency_level: int = 0
     user_ticket_id: int = 0
 
-
     @classmethod
     def create(
-        cls,
-        *,
-        ticket_id: int,
-        client_id: int,
-        admin_id: int,
-        description: str,
-        user_description:str="",
-        text_of_ticket: str = "",
-        user_id: int = 0,
-        contact_user_id: int = 0,
-        is_remote: bool = False,
-        urgency_level: int = 0,
-        user_ticket_id: int = 0,
-        executor_id:int=0,
-        comment:str=""
+            cls,
+            *,
+            ticket_id: int,
+            client_id: int,
+            admin_id: int,
+            description: str,
+            user_description: str = "",
+            text_of_ticket: str = "",
+            user_id: int = 0,
+            contact_user_id: int = 0,
+            is_remote: bool = False,
+            urgency_level: int = 0,
+            user_ticket_id: int = 0,
+            executor_id: int = 0,
+            comment: str = "",
     ) -> Self:
-        description+=user_description
+        full_description = f"{description}{user_description}".strip()
+
+        if not full_description:
+            raise DomainOperationError("Ticket description cannot be empty")
+
         ticket = cls(
+            ticket_id=ticket_id,
+            client_id=client_id,
+            admin_id=admin_id,
+            description=full_description,
+            text_of_ticket=text_of_ticket,
+            user_id=user_id,
+            contact_user_id=contact_user_id,
+            is_remote=is_remote,
+            urgency_level=urgency_level,
+            user_ticket_id=user_ticket_id,
+            statuses=[
+                TicketStatusRecord(
+                    actor_employee_id=admin_id,
+                    status=TicketStatus.CREATED,
+                )
+            ],
+        )
+
+        if executor_id:
+            ticket.add_executor(
+                ExecutorAssignment(
+                    admin_id=admin_id,
+                    executor_id=executor_id,
+                )
+            )
+
+        if comment.strip():
+            ticket.add_comment(
+                Comment(
+                    employee_id=admin_id,
+                    comment=comment.strip(),
+                )
+            )
+
+        return ticket
+
+    @classmethod
+    def rehydrate(
+            cls,
+            *,
+            ticket_id: int,
+            client_id: int,
+            admin_id: int,
+            description: str,
+            text_of_ticket: str = "",
+            user_id: int = 0,
+            contact_user_id: int = 0,
+            statuses: list[TicketStatusRecord],
+            comments: list[Comment] | None = None,
+            executors: list[ExecutorAssignment] | None = None,
+            date_created: datetime,
+            is_remote: bool = False,
+            is_closed: bool = False,
+            date_finished: Optional[datetime] = None,
+            version: int = 0,
+            urgency_level: int = 0,
+            user_ticket_id: int = 0,
+    ) -> Self:
+        if not statuses:
+            raise DomainOperationError("Cannot rehydrate Ticket without status history")
+
+        return cls(
             ticket_id=ticket_id,
             client_id=client_id,
             admin_id=admin_id,
@@ -98,47 +163,47 @@ class Ticket:
             text_of_ticket=text_of_ticket,
             user_id=user_id,
             contact_user_id=contact_user_id,
+            statuses=statuses,
+            comments=comments or [],
+            executors=executors or [],
+            date_created=date_created,
             is_remote=is_remote,
+            is_closed=is_closed,
+            date_finished=date_finished,
+            version=version,
             urgency_level=urgency_level,
             user_ticket_id=user_ticket_id,
         )
-        ticket.statuses.append(
-            TicketStatusRecord(
-                status=TicketStatus.CREATED,
-                actor_employee_id=admin_id,
-            )
-        )
-
-        if executor_id:
-            ticket.add_executor(ExecutorAssignment(admin_id=admin_id,executor_id=executor_id))
-
-        if comment:
-            ticket.add_comment(comment=Comment(employee_id=admin_id,comment=comment))
-
-        return ticket
 
     def __post_init__(self) -> None:
         """
-        Only normalize / recompute state from loaded fields.
-        Do NOT create history entries here.
+        Validate and recompute derived state only.
+
+        Important:
+        - do not append CREATED here;
+        - creation belongs to create();
+        - loading from DB belongs to rehydrate().
         """
+        self.description = self.description.strip()
+
+        if not self.description:
+            raise DomainOperationError("Ticket description cannot be empty")
+
         if not self.statuses:
-            self.statuses.append(
-                TicketStatusRecord(
-                    actor_employee_id=self.user_id,
-                    status=TicketStatus.CREATED,
-                )
-            )
+            self.is_closed = False
+            self.date_finished = None
+            return
 
         current = self.current_status()
 
         if current in (TicketStatus.EXECUTED, TicketStatus.CANCELLED):
             self.is_closed = True
+
             if self.date_finished is None:
                 self.date_finished = self.statuses[-1].date_created
-            else:
-                self.is_closed = False
-
+        else:
+            self.is_closed = False
+            self.date_finished = None
 
     # ----------------------------
     # Queries

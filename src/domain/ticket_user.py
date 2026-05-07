@@ -95,63 +95,99 @@ class TicketUser:
 
     @classmethod
     def create(
-        cls,
-        *,
-        ticket_id: int,
-        client_id: int,
-        user_id: int,
-        contact_user_id: int = 0,
-        description: str,
+            cls,
+            *,
+            ticket_id: int,
+            client_id: int,
+            user_id: int,
+            contact_user_id: int = 0,
+            description: str,
     ) -> Self:
+        description = description.strip()
 
         if not description:
             raise DomainOperationError("Ticket description cannot be empty")
 
-        ticket = cls(
+        return cls(
             ticket_id=ticket_id,
             client_id=client_id,
             user_id=user_id,
             contact_user_id=contact_user_id,
             description=description,
-        )
-
-        ticket.statuses.append(
-            StatusRecordTicketUser(
-                actor_employee_id=user_id,
-                status=StatusTicketOfClient.CREATED,
-            )
-        )
-
-        return ticket
-
-    # --------------------------------
-    # Post init safety
-    # --------------------------------
-
-    def __post_init__(self):
-
-        if not self.statuses:
-
-            self.statuses.append(
+            statuses=[
                 StatusRecordTicketUser(
-                    actor_employee_id=self.user_id,
+                    actor_employee_id=user_id,
                     status=StatusTicketOfClient.CREATED,
                 )
-            )
+            ],
+        )
+
+    @classmethod
+    def rehydrate(
+            cls,
+            *,
+            ticket_id: int,
+            client_id: int,
+            user_id: int,
+            contact_user_id: int,
+            description: str,
+            statuses: list[StatusRecordTicketUser],
+            comments: list[Comment] | None = None,
+            date_created: datetime,
+            is_closed: bool = False,
+            date_finished: Optional[datetime] = None,
+            version: int = 0,
+    ) -> Self:
+        if not statuses:
+            raise DomainOperationError("Cannot rehydrate TicketUser without status history")
+
+        return cls(
+            ticket_id=ticket_id,
+            client_id=client_id,
+            user_id=user_id,
+            contact_user_id=contact_user_id,
+            description=description,
+            statuses=statuses,
+            comments=comments or [],
+            date_created=date_created,
+            is_closed=is_closed,
+            date_finished=date_finished,
+            version=version,
+        )
+
+    def __post_init__(self) -> None:
+        """
+        Validate and recompute derived state only.
+
+        Important:
+        - do not append CREATED here;
+        - creation belongs to create();
+        - loading from DB belongs to rehydrate().
+        """
+        self.description = self.description.strip()
+
+        if not self.description:
+            raise DomainOperationError("Ticket description cannot be empty")
+
+        if not self.statuses:
+            self.is_closed = False
+            self.date_finished = None
+            return
 
         current = self.current_status()
 
         if current in (
-            StatusTicketOfClient.EXECUTED,
-            StatusTicketOfClient.CANCELED_BY_ADMIN,
-            StatusTicketOfClient.CANCELED_BY_CLIENT,
+                StatusTicketOfClient.EXECUTED,
+                StatusTicketOfClient.CANCELED_BY_ADMIN,
+                StatusTicketOfClient.CANCELED_BY_CLIENT,
         ):
-
             self.is_closed = True
 
             if self.date_finished is None:
                 self.date_finished = self.statuses[-1].date_created
-
+        else:
+            self.is_closed = False
+            self.date_finished = None
     # --------------------------------
     # Queries
     # --------------------------------

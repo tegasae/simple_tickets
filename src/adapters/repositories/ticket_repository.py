@@ -28,14 +28,14 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
     # load helpers
     # ---------------------------
 
-    def _load_comments(self, ticket: Ticket) -> None:
+    def _load_comments(self, ticket_id: int) -> list[Comment]:
         rows = self._get_many(
             TicketCommentGateway.SELECT,
             TicketMapper.VARS_COMMENT,
-            {"ticket_id": ticket.ticket_id},
+            {"ticket_id": ticket_id},
         )
 
-        ticket.comments = []
+        comments = []
         for r in rows:
             c = Comment(
                 comment_id=r['comment_ticket_id'],
@@ -43,36 +43,40 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
                 comment=r["comment"],
                 date_created=datetime.fromisoformat(r["date_created"])
             )
-            ticket.comments.append(c)
+            comments.append(c)
 
-    def _load_executors(self, ticket: Ticket) -> None:
+        return comments
+
+    def _load_executors(self, ticket_id: int) -> list[ExecutorAssignment]:
         rows = self._get_many(
             TicketExecutorGateway.SELECT,
             ["admin_id", "date_assignment"],
-            {"ticket_id": ticket.ticket_id},
+            {"ticket_id": ticket_id},
         )
 
-        ticket.executors = []
+        executors = []
         for r in rows:
             e = ExecutorAssignment(
                 admin_id=r["admin_id"],
             )
-            ticket.executors.append(e)
+            executors.append(e)
+        return executors
 
-    def _load_statuses(self, ticket: Ticket) -> None:
+    def _load_statuses(self, ticket_id: int) -> list[TicketStatusRecord]:
         rows = self._get_many(
             TicketStatusGateway.SELECT,
             ["admin_id", "status", "date_created"],
-            {"ticket_id": ticket.ticket_id},
+            {"ticket_id": ticket_id},
         )
 
-        ticket.statuses = []
+        statuses = []
         for r in rows:
             s = TicketStatusRecord(
                 actor_employee_id=r["admin_id"],
                 status=TicketStatus(r["status"]),
             )
-            ticket.statuses.append(s)
+            statuses.append(s)
+        return statuses
 
     # ---------------------------
     # count helpers for append-only history
@@ -124,14 +128,13 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
 
 
     def _load_ticket(self,row:dict)->Ticket:
-        ticket = TicketMapper.row_to_ticket(row)
 
-        self._load_statuses(ticket)
-        self._load_comments(ticket)
-        self._load_executors(ticket)
 
-        # recompute closure safely after histories are loaded
-        ticket.__post_init__()
+        statuses=self._load_statuses(ticket_id=row["ticket_id"])
+        executors=self._load_executors(ticket_id=row["ticket_id"])
+        comments=self._load_comments(ticket_id=row["ticket_id"])
+        ticket = TicketMapper.row_to_ticket(row, statuses,executors,comments)
+
         return ticket
     # ---------------------------
     # reads
