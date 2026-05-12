@@ -27,6 +27,13 @@ class TicketStatus(Enum):
         }
         return to_status in transitions.get(from_status, [])
 
+    @classmethod
+    def status_is_frozen(cls, status: Self) -> bool:
+        if status in [cls.EXECUTED, cls.CANCELLED]:
+            return False
+        else:
+            return True
+
 
 @dataclass(kw_only=True)
 class TicketStatusRecord:
@@ -200,6 +207,10 @@ class Ticket:
             self.is_closed = False
             self.date_finished = None
 
+    def _ensure_not_closed(self):
+        if TicketStatus.status_is_frozen(self.statuses[-1].status):
+            raise DomainOperationError(f"The ticket {self.ticket_id} is frozen")
+
     # ----------------------------
     # Queries
     # ----------------------------
@@ -220,8 +231,7 @@ class Ticket:
     # ----------------------------
 
     def change_status(self, new_status: TicketStatus, actor_employee_id: int) -> None:
-        if self.is_closed:
-            raise DomainOperationError("Ticket is closed; status cannot be changed")
+        self._ensure_not_closed()
 
         cur = self.current_status()
         if not TicketStatus.can_transition(cur, new_status):
@@ -242,14 +252,13 @@ class Ticket:
             self.date_finished = datetime.now(timezone.utc)
 
     def add_comment(self, comment: Comment) -> None:
-        if self.is_closed:
-            raise DomainOperationError("Ticket is closed; cannot add comments")
+        self._ensure_not_closed()
+
         self.comments.append(comment)
 
 
     def add_executor(self, assignment: ExecutorAssignment) -> None:
-        if self.is_closed:
-            raise DomainOperationError("Ticket is closed; cannot assign executors")
+        self._ensure_not_closed()
         self.executors.append(assignment)
 
 

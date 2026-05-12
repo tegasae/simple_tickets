@@ -2,7 +2,7 @@
 from src.application.assemblers.assembler import AdminAssembler
 from src.application.dto.employee_dto import AdminDTO, AdminResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
-from src.application.helper.empoyee_helper import EmployeeHelper
+from src.application.helper.employee_helper import EmployeeHelper
 from src.domain.employee import Admin
 from src.domain.exceptions import DomainOperationError
 from src.domain.policy.ticket import TicketPolicy

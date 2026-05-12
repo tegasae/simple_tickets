@@ -3,7 +3,7 @@
 from src.application.assemblers.assembler import UserAssembler
 from src.application.dto.employee_dto import UserDTO, UserResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
-from src.application.helper.empoyee_helper import EmployeeHelper
+from src.application.helper.employee_helper import EmployeeHelper
 from src.domain.employee import User
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission

@@ -49,7 +49,12 @@ class StatusTicketOfClient(Enum):
 
         return to_status in transitions.get(from_status, [])
 
-
+    @classmethod
+    def status_is_frozen(cls,status:Self)->bool:
+        if status in [cls.EXECUTED,cls.CANCELED_BY_CLIENT,cls.CANCELED_BY_ADMIN]:
+            return False
+        else:
+            return True
 # --------------------------------
 # Status record
 # --------------------------------
@@ -188,6 +193,12 @@ class TicketUser:
         else:
             self.is_closed = False
             self.date_finished = None
+
+
+    def _ensure_not_closed(self):
+        if StatusTicketOfClient.status_is_frozen(self.statuses[-1].status):
+            raise DomainOperationError(f"The user ticket {self.ticket_id} is frozen")
+
     # --------------------------------
     # Queries
     # --------------------------------
@@ -209,8 +220,7 @@ class TicketUser:
         actor_employee_id: int,
     ) -> None:
 
-        if self.is_closed:
-            raise DomainOperationError("TicketUser is closed")
+        self._ensure_not_closed()
 
         current = self.current_status()
 
@@ -241,9 +251,8 @@ class TicketUser:
     # --------------------------------
 
     def add_comment(self, comment: Comment) -> None:
+        self._ensure_not_closed()
 
-        if self.is_closed:
-            raise DomainOperationError("TicketUser is closed")
 
         self.comments.append(comment)
 
