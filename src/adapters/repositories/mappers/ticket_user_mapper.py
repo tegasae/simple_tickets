@@ -37,9 +37,9 @@ class TicketUserMapper:
     ]
 
     @staticmethod
-    def row_to_ticket(row):
+    def row_to_ticket(row: dict,statuses:list[StatusRecordTicketUser],comments:list[Comment]) -> TicketUser:
 
-        return TicketUser(
+        return TicketUser.rehydrate(
             ticket_id=row["ticket_id"],
             client_id=row["client_id"],
             user_id=row["user_id"],
@@ -48,6 +48,8 @@ class TicketUserMapper:
             date_created=datetime.fromisoformat(row["date_created"]),
             is_closed=bool(row["is_closed"]),
             version=row["version"],
+            comments=comments,
+            statuses=statuses
         )
 
     @staticmethod

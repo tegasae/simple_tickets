@@ -3,6 +3,7 @@ from src.application.dto.ticket_dto import TicketDTO, TicketResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
 
 from src.domain.policy.ticket import TicketPolicy
+from src.domain.service.ticket_workflow_service import TicketWorkflowService
 
 from src.domain.ticket import Ticket
 from src.domain.ticket_components import Comment, ExecutorAssignment
@@ -25,7 +26,7 @@ class TicketApplicationService:
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
         self.actor = EmployeeActorHelper(self.uow)
-
+        self.workflow = TicketWorkflowService()
     # --------------------------------
     # Helpers
     # --------------------------------

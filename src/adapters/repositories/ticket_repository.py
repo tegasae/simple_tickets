@@ -19,11 +19,6 @@ from utils.db.exceptions import DBOperationError
 
 class TicketRepositorySQLite(TicketRepository, BaseRepository):
 
-
-
-
-
-
     # ---------------------------
     # load helpers
     # ---------------------------
@@ -72,25 +67,17 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
         statuses = []
         for r in rows:
             s = TicketStatusRecord(
+                status_id=r["status_id"],
                 actor_employee_id=r["admin_id"],
                 status=TicketStatus(r["status"]),
+                date_created=datetime.fromisoformat(r["date_created"])
             )
             statuses.append(s)
         return statuses
 
-    # ---------------------------
-    # count helpers for append-only history
-    # ---------------------------
 
 
 
-    def _status_count(self, ticket_id: int) -> int:
-        row = self._get_one(
-            TicketStatusGateway.COUNT1,
-            ["cnt"],
-            {"ticket_id": ticket_id},
-        )
-        return int(row["cnt"]) if row else 0
 
     # ---------------------------
     # append-only sync helpers

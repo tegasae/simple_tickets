@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from src.adapters.repositories.base_repository import BaseRepository
 from src.adapters.repositories.gateways.ticket_user_gateway import TicketUserGateway
 from src.adapters.repositories.gateways.ticket_user_status_gateway import TicketUserStatusGateway
@@ -6,7 +8,8 @@ from src.adapters.repositories.mappers.ticket_user_mapper import TicketUserMappe
 
 from src.domain.repositories.ticket_user_repository import TicketUserRepository
 from src.domain.exceptions import ItemNotFoundError
-from src.domain.ticket_user import TicketUser
+from src.domain.ticket_components import Comment
+from src.domain.ticket_user import TicketUser, StatusRecordTicketUser, StatusTicketOfClient
 from utils.db.exceptions import DBOperationError
 
 
@@ -16,31 +19,49 @@ class TicketUserRepositorySQLite(BaseRepository, TicketUserRepository):
     # Load helpers
     # -------------------------
 
-    def _load_statuses(self, ticket):
+    def _load_statuses(self, ticket_user_id:int)->list[StatusRecordTicketUser]:
 
         rows = self._get_many(
             TicketUserStatusGateway.SELECT,
             TicketUserMapper.VARS_STATUS,
-            {"ticket_id": ticket.ticket_id},
+            {"ticket_id": ticket_user_id},
         )
+        statuses=[]
+        for r in rows:
+            s = StatusRecordTicketUser(
+                status_id=r["status_id"],
+                actor_employee_id=r["employee_id"],
+                status=StatusTicketOfClient(r["status"]),
+                date_created=datetime.fromisoformat(r["date_created"])
+            )
+            statuses.append(s)
+        return statuses
 
-        ticket.statuses = [
-            TicketUserMapper.row_to_status(r)
-            for r in rows
-        ]
-
-    def _load_comments(self, ticket):
+    def _load_comments(self, ticket_user_id:int)->list[Comment]:
 
         rows = self._get_many(
             TicketUserCommentGateway.SELECT,
             TicketUserMapper.VARS_COMMENT,
-            {"ticket_id": ticket.ticket_id},
+            {"ticket_id": ticket_user_id},
         )
+        comments = []
+        for r in rows:
+            c = Comment(
+                comment_id=r['comment_id'],
+                employee_id=r["employee_id"],
+                comment=r["comment"],
+                date_created=datetime.fromisoformat(r["date_created"])
+            )
+            comments.append(c)
+        return []
 
-        ticket.comments = [
-            TicketUserMapper.row_to_comment(r)
-            for r in rows
-        ]
+    def _load_ticket_user(self,row:dict)->TicketUser:
+        statuses=self._load_statuses(ticket_user_id=row["ticket_id"])
+        comments=self._load_comments(ticket_user_id=row["ticket_id"])
+        ticket_user = TicketUserMapper.row_to_ticket(row, statuses,comments)
+
+        return ticket_user
+
 
     # -------------------------
     # Reads
@@ -56,11 +77,11 @@ class TicketUserRepositorySQLite(BaseRepository, TicketUserRepository):
 
         if not row:
             raise ItemNotFoundError(f"TicketUser {ticket_id} not found")
+        statues=self._load_statuses(ticket_id)
+        comments=self._load_comments(ticket_id)
 
-        ticket = TicketUserMapper.row_to_ticket(row)
+        ticket = TicketUserMapper.row_to_ticket(row,statuses=statues,comments=comments)
 
-        self._load_statuses(ticket)
-        self._load_comments(ticket)
 
         return ticket
 
