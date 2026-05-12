@@ -30,9 +30,9 @@ class TicketStatus(Enum):
     @classmethod
     def status_is_frozen(cls, status: Self) -> bool:
         if status in [cls.EXECUTED, cls.CANCELLED]:
-            return False
-        else:
             return True
+        else:
+            return False
 
 
 @dataclass(kw_only=True)

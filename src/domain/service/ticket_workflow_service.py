@@ -39,7 +39,11 @@ class TicketWorkflowService:
         if user_ticket is not None:
             user_ticket_id = user_ticket.ticket_id
             user_ticket.confirm(actor_employee_id=admin_id)
-            description+=user_ticket.description
+            description = (
+                f"{description}\n\n"
+                f"{user_ticket.description}"
+            ).strip()
+
 
         return Ticket.create(
             ticket_id=ticket_id,

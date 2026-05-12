@@ -52,9 +52,9 @@ class StatusTicketOfClient(Enum):
     @classmethod
     def status_is_frozen(cls,status:Self)->bool:
         if status in [cls.EXECUTED,cls.CANCELED_BY_CLIENT,cls.CANCELED_BY_ADMIN]:
-            return False
-        else:
             return True
+        else:
+            return False
 # --------------------------------
 # Status record
 # --------------------------------
