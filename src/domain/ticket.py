@@ -78,7 +78,6 @@ class Ticket:
             client_id: int,
             admin_id: int,
             description: str,
-            user_description: str = "",
             text_of_ticket: str = "",
             user_id: int = 0,
             contact_user_id: int = 0,
@@ -88,16 +87,12 @@ class Ticket:
             executor_id: int = 0,
             comment: str = "",
     ) -> Self:
-        full_description = f"{description}{user_description}".strip()
-
-        if not full_description:
-            raise DomainOperationError("Ticket description cannot be empty")
 
         ticket = cls(
             ticket_id=ticket_id,
             client_id=client_id,
             admin_id=admin_id,
-            description=full_description,
+            description=description,
             text_of_ticket=text_of_ticket,
             user_id=user_id,
             contact_user_id=contact_user_id,

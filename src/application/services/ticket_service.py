@@ -6,7 +6,6 @@ from src.domain.policy.ticket import TicketPolicy
 from src.domain.service.ticket_workflow_service import TicketWorkflowService
 
 from src.domain.ticket import Ticket
-from src.domain.ticket_components import Comment, ExecutorAssignment
 from src.domain.rbac.permissions import AdminPermission
 
 from src.services.uow.uow import UnitOfWork
@@ -94,29 +93,29 @@ class TicketApplicationService:
                                            permission=AdminPermission.CREATE_TICKET)
 
             self._validate_references(ticket_dto)
-            user_description=""
-            if ticket_dto.user_ticket_id:
-                user_ticket=self.uow.user_tickets.get(ticket_id=ticket_dto.user_ticket_id)
-                user_description=user_ticket.description
 
-            ticket = Ticket.create(
+            user_ticket = None
+            if ticket_dto.user_ticket_id:
+                user_ticket = self.uow.user_tickets.get(ticket_dto.user_ticket_id)
+            ticket = TicketWorkflowService.create_from_admin(
                 ticket_id=0,
                 client_id=ticket_dto.client_id,
                 admin_id=ticket_dto.admin_id,
                 description=ticket_dto.description,
-                user_description=user_description,
                 text_of_ticket=ticket_dto.text_of_ticket,
                 user_id=ticket_dto.user_id,
                 contact_user_id=ticket_dto.contact_user_id,
                 is_remote=ticket_dto.is_remote,
                 urgency_level=ticket_dto.urgency_level,
-                user_ticket_id=ticket_dto.user_ticket_id,
+                user_ticket=user_ticket,
                 executor_id=ticket_dto.executor_id,
                 comment=ticket_dto.comment,
             )
-            if user_ticket.ticket_id:
-                user_ticket.confirm(actor_employee_id=ticket.admin_id)
+
+
+            if user_ticket is not None:
                 self.uow.user_tickets.save(user_ticket)
+
             return self._save_and_to_dto(ticket)
 
 
@@ -126,26 +125,6 @@ class TicketApplicationService:
     # Status operations
     # --------------------------------
 
-    def change_status(
-        self,
-        *,
-        ticket_dto: TicketDTO,
-    ) -> TicketResponseDTO:
-
-        with self.uow:
-
-
-            self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
-                                           permission=AdminPermission.UPDATE_TICKET)
-            self._validate_references(ticket_dto)
-
-            ticket = self.uow.tickets.get(ticket_dto.ticket_id)
-            ticket.change_status(
-                new_status=ticket_dto.status,
-                actor_employee_id=ticket_dto.admin_id,
-            )
-
-            return self._save_and_to_dto(ticket)
 
     def defer(
         self,
@@ -160,7 +139,7 @@ class TicketApplicationService:
 
             self._validate_references(ticket_dto)
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
-            ticket.defer(actor_employee_id=ticket_dto.admin_id)
+            self.workflow.defer_admin(ticket=ticket,actor_admin_id=ticket_dto.actor_admin_id)
 
             return self._save_and_to_dto(ticket)
 
@@ -175,22 +154,21 @@ class TicketApplicationService:
                                            permission=AdminPermission.UPDATE_TICKET)
 
             self._validate_references(ticket_dto)
-            if ticket_dto.executor_id:
-                executor = self.uow.admins.get(ticket_dto.executor_id)
-                TicketPolicy.ensure_admin_enabled(executor)
-
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
 
-            ticket.at_work(
-                actor_employee_id=ticket_dto.admin_id,
+            user_ticket = None
+            if ticket.user_ticket_id:
+                user_ticket = self.uow.user_tickets.get(ticket.user_ticket_id)
+
+            self.workflow.start_work(
+                ticket=ticket,
+                user_ticket=user_ticket,
+                actor_admin_id=ticket_dto.admin_id,
                 executor_id=ticket_dto.executor_id,
             )
 
-            if ticket.user_ticket_id:
-                user_ticket=self.uow.user_tickets.get(ticket_id=ticket_dto.user_ticket_id)
-                user_ticket.start_work(actor_employee_id=ticket_dto.executor_id)
+            if user_ticket is not None:
                 self.uow.user_tickets.save(user_ticket)
-
             return self._save_and_to_dto(ticket)
 
     def execute(
@@ -206,13 +184,19 @@ class TicketApplicationService:
             self._validate_references(ticket_dto)
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
-            ticket.execute(actor_employee_id=ticket_dto.admin_id)
 
+            user_ticket = None
             if ticket.user_ticket_id:
-                user_ticket=self.uow.user_tickets.get(ticket_id=ticket_dto.user_ticket_id)
-                user_ticket.execute(actor_employee_id=ticket_dto.admin_id)
-                self.uow.user_tickets.save(user_ticket)
+                user_ticket = self.uow.user_tickets.get(ticket.user_ticket_id)
 
+            self.workflow.execute(
+                ticket=ticket,
+                user_ticket=user_ticket,
+                actor_admin_id=ticket_dto.admin_id,
+                comment=ticket_dto.comment,
+            )
+            if user_ticket is not None:
+                self.uow.user_tickets.save(user_ticket)
             return self._save_and_to_dto(ticket)
 
     def cancel(
@@ -228,17 +212,16 @@ class TicketApplicationService:
             self._validate_references(ticket_dto)
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
-            ticket.cancel(
-                actor_employee_id=ticket_dto.admin_id,
-                comment=ticket_dto.comment,
-            )
-
+            user_ticket = None
             if ticket.user_ticket_id:
-                user_ticket=self.uow.user_tickets.get(ticket_id=ticket_dto.user_ticket_id)
-                user_ticket.cancel_by_admin(actor_employee_id=ticket_dto.admin_id)
+                user_ticket = self.uow.user_tickets.get(ticket.user_ticket_id)
+
+
+
+            self.workflow.cancel_by_admin(ticket=ticket,user_ticket=user_ticket,actor_admin_id=ticket_dto.actor_admin_id,comment=ticket_dto.comment)
+
+            if user_ticket is not None:
                 self.uow.user_tickets.save(user_ticket)
-
-
             return self._save_and_to_dto(ticket)
 
     # --------------------------------
@@ -258,12 +241,9 @@ class TicketApplicationService:
             self._validate_references(ticket_dto)
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
-            ticket.add_comment(
-                Comment(
-                    employee_id=ticket_dto.admin_id,
-                    comment=ticket_dto.comment,
-                )
-            )
+
+
+            self.workflow.add_comment_from_admin(ticket=ticket,actor_admin_id=ticket_dto.actor_admin_id,comment=ticket_dto.comment)
 
             return self._save_and_to_dto(ticket)
 
@@ -282,16 +262,9 @@ class TicketApplicationService:
                                            permission=AdminPermission.UPDATE_TICKET)
 
             self._validate_references(ticket_dto)
-            executor = self.uow.admins.get(ticket_dto.executor_id)
-            TicketPolicy.ensure_admin_enabled(executor)
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
-            ticket.add_executor(
-                ExecutorAssignment(
-                    admin_id=ticket_dto.admin_id,
-                    executor_id=ticket_dto.executor_id,
-                )
-            )
+            self.workflow.assign_executor(ticket=ticket,actor_admin_id=ticket_dto.actor_admin_id,executor_id=ticket_dto.executor_id)
 
             return self._save_and_to_dto(ticket)
 

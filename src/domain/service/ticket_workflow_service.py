@@ -25,7 +25,6 @@ class TicketWorkflowService:
         client_id: int,
         admin_id: int,
         description: str,
-        user_description: str = "",
         text_of_ticket: str = "",
         user_id: int = 0,
         contact_user_id: int = 0,
@@ -40,13 +39,13 @@ class TicketWorkflowService:
         if user_ticket is not None:
             user_ticket_id = user_ticket.ticket_id
             user_ticket.confirm(actor_employee_id=admin_id)
+            description+=user_ticket.description
 
         return Ticket.create(
             ticket_id=ticket_id,
             client_id=client_id,
             admin_id=admin_id,
             description=description,
-            user_description=user_description,
             text_of_ticket=text_of_ticket,
             user_id=user_id,
             contact_user_id=contact_user_id,
@@ -74,6 +73,18 @@ class TicketWorkflowService:
             user_ticket.start_work(
                 actor_employee_id=executor_id or actor_admin_id,
             )
+
+    @staticmethod
+    def defer_admin(
+            *,
+            ticket: Ticket,
+            actor_admin_id: int,
+
+    ) -> None:
+        ticket.defer(
+            actor_employee_id=actor_admin_id,
+        )
+
 
     @staticmethod
     def execute(
