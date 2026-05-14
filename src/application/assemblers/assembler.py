@@ -59,6 +59,7 @@ class TicketAssembler:
             text_of_ticket=ticket.text_of_ticket,
             is_remote=ticket.is_remote,
             urgency_level=ticket.urgency_level,
+            client_id=ticket.client_id,
             user_id=ticket.user_id,
             user_ticket_id=ticket.user_ticket_id,
             statuses=statuses,

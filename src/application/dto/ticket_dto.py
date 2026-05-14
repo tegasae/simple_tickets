@@ -32,6 +32,7 @@ class TicketResponseDTO:
     date_finished:str
     description:str
     text_of_ticket:str
+    client_id:int
     user_id: int
     contact_user_id: int
     is_remote: bool
