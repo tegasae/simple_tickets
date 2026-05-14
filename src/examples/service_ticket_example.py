@@ -118,9 +118,10 @@ def ticket_example() -> None:
 
     except DomainOperationError as exc:
         print(f"Domain error: {exc}")
-
+        raise
     except Exception as exc:
         print(f"Unexpected error: {exc}")
+        raise
 
 
 if __name__ == "__main__":

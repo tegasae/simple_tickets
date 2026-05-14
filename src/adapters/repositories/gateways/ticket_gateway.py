@@ -136,10 +136,10 @@ class TicketExecutorGateway:
 
 class TicketStatusGateway:
     SELECT = """
-    SELECT ticket_status_id, admin_id, status, date_created
+    SELECT ticket_status_record_id, admin_id, status, date_created
     FROM tickets_status_record
     WHERE ticket_id = :ticket_id
-    ORDER BY ticket_status_id
+    ORDER BY ticket_status_record_id
     """
 
     INSERT = """

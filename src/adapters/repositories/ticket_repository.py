@@ -62,14 +62,14 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
     def _load_statuses(self, ticket_id: int) -> list[TicketStatusRecord]:
         rows = self._get_many(
             TicketStatusGateway.SELECT,
-            ["admin_id", "status", "date_created"],
+            ["ticket_status_record_id","admin_id", "status", "date_created"],
             {"ticket_id": ticket_id},
         )
 
         statuses = []
         for r in rows:
             s = TicketStatusRecord(
-                status_id=r["ticket_status_id"],
+                status_id=r["ticket_status_record_id"],
                 actor_employee_id=r["admin_id"],
                 status=TicketStatus(r["status"]),
                 date_created=datetime.fromisoformat(r["date_created"])

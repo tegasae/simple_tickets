@@ -70,7 +70,7 @@ class TicketMapper:
             "user_id": ticket.user_id if ticket.user_id else None,
             "contact_user_id": ticket.contact_user_id if ticket.contact_user_id else None,
             "user_ticket_id": ticket.user_ticket_id if ticket.user_ticket_id else None,
-            "text_of_ticket": ticket.text_of_ticket,
+            "text_of_ticket": ticket.description,
             "date_created": ticket.date_created.isoformat(),
             "is_remote": int(ticket.is_remote),
             "is_closed": int(ticket.is_closed),
