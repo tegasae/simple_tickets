@@ -214,7 +214,7 @@ class UserApplicationService:
                         "You can't delete this user because it has tickets"
                     )
 
-            self.uow.users.delete(user_id=user.employee_id)
+            self.uow.users.delete(user.employee_id)
 
     # --------------------------------
     # Queries
