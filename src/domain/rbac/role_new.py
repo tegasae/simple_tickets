@@ -25,6 +25,7 @@ class Role(Generic[P]):
     def __hash__(self) -> int:
         return hash(self.role_id)
 
+@dataclass(frozen=True)
 class AdminRole(Role[AdminPermission]):
     """Role that can only contain admin permissions."""
 
@@ -34,7 +35,7 @@ class AdminRole(Role[AdminPermission]):
             if not isinstance(perm, AdminPermission):
                 raise ValueError(f"AdminRole can only contain AdminPermissions, got {type(perm)}")
 
-
+@dataclass(frozen=True)
 class UserRole(Role[UserPermission]):
     """Role that can only contain user permissions."""
 

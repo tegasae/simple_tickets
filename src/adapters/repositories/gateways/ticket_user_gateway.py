@@ -1,12 +1,11 @@
 class TicketUserGateway:
-
     SELECT_BY_ID = """
     SELECT
-        user_ticket_id,
+        user_ticket_id AS ticket_id,
         client_id,
         user_id,
-        user_ticket_contact_user_id,
-        text_of_ticket,
+        user_ticket_contact_user_id AS contact_user_id,
+        text_of_ticket AS description,
         date_created,
         version,
         date_closed,
@@ -16,7 +15,15 @@ class TicketUserGateway:
     """
 
     SELECT_ALL = """
-    SELECT user_ticket_id
+    SELECT user_ticket_id AS ticket_id,
+    client_id,
+        user_id,
+        user_ticket_contact_user_id AS contact_user_id,
+        text_of_ticket AS description,
+        date_created,
+        version,
+        date_closed,
+        is_closed
     FROM user_tickets
     """
 
@@ -57,5 +64,9 @@ class TicketUserGateway:
     DELETE FROM user_tickets
     WHERE user_ticket_id = :ticket_id
     """
-    SELECT_BY_CLIENT_ID = "SELECT count(user_ticket_id) FRON user_tickets WHERE client_id = :client_id"
+    SELECT_BY_CLIENT_ID = """
+    SELECT count(user_ticket_id) AS count
+    FROM user_tickets
+    WHERE client_id = :client_id
+    """
     

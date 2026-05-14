@@ -1,8 +1,7 @@
 class TicketUserCommentGateway:
-
     SELECT = """
     SELECT
-        user_comment_ticket_id,
+        user_comment_ticket_id AS comment_id,
         employee_id,
         comment,
         date_created

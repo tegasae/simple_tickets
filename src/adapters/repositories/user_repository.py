@@ -124,6 +124,8 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
 
                 # INSERT users
                 self._exec(UserGateway.INSERT, UserMapper.user_params(user))
+                self._replace_roles(user)
+                self._sync_account(user)
                 return user
 
             # UPDATE employees with optimistic lock

@@ -1,8 +1,7 @@
 class TicketUserStatusGateway:
-
     SELECT = """
     SELECT
-        user_ticket_status_record_id,
+        user_ticket_status_record_id AS status_id,
         employee_id,
         status,
         date_created

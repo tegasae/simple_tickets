@@ -53,7 +53,7 @@ class TicketUserRepositorySQLite(BaseRepository, TicketUserRepository):
                 date_created=datetime.fromisoformat(r["date_created"])
             )
             comments.append(c)
-        return []
+        return comments
 
     def _load_ticket_user(self,row:dict)->TicketUser:
         statuses=self._load_statuses(ticket_user_id=row["ticket_id"])
@@ -197,4 +197,7 @@ class TicketUserRepositorySQLite(BaseRepository, TicketUserRepository):
             raise DBOperationError(f"Delete failed: {str(e)}")
 
     def does_client_exist(self, client_id: int) -> bool:
-        return self._exists(TicketUserGateway.SELECT_BY_ID, {'client_id': client_id})
+        return self._exists(
+            TicketUserGateway.SELECT_BY_CLIENT_ID,
+            {"client_id": client_id},
+        )

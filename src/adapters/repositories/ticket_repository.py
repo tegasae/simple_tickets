@@ -45,15 +45,17 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
     def _load_executors(self, ticket_id: int) -> list[ExecutorAssignment]:
         rows = self._get_many(
             TicketExecutorGateway.SELECT,
-            ["admin_id", "date_assignment"],
+            ["executor_assignment_id", "admin_id", "date_assignment"],
             {"ticket_id": ticket_id},
         )
 
         executors = []
         for r in rows:
             e = ExecutorAssignment(
+                executor_id=r["executor_assignment_id"],
                 admin_id=r["admin_id"],
-            )
+                date_created=datetime.fromisoformat(r["date_assignment"]),
+)
             executors.append(e)
         return executors
 
@@ -67,7 +69,7 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
         statuses = []
         for r in rows:
             s = TicketStatusRecord(
-                status_id=r["status_id"],
+                status_id=r["ticket_status_id"],
                 actor_employee_id=r["admin_id"],
                 status=TicketStatus(r["status"]),
                 date_created=datetime.fromisoformat(r["date_created"])
@@ -103,15 +105,24 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
         for e in ticket.executors:
             if e.executor_id!=0:
                 continue
-            result=self._exec(TicketExecutorGateway.INSERT,params={"ticket_id": ticket.ticket_id, "admin_id": e.admin_id,"date_assignment": e.date_created})
+            result=self._exec(TicketExecutorGateway.INSERT,params={"ticket_id": ticket.ticket_id, "admin_id": e.admin_id,"date_assignment": e.date_created.isoformat()})
             e.executor_id=result.last_row_id
 
     def _append_new_statuses(self, ticket: Ticket) -> None:
         for s in ticket.statuses:
-            if s.status_id==0:
+            if s.status_id != 0:
                 continue
-            result=self._exec(TicketStatusGateway.INSERT, params={"ticket_id":ticket.ticket_id,"status": s.status, "date_created": s.date_created})
-            s.status_id=result.last_row_id
+
+            result = self._exec(
+                TicketStatusGateway.INSERT,
+                params={
+                    "ticket_id": ticket.ticket_id,
+                    "admin_id": s.actor_employee_id,
+                    "status": s.status.value,
+                    "date_created": s.date_created.isoformat(),
+                },
+            )
+            s.status_id = result.last_row_id
 
 
     def _load_ticket(self,row:dict)->Ticket:

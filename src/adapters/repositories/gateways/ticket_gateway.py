@@ -72,8 +72,8 @@ class TicketGateway:
     WHERE ticket_id = :ticket_id
     """
 
-    SELECT_BY_CLIENT_ID="SELECT count(ticket_id) FRON tickets WHERE client_id = :client_id"
-    SELECT_BY_TICKET_USER_ID = "SELECT count(ticket_id) FRON tickets WHERE user_ticket_id=:user_ticket_id"
+    SELECT_BY_CLIENT_ID="SELECT count(ticket_id) AS one FROM tickets WHERE client_id = :client_id"
+    SELECT_BY_TICKET_USER_ID = "SELECT count(ticket_id) AS one FROM tickets WHERE user_ticket_id=:user_ticket_id"
 
 
 class TicketCommentGateway:
@@ -139,7 +139,7 @@ class TicketStatusGateway:
     SELECT ticket_status_id, admin_id, status, date_created
     FROM tickets_status_record
     WHERE ticket_id = :ticket_id
-    ORDER BY ticket_status_record_id
+    ORDER BY ticket_status_id
     """
 
     INSERT = """
