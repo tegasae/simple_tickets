@@ -101,7 +101,6 @@ class TicketApplicationService:
                 ticket_id=0,
                 client_id=ticket_dto.client_id,
                 admin_id=ticket_dto.admin_id,
-                description=ticket_dto.description,
                 text_of_ticket=ticket_dto.text_of_ticket,
                 user_id=ticket_dto.user_id,
                 contact_user_id=ticket_dto.contact_user_id,

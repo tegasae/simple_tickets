@@ -59,8 +59,6 @@ class Ticket:
     ticket_id: int
     client_id: int
     admin_id: int
-    description: str
-
     text_of_ticket: str = ""
     user_id: int = 0
     contact_user_id: int = 0
@@ -84,7 +82,6 @@ class Ticket:
             ticket_id: int,
             client_id: int,
             admin_id: int,
-            description: str,
             text_of_ticket: str = "",
             user_id: int = 0,
             contact_user_id: int = 0,
@@ -99,7 +96,6 @@ class Ticket:
             ticket_id=ticket_id,
             client_id=client_id,
             admin_id=admin_id,
-            description=description,
             text_of_ticket=text_of_ticket,
             user_id=user_id,
             contact_user_id=contact_user_id,
@@ -139,7 +135,6 @@ class Ticket:
             ticket_id: int,
             client_id: int,
             admin_id: int,
-            description: str,
             text_of_ticket: str = "",
             user_id: int = 0,
             contact_user_id: int = 0,
@@ -161,7 +156,6 @@ class Ticket:
             ticket_id=ticket_id,
             client_id=client_id,
             admin_id=admin_id,
-            description=description,
             text_of_ticket=text_of_ticket,
             user_id=user_id,
             contact_user_id=contact_user_id,
@@ -186,10 +180,10 @@ class Ticket:
         - creation belongs to create();
         - loading from DB belongs to rehydrate().
         """
-        self.description = self.description.strip()
+        self.text_of_ticket = self.text_of_ticket.strip()
 
-        if not self.description:
-            raise DomainOperationError("Ticket description cannot be empty")
+        if not self.text_of_ticket:
+            raise DomainOperationError("Ticket text_of_ticket cannot be empty")
 
         if not self.statuses:
             self.is_closed = False

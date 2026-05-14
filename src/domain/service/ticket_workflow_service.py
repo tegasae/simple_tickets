@@ -24,7 +24,6 @@ class TicketWorkflowService:
         ticket_id: int,
         client_id: int,
         admin_id: int,
-        description: str,
         text_of_ticket: str = "",
         user_id: int = 0,
         contact_user_id: int = 0,
@@ -39,8 +38,8 @@ class TicketWorkflowService:
         if user_ticket is not None:
             user_ticket_id = user_ticket.ticket_id
             user_ticket.confirm(actor_employee_id=admin_id)
-            description = (
-                f"{description}\n\n"
+            text_of_ticket = (
+                f"{text_of_ticket}\n\n"
                 f"{user_ticket.description}"
             ).strip()
 
@@ -49,7 +48,6 @@ class TicketWorkflowService:
             ticket_id=ticket_id,
             client_id=client_id,
             admin_id=admin_id,
-            description=description,
             text_of_ticket=text_of_ticket,
             user_id=user_id,
             contact_user_id=contact_user_id,

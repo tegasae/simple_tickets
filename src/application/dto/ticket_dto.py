@@ -9,7 +9,6 @@ class TicketDTO:
     ticket_id:int=0
     client_id: int=0
     admin_id: int=0
-    description: str=""
     text_of_ticket: str=""
     user_id: int=0
     contact_user_id: int=0
@@ -30,7 +29,6 @@ class TicketResponseDTO:
     ticket_id: int
     date_created: str
     date_finished:str
-    description:str
     text_of_ticket:str
     client_id:int
     user_id: int

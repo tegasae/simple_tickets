@@ -26,7 +26,7 @@ def ticket_example() -> None:
             ticket_id=0,
             actor_admin_id=4,  # existing admin
             client_id=4,       # existing client
-            description=f"Printer issue {time.strftime('%Y%m%d%H%M%S')}",
+            text_of_ticket=f"Printer issue {time.strftime('%Y%m%d%H%M%S')}",
             urgency_level=2,
         )
 
@@ -95,7 +95,7 @@ def ticket_example() -> None:
             ticket_id=0,
             actor_admin_id=4,
             client_id=4,
-            description="Temporary test ticket",
+            text_of_ticket="Temporary test ticket",
         )
 
         cancel_ticket = service.create_ticket(

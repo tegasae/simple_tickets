@@ -53,7 +53,6 @@ class TicketAssembler:
         return TicketResponseDTO(
             ticket_id=ticket.ticket_id,
             date_created=TicketAssembler.unwrap(ticket.date_created),
-            description=TicketAssembler.unwrap(ticket.description),
             date_finished=TicketAssembler.unwrap(ticket.date_finished),
             contact_user_id=ticket.contact_user_id,
             text_of_ticket=ticket.text_of_ticket,
