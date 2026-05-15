@@ -1,81 +1,91 @@
 import sqlite3
+import time
 
-from src.adapters.repositories.ticket_user_repository import TicketUserRepositorySQLite
-from src.domain.services.ticket_user import TicketUserService
+from src.application.dto.ticket_dto import TicketUserDTO
+from src.application.services.ticket_user_service import (
+    TicketUserApplicationService,
+)
 
-from src.domain.ticket_user import StatusTicketOfClient
+from src.domain.exceptions import DomainOperationError
+from src.services.uow.uowsqlite import SQLiteUnitOfWork
 from utils.db.connect import Connection
 
 
-
-def main():
-
+def ticket_user_example() -> None:
     conn = Connection.create_connection(
         url="../../db/admins.db",
         engine=sqlite3,
     )
 
-    repo = TicketUserRepositorySQLite(conn)
+    uow = SQLiteUnitOfWork(conn)
 
-    service = TicketUserService(repo)
-
-    conn.begin_transaction()
+    service = TicketUserApplicationService(uow)
 
     try:
+        # --------------------------------
+        # Create a new user ticket
+        # --------------------------------
 
-        ticket = service.create_ticket(
-            client_id=1,
-            user_id=10,
-            contact_user_id=0,
-            description="Printer does not work",
+        description = (
+            "Printer problem " + time.strftime("%Y%m%d%H%M%S")
         )
 
-        print("Created:", ticket)
-
-        ticket = service.change_status(
-            ticket_id=ticket.ticket_id,
-            new_status=StatusTicketOfClient.CONFIRMED,
-            actor_employee_id=10,
+        create_dto = TicketUserDTO(
+            ticket_id=0,
+            user_id=67,            # ticket owner
+            contact_user_id=67,
+            client_id=4,          # existing client
+            description=description,
         )
 
-        print("Confirmed:", ticket)
-
-        ticket = service.add_comment(
-            ticket_id=ticket.ticket_id,
-            employee_id=10,
-            comment="Please fix ASAP",
+        created_ticket = service.create_ticket(
+            ticket_user_dto=create_dto,
         )
 
-        print("Comment added:", ticket)
+        print("\nCreated ticket:")
+        print(created_ticket)
 
-        ticket = service.change_status(
-            ticket_id=ticket.ticket_id,
-            new_status=StatusTicketOfClient.AT_WORK,
-            actor_employee_id=1,
+        # --------------------------------
+        # Get by id
+        # --------------------------------
+
+        get_dto = TicketUserDTO(
+            ticket_id=created_ticket.ticket_id,
+            user_id=67,
+            client_id=4,
         )
 
-        ticket = service.change_status(
-            ticket_id=ticket.ticket_id,
-            new_status=StatusTicketOfClient.EXECUTED,
-            actor_employee_id=1,
+        loaded_ticket = service.get_by_ticket_id(
+            ticket_user_dto=get_dto,
         )
 
-        print("Executed:", ticket)
+        print("\nLoaded ticket:")
+        print(loaded_ticket)
 
-        conn.commit()
+        # --------------------------------
+        # Cancel ticket
+        # --------------------------------
 
-    except Exception as e:
+        cancel_dto = TicketUserDTO(
+            ticket_id=created_ticket.ticket_id,
+            user_id=67,
+            client_id=4,
+            comment="Problem solved by restarting printer",
+        )
 
-        conn.rollback()
+        cancelled_ticket = service.cancel(
+            ticket_user_dto=cancel_dto,
+        )
 
-        print("ERROR:", e)
-        raise e
+        print("\nCancelled ticket:")
+        print(cancelled_ticket)
 
-    finally:
-
-        conn.close()
-
+    except DomainOperationError as exc:
+        print(f"\nDomain error: {exc}")
+        raise
+    except Exception as exc:
+        print(f"\nUnexpected error: {exc}")
+        raise
 
 if __name__ == "__main__":
-    main()
-
+    ticket_user_example()

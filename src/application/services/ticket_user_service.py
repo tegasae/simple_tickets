@@ -103,6 +103,7 @@ class TicketUserApplicationService:
             except ItemNotFoundError:
                 ticket=None
             TicketUserTicketPolicy.can_cancel_user_ticket(ticket_user,ticket)
+            ticket_user.cancel_by_client(actor_employee_id=ticket_user_dto.user_id)
             return self._save_and_to_dto(ticket_user)
 
 
