@@ -6,7 +6,7 @@ from src.domain.client import Client
 from src.domain.employee import User
 
 
-@pytest.mark.xfail(reason="Current UserRepositorySQLite.save() does not sync account/roles on create. Remove xfail after repository is fixed.")
+#@pytest.mark.xfail(reason="Current UserRepositorySQLite.save() does not sync account/roles on create. Remove xfail after repository is fixed.")
 def test_user_repository_save_get_with_account(sqlite_schema):
     clients = ClientRepositorySQLite(sqlite_schema)
     client = clients.save(Client.create(client_id=0, name="Acme"))

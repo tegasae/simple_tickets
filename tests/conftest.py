@@ -240,33 +240,36 @@ def sqlite_schema(sqlite_connection):
         PRIMARY KEY (employee_id, role_id)
     );
 
-    CREATE TABLE ticket_users (
-        ticket_user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        client_id INTEGER NOT NULL,
-        user_id INTEGER NOT NULL,
-        contact_user_id INTEGER,
-        description TEXT,
-        date_created TEXT,
-        is_closed INTEGER DEFAULT 0,
-        date_closed TEXT,
-        version INTEGER DEFAULT 0
-    );
+    CREATE TABLE user_tickets (
+	user_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	client_id INTEGER, -- заявки от какого клиента
+	user_id INTEGER, -- кто создал заявку
+	user_ticket_contact_user_id INTEGER DEFAULT NULL, -- контактное лицо по заявке, может не быть
+	text_of_ticket TEXT, -- текст заявки 
+	date_created TEXT,
+	version INTEGER, 
+	date_closed TEXT, -- дата завершения или снятия заявки 
+	is_closed INTEGER
+);
 
-    CREATE TABLE ticket_users_status_record (
-        ticket_user_status_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ticket_user_id INTEGER NOT NULL,
-        user_id INTEGER NOT NULL,
-        status TEXT NOT NULL,
-        date_created TEXT
-    );
+    CREATE TABLE user_tickets_status_record (
+	user_ticket_status_record_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	employee_id INTEGER,
+	user_ticket_id INTEGER,
+	status TEXT,
+	date_created TEXT
+	
+);
 
-    CREATE TABLE ticket_users_comment (
-        ticket_user_comment_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ticket_user_id INTEGER NOT NULL,
-        user_id INTEGER NOT NULL,
-        comment TEXT,
-        date_created TEXT
-    );
+    CREATE TABLE user_tickets_comment (
+	user_comment_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	user_ticket_id INTEGER,
+	employee_id INTEGER,
+	comment TEXT,
+	date_created TEXT,
+	CONSTRAINT comment_tickets_employees_FK FOREIGN KEY (employee_id) REFERENCES employees(employee_id) on delete restrict,
+	CONSTRAINT comment_tickets_tickets_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict
+);
 
     CREATE TABLE tickets (
         ticket_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -293,19 +296,20 @@ def sqlite_schema(sqlite_connection):
     );
 
     CREATE TABLE tickets_executor_assignment (
-        executor_assignment_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ticket_id INTEGER NOT NULL,
-        admin_id INTEGER NOT NULL,
-        date_assignment TEXT
+	executor_assignment_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	admin_id INTEGER, 
+	ticket_id INTEGER,
+	date_assignment TEXT  
     );
 
     CREATE TABLE tickets_status_record (
-        ticket_status_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        ticket_id INTEGER NOT NULL,
-        admin_id INTEGER NOT NULL,
-        status TEXT NOT NULL,
-        date_created TEXT
-    );
+	ticket_status_record_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	ticket_id INTEGER,
+	admin_id INTEGER, -- кто установил статус
+	status TEXT,
+	date_created TEXT
+	
+);
     """
     sqlite_connection.connect.executescript(sql)
     sqlite_connection.connect.commit()

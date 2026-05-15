@@ -28,6 +28,7 @@ def ticket_example() -> None:
             client_id=4,       # existing client
             text_of_ticket=f"Printer issue {time.strftime('%Y%m%d%H%M%S')}",
             urgency_level=2,
+            executor_id=14
         )
 
         created_ticket = service.create_ticket(
@@ -44,7 +45,7 @@ def ticket_example() -> None:
             ticket_id=created_ticket.ticket_id,
             actor_admin_id=4,
             client_id=created_ticket.client_id,
-            executor_id=4,
+            executor_id=14,
         )
 
         at_work_ticket = service.at_work(

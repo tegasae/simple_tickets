@@ -55,7 +55,7 @@ def test_role_has_permission_and_role_store_membership():
     assert store.check_role(role) is False
 
 
-@pytest.mark.xfail(reason="Current AdminRole is not a dataclass, so __post_init__ is not called yet.")
+#@pytest.mark.xfail(reason="Current AdminRole is not a dataclass, so __post_init__ is not called yet.")
 def test_admin_role_rejects_user_permission():
     with pytest.raises(ValueError, match="AdminRole"):
         AdminRole(
@@ -65,7 +65,7 @@ def test_admin_role_rejects_user_permission():
         )
 
 
-@pytest.mark.xfail(reason="Current UserRole is not a dataclass, so __post_init__ is not called yet.")
+#@pytest.mark.xfail(reason="Current UserRole is not a dataclass, so __post_init__ is not called yet.")
 def test_user_role_rejects_admin_permission():
     with pytest.raises(ValueError, match="UserRole"):
         UserRole(

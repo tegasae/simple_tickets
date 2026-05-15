@@ -65,3 +65,4 @@ class ExecutorAssignments:
             return self.assignments[-1]
         except IndexError:
             raise DomainOperationError("No executor available")
+

@@ -39,7 +39,7 @@ def test_ticket_user_rehydrate_requires_status_history():
         )
 
 
-@pytest.mark.xfail(reason="Current uploaded code has reversed status_is_frozen() logic. Remove xfail after fixing it.")
+#@pytest.mark.xfail(reason="Current uploaded code has reversed status_is_frozen() logic. Remove xfail after fixing it.")
 def test_ticket_user_confirm_start_execute_and_reject_after_close():
     ticket = make_user_ticket()
 

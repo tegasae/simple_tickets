@@ -11,13 +11,13 @@ def test_role_checks_permission():
     assert role.has_permission(AdminPermission.DELETE_TICKET) is False
 
 
-@pytest.mark.xfail(reason="AdminRole/UserRole subclasses are not dataclasses, so __post_init__ is not called in current code.")
+#@pytest.mark.xfail(reason="AdminRole/UserRole subclasses are not dataclasses, so __post_init__ is not called in current code.")
 def test_admin_role_rejects_user_permission():
     with pytest.raises(ValueError):
         AdminRole(role_id=1, name="bad", permissions=frozenset({UserPermission.CREATE_TICKET}))
 
 
-@pytest.mark.xfail(reason="AdminRole/UserRole subclasses are not dataclasses, so __post_init__ is not called in current code.")
+#@pytest.mark.xfail(reason="AdminRole/UserRole subclasses are not dataclasses, so __post_init__ is not called in current code.")
 def test_user_role_rejects_admin_permission():
     with pytest.raises(ValueError):
         UserRole(role_id=1, name="bad", permissions=frozenset({AdminPermission.CREATE_TICKET}))

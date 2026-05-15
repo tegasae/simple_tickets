@@ -67,8 +67,7 @@ class TicketWorkflowService:
         executor_id: int = 0,
     ) -> None:
         ticket.at_work(
-            actor_employee_id=actor_admin_id,
-            executor_id=executor_id,
+            executor_id=executor_id
         )
 
         if user_ticket is not None:

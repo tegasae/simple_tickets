@@ -101,7 +101,7 @@ def test_execute_updates_ticket_and_related_user_ticket(uow, admin_with_all_perm
         user_ticket_id=user_ticket.ticket_id,
     )
     user_ticket.confirm(actor_employee_id=admin_with_all_permissions.employee_id)
-    ticket.at_work(actor_employee_id=admin_with_all_permissions.employee_id, executor_id=other_admin.employee_id)
+    ticket.at_work(executor_id=other_admin.employee_id)
     user_ticket.start_work(actor_employee_id=other_admin.employee_id)
     uow.tickets.items[ticket.ticket_id] = ticket
     uow.user_tickets.items[user_ticket.ticket_id] = user_ticket

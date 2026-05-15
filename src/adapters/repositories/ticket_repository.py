@@ -55,7 +55,7 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
                 executor_id=r["executor_assignment_id"],
                 admin_id=r["admin_id"],
                 date_created=datetime.fromisoformat(r["date_assignment"]),
-)
+            )
             executors.append(e)
         return executors
 
@@ -86,9 +86,7 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
     # ---------------------------
 
     def _append_new_comments(self, ticket: Ticket) -> None:
-        for c in ticket.comments:
-            if c.comment_id!=0:
-                continue
+        for c in ticket.new_comments():
             result=self._exec(
                 TicketCommentGateway.INSERT,
                 {
@@ -102,17 +100,12 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
 
 
     def _append_new_executors(self, ticket: Ticket) -> None:
-        for e in ticket.executors:
-            if e.executor_id!=0:
-                continue
+        for e in ticket.new_executors():
             result=self._exec(TicketExecutorGateway.INSERT,params={"ticket_id": ticket.ticket_id, "admin_id": e.admin_id,"date_assignment": e.date_created.isoformat()})
             e.executor_id=result.last_row_id
 
     def _append_new_statuses(self, ticket: Ticket) -> None:
-        for s in ticket.statuses:
-            if s.status_id != 0:
-                continue
-
+        for s in ticket.new_statuses():
             result = self._exec(
                 TicketStatusGateway.INSERT,
                 params={
@@ -199,8 +192,10 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             ticket.version += 1
             return ticket
 
+        except DBOperationError:
+            raise
         except Exception as e:
-            raise DBOperationError(f"Failed to save ticket: {e}")
+            raise DBOperationError(f"Failed to save ticket: {e}") from e
 
     # ---------------------------
     # delete

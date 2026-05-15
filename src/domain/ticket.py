@@ -113,8 +113,7 @@ class Ticket:
         if executor_id:
             ticket.add_executor(
                 ExecutorAssignment(
-                    admin_id=admin_id,
-                    executor_id=executor_id,
+                    admin_id=executor_id,
                 )
             )
 
@@ -214,12 +213,26 @@ class Ticket:
             raise DomainOperationError("Ticket has no status history")
         return self.statuses[-1].status
 
+
+    def new_statuses(self)->list[TicketStatusRecord]:
+        n_statuses=[]
+        for s in self.statuses:
+            if s.status_id==0:
+                n_statuses.append(s)
+        return n_statuses
+
     def current_executor(self) -> ExecutorAssignment:
         try:
             return self.executors[-1]
         except IndexError:
             raise DomainOperationError("No executor available")
 
+    def new_executors(self)->list[ExecutorAssignment]:
+        n_executors=[]
+        for e in self.executors:
+            if e.executor_id==0:
+                n_executors.append(e)
+        return n_executors
     # ----------------------------
     # Commands
     # ----------------------------
@@ -250,6 +263,12 @@ class Ticket:
 
         self.comments.append(comment)
 
+    def new_comments(self)->list[Comment]:
+        n_comments = []
+        for c in self.comments:
+            if c.comment_id == 0:
+                n_comments.append(c)
+        return n_comments
 
     def add_executor(self, assignment: ExecutorAssignment) -> None:
         self._ensure_not_closed()
@@ -259,8 +278,8 @@ class Ticket:
     def defer(self, actor_employee_id: int) -> None:
         self.change_status(TicketStatus.DEFERRED, actor_employee_id)
 
-    def at_work(self, actor_employee_id: int, executor_id: int = 0) -> None:
-        self.change_status(TicketStatus.AT_WORK, actor_employee_id)
+    def at_work(self, executor_id: int = 0) -> None:
+        self.change_status(TicketStatus.AT_WORK, executor_id)
 
         if executor_id:
             current_executor_id = executor_id
@@ -269,8 +288,7 @@ class Ticket:
 
         self.add_executor(
             assignment=ExecutorAssignment(
-                admin_id=actor_employee_id,
-                executor_id=current_executor_id,
+                admin_id=current_executor_id
             )
         )
 

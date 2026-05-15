@@ -53,12 +53,12 @@ def test_ticket_rehydrate_recomputes_closed_state_from_status_history():
     assert ticket.date_finished == finished_at
 
 
-@pytest.mark.xfail(reason="Current uploaded code has reversed status_is_frozen() logic. Remove xfail after fixing it.")
+#@pytest.mark.xfail(reason="Current uploaded code has reversed status_is_frozen() logic. Remove xfail after fixing it.")
 def test_ticket_allows_workflow_until_closed_and_rejects_mutation_after_close():
     ticket = make_ticket()
 
     ticket.add_executor(ExecutorAssignment(admin_id=100, executor_id=200))
-    ticket.at_work(actor_employee_id=100)
+    ticket.at_work(executor_id=100)
     ticket.execute(actor_employee_id=200, comment="Done")
 
     assert ticket.current_status() == TicketStatus.EXECUTED
