@@ -32,6 +32,17 @@ class AdminApplicationService:
     # --------------------------------
 
 
+    def _validate_references(self, admin_dto: AdminDTO):
+        """
+        Validates referenced entities and returns the effective admin_id.
+        """
+        actor_admin = self.uow.admins.get(admin_id=admin_dto.actor_admin_id)
+        TicketPolicy.ensure_admin_enabled(actor_admin)
+        if admin_dto.employee_id:
+            admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
+            TicketPolicy.ensure_admin_enabled(admin)
+
+
     def _save_and_to_dto(self, admin: Admin) -> AdminResponseDTO:
         saved_admin = self.uow.admins.save(admin)
         return AdminAssembler.to_dto(saved_admin)
@@ -119,9 +130,9 @@ class AdminApplicationService:
             self.helper.ensure_login_is_free(login=admin_dto.login)
             self.actor.require_actor_admin(actor_admin_id=admin_dto.actor_admin_id,
                                            permission=AdminPermission.UPDATE_ADMIN)
-            admin=self._validate_references(admin_dto=admin_dto)
+            self._validate_references(admin_dto=admin_dto)
 
-
+            admin=self.uow.admins.get(admin_id=admin_dto.employee_id)
             admin.add_account(
                 login=admin_dto.login,
                 password=admin_dto.password,
@@ -148,7 +159,8 @@ class AdminApplicationService:
 
             self.actor.require_actor_admin(actor_admin_id=admin_dto.actor_admin_id,
                                            permission=AdminPermission.UPDATE_ADMIN)
-            admin = self._validate_references(admin_dto=admin_dto)
+            self._validate_references(admin_dto=admin_dto)
+            admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
             admin.change_password(password=admin_dto.password)
 
             return self._save_and_to_dto(admin)

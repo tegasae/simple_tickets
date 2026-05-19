@@ -34,7 +34,7 @@ def user_example() -> None:
             password="StrongPass123!",
             enable=True,
             enable_account=True,
-            roles=frozenset({6}),
+            roles=frozenset({63}),
         )
 
         created_user = service.create_user(user_dto=create_dto)
@@ -65,7 +65,7 @@ def user_example() -> None:
             employee_id=created_user.employee_id,
             actor_admin_id=4,
             client_id=created_user.client_id,
-            roles=frozenset({6}),
+            roles=frozenset({63}),
         )
 
         user_after_role = service.grant_role(user_dto=grant_role_dto)
@@ -100,10 +100,10 @@ def user_example() -> None:
 
     except DomainOperationError as exc:
         print(f"Domain error: {exc}")
-
+        raise
     except Exception as exc:
         print(f"Unexpected error: {exc}")
-
+        raise
 
 if __name__ == "__main__":
     user_example()

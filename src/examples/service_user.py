@@ -1,7 +1,8 @@
 import sqlite3
 
 from src.adapters.repositories.user_repository import UserRepositorySQLite
-from src.domain.services.user import UserService
+from src.application.services.user_service import UserApplicationService
+
 from utils.db.connect import Connection
 
 
@@ -18,8 +19,8 @@ def main():
 
     user_repo = UserRepositorySQLite(conn)
 
-    user_service = UserService(
-        user_repository=user_repo
+    user_service = UserApplicationService(
+        uow=user_repo
     )
 
     conn.begin_transaction()

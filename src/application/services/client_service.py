@@ -4,6 +4,7 @@ from src.application.dto.client_dto import ClientDTO, ClientResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.client import Client
 from src.domain.exceptions import DomainOperationError
+from src.domain.policy.ticket import TicketPolicy
 from src.domain.rbac.permissions import AdminPermission
 from src.services.uow.uow import UnitOfWork
 
@@ -29,31 +30,19 @@ class ClientApplicationService:
         Validates referenced entities and returns the effective admin_id.
         """
 
-        admin_id = ticket_dto.admin_id
+        actor_admin=self.uow.admins.get(admin_id=client_dto.actor_admin_id)
+        TicketPolicy.ensure_admin_enabled(actor_admin)
+        if client_dto.admin_id:
+            admin = self.uow.admins.get(client_dto.admin_id)
+            TicketPolicy.ensure_admin_enabled(admin)
+        if client_dto.client_id:
+            client = self.uow.clients.get(client_dto.client_id)
+            TicketPolicy.ensure_client_enabled(client)
 
-        admin = self.uow.admins.get(admin_id)
-        client = self.uow.clients.get(ticket_dto.client_id)
 
-        CreationPolicy.ensure_admin_enabled(admin)
-        CreationPolicy.ensure_client_enabled(client)
 
-        if ticket_dto.user_id:
-            user = self.uow.users.get(ticket_dto.user_id)
-            CreationPolicy.ensure_user_enabled(user)
-            CreationPolicy.ensure_user_belongs_to_client(user, client)
 
-        if ticket_dto.contact_user_id:
-            contact_user = self.uow.users.get(ticket_dto.contact_user_id)
-            CreationPolicy.ensure_user_enabled(contact_user)
-            CreationPolicy.ensure_user_belongs_to_client(contact_user, client)
 
-        if ticket_dto.executor_id:
-            executor = self.uow.admins.get(ticket_dto.executor_id)
-            CreationPolicy.ensure_admin_enabled(executor)
-
-        if ticket_dto.user_ticket_id:
-            user_ticket = self.uow.user_tickets.get(ticket_dto.user_ticket_id)
-            CreationPolicy.ensure_ticket_user_belongs_to_client(user_ticket, client)
 
 
     # --------------------------------

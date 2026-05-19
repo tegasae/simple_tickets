@@ -102,7 +102,7 @@ class UserMapper:
             "login": str(user.account.login),
             "password": user.account.password.value,  # hash string
             "enabled": int(user.account.enabled),
-            "date_created": int(user.account.date_created.timestamp()),
+            "date_created": _dt_to_sqlite_iso(user.account.date_created),
         }
 
     @staticmethod

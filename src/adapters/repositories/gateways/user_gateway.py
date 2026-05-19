@@ -45,15 +45,10 @@ class UserGateway:
     SELECT_BY_ID = SELECT_BASE + " AND e.employee_id = :employee_id"
 
     SELECT_BY_LOGIN = (
-        "SELECT "
-        "e.employee_id, e.first_name, e.last_name, e.email, e.phone, e.date_created, "
-        "e.enabled, e.version, "
-        "u.client_id, "
-        "acc.account_id, acc.login, acc.password, acc.enabled AS account_enabled, acc.date_created AS account_date_created "
-        "FROM accounts acc "
-        "JOIN employees e ON e.employee_id = acc.employee_id "
-        "JOIN users u ON a.employee_id = e.employee_id "
-        "WHERE e.is_admin = 0 AND acc.login = :login"
+        "SELECT e.employee_id, e.first_name, e.last_name, e.email, e.phone, e.date_created, e.enabled, e.version, u.client_id, "
+        "acc.account_id, acc.login, acc.password, acc.enabled AS account_enabled, acc.date_created AS account_date_created FROM accounts acc "
+        "JOIN employees e ON e.employee_id = acc.employee_id JOIN users u ON u.employee_id = e.employee_id "
+        "WHERE acc.login = :login and e.is_admin = 0"
     )
 
 
