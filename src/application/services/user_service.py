@@ -6,6 +6,7 @@ from src.application.helper.actor_helper import EmployeeActorHelper
 from src.application.helper.employee_helper import EmployeeHelper
 from src.domain.employee import User
 from src.domain.exceptions import DomainOperationError
+from src.domain.policy.ticket import TicketPolicy
 from src.domain.rbac.permissions import AdminPermission
 from src.services.uow.uow import UnitOfWork
 
@@ -39,6 +40,15 @@ class UserApplicationService:
     # Helpers
     # --------------------------------
 
+    def _validate_references(self, user_dto: UserDTO):
+        actor_admin = self.uow.admins.get(admin_id=user_dto.actor_admin_id)
+        TicketPolicy.ensure_admin_enabled(actor_admin)
+        if user_dto.client_id:
+            client = self.uow.clients.get(client_id=user_dto.client_id)
+            TicketPolicy.ensure_client_enabled(client)
+        if user_dto.employee_id:
+            admin = self.uow.admins.get(admin_id=user_dto.employee_id)
+            TicketPolicy.ensure_admin_enabled(admin)
 
 
     def _save_and_to_dto(self, user: User) -> UserResponseDTO:
@@ -55,6 +65,7 @@ class UserApplicationService:
 
     def create_user(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
+            self._validate_references(user_dto=user_dto)
             actor = self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.CREATE_USER,
@@ -85,6 +96,7 @@ class UserApplicationService:
 
     def update_user(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
+            self._validate_references(user_dto=user_dto)
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.UPDATE_USER,
@@ -102,7 +114,7 @@ class UserApplicationService:
 
     def attach_account(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
-
+            self._validate_references(user_dto=user_dto)
             if not user_dto.login:
                 raise DomainOperationError("Login is required")
 
@@ -127,6 +139,7 @@ class UserApplicationService:
 
     def detach_account(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
+            self._validate_references(user_dto=user_dto)
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.UPDATE_USER,
@@ -138,7 +151,7 @@ class UserApplicationService:
 
     def change_password(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
-
+            self._validate_references(user_dto=user_dto)
             if not user_dto.password:
                 raise DomainOperationError("Password is required")
 
@@ -153,6 +166,7 @@ class UserApplicationService:
 
     def grant_role(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
+            self._validate_references(user_dto=user_dto)
             actor=self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.UPDATE_USER,
@@ -165,6 +179,7 @@ class UserApplicationService:
 
     def revoke_role(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
+            self._validate_references(user_dto=user_dto)
             actor=self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.UPDATE_USER,
@@ -176,6 +191,7 @@ class UserApplicationService:
 
     def disable(self, *, user_dto:UserDTO) -> UserResponseDTO:
         with self.uow:
+            self._validate_references(user_dto=user_dto)
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.UPDATE_USER,

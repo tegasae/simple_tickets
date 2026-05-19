@@ -35,7 +35,7 @@ def _verify_account_password(entity, plain_password: str) -> None:
             detail="Invalid login or password",
         )
 
-"""
+
 @router.post("/admin/login", response_model=None)
 def admin_login(
     form: OAuth2PasswordRequestForm = Depends(),
@@ -63,7 +63,7 @@ def admin_login(
         "subject_id": admin.employee_id,
     }
 
-"""
+
 @router.post("/user/login", response_model=None)
 def user_login(
     form: OAuth2PasswordRequestForm = Depends(),
