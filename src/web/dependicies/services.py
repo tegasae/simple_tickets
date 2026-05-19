@@ -1,8 +1,6 @@
 import sqlite3
 from typing import Generator
 
-from fastapi import Depends
-
 
 
 from src.application.services.client_service import ClientApplicationService
@@ -26,12 +24,12 @@ def get_uow() -> Generator[SQLiteUnitOfWork, None, None]:
 
 
 def get_client_service(
-    uow = Depends(get_uow),
+    uow: SQLiteUnitOfWork = next(get_uow()),
 ) -> ClientApplicationService:
     return ClientApplicationService(uow)
 
 
 def get_ticket_user_service(
-    uow = Depends(get_uow),
+    uow: SQLiteUnitOfWork = next(get_uow()),
 ) -> TicketUserApplicationService:
     return TicketUserApplicationService(uow)
