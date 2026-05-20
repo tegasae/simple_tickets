@@ -101,3 +101,13 @@ def require_current_user(
         )
 
     return int(payload["sub"])
+
+
+async def get_current_user(
+    request: Request,
+    token: str = Depends(oauth2_scheme)
+) -> dict:
+    """Authenticate user and store username in request"""
+    username = TokenService.verify_access_token(token)
+    request.state.current_user = {"username": username}
+    return {"username": username}
