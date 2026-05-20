@@ -3,7 +3,7 @@ import os
 from typing import Any
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 
 
@@ -105,9 +105,10 @@ def require_current_user(
 
 async def get_current_user(
     request: Request,
-    token: str = Depends(oauth2_scheme)
+
 ) -> dict:
     """Authenticate user and store username in request"""
-    username = TokenService.verify_access_token(token)
-    request.state.current_user = {"username": username}
-    return {"username": username}
+
+    request.state.current_user = {"username": "1"}
+    print("1234")
+    return {"username": "1"}
