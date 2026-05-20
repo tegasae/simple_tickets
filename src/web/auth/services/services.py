@@ -89,7 +89,7 @@ class TokenService:
             access_token = AccessToken.decode(token)
 
             if not access_token.is_valid():
-                raise TokenExpiredError(token)
+                raise TokenExpiredError()
 
             return access_token
 
@@ -241,7 +241,7 @@ class AuthManager:
             raise TokenError("Invalid refresh token")
 
         if not self.auth_service.validate_user_exists(refresh_token.username):
-            raise UserNotValidError(user=refresh_token.username)
+            raise UserNotValidError(username=refresh_token.username)
 
         return self.token_service.renew_tokens(refresh_token_id)
 

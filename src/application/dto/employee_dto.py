@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 @dataclass(kw_only=True)
 class EmployeeDTO:
     employee_id:int=0
-    actor_admin_id: int
+    actor_admin_id: int=0
     first_name: str | None = None
     last_name: str | None = None
     enable:bool=True

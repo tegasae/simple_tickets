@@ -9,6 +9,7 @@ from src.adapters.repositories.gateways.employee_role_gateway import RoleEmploye
 from src.adapters.repositories.mappers.admin_mapper import AdminMapper
 
 from src.domain.employee import Admin
+from src.domain.exceptions import ItemNotFoundError
 from src.domain.repositories.admin_repository import AdminRepository
 
 
@@ -88,7 +89,7 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
     def find_by_login(self, *, login: str) -> Admin:
         row = self._get_one(AdminGateway.SELECT_BY_LOGIN, var=AdminMapper.VARS, params={"login": login})
         if not row:
-            raise NotFoundError(f"Admin with login '{login}' not found")
+            raise ItemNotFoundError(f"Admin with login '{login}' not found")
 
         admin = AdminMapper.row_to_admin(row)
         admin._role_ids = self._load_roles(admin.employee_id)

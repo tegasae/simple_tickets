@@ -252,11 +252,13 @@ class AdminApplicationService:
             if not admin_dto.login:
                 raise DomainOperationError("Login is required")
             self.actor.require_actor_admin(actor_admin_id=admin_dto.actor_admin_id,
-                                           permission=AdminPermission.UPDATE_ADMIN)
+                                           permission=AdminPermission.VIEW_ADMIN)
 
 
             admin=self.uow.admins.find_by_login(login=admin_dto.login)
             return AdminAssembler.to_dto(admin)
+
+
 
     def get_by_id(self, *, admin_dto:AdminDTO) -> AdminResponseDTO:
 
