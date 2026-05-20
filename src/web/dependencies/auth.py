@@ -13,12 +13,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 
 
 admin_oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/auth/admin/login",
+    tokenUrl="/auth_old/admin/login",
     scheme_name="AdminAuth",
 )
 
 user_oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/auth/user/login",
+    tokenUrl="/auth_old/user/login",
     scheme_name="UserAuth",
 )
 

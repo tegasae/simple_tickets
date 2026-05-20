@@ -1,162 +1,315 @@
+import hashlib
 import secrets
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+from datetime import datetime, timedelta, timezone
+from typing import Any, Literal, Self
 
 import jwt
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from src.web.auth.exceptions import TokenError
 from src.web.config import get_settings
 
-### пока комментируем
-#class AuthUser(BaseModel):
-#    id: int
-#    login: str
-#    enabled: bool = True
-#    scope: list[str] = []
+
+SubjectType = Literal["admin", "user"]
+AccessTokenType = Literal["access"]
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def get_jwt_issuer() -> str:
+    settings = get_settings()
+    return getattr(settings, "JWT_ISSUER", "simple-tickets")
+
+
+def get_jwt_audience() -> str:
+    settings = get_settings()
+    return getattr(settings, "JWT_AUDIENCE", "simple-tickets-api")
+
+
+def get_secret_key() -> str:
+    return get_settings().SECRET_KEY
+
+
+def get_algorithm() -> str:
+    return get_settings().ALGORITHM
+
+
+def hash_token(token: str) -> str:
+    """
+    Use this when storing refresh tokens in DB.
+
+    Store the hash, not the raw refresh token.
+    """
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 class AccessToken(BaseModel):
-    # ✅ REQUIRED: Subject (user identifier)
+    """
+    JWT access token.
+
+    Used for normal API requests.
+
+    Required claims:
+        sub          -> subject id as string
+        subject_type -> admin/user
+        token_type   -> access
+        exp          -> expiration
+        iat          -> issued at
+
+    Recommended claims:
+        iss -> issuer
+        aud -> audience
+        jti -> token id
+    """
+
     sub: str
-    # ✅ REQUIRED: Expiration time
+    subject_type: SubjectType
+    token_type: AccessTokenType = "access"
+
     exp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc) + timedelta(
-            minutes=get_settings().ACCESS_TOKEN_EXPIRE_MINUTES))
-    # ✅ REQUIRED: Issued at
-    # iat: datetime = Field(default_factory=datetime.now(timezone.utc))
-    iat: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    # ✅ RECOMMENDED: Issuer (your app)
-    iss: str = ""
-    # ✅ RECOMMENDED: Audience (who token is for)
-    aud: str = ""
-    # ✅ OPTIONAL: Token ID (unique identifier)
-    jti: str = ""
-    # ✅ OPTIONAL: Scopes (what user can do)
-    scope: list[str] = []
+        default_factory=lambda: utcnow()
+        + timedelta(minutes=get_settings().ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    iat: datetime = Field(default_factory=utcnow)
 
-    def scope2str(self) -> str:
-        if not self.scope:
-            return ""
-        return " ".join(map(str, self.scope))
+    iss: str = Field(default_factory=get_jwt_issuer)
+    aud: str = Field(default_factory=get_jwt_audience)
+    jti: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
 
-    @staticmethod
-    def str2list(s: str) -> list[str]:
-        """Convert space-separated string to scope list"""
-        if not s or not s.strip():
-            return []
-        return [item.strip() for item in s.split(" ") if item.strip()]
-
-    def encode(self) -> str:
-        """Encode to JWT string"""
-        payload = {}
-        model_data = self.model_dump()  # ✅ Fixed method name
-
-        for key, value in model_data.items():
-            if key == "scope":
-                # Handle scope conversion
-                scope_str = self.scope2str()
-                if scope_str:
-                    payload["scope"] = scope_str
-            elif value not in [None, "", []]:  # Include empty lists
-                payload[key] = value
-
-        return jwt.encode(payload, get_settings().SECRET_KEY, algorithm=get_settings().ALGORITHM)
+    scope: list[str] = Field(default_factory=list)
 
     @classmethod
-    def decode(cls, token: str) -> 'AccessToken':
-        """Decode JWT back to AccessToken instance"""
+    def create(
+        cls,
+        *,
+        subject_id: int,
+        subject_type: SubjectType,
+        scope: list[str] | None = None,
+    ) -> Self:
+        return cls(
+            sub=str(subject_id),
+            subject_type=subject_type,
+            scope=scope or [],
+        )
+
+    def scope_to_str(self) -> str:
+        return " ".join(self.scope)
+
+    @staticmethod
+    def scope_from_str(value: str | None) -> list[str]:
+        if not value:
+            return []
+
+        return [
+            item.strip()
+            for item in value.split(" ")
+            if item.strip()
+        ]
+
+    def to_payload(self) -> dict[str, Any]:
+        payload = self.model_dump()
+
+        if self.scope:
+            payload["scope"] = self.scope_to_str()
+        else:
+            payload.pop("scope", None)
+
+        return payload
+
+    def encode(self) -> str:
+        return jwt.encode(
+            self.to_payload(),
+            get_secret_key(),
+            algorithm=get_algorithm(),
+        )
+
+    @classmethod
+    def decode(cls, token: str) -> "AccessToken":
         try:
             payload = jwt.decode(
                 token,
-                get_settings().SECRET_KEY,
-                algorithms=[get_settings().ALGORITHM]
+                get_secret_key(),
+                algorithms=[get_algorithm()],
+                audience=get_jwt_audience(),
+                issuer=get_jwt_issuer(),
             )
 
-            # Convert scope string back to list
+            if payload.get("token_type") != "access":
+                raise TokenError("Invalid token type")
+
             if "scope" in payload:
-                scope_str = payload.get("scope", "")
-                payload["scope"] = cls.str2list(scope_str)
+                payload["scope"] = cls.scope_from_str(payload.get("scope"))
 
             return cls(**payload)
-        except jwt.InvalidTokenError as e:
-            raise TokenError(f"Invalid token: {str(e)}") from e
+
+        except jwt.ExpiredSignatureError as exc:
+            raise TokenError("Token has expired") from exc
+
+        except jwt.InvalidTokenError as exc:
+            raise TokenError(f"Invalid token: {exc}") from exc
+
+        except ValidationError as exc:
+            raise TokenError(f"Invalid token payload: {exc}") from exc
 
     def is_valid(self) -> bool:
-        """Check if token is valid"""
         if not self.sub:
             return False
-        if self.exp < datetime.now(timezone.utc):
-            return False
-        return True
+
+        exp = self.exp
+
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+
+        return exp > utcnow()
 
     def __bool__(self) -> bool:
-        """Boolean representation of token validity"""
         return self.is_valid()
 
 
 class RefreshToken(BaseModel):
+    """
+    Opaque refresh token.
+
+    This is NOT a JWT.
+
+    The client receives token_id.
+    The server should store hash_token(token_id) in DB.
+    """
+
     token_id: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
+
+    subject_id: int
+    subject_type: SubjectType
     username: str
-    user_id: int
-    # ✅ REQUIRED: Timing information
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    created_at: datetime = Field(default_factory=utcnow)
     expires_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc) + timedelta(days=get_settings().REFRESH_TOKEN_EXPIRE_DAYS)
+        default_factory=lambda: utcnow()
+        + timedelta(days=get_settings().REFRESH_TOKEN_EXPIRE_DAYS)
     )
-    # ✅ REQUIRED: Usage tracking
+
     used: bool = False
-    last_used_at: Optional[datetime] = None
+    revoked: bool = False
+
+    last_used_at: datetime | None = None
     use_count: int = 0
-    # ✅ RECOMMENDED: Security context
+
     client_id: str = ""
-    scope: list[str] = []
+    scope: list[str] = Field(default_factory=list)
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        subject_id: int,
+        subject_type: SubjectType,
+        username: str,
+        client_id: str = "",
+        scope: list[str] | None = None,
+    ) -> Self:
+        return cls(
+            subject_id=subject_id,
+            subject_type=subject_type,
+            username=username,
+            client_id=client_id,
+            scope=scope or [],
+        )
+
+    @property
+    def token_hash(self) -> str:
+        return hash_token(self.token_id)
+
+    def mark_used(self) -> None:
+        self.used = True
+        self.last_used_at = utcnow()
+        self.use_count += 1
+
+    def revoke(self) -> None:
+        self.revoked = True
 
     def is_valid(self) -> bool:
-        """Check if refresh token is valid"""
-        if not self.user_id or not self.username:
+        now = utcnow()
+
+        if self.subject_id <= 0:
             return False
 
-        # ✅ FIXED: Handle None case for last_used_at
-        if self.last_used_at and self.last_used_at < datetime.now(timezone.utc):
+        if not self.username:
             return False
 
-        # Check if expired
-        if self.expires_at <= datetime.now(timezone.utc):
+        if self.expires_at <= now:
             return False
 
-        # Check if already used
         if self.used:
+            return False
+
+        if self.revoked:
             return False
 
         return True
 
     def __bool__(self) -> bool:
-        """Boolean representation of token validity"""
         return self.is_valid()
 
 
 class JWTToken(BaseModel):
+    """
+    Token pair returned from login endpoint.
+
+    access_token  -> JWT string
+    refresh_token -> opaque random string
+    """
+
     access_token: AccessToken
     refresh_token: RefreshToken
 
-    def encode(self) -> dict:
-        """Encode to OAuth2 response format"""
-        current_time = datetime.now(timezone.utc)
-        expires_in = int((self.access_token.exp - current_time).total_seconds())
+    @classmethod
+    def create(
+        cls,
+        *,
+        subject_id: int,
+        subject_type: SubjectType,
+        username: str,
+        client_id: str = "",
+        scope: list[str] | None = None,
+    ) -> Self:
+        normalized_scope = scope or []
+
+        return cls(
+            access_token=AccessToken.create(
+                subject_id=subject_id,
+                subject_type=subject_type,
+                scope=normalized_scope,
+            ),
+            refresh_token=RefreshToken.create(
+                subject_id=subject_id,
+                subject_type=subject_type,
+                username=username,
+                client_id=client_id,
+                scope=normalized_scope,
+            ),
+        )
+
+    def encode(self) -> dict[str, Any]:
+        now = utcnow()
+
+        exp = self.access_token.exp
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+
+        expires_in = int((exp - now).total_seconds())
 
         return {
             "access_token": self.access_token.encode(),
+            "refresh_token": self.refresh_token.token_id,
             "token_type": "bearer",
-            "expires_in": max(expires_in, 0),  # Ensure non-negative
-            "refresh_token": self.refresh_token.token_id,  # Standard field name
-            "scope": self.access_token.scope2str()  # ✅ Add scope field
+            "expires_in": max(expires_in, 0),
+            "scope": self.access_token.scope_to_str(),
         }
 
     def is_valid(self) -> bool:
-        """Check if both tokens are valid"""
         return bool(self.access_token) and bool(self.refresh_token)
 
     def __bool__(self) -> bool:
-        """Boolean representation of token pair validity"""
         return self.is_valid()

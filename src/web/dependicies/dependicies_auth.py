@@ -8,10 +8,10 @@ from src.services.service_layer.admins import AdminService
 from src.services.service_layer.factory import ServiceFactory
 from src.services.uow.uowsqlite import SQLiteUnitOfWork
 from src.web import settings
-from src.web.auth.exceptions import UserNotValidError
-from src.web.auth.models import UserAuth
-from src.web.auth.services import AuthManager, AuthServiceAbstract, TokenService
-from src.web.auth.storage import TokenStorageMemory, TokenStorage
+from src.web.auth_old.exceptions import UserNotValidError
+from src.web.auth_old.models import UserAuth
+from src.web.auth_old.services import AuthManager, AuthServiceAbstract, TokenService
+from src.web.auth_old.storage import TokenStorageMemory, TokenStorage
 from src.web.dependicies.dependencies import get_service_factory, get_uow
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", scopes={

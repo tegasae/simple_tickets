@@ -5,7 +5,7 @@ from src.domain.account import Account
 from src.web.dependencies.auth import create_access_token
 from src.web.dependencies.services import get_uow
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/auth_old", tags=["auth_old"])
 
 
 def _verify_account_password(entity, plain_password: str) -> None:

@@ -5,7 +5,7 @@ import jwt
 JWT_SECRET = "change-me"
 JWT_ALGORITHM = "HS256"
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth_old/login")
 
 
 def decode_token(token: str) -> dict:
