@@ -6,7 +6,8 @@ import jwt
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 
-
+from src.web.auth.services.services import AuthServiceAbstract, AuthManager
+from src.web.auth.storage import TokenStorage
 
 JWT_SECRET = os.getenv("JWT_SECRET", "change-me")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
@@ -103,7 +104,12 @@ def require_current_user(
 
     return int(payload["sub"])
 
-
+#######
+def get_auth_manager_admin(
+        auth_service_abstract: AuthServiceAbstract = Depends(get_auth_service_abstract),
+        token_storage: TokenStorage = Depends(get_token_storage)
+) -> AuthManager:
+    return AuthManager(auth_service_abstract=auth_service_abstract, token_storage=token_storage)
 async def get_current_user(
     request: Request,
 
