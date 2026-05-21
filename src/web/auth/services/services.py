@@ -123,33 +123,6 @@ class TokenService:
         self.token_storage.revoke_user_tokens(username)
 
 
-class AuthServiceAbstract(ABC):
-    """
-    Abstraction for concrete Admin/User authentication.
-
-    Concrete implementations:
-        - AdminAuthService
-        - UserAuthService
-
-    They should:
-        - check login/password;
-        - check enabled flags;
-        - return UserAuth.
-    """
-
-    @abstractmethod
-    def authenticate_user(
-        self,
-        login_request: LoginRequest
-    ) -> UserAuth:
-        raise NotImplementedError
-
-    @abstractmethod
-    def validate_user_exists(
-        self,
-        login_request: LoginRequest
-    ) -> bool:
-        raise NotImplementedError
 
 
 class AuthManager:
