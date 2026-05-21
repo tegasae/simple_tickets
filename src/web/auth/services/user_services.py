@@ -2,7 +2,7 @@ from src.domain.exceptions import DomainError
 from src.domain.policy.user import UserPolicy
 from src.services.uow.uow import UnitOfWork
 from src.web.auth.exceptions import InvalidCredentialsError
-from src.web.auth.models import UserAuth
+from src.web.auth.models import UserAuth, LoginRequest
 from src.web.auth.services.services import AuthServiceAbstract
 
 
@@ -14,8 +14,7 @@ class UserAuthService(AuthServiceAbstract):
 
     def authenticate_user(
         self,
-        username: str,
-        password: str,
+        login_request:LoginRequest
     ) -> UserAuth:
         """
         Authenticate user credentials.
@@ -29,9 +28,9 @@ class UserAuthService(AuthServiceAbstract):
         """
         with self.uow:
             try:
-                user = self.uow.users.find_by_login(login=username)
+                user = self.uow.users.find_by_login(login=login_request.username)
                 client = self.uow.clients.get(client_id=user.client_id)
-                UserPolicy.ensure_can_login(user=user, client=client, password=password)
+                UserPolicy.ensure_can_login(user=user, client=client, password=login_request.password)
             except DomainError as exc:
                 # Do not reveal whether login exists.
                 raise InvalidCredentialsError() from exc
@@ -44,7 +43,7 @@ class UserAuthService(AuthServiceAbstract):
 
     def validate_user_exists(
             self,
-            username: str,
+            login_request: LoginRequest
     ) -> bool:
         """
         Validate that user still exists and is enabled.
@@ -53,7 +52,7 @@ class UserAuthService(AuthServiceAbstract):
         """
         with self.uow:
             try:
-                user = self.uow.users.find_by_login(login=username)
+                user = self.uow.users.find_by_login(login=login_request.username)
                 client = self.uow.clients.get(client_id=user.client_id)
                 UserPolicy.ensure_login_is_still_valid(user=user,client=client)
             except DomainError:

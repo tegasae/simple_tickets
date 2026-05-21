@@ -6,7 +6,7 @@ from src.web.auth.exceptions import (
     TokenExpiredError,
     UserNotValidError,
 )
-from src.web.auth.models import UserAuth
+from src.web.auth.models import UserAuth, LoginRequest, RefreshRequest, LogoutRequest
 from src.web.auth.storage import TokenStorage
 from src.web.auth.tokens import AccessToken, JWTToken, SubjectType
 
@@ -140,15 +140,14 @@ class AuthServiceAbstract(ABC):
     @abstractmethod
     def authenticate_user(
         self,
-        username: str,
-        password: str,
+        login_request: LoginRequest
     ) -> UserAuth:
         raise NotImplementedError
 
     @abstractmethod
     def validate_user_exists(
         self,
-        username: str,
+        login_request: LoginRequest
     ) -> bool:
         raise NotImplementedError
 
@@ -190,9 +189,7 @@ class AuthManager:
     def login(
         self,
         *,
-        username: str,
-        password: str,
-        requested_scope: list[str] | None = None,
+        login_request:LoginRequest,
     ) -> dict:
         """
         Complete login flow.
@@ -202,13 +199,12 @@ class AuthManager:
             Issue only scopes allowed for authenticated subject.
         """
         user_auth = self.auth_service.authenticate_user(
-            username=username,
-            password=password,
+            login_request=login_request
         )
 
         issued_scope = self._resolve_scope(
             allowed_scope=user_auth.scope,
-            requested_scope=requested_scope,
+            requested_scope=login_request.scope,
         )
 
         return self.token_service.create_token_pair(
@@ -221,7 +217,7 @@ class AuthManager:
     def refresh(
         self,
         *,
-        refresh_token_id: str,
+        refresh_request:RefreshRequest,
     ) -> dict:
         """
         Complete refresh flow.
@@ -232,7 +228,7 @@ class AuthManager:
             - user/admin still exists;
             - refresh token belongs to the same subject_type as this AuthManager.
         """
-        refresh_token = self.token_storage.get(refresh_token_id)
+        refresh_token = self.token_storage.get(refresh_request.refresh_token)
 
         if refresh_token.subject_type != self.subject_type:
             raise TokenError("Refresh token subject type mismatch")
@@ -240,16 +236,15 @@ class AuthManager:
         if not refresh_token.is_valid():
             raise TokenError("Invalid refresh token")
 
-        if not self.auth_service.validate_user_exists(refresh_token.username):
+        if not self.auth_service.validate_user_exists(login_request=LoginRequest(username=refresh_token.username)):
             raise UserNotValidError(username=refresh_token.username)
 
-        return self.token_service.renew_tokens(refresh_token_id)
+        return self.token_service.renew_tokens(refresh_request.refresh_token)
 
     def logout(
         self,
         *,
-        refresh_token_id: str | None = None,
-        username: str | None = None,
+        logout_request:LogoutRequest
     ) -> None:
         """
         Logout by revoking refresh tokens.
@@ -258,12 +253,12 @@ class AuthManager:
             - one refresh token by token id;
             - all tokens for username.
         """
-        if refresh_token_id:
-            self.token_service.revoke_token(refresh_token_id)
+        if logout_request.refresh_token:
+            self.token_service.revoke_token(logout_request.refresh_token)
             return
 
-        if username:
-            self.token_service.revoke_user_tokens(username)
+        if logout_request.username:
+            self.token_service.revoke_user_tokens(logout_request.username)
             return
 
         raise TokenError("refresh_token_id or username is required")

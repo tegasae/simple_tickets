@@ -6,8 +6,8 @@ class RefreshRequest(BaseModel):
 
 
 class LogoutRequest(BaseModel):
-    refresh_token: str | None = None
-    username: str | None = None
+    refresh_token: str =""
+    username: str =""
 
 
 class TokenResponse(BaseModel):
@@ -20,8 +20,9 @@ class TokenResponse(BaseModel):
 
 class LoginRequest(BaseModel):
     username: str
-    password: str
+    password: str=""
     scope: list[str] = Field(default_factory=list)
+
 
 
 class UserAuth(BaseModel):

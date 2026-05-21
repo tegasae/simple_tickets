@@ -2,7 +2,7 @@ from src.domain.exceptions import DomainError
 from src.domain.policy.admin import AdminPolicy
 from src.services.uow.uow import UnitOfWork
 from src.web.auth.exceptions import InvalidCredentialsError
-from src.web.auth.models import UserAuth
+from src.web.auth.models import UserAuth, LoginRequest
 from src.web.auth.services.services import AuthServiceAbstract
 
 
@@ -31,8 +31,7 @@ class AdminAuthService(AuthServiceAbstract):
 
     def authenticate_user(
         self,
-        username: str,
-        password: str,
+        login_request:LoginRequest
     ) -> UserAuth:
         """
         Authenticate admin credentials.
@@ -46,8 +45,8 @@ class AdminAuthService(AuthServiceAbstract):
         """
         with self.uow:
             try:
-                admin = self.uow.admins.find_by_login(login=username)
-                AdminPolicy.ensure_can_login(admin, password)
+                admin = self.uow.admins.find_by_login(login=login_request.username)
+                AdminPolicy.ensure_can_login(admin, login_request.password)
             except DomainError as exc:
                 # Do not reveal whether login exists.
                 raise InvalidCredentialsError() from exc
@@ -60,7 +59,7 @@ class AdminAuthService(AuthServiceAbstract):
 
     def validate_user_exists(
             self,
-            username: str,
+            login_request: LoginRequest
     ) -> bool:
         """
         Validate that admin still exists and is enabled.
@@ -69,7 +68,7 @@ class AdminAuthService(AuthServiceAbstract):
         """
         with self.uow:
             try:
-                admin = self.uow.admins.find_by_login(login=username)
+                admin = self.uow.admins.find_by_login(login=login_request.username)
                 AdminPolicy.ensure_login_is_still_valid(admin=admin)
             except DomainError:
                 return False
