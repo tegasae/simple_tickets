@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+
 
 from src.web.auth.exceptions import (
     TokenError,
@@ -6,7 +6,8 @@ from src.web.auth.exceptions import (
     TokenExpiredError,
     UserNotValidError,
 )
-from src.web.auth.models import UserAuth, LoginRequest, RefreshRequest, LogoutRequest
+from src.web.auth.models import LoginRequest, RefreshRequest, LogoutRequest
+from src.web.auth.services.auth_service import AuthServiceAbstract
 from src.web.auth.storage import TokenStorage
 from src.web.auth.tokens import AccessToken, JWTToken, SubjectType
 
