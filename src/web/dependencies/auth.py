@@ -7,7 +7,7 @@ from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 
 from src.web.auth.services.auth_service import AdminAuthService, UserAuthService
-from src.web.auth.services.services import AuthManager
+from src.web.auth.services.services import AuthManager, TokenService
 from src.web.auth.storage import TokenStorageMemory
 from src.web.dependencies.services import get_uow
 
@@ -116,12 +116,23 @@ def get_auth_manager_user() -> AuthManager:
 
 
 
-async def get_current_login(
-    request: Request,
 
+
+async def get_current_admin(
+    request: Request,
+    token: str = Depends(admin_oauth2_scheme)
 ) -> dict:
     """Authenticate user and store username in request"""
+    username = TokenService.verify_access_token(token)
+    request.state.current_user = {"username": username}
+    return {"username": username}
 
-    request.state.current_user = {"username": "1"}
-    print("1234")
-    return {"username": "1"}
+
+async def get_current_user(
+    request: Request,
+    token: str = Depends(user_oauth2_scheme)
+) -> dict:
+    """Authenticate user and store username in request"""
+    username = TokenService.verify_access_token(token)
+    request.state.current_user = {"username": username}
+    return {"username": username}
