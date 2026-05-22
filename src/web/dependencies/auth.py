@@ -116,7 +116,7 @@ def get_auth_manager_user() -> AuthManager:
 
 
 
-async def get_current_user(
+async def get_current_login(
     request: Request,
 
 ) -> dict:

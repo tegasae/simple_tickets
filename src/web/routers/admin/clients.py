@@ -4,10 +4,10 @@ from pydantic import BaseModel
 
 from src.application.dto.client_dto import ClientDTO
 from src.domain.exceptions import DomainError
-from src.web.dependencies.auth import require_current_admin, get_current_user
+from src.web.dependencies.auth import require_current_admin, get_current_login
 from src.web.dependencies.services import get_client_service
 
-router = APIRouter(prefix="/admin/clients", tags=["admin clients"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/admin/clients", tags=["admin clients"], dependencies=[Depends(get_current_login)])
 
 
 class ClientCreateRequest(BaseModel):
