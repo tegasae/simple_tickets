@@ -6,7 +6,7 @@ import jwt
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 
-from src.web.auth.services.auth_service import AdminAuthService
+from src.web.auth.services.auth_service import AdminAuthService, UserAuthService
 from src.web.auth.services.services import AuthManager
 from src.web.auth.storage import TokenStorageMemory
 from src.web.dependencies.services import get_uow
@@ -109,6 +109,10 @@ def require_current_user(
 #######
 def get_auth_manager_admin() -> AuthManager:
     return AuthManager(auth_service=AdminAuthService(uow=get_uow()), token_storage=TokenStorageMemory(),subject_type="admin")
+
+
+def get_auth_manager_user() -> AuthManager:
+    return AuthManager(auth_service=UserAuthService(uow=get_uow()), token_storage=TokenStorageMemory(),subject_type="user")
 
 
 
