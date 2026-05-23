@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from src.domain.account import Account
-from src.web.auth.models import RefreshRequest, LogoutRequest
-from src.web.auth_old.services import AuthManager
+from src.web.auth.models import RefreshRequest, LogoutRequest, LoginRequest
+from src.web.auth.services.services import AuthManager
+
 from src.web.dependencies.auth import get_auth_manager_admin, get_auth_manager_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -74,7 +75,8 @@ async def login(
 ):
     #
     scopes = form_data.scopes if form_data.scopes else []
-    return auth_manager.login(form_data.username, form_data.password, scopes)
+    login_request = LoginRequest(username=form_data.username, password=form_data.password, scope=scopes)
+    return auth_manager.login(login_request=login_request)
 
 
 @router.post("/admin/refresh")
@@ -82,15 +84,16 @@ async def refresh(
         refresh_request: RefreshRequest,
         auth_manager: AuthManager = Depends(get_auth_manager_admin)
 ):
-    return auth_manager.refresh(refresh_request.refresh_token)
+    refresh_request = RefreshRequest(refresh_token=refresh_request.refresh_token)
+    return auth_manager.refresh(refresh_request=refresh_request)
 
 
 @router.post("/admin/logout")
 async def logout(
-        logout_request: LogoutRequest,
         auth_manager: AuthManager = Depends(get_auth_manager_admin)
 ):
-    auth_manager.logout(refresh_token_id=logout_request.refresh_token)
+    logout_request=LogoutRequest()
+    auth_manager.logout(logout_request=logout_request)
     return {"message": "Logged out successfully"}
 
 
@@ -103,7 +106,8 @@ async def login_user(
 ):
     #
     scopes = form_data.scopes if form_data.scopes else []
-    return auth_manager.login(form_data.username, form_data.password, scopes)
+    login_request = LoginRequest(username=form_data.username, password=form_data.password, scope=scopes)
+    return auth_manager.login(login_request=login_request)
 
 
 @router.post("/user/refresh")
@@ -111,7 +115,8 @@ async def refresh_user(
         refresh_request: RefreshRequest,
         auth_manager: AuthManager = Depends(get_auth_manager_user)
 ):
-    return auth_manager.refresh(refresh_request.refresh_token)
+    refresh_request = RefreshRequest(refresh_token=refresh_request.refresh_token)
+    return auth_manager.refresh(refresh_request=refresh_request)
 
 
 @router.post("/user/logout")
@@ -119,7 +124,8 @@ async def logout(
         logout_request: LogoutRequest,
         auth_manager: AuthManager = Depends(get_auth_manager_user)
 ):
-    auth_manager.logout(refresh_token_id=logout_request.refresh_token)
+
+    auth_manager.logout(logout_request=logout_request)
     return {"message": "Logged out successfully"}
 
 

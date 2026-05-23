@@ -164,6 +164,17 @@ class AccessToken(BaseModel):
 
         return exp > utcnow()
 
+    def get_admin_id(self)->int:
+        if self and self.subject_type == "admin":
+            return int(self.sub)
+        raise TokenError("Invalid admin token type")
+
+    def get_user_id(self)->int:
+        if self and self.subject_type == "user":
+            return int(self.sub)
+        raise TokenError("Invalid user token type")
+
+
     def __bool__(self) -> bool:
         return self.is_valid()
 

@@ -3,6 +3,7 @@ from fastapi import FastAPI
 
 from src.web.routers.auth import router as auth_router
 from src.web.routers.admin.clients import router as admin_clients_router
+from src.web.routers.admin.new_approach import router as admin_new_approach_router
 from src.web.routers.user.ticket import router as user_ticket_router
 
 
@@ -11,6 +12,7 @@ def create_app() -> FastAPI:
 
     app1.include_router(auth_router)
     app1.include_router(admin_clients_router)
+    app1.include_router(admin_new_approach_router)
     app1.include_router(user_ticket_router)
 
     @app1.get("/health", response_model=None)

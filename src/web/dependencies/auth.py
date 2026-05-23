@@ -6,6 +6,7 @@ import jwt
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 
+from src.services.uow.uow import UnitOfWork
 from src.web.auth.services.auth_service import AdminAuthService, UserAuthService
 from src.web.auth.services.services import AuthManager, TokenService
 from src.web.auth.storage import TokenStorageMemory
@@ -107,12 +108,12 @@ def require_current_user(
     return int(payload["sub"])
 
 #######
-def get_auth_manager_admin() -> AuthManager:
-    return AuthManager(auth_service=AdminAuthService(uow=get_uow()), token_storage=TokenStorageMemory(),subject_type="admin")
+def get_auth_manager_admin(uow: UnitOfWork = Depends(get_uow)) -> AuthManager:
+    return AuthManager(auth_service=AdminAuthService(uow=uow), token_storage=TokenStorageMemory(),subject_type="admin")
 
 
-def get_auth_manager_user() -> AuthManager:
-    return AuthManager(auth_service=UserAuthService(uow=get_uow()), token_storage=TokenStorageMemory(),subject_type="user")
+def get_auth_manager_user(uow: UnitOfWork = Depends(get_uow)) -> AuthManager:
+    return AuthManager(auth_service=UserAuthService(uow=uow), token_storage=TokenStorageMemory(),subject_type="user")
 
 
 
@@ -123,9 +124,9 @@ async def get_current_admin(
     token: str = Depends(admin_oauth2_scheme)
 ) -> dict:
     """Authenticate user and store username in request"""
-    username = TokenService.verify_access_token(token)
-    request.state.current_user = {"username": username}
-    return {"username": username}
+    access_token = TokenService.verify_access_token(token)
+    request.state.current_user_id = {"user_id": access_token.get_admin_id()}
+    return {"user_id": request.state.current_user_id}
 
 
 async def get_current_user(
@@ -133,6 +134,10 @@ async def get_current_user(
     token: str = Depends(user_oauth2_scheme)
 ) -> dict:
     """Authenticate user and store username in request"""
-    username = TokenService.verify_access_token(token)
-    request.state.current_user = {"username": username}
-    return {"username": username}
+    access_token = TokenService.verify_access_token(token)
+    request.state.current_user_id = {"user_id": access_token.get_user_id()}
+    return {"user_id": request.state.current_user_id}
+
+
+
+
