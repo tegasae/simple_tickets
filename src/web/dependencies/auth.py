@@ -4,12 +4,13 @@ from typing import Any
 
 import jwt
 from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import OAuth2PasswordBearer
+
 
 from src.services.uow.uow import UnitOfWork
 from src.web.auth.services.auth_service import AdminAuthService, UserAuthService
 from src.web.auth.services.services import AuthManager, TokenService
 from src.web.auth.storage import TokenStorageMemory
+from src.web.dependencies.scheme import admin_oauth2_scheme, user_oauth2_scheme
 from src.web.dependencies.services import get_uow
 
 JWT_SECRET = os.getenv("JWT_SECRET", "change-me")
@@ -17,15 +18,6 @@ JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
 
-admin_oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/auth/admin/login",
-    scheme_name="AdminAuth",
-)
-
-user_oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/auth/user/login",
-    scheme_name="UserAuth",
-)
 
 
 def create_access_token(*, subject_id: int, subject_type: str) -> str:
@@ -139,5 +131,11 @@ async def get_current_user(
     return {"user_id": request.state.current_user_id}
 
 
+async def get_user_id_from_request(request: Request) -> int:
+    """
+    Creates ServiceFactory with authenticated username
+    """
+    user_id = request.state.current_user_id  # ← Extract from request
+    return user_id
 
 

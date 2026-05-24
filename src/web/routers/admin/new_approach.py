@@ -5,10 +5,9 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 
 
-from src.web.dependencies.auth import require_current_admin
+from src.web.dependencies.auth import require_current_admin, get_current_admin, get_user_id_from_request
 
-
-router = APIRouter(prefix="/admin/new", tags=["new approcach"], dependencies=[])
+router = APIRouter(prefix="/admin/new", tags=["new approcach"], dependencies=[Depends(get_current_admin)])
 
 
 class ClientCreateRequest(BaseModel):
@@ -26,9 +25,19 @@ class ClientUpdateContactRequest(BaseModel):
 
 
 
-@router.post("/", response_model=None)
+@router.post("/admin-id", response_model=None)
 def new(
-    actor_admin_id: int = Depends(require_current_admin),
+    actor_admin_id: int = Depends(get_user_id_from_request),
 ):
 
         return jsonable_encoder({"new":1,"actor":actor_admin_id})
+
+
+@router.post("/without", response_model=None)
+def new(
+
+):
+
+        return jsonable_encoder({"new":2})
+
+
