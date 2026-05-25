@@ -132,9 +132,7 @@ async def get_current_user(
 
 
 async def get_user_id_from_request(request: Request) -> int:
-    """
-    Creates ServiceFactory with authenticated username
-    """
+
     user_id = request.state.current_user_id  # ← Extract from request
     return user_id
 
