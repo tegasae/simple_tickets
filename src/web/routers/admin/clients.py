@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.application.dto.client_dto import ClientDTO
-from src.application.factory import ApplicationServiceFactory
 from src.domain.exceptions import DomainError
 
 from src.web.dependencies.auth import (
@@ -21,6 +20,17 @@ router = APIRouter(
     tags=["admin clients"],
     dependencies=[Depends(get_current_admin)],
 )
+
+handlers = {
+    'AdminError': 500,
+    'DomainSecurityError':403,
+    'AdminNotFoundError': 404,
+    'AdminAlreadyExistsError': 409,
+    'AdminValidationError': 400,
+    'AdminOperationError': 400,
+    'AdminSecurityError': 403
+}
+
 
 
 def _domain_error(exc: Exception) -> HTTPException:

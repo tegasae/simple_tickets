@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from threading import Lock
 
-from src.web.auth_old.exceptions import TokenNotFoundError
+
 from src.web.auth.tokens import RefreshToken, hash_token
 
 
