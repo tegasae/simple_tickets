@@ -193,7 +193,7 @@ class Name(ValueObject[str]):
         new_value = self.value.strip()
 
         if new_value == "":
-            raise ValueError("Login cannot be empty or only whitespace")
+            raise ValueError("Name cannot be empty or only whitespace")
 
         if len(new_value) < self.MIN_LENGTH:
             raise ValueError(f"Name must be at least {self.MIN_LENGTH} characters")

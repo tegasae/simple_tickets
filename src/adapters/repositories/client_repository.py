@@ -8,6 +8,7 @@ from src.adapters.repositories.gateways.client_gateway import ClientGateway
 from src.adapters.repositories.mappers.client_mapper import ClientMapper
 
 from src.domain.client import Client
+from src.domain.exceptions import ItemNotFoundError
 from src.domain.repositories.client_repository import ClientRepository
 
 
@@ -41,7 +42,7 @@ class ClientRepositorySQLite(BaseRepository, ClientRepository):
         )
 
         if not row:
-            raise NotFoundError(f"Client {client_id} not found")
+            raise ItemNotFoundError(f"Client {client_id} not found")
 
         return ClientMapper.row_to_client(row)
 

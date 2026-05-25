@@ -1,4 +1,6 @@
 # src/application/services/client_service.py
+
+
 from src.application.assemblers.assembler import ClientAssembler
 from src.application.dto.client_dto import ClientDTO, ClientResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
@@ -62,7 +64,7 @@ class ClientApplicationService:
                 email=dto_client.email,
                 address=dto_client.address,
                 phone=dto_client.phone,
-                created_by_admin_id=dto_client.admin_id
+                created_by_admin_id=actor.employee_id
             )
 
             client = self.uow.clients.save(client)
@@ -109,19 +111,17 @@ class ClientApplicationService:
             return self._save_and_to_dto(client)
 
     def enable(self, dto_client:ClientDTO) -> ClientResponseDTO:
-
         with self.uow:
-            with self.uow:
-                self.actor.require_actor_admin(
-                    actor_admin_id=dto_client.actor_admin_id,
-                    permission=AdminPermission.OPERATION_CLIENT,
-                )
-                client = self.uow.clients.get(dto_client.client_id)
-                client.enable()
+            self.actor.require_actor_admin(
+                actor_admin_id=dto_client.actor_admin_id,
+                permission=AdminPermission.OPERATION_CLIENT,
+            )
+            client = self.uow.clients.get(dto_client.client_id)
+            client.enable()
 
 
 
-                return self._save_and_to_dto(client)
+            return self._save_and_to_dto(client)
 
     # --------------------------------
     # Delete
@@ -131,7 +131,7 @@ class ClientApplicationService:
         self,
         *,
         dto_client: ClientDTO,
-    ) -> None:
+    ) -> ClientResponseDTO:
 
         with (self.uow):
             self.actor.require_actor_admin(
@@ -145,9 +145,9 @@ class ClientApplicationService:
                 raise DomainOperationError(
                     f"Client {dto_client.name} cannot be deleted"
                 )
-
+            client=self.uow.clients.get(dto_client.client_id)
             self.uow.clients.delete(dto_client.client_id)
-
+            return ClientAssembler.to_dto(client)
     # --------------------------------
     # Queries
     # --------------------------------

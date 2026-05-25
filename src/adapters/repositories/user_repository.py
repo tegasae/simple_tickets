@@ -166,4 +166,4 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
 
 
     def does_client_exist(self, client_id: int) -> bool:
-        return self._exists(UserGateway.SELECT_BY_ID, {'client_id': client_id})
+        return self._exists(UserGateway.SELECT_BY_CLIENT_ID, {'client_id': client_id})

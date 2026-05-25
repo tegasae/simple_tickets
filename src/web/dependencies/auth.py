@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import os
 from typing import Any
@@ -110,30 +111,37 @@ def get_auth_manager_user(uow: UnitOfWork = Depends(get_uow)) -> AuthManager:
 
 
 #
+@dataclass(frozen=True)
+class EmployeeID:
+    employee_id:int
+
+
+
 
 async def get_current_admin(
     request: Request,
     token: str = Depends(admin_oauth2_scheme)
-) -> dict:
+):
     """Authenticate user and store username in request"""
     access_token = TokenService.verify_access_token(token)
-    request.state.current_user_id = {"user_id": access_token.get_admin_id()}
-    return {"user_id": request.state.current_user_id}
+
+    request.state.employee = EmployeeID(employee_id=access_token.get_admin_id())
+
 
 
 async def get_current_user(
     request: Request,
     token: str = Depends(user_oauth2_scheme)
-) -> dict:
+):
     """Authenticate user and store username in request"""
     access_token = TokenService.verify_access_token(token)
-    request.state.current_user_id = {"user_id": access_token.get_user_id()}
-    return {"user_id": request.state.current_user_id}
+    request.state.employee = EmployeeID(employee_id=access_token.get_user_id())
 
 
-async def get_user_id_from_request(request: Request) -> int:
 
-    user_id = request.state.current_user_id  # ← Extract from request
-    return user_id
+
+async def get_employee_id_from_request(request: Request) -> int:
+    return request.state.employee.employee_id
+
 
 

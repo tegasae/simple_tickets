@@ -51,3 +51,4 @@ class ClientGateway:
     """
 
     SELECT_BY_ADMIN = "SELECT count(client_id) FROM clients WHERE admin_id = :admin_id"
+

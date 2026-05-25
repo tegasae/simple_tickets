@@ -7,7 +7,7 @@ class ClientDTO:
     actor_admin_id:int
     admin_id: int = 0
     client_id:int=0
-    name: str
+    name: str=""
     email: str = ""
     address: str = ""
     phone: str = ""
@@ -23,9 +23,9 @@ class ClientDTO:
 class ClientResponseDTO:
     client_id: int
     name: str
-    email: str | None
-    address: str | None
-    phone: str | None
+    email: str =""
+    address: str =""
+    phone: str=""
     enabled: bool
     date_created: str
     created_by_admin:int
