@@ -36,11 +36,11 @@ class AdminApplicationService:
         """
         Validates referenced entities and returns the effective admin_id.
         """
-        actor_admin = self.uow.admins.get(admin_id=admin_dto.actor_admin_id)
-        TicketPolicy.ensure_admin_enabled(actor_admin)
+
         if admin_dto.employee_id:
             admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
             TicketPolicy.ensure_admin_enabled(admin)
+
 
 
     def _save_and_to_dto(self, admin: Admin) -> AdminResponseDTO:
