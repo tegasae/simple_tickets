@@ -1,10 +1,14 @@
 import uvicorn
 from fastapi import FastAPI
 
+from src.web.execeptions.exception_handlers import ExceptionHandlerRegistry
+from src.web.routers import admin
 from src.web.routers.auth import router as auth_router
 from src.web.routers.admin.clients import router as admin_clients_router
-#from src.web.routers.admin.new_approach import router as admin_new_approach_router
+
 from src.web.routers.user.ticket import router as user_ticket_router
+
+
 
 
 def create_app() -> FastAPI:
@@ -12,8 +16,15 @@ def create_app() -> FastAPI:
 
     app1.include_router(auth_router)
     app1.include_router(admin_clients_router)
-    #app1.include_router(admin_new_approach_router)
+
     app1.include_router(user_ticket_router)
+    registry = ExceptionHandlerRegistry(app1)
+
+    registry.add_all_handler('src.domain.exceptions', admin.clients.handlers)
+    registry.add_all_handler('src.web.auth.exceptions', {'TokenError': 401, 'TokenNotFoundError': 401,
+                                                         'TokenExpiredError': 401, 'UserNotValidError': 401})
+    registry.add_standard_handler(Exception, 500)
+    registry.register_all()
 
     @app1.get("/health", response_model=None)
     def health_check():
