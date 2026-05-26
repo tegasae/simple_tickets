@@ -1,8 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from src.application.dto.client_dto import ClientDTO
-from src.domain.exceptions import DomainError
-
 from src.web.dependencies.auth import (
     get_current_admin,
     get_employee_id_from_request,
@@ -18,39 +16,77 @@ from src.web.models.clients import (
 router = APIRouter(
     prefix="/admin/clients",
     tags=["admin clients"],
+
+    # This dependency protects the whole router.
+    # Every endpoint below requires current admin authentication.
     dependencies=[Depends(get_current_admin)],
 )
 
+
+# Mapping for ExceptionHandlerRegistry.
+#
+# This router can expose this mapping, and main.py can register it:
+#
+# registry.add_all_handler(
+#     "src.domain.exceptions",
+#     admin.clients.handlers,
+# )
+#
+# Important:
+# These exception class names must exist in src.domain.exceptions.
 handlers = {
-    'AdminError': 500,
-    'DomainSecurityError':403,
-    'AdminNotFoundError': 404,
-    'AdminAlreadyExistsError': 409,
-    'AdminValidationError': 400,
-    'AdminOperationError': 400,
-    'AdminSecurityError': 403
+    "AdminError": 500,
+    "DomainSecurityError": 403,
+    "AdminNotFoundError": 404,
+    "AdminAlreadyExistsError": 409,
+    "AdminValidationError": 400,
+    "AdminOperationError": 400,
+    "AdminSecurityError": 403,
 }
 
 
+# -------------------------------
+# Response mappers
+# -------------------------------
 
-def _domain_error(exc: Exception) -> HTTPException:
-    if isinstance(exc, PermissionError):
-        return HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(exc),
-        )
+def to_client_response(response_dto) -> ClientResponse:
+    """
+    Convert application-layer ClientResponseDTO to web-layer ClientResponse.
 
-    return HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail=str(exc),
-    )
+    ClientResponse uses Pydantic.
+    ClientResponseDTO is probably a dataclass.
 
+    model_validate() works if ClientResponse has:
+        model_config = ConfigDict(from_attributes=True)
+    """
+    return ClientResponse.model_validate(response_dto)
+
+
+def to_client_responses(response_dtos) -> list[ClientResponse]:
+    """
+    Convert list[ClientResponseDTO] to list[ClientResponse].
+    """
+    return [
+        to_client_response(response_dto)
+        for response_dto in response_dtos
+    ]
+
+
+# -------------------------------
+# Request -> Application DTO mappers
+# -------------------------------
 
 def client_create_request_to_dto(
     *,
     request: ClientCreateRequest,
     actor_admin_id: int,
 ) -> ClientDTO:
+    """
+    Convert web request model to application DTO.
+
+    actor_admin_id comes from authenticated admin.
+    Other fields come from request body.
+    """
     return ClientDTO(
         actor_admin_id=actor_admin_id,
         **request.model_dump(),
@@ -63,12 +99,23 @@ def client_update_contact_request_to_dto(
     actor_admin_id: int,
     client_id: int,
 ) -> ClientDTO:
+    """
+    Convert contact update request to ClientDTO.
+
+    client_id comes from path parameter.
+    actor_admin_id comes from authenticated admin.
+    Contact fields come from request body.
+    """
     return ClientDTO(
         actor_admin_id=actor_admin_id,
         client_id=client_id,
         **request.model_dump(),
     )
 
+
+# -------------------------------
+# Endpoints
+# -------------------------------
 
 @router.post(
     "/",
@@ -82,18 +129,14 @@ def create_client(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    try:
-        dto = client_create_request_to_dto(
-            request=client_request,
-            actor_admin_id=actor_admin_id,
-        )
+    dto = client_create_request_to_dto(
+        request=client_request,
+        actor_admin_id=actor_admin_id,
+    )
 
-        response_dto = asf.client_service().create_client(dto_client=dto)
+    response_dto = asf.client_service().create_client(dto_client=dto)
 
-        return ClientResponse.model_validate(response_dto)
-
-    except (DomainError, PermissionError) as exc:
-        raise _domain_error(exc)
+    return to_client_response(response_dto)
 
 
 @router.get(
@@ -107,18 +150,11 @@ def get_all_clients(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    try:
-        dto = ClientDTO(actor_admin_id=actor_admin_id)
+    dto = ClientDTO(actor_admin_id=actor_admin_id)
 
-        client_response_dtos = asf.client_service().get_all(dto)
+    response_dtos = asf.client_service().get_all(dto)
 
-        return [
-            ClientResponse.model_validate(dto)
-            for dto in client_response_dtos
-        ]
-
-    except (DomainError, PermissionError) as exc:
-        raise _domain_error(exc)
+    return to_client_responses(response_dtos)
 
 
 @router.get(
@@ -133,18 +169,14 @@ def get_client(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    try:
-        dto = ClientDTO(
-            actor_admin_id=actor_admin_id,
-            client_id=client_id,
-        )
+    dto = ClientDTO(
+        actor_admin_id=actor_admin_id,
+        client_id=client_id,
+    )
 
-        response_dto = asf.client_service().get_by_id(dto_client=dto)
+    response_dto = asf.client_service().get_by_id(dto_client=dto)
 
-        return ClientResponse.model_validate(response_dto)
-
-    except (DomainError, PermissionError) as exc:
-        raise _domain_error(exc)
+    return to_client_response(response_dto)
 
 
 @router.put(
@@ -160,19 +192,15 @@ def update_contact(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    try:
-        dto = client_update_contact_request_to_dto(
-            request=request,
-            actor_admin_id=actor_admin_id,
-            client_id=client_id,
-        )
+    dto = client_update_contact_request_to_dto(
+        request=request,
+        actor_admin_id=actor_admin_id,
+        client_id=client_id,
+    )
 
-        response_dto = asf.client_service().update_contact(dto_client=dto)
+    response_dto = asf.client_service().update_contact(dto_client=dto)
 
-        return ClientResponse.model_validate(response_dto)
-
-    except (DomainError, PermissionError) as exc:
-        raise _domain_error(exc)
+    return to_client_response(response_dto)
 
 
 @router.patch(
@@ -187,18 +215,14 @@ def disable_client(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    try:
-        dto = ClientDTO(
-            actor_admin_id=actor_admin_id,
-            client_id=client_id,
-        )
+    dto = ClientDTO(
+        actor_admin_id=actor_admin_id,
+        client_id=client_id,
+    )
 
-        response_dto = asf.client_service().disable(dto_client=dto)
+    response_dto = asf.client_service().disable(dto_client=dto)
 
-        return ClientResponse.model_validate(response_dto)
-
-    except (DomainError, PermissionError) as exc:
-        raise _domain_error(exc)
+    return to_client_response(response_dto)
 
 
 @router.patch(
@@ -213,18 +237,14 @@ def enable_client(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    try:
-        dto = ClientDTO(
-            actor_admin_id=actor_admin_id,
-            client_id=client_id,
-        )
+    dto = ClientDTO(
+        actor_admin_id=actor_admin_id,
+        client_id=client_id,
+    )
 
-        response_dto = asf.client_service().enable(dto_client=dto)
+    response_dto = asf.client_service().enable(dto_client=dto)
 
-        return ClientResponse.model_validate(response_dto)
-
-    except (DomainError, PermissionError) as exc:
-        raise _domain_error(exc)
+    return to_client_response(response_dto)
 
 
 @router.delete(
@@ -238,45 +258,12 @@ def delete_client(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    try:
-        dto = ClientDTO(
-            actor_admin_id=actor_admin_id,
-            client_id=client_id,
-            name="",
-        )
+    dto = ClientDTO(
+        actor_admin_id=actor_admin_id,
+        client_id=client_id,
+    )
 
-        asf.client_service().delete(dto_client=dto)
+    asf.client_service().delete(dto_client=dto)
 
-        return None
-
-    except (DomainError, PermissionError) as exc:
-        raise _domain_error(exc)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    # 204 No Content should not return response body.
+    return None

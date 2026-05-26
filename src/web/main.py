@@ -20,9 +20,26 @@ def create_app() -> FastAPI:
     app1.include_router(user_ticket_router)
     registry = ExceptionHandlerRegistry(app1)
 
-    registry.add_all_handler('src.domain.exceptions', admin.clients.handlers)
-    registry.add_all_handler('src.web.auth.exceptions', {'TokenError': 401, 'TokenNotFoundError': 401,
-                                                         'TokenExpiredError': 401, 'UserNotValidError': 401})
+    registry.add_all_handlers_from_module(
+        module_name="src.domain.exceptions",
+        exceptions=admin.clients.handlers,
+    )
+
+    registry.add_all_handlers_from_module(
+        module_name="src.web.auth.exceptions",
+        exceptions={
+            "TokenError": 401,
+            "TokenNotFoundError": 401,
+            "TokenExpiredError": 401,
+            "UserNotValidError": 401,
+        },
+    )
+
+    registry.add_all_handlers_from_module(
+        module_name="src.domain.exceptions",
+        exceptions=admin_clients_router.handlers,
+    )
+
     registry.add_standard_handler(Exception, 500)
     registry.register_all()
 
