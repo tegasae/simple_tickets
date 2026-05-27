@@ -4,11 +4,14 @@ from fastapi import FastAPI
 from src.web.auth.exceptions import TokenError, TokenNotFoundError, TokenExpiredError, UserNotValidError, \
     InvalidCredentialsError
 from src.web.execeptions.exception_handlers import ExceptionHandlerRegistry
+
 from src.web.routers import admin
 from src.web.routers.auth import router as auth_router
 from src.web.routers.admin.clients import router as admin_clients_router
 
 from src.web.routers.user.ticket import router as user_ticket_router
+
+
 
 
 
@@ -20,24 +23,35 @@ def create_app() -> FastAPI:
     app1.include_router(admin_clients_router)
 
     app1.include_router(user_ticket_router)
-    registry = ExceptionHandlerRegistry(app1)
+
+    registry = ExceptionHandlerRegistry(
+        app1,
+        log_error=True,
+        with_traceback=False,
+        expose_traceback=False,
+        expose_error_type=True,
+    )
 
     registry.add_all_handlers_from_module(
         module_name="src.domain.exceptions",
         exceptions=admin.clients.handlers,
     )
 
-
-    registry.add_all_standard_handlers(exceptions={
+    registry.add_all_standard_handlers(
+        exceptions={
             TokenError: 401,
             TokenNotFoundError: 401,
             TokenExpiredError: 401,
             UserNotValidError: 401,
-            InvalidCredentialsError:401
-        })
+            InvalidCredentialsError: 401,
+        }
+    )
 
+    registry.add_standard_handler(
+        exception_type=Exception,
+        status_code=500
+    )
 
-    registry.add_standard_handler(exception_type=Exception, status_code=401)
     registry.register_all()
 
     @app1.get("/health", response_model=None)

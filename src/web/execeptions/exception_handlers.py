@@ -1,10 +1,11 @@
 # src/web/core/exception_handlers.py
 
-
+from __future__ import annotations
 
 import importlib
 import logging
-from collections.abc import Callable
+import traceback
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -14,53 +15,79 @@ from fastapi.responses import JSONResponse
 logger = logging.getLogger(__name__)
 
 
-# FastAPI exception handler может быть sync или async.
-# Здесь используем async handler, потому что это естественный стиль для FastAPI.
-ExceptionHandler = Callable[[Request, Exception], JSONResponse]
+ExceptionHandler = Callable[
+    [Request, Exception],
+    JSONResponse | Awaitable[JSONResponse],
+]
 
 
 class ExceptionHandlerRegistry:
     """
     Centralized registry for FastAPI exception handlers.
 
-    Зачем нужен этот класс:
-        - не писать try/except в каждом router endpoint;
-        - хранить mapping exception -> HTTP status code в одном месте;
-        - регистрировать исключения как явно классами, так и динамически по строкам.
+    Responsibilities:
+        - keep exception -> HTTP status mapping in one place;
+        - register handlers explicitly by exception class;
+        - register handlers dynamically by module name and class name;
+        - optionally log handled exceptions;
+        - optionally write traceback to logs;
+        - optionally expose error type / traceback in JSON response.
 
-    Пример явной регистрации:
+    Important:
+        This class does NOT automatically register handler for Exception.
 
-        registry.add_standard_handler(DomainError, 400)
-        registry.add_standard_handler(PermissionError, 403)
+        If you want catch-all behavior, register it explicitly:
 
-    Пример динамической регистрации:
+            registry.add_unhandled_handler()
 
-        registry.add_all_handlers_from_module(
-            module_name="src.domain.exceptions",
-            exceptions={
-                "DomainOperationError": 400,
-                "ItemNotFoundError": 404,
-            },
-        )
+        or:
+
+            registry.add_unhandled_handler(
+                exception_type=Exception,
+                status_code=500,
+                detail="Internal server error",
+            )
     """
 
-    def __init__(self, app: FastAPI,with_traceback=False,expose_error_type=True,log_error=False):
+    def __init__(
+        self,
+        app: FastAPI,
+        *,
+        with_traceback: bool = False,
+        expose_traceback: bool = False,
+        expose_error_type: bool = True,
+        log_error: bool = False,
+    ) -> None:
         self.app = app
-        self._handlers: dict[type[Exception], Callable] = {}
-        self.with_traceback=with_traceback
-        self.log_error=log_error
-        self.expose_error_type=expose_error_type
+        self._handlers: dict[type[Exception], ExceptionHandler] = {}
+
+        # If True, traceback is written to console/logs when logging is enabled.
+        self.with_traceback = with_traceback
+
+        # If True, traceback is included into JSON response.
+        # Usually should be False in production.
+        self.expose_traceback = expose_traceback
+
+        # If True, JSON response contains:
+        #   "error_type": "SomeExceptionName"
+        self.expose_error_type = expose_error_type
+
+        # If True, handled exceptions are logged.
+        self.log_error = log_error
+
+    # ---------------------------------------------------------------------
+    # Public registration API
+    # ---------------------------------------------------------------------
 
     def add_handler(
         self,
         exception_type: type[Exception],
-        handler_func: Callable,
+        handler_func: ExceptionHandler,
     ) -> None:
         """
-        Add a custom handler for a specific exception type.
+        Add custom handler for a specific exception type.
 
-        Используй этот метод, если для исключения нужна особая логика,
-        например специальный JSON body, headers, logging и т.д.
+        Use this when standard JSON response is not enough.
         """
         self._validate_exception_type(exception_type)
         self._handlers[exception_type] = handler_func
@@ -72,97 +99,85 @@ class ExceptionHandlerRegistry:
         status_code: int,
     ) -> None:
         """
-        Add a standard JSON handler for exception type.
+        Add standard JSON handler for expected exceptions.
 
-        Response format:
+        This handler returns str(exc) as "detail".
 
-            {
-                "detail": "...",
-                "error_type": "DomainOperationError"
-            }
+        Good for:
+            - domain errors;
+            - validation errors;
+            - auth errors;
+            - permission errors.
 
-        Почему "detail":
-            FastAPI сам использует поле "detail" для HTTPException,
-            поэтому лучше придерживаться такого же формата.
+        Be careful with:
+            Exception
 
-        expose_error_type:
-            True  -> добавить имя класса исключения в response.
-            False -> вернуть только detail.
-
-        log_error:
-            True  -> логировать exception через logger.exception().
-            False -> не логировать, если это ожидаемая бизнес-ошибка.
+        Because for unexpected errors you usually do NOT want to expose str(exc)
+        to the client.
         """
-
-        self._validate_exception_type(exception_type=exception_type)
+        self._validate_exception_type(exception_type)
 
         async def handler(request: Request, exc: Exception) -> JSONResponse:
             if self.log_error:
-                if self.with_traceback:
-                    logger.exception(
-                        "Exception on %s %s",
-                        request.method,
-                        request.url.path,
-                        exc_info=exc,
-                    )
-                logger.error(
-                    "Exception on %s %s: %s: %s",
-                    request.method,
-                    request.url.path,
-                    exc.__class__.__name__,
-                    exc,
+                self._log_exception(
+                    request=request,
+                    exc=exc,
+                    message="Handled exception",
                 )
-
-
-            content: dict[str, Any] = {
-                "detail": str(exc),
-            }
-
-            if self.expose_error_type:
-                content["error_type"] = exc.__class__.__name__
 
             return JSONResponse(
                 status_code=status_code,
-                content=content,
+                content=self._make_error_content(
+                    exc=exc,
+                    detail=str(exc),
+                ),
             )
 
         self._handlers[exception_type] = handler
 
-    def add_all_standard_handlers(self,
+
+    def add_all_standard_handlers(
+        self,
         *,
         exceptions: dict[type[Exception], int],
-        )->None:
+    ) -> None:
+        """
+        Add many handlers using exception classes directly.
 
+        Example:
 
+            registry.add_all_standard_handlers(
+                exceptions={
+                    DomainError: 400,
+                    PermissionError: 403,
+                }
+            )
+        """
         for exception_type, status_code in exceptions.items():
-            self.add_standard_handler(exception_type=exception_type, status_code=status_code)
-
-
-
+            self.add_standard_handler(
+                exception_type=exception_type,
+                status_code=status_code,
+            )
 
     def add_all_handlers_from_module(
         self,
         *,
         module_name: str,
-        exceptions: dict[str, int]
+        exceptions: dict[str, int],
     ) -> None:
         """
         Add handlers for multiple exceptions from one module.
 
-        exceptions example:
+        Example:
 
-            {
-                "DomainOperationError": 400,
-                "ItemNotFoundError": 404,
-                "InvalidCredentialsError": 401,
-            }
-
-        module_name example:
-
-            "src.domain.exceptions"
-
-        Этот метод оставляет твою идею mapping-а:
-            class name as string -> HTTP status code.
+            registry.add_all_handlers_from_module(
+                module_name="src.domain.exceptions",
+                exceptions={
+                    "DomainOperationError": 400,
+                    "ItemNotFoundError": 404,
+                    "ItemValidationError": 400,
+                },
+            )
         """
         successful = 0
         failed = 0
@@ -180,7 +195,6 @@ class ExceptionHandlerRegistry:
             self.add_standard_handler(
                 exception_type=exception_class,
                 status_code=status_code,
-
             )
 
             successful += 1
@@ -199,12 +213,31 @@ class ExceptionHandlerRegistry:
             failed,
         )
 
+    def add_all_handler(
+        self,
+        module_name: str,
+        exceptions: dict[str, int],
+    ) -> None:
+        """
+        Backward-compatible wrapper.
+
+        Allows old style:
+
+            registry.add_all_handler(
+                "src.domain.exceptions",
+                handlers,
+            )
+        """
+        self.add_all_handlers_from_module(
+            module_name=module_name,
+            exceptions=exceptions,
+        )
+
     def register_all(self) -> None:
         """
         Register all prepared handlers in FastAPI app.
 
-        Важно:
-            Этот метод нужно вызвать один раз при создании приложения.
+        Call this once during application startup.
         """
         for exception_type, handler in self._handlers.items():
             self.app.add_exception_handler(exception_type, handler)
@@ -214,8 +247,12 @@ class ExceptionHandlerRegistry:
                 exception_type.__name__,
             )
 
-    @staticmethod
+    # ---------------------------------------------------------------------
+    # Dynamic import
+    # ---------------------------------------------------------------------
+
     def _get_exception_class(
+        self,
         *,
         module_name: str,
         class_name: str,
@@ -223,29 +260,29 @@ class ExceptionHandlerRegistry:
         """
         Dynamically import exception class from module.
 
-        Returns:
-            exception class if found and valid;
-            None otherwise.
-
-        Почему возвращаем None:
-            Чтобы один неправильный class name не ломал регистрацию всех handlers.
+        We return None instead of raising because one wrong class name
+        should not break registration of all other handlers.
         """
         try:
             module = importlib.import_module(module_name)
-        except ImportError:
-            logger.exception(
-                "Cannot import exception module: %s",
-                module_name,
+
+        except ImportError as exc:
+            self._log_registry_error(
+                message=f"Cannot import exception module: {module_name}",
+                exc=exc,
             )
             return None
 
         try:
             exception_class: Any = getattr(module, class_name)
-        except AttributeError:
-            logger.exception(
-                "Exception class '%s' not found in module '%s'",
-                class_name,
-                module_name,
+
+        except AttributeError as exc:
+            self._log_registry_error(
+                message=(
+                    f"Exception class '{class_name}' not found "
+                    f"in module '{module_name}'"
+                ),
+                exc=exc,
             )
             return None
 
@@ -267,13 +304,16 @@ class ExceptionHandlerRegistry:
 
         return exception_class
 
+    # ---------------------------------------------------------------------
+    # Helpers
+    # ---------------------------------------------------------------------
+
     @staticmethod
-    def _validate_exception_type(exception_type: type[Exception]) -> None:
+    def _validate_exception_type(
+        exception_type: type[Exception],
+    ) -> None:
         """
         Validate manually passed exception type.
-
-        Здесь лучше падать сразу, потому что при явной регистрации
-        ошибка программиста должна быть заметна.
         """
         if not isinstance(exception_type, type):
             raise TypeError("exception_type must be an exception class")
@@ -281,35 +321,103 @@ class ExceptionHandlerRegistry:
         if not issubclass(exception_type, Exception):
             raise TypeError("exception_type must be subclass of Exception")
 
-    @staticmethod
+    def _make_error_content(
+        self,
+        *,
+        exc: Exception,
+        detail: str,
+    ) -> dict[str, Any]:
+        """
+        Build JSON response body.
+
+        self.expose_error_type:
+            Adds exception class name.
+
+        self.expose_traceback:
+            Adds traceback list.
+            Usually should be False in production.
+        """
+        content: dict[str, Any] = {
+            "detail": detail,
+        }
+
+        if self.expose_error_type:
+            content["error_type"] = exc.__class__.__name__
+
+        if self.expose_traceback:
+            content["traceback"] = traceback.format_exception(
+                type(exc),
+                exc,
+                exc.__traceback__,
+            )
+
+        return content
+
     def _log_exception(
-            *,
-            request: Request,
-            exc: Exception,
-            with_traceback: bool,
+        self,
+        *,
+        request: Request,
+        exc: Exception,
+        message: str,
     ) -> None:
         """
         Log exception.
 
-        If with_traceback=True:
-            write full stack trace.
+        If self.with_traceback=True:
+            write full traceback.
 
-        If with_traceback=False:
+        If self.with_traceback=False:
             write only short error message.
+
+        Important:
+            We do not use logger.exception(), because logger.exception()
+            always prints traceback.
         """
-        if with_traceback:
-            logger.exception(
-                "Unhandled exception on %s %s",
+        if self.with_traceback:
+            logger.error(
+                "%s on %s %s",
+                message,
                 request.method,
                 request.url.path,
-                exc_info=exc,
+                exc_info=(type(exc), exc, exc.__traceback__),
             )
             return
 
         logger.error(
-            "Unhandled exception on %s %s: %s: %s",
+            "%s on %s %s: %s: %s",
+            message,
             request.method,
             request.url.path,
+            exc.__class__.__name__,
+            exc,
+        )
+
+    def _log_registry_error(
+        self,
+        *,
+        message: str,
+        exc: Exception,
+    ) -> None:
+        """
+        Log registry configuration/import errors.
+
+        If self.with_traceback=True:
+            write full traceback.
+
+        If self.with_traceback=False:
+            write only short error message.
+        """
+        if self.with_traceback:
+            logger.error(
+                "%s",
+                message,
+                exc_info=(type(exc), exc, exc.__traceback__),
+            )
+            return
+
+        logger.error(
+            "%s: %s: %s",
+            message,
             exc.__class__.__name__,
             exc,
         )
