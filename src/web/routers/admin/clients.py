@@ -42,6 +42,7 @@ handlers = {
     "AdminValidationError": 400,
     "AdminOperationError": 400,
     "AdminSecurityError": 403,
+    "ItemNotFoundError":404
 }
 
 

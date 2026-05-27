@@ -44,9 +44,12 @@ class ExceptionHandlerRegistry:
         )
     """
 
-    def __init__(self, app: FastAPI):
+    def __init__(self, app: FastAPI,with_traceback=False,expose_error_type=True,log_error=False):
         self.app = app
         self._handlers: dict[type[Exception], Callable] = {}
+        self.with_traceback=with_traceback
+        self.log_error=log_error
+        self.expose_error_type=expose_error_type
 
     def add_handler(
         self,
@@ -64,11 +67,9 @@ class ExceptionHandlerRegistry:
 
     def add_standard_handler(
         self,
+        *,
         exception_type: type[Exception],
         status_code: int,
-        *,
-        expose_error_type: bool = True,
-        log_error: bool = False,
     ) -> None:
         """
         Add a standard JSON handler for exception type.
@@ -93,22 +94,31 @@ class ExceptionHandlerRegistry:
             False -> не логировать, если это ожидаемая бизнес-ошибка.
         """
 
-        self._validate_exception_type(exception_type)
+        self._validate_exception_type(exception_type=exception_type)
 
         async def handler(request: Request, exc: Exception) -> JSONResponse:
-            if log_error:
-                logger.exception(
-                    "Handled exception: %s %s",
+            if self.log_error:
+                if self.with_traceback:
+                    logger.exception(
+                        "Exception on %s %s",
+                        request.method,
+                        request.url.path,
+                        exc_info=exc,
+                    )
+                logger.error(
+                    "Exception on %s %s: %s: %s",
                     request.method,
                     request.url.path,
-                    exc_info=exc,
+                    exc.__class__.__name__,
+                    exc,
                 )
+
 
             content: dict[str, Any] = {
                 "detail": str(exc),
             }
 
-            if expose_error_type:
+            if self.expose_error_type:
                 content["error_type"] = exc.__class__.__name__
 
             return JSONResponse(
@@ -118,13 +128,23 @@ class ExceptionHandlerRegistry:
 
         self._handlers[exception_type] = handler
 
+    def add_all_standard_handlers(self,
+        *,
+        exceptions: dict[type[Exception], int],
+        )->None:
+
+
+        for exception_type, status_code in exceptions.items():
+            self.add_standard_handler(exception_type=exception_type, status_code=status_code)
+
+
+
+
     def add_all_handlers_from_module(
         self,
         *,
         module_name: str,
-        exceptions: dict[str, int],
-        expose_error_type: bool = True,
-        log_error: bool = False,
+        exceptions: dict[str, int]
     ) -> None:
         """
         Add handlers for multiple exceptions from one module.
@@ -160,8 +180,7 @@ class ExceptionHandlerRegistry:
             self.add_standard_handler(
                 exception_type=exception_class,
                 status_code=status_code,
-                expose_error_type=expose_error_type,
-                log_error=log_error,
+
             )
 
             successful += 1
@@ -261,3 +280,36 @@ class ExceptionHandlerRegistry:
 
         if not issubclass(exception_type, Exception):
             raise TypeError("exception_type must be subclass of Exception")
+
+    @staticmethod
+    def _log_exception(
+            *,
+            request: Request,
+            exc: Exception,
+            with_traceback: bool,
+    ) -> None:
+        """
+        Log exception.
+
+        If with_traceback=True:
+            write full stack trace.
+
+        If with_traceback=False:
+            write only short error message.
+        """
+        if with_traceback:
+            logger.exception(
+                "Unhandled exception on %s %s",
+                request.method,
+                request.url.path,
+                exc_info=exc,
+            )
+            return
+
+        logger.error(
+            "Unhandled exception on %s %s: %s: %s",
+            request.method,
+            request.url.path,
+            exc.__class__.__name__,
+            exc,
+        )
