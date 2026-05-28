@@ -14,6 +14,9 @@ from src.web.routers.admin.admins import router as admin_admins_router
 from src.web.routers.user.ticket import router as user_ticket_router
 
 
+from src.web.routers.admin.users import router as admin_users_router
+from src.web.routers.admin.tickets import router as admin_tickets_router
+
 
 
 
@@ -25,7 +28,8 @@ def create_app() -> FastAPI:
     app1.include_router(admin_clients_router)
     app1.include_router(admin_admins_router)
     app1.include_router(user_ticket_router)
-
+    app1.include_router(admin_users_router)
+    app1.include_router(admin_tickets_router)
     registry = ExceptionHandlerRegistry(
         app1,
         log_error=True,

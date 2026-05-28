@@ -52,12 +52,15 @@ class TicketApplicationService:
         admin_id = ticket_dto.admin_id
 
         admin = self.uow.admins.get(admin_id)
-        client = self.uow.clients.get(ticket_dto.client_id)
-
         TicketPolicy.ensure_admin_enabled(admin)
-        TicketPolicy.ensure_client_enabled(client)
+        client=None
+        if ticket_dto.client_id:
+            client = self.uow.clients.get(ticket_dto.client_id)
+            TicketPolicy.ensure_client_enabled(client)
 
-        if ticket_dto.user_id:
+
+
+        if ticket_dto.user_id and ticket_dto.client_id:
             user = self.uow.users.get(ticket_dto.user_id)
             TicketPolicy.ensure_user_enabled(user)
             TicketPolicy.ensure_user_belongs_to_client(user, client)
