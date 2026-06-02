@@ -186,7 +186,6 @@ def ticket_comment_request_to_dto(
         actor_admin_id=actor_admin_id,
         admin_id=actor_admin_id,
         ticket_id=ticket_id,
-        client_id=request.client_id,
         comment=request.comment,
     )
 

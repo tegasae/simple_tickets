@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from threading import Lock
 
-
+from src.web.auth.exceptions import TokenNotFoundError
 from src.web.auth.tokens import RefreshToken, hash_token
 
 
@@ -103,7 +103,7 @@ class TokenStorageMemory(TokenStorage):
             token = self._refresh_tokens.get(token_hash)
 
             if token is None:
-                raise TokenNotFoundError(token_id)
+                raise TokenNotFoundError()
 
             return token
 
@@ -115,7 +115,7 @@ class TokenStorageMemory(TokenStorage):
 
         with self._lock:
             if token_hash not in self._refresh_tokens:
-                raise TokenNotFoundError(token_id)
+                raise TokenNotFoundError()
 
             del self._refresh_tokens[token_hash]
 

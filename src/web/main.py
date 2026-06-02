@@ -1,6 +1,7 @@
 import uvicorn
 from fastapi import FastAPI
 
+from src.domain.exceptions import ItemValidationError
 from src.web.auth.exceptions import TokenError, TokenNotFoundError, TokenExpiredError, UserNotValidError, \
     InvalidCredentialsError
 from src.web.execeptions.exception_handlers import ExceptionHandlerRegistry
@@ -37,12 +38,6 @@ def create_app() -> FastAPI:
         expose_traceback=False,
         expose_error_type=True,
     )
-
-    registry.add_all_handlers_from_module(
-        module_name="src.domain.exceptions",
-        exceptions=admin.clients.handlers,
-    )
-
     registry.add_all_standard_handlers(
         exceptions={
             TokenError: 401,
@@ -50,8 +45,16 @@ def create_app() -> FastAPI:
             TokenExpiredError: 401,
             UserNotValidError: 401,
             InvalidCredentialsError: 401,
+            ItemValidationError: 400,
+            PermissionError: 403
         }
     )
+    registry.add_all_handlers_from_module(
+        module_name="src.domain.exceptions",
+        exceptions=admin.clients.handlers,
+    )
+
+
 
     registry.add_standard_handler(
         exception_type=Exception,

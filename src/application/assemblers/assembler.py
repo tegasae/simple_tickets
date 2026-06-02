@@ -49,6 +49,7 @@ class TicketAssembler:
 
 
         return TicketResponseDTO(
+            admin_id=ticket.admin_id,
             ticket_id=ticket.ticket_id,
             date_created=unwrap(ticket.date_created),
             date_finished=unwrap(ticket.date_finished),

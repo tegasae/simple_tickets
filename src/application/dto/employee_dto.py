@@ -27,7 +27,7 @@ class AdminDTO(EmployeeDTO):
 
 @dataclass(kw_only=True)
 class UserDTO(EmployeeDTO):
-    client_id: int
+    client_id: int =0
 
 
 

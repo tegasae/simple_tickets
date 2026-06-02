@@ -1,6 +1,7 @@
 # src/web/models/tickets.py
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from pydantic import BaseModel, ConfigDict
 
 
 class TicketCreateRequest(BaseModel):
@@ -82,8 +83,6 @@ class TicketCommentRequest(BaseModel):
     """
 
     model_config = ConfigDict(extra="forbid")
-
-    client_id: int
     comment: str
 
 
@@ -127,31 +126,19 @@ class TicketResponse(BaseModel):
     text_of_ticket: str = ""
     description: str = ""
 
-    status: str = ""
+    statuses: list
     is_closed: bool = False
 
     is_remote: bool = False
     urgency_level: int = 0
 
-    comment: str = ""
+    comments: list
 
     date_created: str = ""
     date_finished: str = ""
 
     version: int = 0
 
-    @field_validator(
-        "text_of_ticket",
-        "description",
-        "status",
-        "comment",
-        "date_created",
-        "date_finished",
-        mode="before",
-    )
-    @classmethod
-    def none_to_empty_string(cls, value):
-        return "" if value is None else value
 
 
     

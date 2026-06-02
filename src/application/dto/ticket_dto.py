@@ -27,6 +27,7 @@ class TicketDTO:
 @dataclass(kw_only=True,frozen=True)
 class TicketResponseDTO:
     ticket_id: int
+    admin_id: int
     date_created: str
     date_finished:str
     text_of_ticket:str
