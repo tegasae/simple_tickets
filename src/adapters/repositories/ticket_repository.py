@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Iterator
 
 from src.adapters.repositories.base_repository import BaseRepository
 
@@ -18,6 +19,8 @@ from utils.db.exceptions import DBOperationError
 
 
 class TicketRepositorySQLite(TicketRepository, BaseRepository):
+
+
 
     # ---------------------------
     # load helpers
@@ -159,6 +162,46 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
     # ---------------------------
     # save
     # ---------------------------
+
+
+    def iter_active_by_client_id(self, *, client_id: int, batch_size: int = 500) -> Iterator[list[Ticket]]:
+
+            """
+            Load active tickets of one client in batches.
+
+            This method does not decide whether ticket can be deferred.
+            It only loads not-closed tickets for this client.
+
+            Domain/workflow decides:
+                - skip executed;
+                - skip cancelled;
+                - skip at_work with executor;
+                - defer others.
+            """
+            last_id = 0
+
+            while True:
+                rows = self._get_many(
+                    TicketGateway.SELECT_ACTIVE_BY_CLIENT_ID_BATCH,
+                    TicketMapper.VARS,
+                    {
+                        "client_id": client_id,
+                        "last_id": last_id,
+                        "limit": batch_size,
+                    },
+                )
+
+                if not rows:
+                    break
+
+                tickets = [
+                    self._load_ticket(row)
+                    for row in rows
+                ]
+
+                yield tickets
+                last_id = rows[-1]["ticket_id"]
+
 
     def save(self, ticket: Ticket) -> Ticket:
         try:

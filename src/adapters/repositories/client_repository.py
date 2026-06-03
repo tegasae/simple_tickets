@@ -42,7 +42,7 @@ class ClientRepositorySQLite(BaseRepository, ClientRepository):
         )
 
         if not row:
-            raise ItemNotFoundError(f"Client {client_id} not found")
+            raise ItemNotFoundError(f"client {client_id}")
 
         return ClientMapper.row_to_client(row)
 

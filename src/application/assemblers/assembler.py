@@ -9,8 +9,6 @@ from src.domain.value_objects import Empty
 from src.application.dto.client_dto import ClientResponseDTO
 
 
-def unwrap(value):
-    return "" if isinstance(value, Empty) else str(value)
 
 
 class ClientAssembler:
@@ -22,13 +20,13 @@ class ClientAssembler:
 
         return ClientResponseDTO(
             client_id=client.client_id,
-            name=unwrap(client.name),
-            email=unwrap(client.email),
-            address=unwrap(client.address),
-            phone=unwrap(client.phone),
+            name=str(client.name),
+            email=str(client.email),
+            address=str(client.address),
+            phone=str(client.phone),
             enabled=client.enabled,
             created_by_admin=client.created_by_admin_id,
-            date_created=unwrap(client.date_created)
+            date_created=str(client.date_created)
         )
 
 class TicketAssembler:

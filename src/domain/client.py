@@ -127,9 +127,9 @@ class Client:
 
     def update_contact_info(
             self,
-            email: str | None = None,
-            address: str | None = None,
-            phone: str | None = None
+            email: str="",
+            address: str="",
+            phone: str =""
     ) -> None:
         """Update client's contact information.
 
@@ -143,18 +143,18 @@ class Client:
         """
         try:
             if email is not None:
-                self.email = Email(email) if email else None
+                self.email = Email(email) if email else Empty()
 
             if address is not None:
-                self.address = Address(address) if address else None
+                self.address = Address(address) if address else Empty()
             if phone is not None:
-                self.phone = Phone(phone) if phone else None
+                self.phone = Phone(phone) if phone else Empty()
 
 
         except ValueError as e:
             raise ItemValidationError(f"Invalid contact info: {e}") from e
 
-    def get_contact_summary(self) -> dict[str, str | None]:
+    def get_contact_summary(self) -> dict[str, str ]:
         """Get summary of client's contact information.
 
         Returns:
@@ -162,9 +162,9 @@ class Client:
         """
         return {
             "name": str(self.name),
-            "email": str(self.email) if self.email else None,
-            "address": str(self.address) if self.address else None,
-            "phone": str(self.phone) if self.phone else None,
+            "email": str(self.email) if self.email else "",
+            "address": str(self.address) if self.address else "",
+            "phone": str(self.phone) if self.phone else "",
         }
 
     def __eq__(self, other: object) -> bool:

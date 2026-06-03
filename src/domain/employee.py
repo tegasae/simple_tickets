@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import FrozenSet, Self, Any
 
 from src.domain.account import NoAccount, Account
+from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.employee_protocol import HasRoleIds
 from src.domain.value_objects import Email, Phone, Name, Empty
 
@@ -95,6 +96,9 @@ class _Employee(HasRoleIds):
 
 
         return self
+    def can_do_operation(self):
+        if not self.enabled:
+            raise DomainOperationError("The inactive employee can't do any operations")
 
     def enable(self):
         self.enabled = True

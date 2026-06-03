@@ -59,10 +59,9 @@ class UserGateway:
     LIMIT 1
     """
 
-    SELECT_BY_CLIENT_ID = "SELECT count(employee_id) FROM users WHERE client_id = :client_id"
+    COUNT_BY_CLIENT_ID = "SELECT count(employee_id) FROM users WHERE client_id = :client_id"
 
-
-
+    SELECT_BY_CLIENT_ID= SELECT_BASE + " AND u.client_id = :client_id"
 
 
 

@@ -19,7 +19,7 @@ class DomainError(Exception):
         admin_name: Optional name of the admin/user related to the error
     """
 
-    def __init__(self, message: str, admin_name: Optional[str] = None):
+    def __init__(self, message: str, admin_name: Optional[str] = ""):
         """Initialize a DomainError.
 
         Args:
@@ -59,7 +59,7 @@ class ItemNotFoundError(DomainError):
         Args:
             item_name: Name or identifier of the item that was not found
         """
-        super().__init__(f"The '{item_name}' not found", item_name)
+        super().__init__(f"The '{item_name}' not found")
 
 
 class ItemAlreadyExistsError(DomainError):

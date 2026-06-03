@@ -21,6 +21,7 @@ class TicketGateway:
 
     SELECT_BY_ID=SELECT_BASE+" WHERE ticket_id = :ticket_id"
     SELECT_BY_USER_TICKET_ID = SELECT_BASE + " WHERE user_ticket_id = :user_ticket_id"
+    SELECT_ACTIVE_BY_CLIENT_ID_BATCH=SELECT_BASE + " WHERE client_id = :client_id AND ticket_id > :last_id ORDER BY ticket_id LIMIT :limit"
 
 
     INSERT = """

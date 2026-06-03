@@ -16,7 +16,6 @@ from src.domain.exceptions import ItemNotFoundError
 class UserRepositorySQLite(BaseRepository, UserRepository):
 
 
-
     # ---------- roles ----------
 
     def _load_roles(self, employee_id: int) -> set[int]:
@@ -166,4 +165,22 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
 
 
     def does_client_exist(self, client_id: int) -> bool:
-        return self._exists(UserGateway.SELECT_BY_CLIENT_ID, {'client_id': client_id})
+        return self._exists(UserGateway.COUNT_BY_CLIENT_ID, {'client_id': client_id})
+
+
+    def get_all_by_client_id(self, client_id: int) -> list[User]:
+            rows = self._get_many(
+                UserGateway.SELECT_BY_CLIENT_ID,
+                UserMapper.VARS,
+                {"client_id": client_id},
+            )
+
+            users: list[User] = []
+
+            for row in rows:
+                user = UserMapper.row_to_user(row)
+                user._role_ids = self._load_roles(user.employee_id)
+
+                users.append(user)
+
+            return users

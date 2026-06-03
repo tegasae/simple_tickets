@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Iterator
 
 from src.domain.ticket import Ticket
 
@@ -20,6 +21,23 @@ class TicketRepository(ABC):
     def get_all(self) -> list[Ticket]:
         raise NotImplementedError
 
+    @abstractmethod
+    def iter_active_by_client_id(
+            self,
+            *,
+            client_id: int,
+            batch_size: int = 500,
+    ) -> Iterator[list[Ticket]]:
+        """
+        Iterate active tickets of one client in batches.
+
+        Active means:
+            - belongs to client_id;
+            - not closed.
+
+        More specific domain rules are checked later by workflow.
+        """
+        raise NotImplementedError
     # ----------------------------
     # Persistence
     # ----------------------------

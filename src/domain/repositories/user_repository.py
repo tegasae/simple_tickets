@@ -37,6 +37,10 @@ class UserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_all_by_client_id(self, client_id: int) -> list[User]:
+        raise NotImplementedError
+
+    @abstractmethod
     def exists(self, user_id: int) -> bool:
         """Check whether user exists."""
         raise NotImplementedError

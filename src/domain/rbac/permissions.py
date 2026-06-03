@@ -12,30 +12,21 @@ class PermissionBase(StrEnum):
 
 
 class AdminPermission(PermissionBase):
-    VIEW_ADMIN = "admin.view"
-    VIEW_USER = "view.user"
-    UPDATE_ADMIN = "admin.update"
-    ASSIGN_ROLE = "role.assign"
-    REVOKE_ROLE = "role.revoke"
-    VIEW_AUDIT_LOG = "audit.view"
-    CREATE_USER="create.user"
-    CREATE_ADMIN="create.admin"
-    UPDATE_USER = "update.user"
-    DELETE_ADMIN = "delete.admin"
-    DELETE_USER = "delete.user"
-    OPERATION_CLIENT = "operation.client"
-    VIEW_TICKET = "ticket.view"
-    CREATE_TICKET = "ticket.create"
-    UPDATE_TICKET = "ticket.update"
-    ASSIGN_TICKET = "ticket.assign"
-    DELETE_TICKET = "ticket.delete"
-
+    CLIENT_OPERATION = "client.operation"
+    CLIENT_VIEW = "client.view"
+    ADMIN_OPERATION="admin.operation"
+    ADMIN_VIEW="admin.view"
+    USER_OPERATION="user.operation"
+    USER_VIEW="user.view"
+    TICKET_OPERATION="ticket.operation"
+    TICKET_VIEW = "ticket.view"
+    ROLE_ASSIGN="role.assign"
+    ROLE_REVOKE="role.revoke"
 
 class UserPermission(PermissionBase):
-    CREATE_TICKET = "ticket.create"
-    VIEW_OWN_TICKET = "ticket.view.own"
-    UPDATE_OWN_TICKET = "ticket.update.own"
-    DELETE_OWN_TICKET = "ticket.delete.own"
-    VIEW_ALL_TICKET = "ticket.view.all"
-    UPDATE_ALL_TICKET = "ticket.update.all"
-    DELETE_ALL_TICKET = "ticket.delete.all"
+    TICKET_OPERATION = "ticket.operation"
+    TICKET_OPERATION_ALL="ticket.operation.all"
+    TICKET_VIEW = "ticket.view"
+    TICKET_VIEW_ALL = "ticket.view.all"
+
+

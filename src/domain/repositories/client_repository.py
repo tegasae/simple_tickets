@@ -14,6 +14,9 @@ class ClientRepository(ABC):
     def get_all(self) -> list[Client]:
         raise NotImplementedError()
 
+
+
+
     @abstractmethod
     def exists(self, client_id: int) -> bool:
         raise NotImplementedError()
@@ -29,3 +32,4 @@ class ClientRepository(ABC):
     @abstractmethod
     def create_by_admin(self, *, admin_id) ->bool:
         raise NotImplementedError()
+

@@ -1,4 +1,5 @@
-from src.domain.ticket import Ticket
+from src.domain.employee import User
+from src.domain.ticket import Ticket, TicketStatus
 from src.domain.ticket_user import TicketUser
 from src.domain.ticket_components import Comment, ExecutorAssignment
 
@@ -150,3 +151,41 @@ class TicketWorkflowService:
                 executor_id=executor_id,
             )
         )
+
+
+    @staticmethod
+    def defer_ticket_due_to_client_disabled(
+            *,
+        ticket: Ticket,
+        actor_admin_id: int,
+        comment: str = "",
+    ) -> bool:
+        """
+        Defer admin ticket because client was disabled.
+
+        Returns:
+            True  - ticket changed
+            False - ticket skipped
+        """
+        if ticket.is_closed:
+            return False
+
+        current_status = ticket.current_status()
+
+        if current_status in {
+            TicketStatus.EXECUTED,
+            TicketStatus.CANCELLED,
+        }:
+            return False
+
+        ticket.defer(actor_employee_id=actor_admin_id)
+        if comment:
+            ticket.add_comment(Comment(employee_id=actor_admin_id,comment=comment))
+
+
+        return True
+
+    @staticmethod
+    def disable_user_due_to_client_disabled(*, user: User):
+
+        user.disable()

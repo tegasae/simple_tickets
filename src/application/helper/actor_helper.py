@@ -15,6 +15,7 @@ class EmployeeActorHelper:
         permission: AdminPermission,
     ) -> Admin:
         actor = self.uow.admins.get(admin_id=actor_admin_id)
+        actor.can_do_operation()
         Authorizer(self.uow.roles_admin).require(actor, permission)
         return actor
 
@@ -26,5 +27,6 @@ class EmployeeActorHelper:
         permission: UserPermission,
     ) -> User:
         actor = self.uow.users.get(user_id=actor_user_id)
+        actor.can_do_operation()
         Authorizer(self.uow.roles_user).require(actor, permission)
         return actor

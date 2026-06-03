@@ -46,7 +46,8 @@ def create_app() -> FastAPI:
             UserNotValidError: 401,
             InvalidCredentialsError: 401,
             ItemValidationError: 400,
-            PermissionError: 403
+            PermissionError: 403,
+            ValueError: 500
         }
     )
     registry.add_all_handlers_from_module(

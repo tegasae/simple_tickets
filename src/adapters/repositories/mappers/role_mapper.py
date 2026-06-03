@@ -68,7 +68,7 @@ def _parse_date(date_value: str | None) -> datetime:
 
 
 def _parse_permissions(value: str, permission_cls: Type[P]) -> frozenset[P]:
-    return frozenset(permission_cls(p) for p in value.split(",") if p)
+    return frozenset(permission_cls(p.strip()) for p in value.split(",") if p)
 
 
 # -------------------------
