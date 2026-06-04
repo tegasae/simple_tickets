@@ -52,7 +52,7 @@ class TicketUserApplicationService:
 
         with self.uow:
             self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
-                                           permission=UserPermission.CREATE_TICKET)
+                                           permission=UserPermission.TICKET_OPERATION)
 
             self._validate_references(ticket_user_dto)
 
@@ -74,10 +74,10 @@ class TicketUserApplicationService:
             ticket_user = self.uow.user_tickets.get(ticket_id=ticket_user_dto.ticket_id)
             if ticket_user.user_id==ticket_user_dto.user_id:
                 self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
-                                              permission=UserPermission.UPDATE_OWN_TICKET)
+                                              permission=UserPermission.TICKET_OPERATION_ALL)
             else:
                 self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
-                                              permission=UserPermission.UPDATE_ALL_TICKET)
+                                              permission=UserPermission.TICKET_OPERATION)
             commet=Comment(employee_id=ticket_user_dto.user_id,comment=ticket_user_dto.comment)
             ticket_user.add_comment(commet)
             return self._save_and_to_dto(ticket_user)
@@ -91,10 +91,10 @@ class TicketUserApplicationService:
             ticket_user = self.uow.user_tickets.get(ticket_id=ticket_user_dto.ticket_id)
             if ticket_user.user_id==ticket_user_dto.user_id:
                 self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
-                                              permission=UserPermission.UPDATE_OWN_TICKET)
+                                              permission=UserPermission.TICKET_OPERATION)
             else:
                 self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
-                                              permission=UserPermission.UPDATE_ALL_TICKET)
+                                              permission=UserPermission.TICKET_OPERATION_ALL)
 
 
 
@@ -113,10 +113,10 @@ class TicketUserApplicationService:
         ticket_user = self.uow.user_tickets.get(ticket_id=ticket_user_dto.ticket_id)
         if ticket_user.user_id == ticket_user_dto.user_id:
             self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
-                                          permission=UserPermission.DELETE_OWN_TICKET)
+                                          permission=UserPermission.TICKET_OPERATION)
         else:
             self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
-                                          permission=UserPermission.DELETE_ALL_TICKET)
+                                          permission=UserPermission.TICKET_OPERATION_ALL)
 
 
         try:
@@ -134,10 +134,10 @@ class TicketUserApplicationService:
             ticket_user = self.uow.user_tickets.get(ticket_id=ticket_user_dto.ticket_id)
             if ticket_user.user_id == ticket_user_dto.user_id:
                 self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
-                                              permission=UserPermission.VIEW_OWN_TICKET)
+                                              permission=UserPermission.TICKET_VIEW)
             else:
                 self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
-                                              permission=UserPermission.VIEW_ALL_TICKET)
+                                              permission=UserPermission.TICKET_VIEW_ALL)
 
             return TicketUserAssembler.to_dto(ticket_user)
 
@@ -145,7 +145,7 @@ class TicketUserApplicationService:
         with self.uow:
             self._validate_references(ticket_user_dto)
             self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
-                                              permission=UserPermission.VIEW_OWN_TICKET)
+                                              permission=UserPermission.TICKET_VIEW)
             tickets = self.uow.user_tickets.get_all()
 
             return [TicketUserAssembler.to_dto(ticket) for ticket in tickets if ticket.user_id == ticket_user_dto.user_id]
@@ -154,7 +154,7 @@ class TicketUserApplicationService:
         with self.uow:
             self._validate_references(ticket_user_dto)
             self.actor.require_actor_user(actor_user_id=ticket_user_dto.user_id,
-                                          permission=UserPermission.VIEW_ALL_TICKET)
+                                          permission=UserPermission.TICKET_VIEW_ALL)
             tickets = self.uow.user_tickets.get_all()
 
             return [TicketUserAssembler.to_dto(ticket) for ticket in tickets]

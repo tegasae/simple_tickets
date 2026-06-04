@@ -37,20 +37,7 @@ router = APIRouter(
 #         exceptions=admin.admins.handlers,
 #     )
 #
-handlers = {
-    "AdminError": 500,
-    "DomainSecurityError": 403,
-    "AdminNotFoundError": 404,
-    "AdminAlreadyExistsError": 409,
-    "AdminValidationError": 400,
-    "AdminOperationError": 400,
-    "AdminSecurityError": 403,
 
-    # common domain errors
-    "DomainOperationError": 400,
-    "ItemValidationError": 400,
-    "ItemNotFoundError": 404,
-}
 
 
 # ---------------------------------------------------------------------

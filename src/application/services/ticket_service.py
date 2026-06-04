@@ -36,7 +36,7 @@ class TicketApplicationService:
 
     def _require_actor_for_create(self, ticket_dto: TicketDTO):
         actor = self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
-                                               permission=AdminPermission.CREATE_TICKET)
+                                               permission=AdminPermission.TICKET_OPERATION)
         return actor
 
 
@@ -93,7 +93,7 @@ class TicketApplicationService:
 
         with self.uow:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
-                                           permission=AdminPermission.CREATE_TICKET)
+                                           permission=AdminPermission.TICKET_OPERATION)
 
             self._validate_references(ticket_dto)
 
@@ -137,7 +137,7 @@ class TicketApplicationService:
 
         with self.uow:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
-                                           permission=AdminPermission.UPDATE_TICKET)
+                                           permission=AdminPermission.TICKET_OPERATION)
 
             self._validate_references(ticket_dto)
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
@@ -153,7 +153,7 @@ class TicketApplicationService:
 
         with self.uow:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
-                                           permission=AdminPermission.UPDATE_TICKET)
+                                           permission=AdminPermission.TICKET_OPERATION)
 
             self._validate_references(ticket_dto)
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
@@ -181,7 +181,7 @@ class TicketApplicationService:
 
         with self.uow:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
-                                           permission=AdminPermission.UPDATE_TICKET)
+                                           permission=AdminPermission.TICKET_OPERATION)
 
             self._validate_references(ticket_dto)
 
@@ -209,7 +209,7 @@ class TicketApplicationService:
 
         with self.uow:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
-                                           permission=AdminPermission.UPDATE_TICKET)
+                                           permission=AdminPermission.TICKET_OPERATION)
 
             self._validate_references(ticket_dto)
 
@@ -238,7 +238,7 @@ class TicketApplicationService:
 
         with self.uow:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
-                                           permission=AdminPermission.UPDATE_TICKET)
+                                           permission=AdminPermission.TICKET_OPERATION)
 
             self._validate_references(ticket_dto)
 
@@ -261,7 +261,7 @@ class TicketApplicationService:
 
         with self.uow:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
-                                           permission=AdminPermission.UPDATE_TICKET)
+                                           permission=AdminPermission.TICKET_OPERATION)
 
             self._validate_references(ticket_dto)
 
@@ -284,7 +284,7 @@ class TicketApplicationService:
 
 
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
-                                           permission=AdminPermission.DELETE_TICKET)
+                                           permission=AdminPermission.TICKET_OPERATION)
 
             self._validate_references(ticket_dto)
             ticket=self.uow.tickets.get(ticket_dto.ticket_id)
@@ -309,7 +309,7 @@ class TicketApplicationService:
 
         with self.uow:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
-                                           permission=AdminPermission.VIEW_TICKET)
+                                           permission=AdminPermission.TICKET_VIEW)
 
             ticket = self.uow.tickets.get(ticket_dto.ticket_id)
             return TicketAssembler.to_dto(ticket)
@@ -322,7 +322,7 @@ class TicketApplicationService:
 
         with self.uow:
             self.actor.require_actor_admin(actor_admin_id=ticket_dto.actor_admin_id,
-                                           permission=AdminPermission.UPDATE_TICKET)
+                                           permission=AdminPermission.TICKET_VIEW)
 
 
 

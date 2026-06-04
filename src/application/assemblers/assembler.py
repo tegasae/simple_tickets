@@ -49,8 +49,8 @@ class TicketAssembler:
         return TicketResponseDTO(
             admin_id=ticket.admin_id,
             ticket_id=ticket.ticket_id,
-            date_created=unwrap(ticket.date_created),
-            date_finished=unwrap(ticket.date_finished),
+            date_created=str(ticket.date_created),
+            date_finished=str(ticket.date_finished),
             contact_user_id=ticket.contact_user_id,
             text_of_ticket=ticket.text_of_ticket,
             is_remote=ticket.is_remote,
@@ -97,29 +97,29 @@ class AdminAssembler:
     @staticmethod
     def to_dto(admin: Admin) -> AdminResponseDTO:
         return  AdminResponseDTO(employee_id=admin.employee_id,
-                                 first_name=unwrap(admin.first_name),
-                                 email=unwrap(admin.email),
+                                 first_name=str(admin.first_name),
+                                 email=str(admin.email),
                                  enabled=admin.enabled,
                                  job_title=admin.job_title,
-                                 last_name=unwrap(admin.last_name),
-                                 login=unwrap(admin.account.login),
+                                 last_name=str(admin.last_name),
+                                 login=str(admin.account.login),
                                  enabled_login=admin.account.enabled,
-                                 phone=unwrap(admin.phone),
+                                 phone=str(admin.phone),
                                  roles=admin.role_ids(),
-                                 date_created=unwrap(admin.date_created))
+                                 date_created=str(admin.date_created))
 
 class UserAssembler:
     @staticmethod
     def to_dto(user: User) -> UserResponseDTO:
         return  UserResponseDTO(employee_id=user.employee_id,
                                 client_id=user.client_id,
-                                 first_name=unwrap(user.first_name),
-                                 email=unwrap(user.email),
+                                 first_name=str(user.first_name),
+                                 email=str(user.email),
                                  enabled=user.enabled,
-                                 last_name=unwrap(user.last_name),
-                                 login=unwrap(user.account.login),
+                                 last_name=str(user.last_name),
+                                 login=str(user.account.login),
                                  enabled_login=user.account.enabled,
-                                 phone=unwrap(user.phone),
+                                 phone=str(user.phone),
                                  roles=user.role_ids(),
-                                 date_created=unwrap(user.date_created))
+                                 date_created=str(user.date_created))
 

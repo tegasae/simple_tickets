@@ -18,7 +18,6 @@ class ClientUpdateContactRequest(BaseModel):
 
 class ClientResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="ignore")
-
     client_id: int
     name: str
     email: str =""

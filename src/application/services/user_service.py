@@ -68,7 +68,7 @@ class UserApplicationService:
             self._validate_references(user_dto=user_dto)
             actor = self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.CREATE_USER,
+                permission=AdminPermission.USER_OPERATION,
             )
 
             self.helper.ensure_login_is_free(login=user_dto.login)
@@ -89,7 +89,7 @@ class UserApplicationService:
 
             if user_dto.roles:
                 user = self.uow.users.save(user)
-                self.role_manager.grant_roles(actor=actor, target=user, role_ids=user_dto.roles, required_permission=AdminPermission.ASSIGN_ROLE)
+                self.role_manager.grant_roles(actor=actor, target=user, role_ids=user_dto.roles, required_permission=AdminPermission.USER_OPERATION)
 
 
             return self._save_and_to_dto(user)
@@ -99,7 +99,7 @@ class UserApplicationService:
             self._validate_references(user_dto=user_dto)
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.UPDATE_USER,
+                permission=AdminPermission.USER_OPERATION,
             )
             user=self.uow.users.get(user_id=user_dto.employee_id)
 
@@ -125,7 +125,7 @@ class UserApplicationService:
 
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.UPDATE_USER,
+                permission=AdminPermission.USER_OPERATION,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
 
@@ -142,7 +142,7 @@ class UserApplicationService:
             self._validate_references(user_dto=user_dto)
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.UPDATE_USER,
+                permission=AdminPermission.USER_OPERATION,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
             user.remove_account()
@@ -157,7 +157,7 @@ class UserApplicationService:
 
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.UPDATE_USER,
+                permission=AdminPermission.USER_OPERATION,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
             user.change_password(password=user_dto.password)
@@ -169,12 +169,12 @@ class UserApplicationService:
             self._validate_references(user_dto=user_dto)
             actor=self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.UPDATE_USER,
+                permission=AdminPermission.USER_OPERATION,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
 
             self.role_manager.grant_roles(actor=actor, target=user, role_ids=user_dto.roles,
-                                          required_permission=AdminPermission.ASSIGN_ROLE)
+                                          required_permission=AdminPermission.USER_OPERATION)
             return self._save_and_to_dto(user)
 
     def revoke_role(self, *, user_dto: UserDTO) -> UserResponseDTO:
@@ -182,10 +182,10 @@ class UserApplicationService:
             self._validate_references(user_dto=user_dto)
             actor=self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.UPDATE_USER,
+                permission=AdminPermission.USER_OPERATION,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
-            self.role_manager.revoke_roles(actor=actor, target=user, role_ids=user_dto.roles, required_permission=AdminPermission.REVOKE_ROLE)
+            self.role_manager.revoke_roles(actor=actor, target=user, role_ids=user_dto.roles, required_permission=AdminPermission.USER_OPERATION)
 
             return self._save_and_to_dto(user)
 
@@ -194,7 +194,7 @@ class UserApplicationService:
             self._validate_references(user_dto=user_dto)
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.UPDATE_USER,
+                permission=AdminPermission.USER_OPERATION,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
             user.disable()
@@ -205,7 +205,7 @@ class UserApplicationService:
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.UPDATE_USER,
+                permission=AdminPermission.USER_OPERATION,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
             user.enable()
@@ -216,7 +216,7 @@ class UserApplicationService:
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.UPDATE_USER,
+                permission=AdminPermission.USER_OPERATION,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
 
@@ -242,7 +242,7 @@ class UserApplicationService:
                 raise DomainOperationError("Login is required")
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.VIEW_USER,
+                permission=AdminPermission.USER_VIEW,
             )
 
             user = self.uow.users.find_by_login(login=user_dto.login)
@@ -252,7 +252,7 @@ class UserApplicationService:
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.UPDATE_USER,
+                permission=AdminPermission.USER_VIEW,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
             return UserAssembler.to_dto(user)
@@ -261,7 +261,7 @@ class UserApplicationService:
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.VIEW_USER,
+                permission=AdminPermission.USER_VIEW,
             )
 
 
