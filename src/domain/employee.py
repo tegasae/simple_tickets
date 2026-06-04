@@ -85,14 +85,20 @@ class _Employee(HasRoleIds):
         }
 
     def update_base(self, first_name: str|None, last_name: str|None, email: str|None=None, phone: str|None=None)->Self:
-        if first_name is not None:
-            self.first_name = Name(first_name)
-        if last_name is not None:
+        self.first_name = Name(first_name)
+
+        if last_name:
             self.last_name = Name(last_name)
-        if email is not None:
+        else:
+            self.last_name = Empty()
+        if email:
             self.email = Email(email)
-        if phone is not None:
+        else:
+            self.email = Empty()
+        if phone:
             self.phone = Phone(phone)
+        else:
+            self.phone = Empty()
 
 
         return self

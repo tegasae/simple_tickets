@@ -47,7 +47,7 @@ def create_app() -> FastAPI:
             InvalidCredentialsError: 401,
             ItemValidationError: 400,
             PermissionError: 403,
-            ValueError: 500,
+            ValueError: 400,
             DomainOperationError:400
         }
     )
