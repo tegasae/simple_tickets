@@ -1,28 +1,48 @@
 class TicketGateway:
 
-
-    SELECT_BASE = """
+    FIELD="""t.ticket_id,
+        t.client_id,
+        t.admin_id,
+        t.user_id,
+        t.user_ticket_contact_user_id,
+        t.user_ticket_id,
+        t.text_of_ticket,
+        t.date_created,
+        t.is_remote,
+        t.is_closed,
+        t.date_closed,
+        t.urgency_level,
+        t.version"""
+    SELECT_BASE = f"""
     SELECT
-        ticket_id,
-        client_id,
-        admin_id,
-        user_id,
-        user_ticket_contact_user_id,
-        user_ticket_id,
-        text_of_ticket,
-        date_created,
-        is_remote,
-        is_closed,
-        date_closed,
-        urgency_level,
-        version
-    FROM tickets
+    {FIELD}    
+    FROM tickets t
     """
 
-    SELECT_BY_ID=SELECT_BASE+" WHERE ticket_id = :ticket_id"
-    SELECT_BY_USER_TICKET_ID = SELECT_BASE + " WHERE user_ticket_id = :user_ticket_id"
-    SELECT_ACTIVE_BY_CLIENT_ID_BATCH=SELECT_BASE + " WHERE client_id = :client_id AND ticket_id > :last_id ORDER BY ticket_id LIMIT :limit"
+    SELECT_BY_ID=SELECT_BASE+" WHERE t.ticket_id = :ticket_id"
+    SELECT_BY_USER_TICKET_ID = SELECT_BASE + " WHERE t.user_ticket_id = :user_ticket_id"
+    SELECT_ACTIVE_BY_CLIENT_ID_BATCH=SELECT_BASE + " WHERE t.client_id = :client_id AND t.ticket_id > :last_id ORDER BY t.ticket_id LIMIT :limit"
+    SELECT_BY_CURRENT_EXECUTOR_ID_BATCH=SELECT_BASE+ """    JOIN (
+        SELECT
+            ticket_id,
+            MAX(executor_assignment_id) AS last_executor_assignment_id
+        FROM tickets_executor_assignment
+        GROUP BY ticket_id
+    ) AS last_assignment
+        ON last_assignment.ticket_id = t.ticket_id
+    JOIN tickets_executor_assignment AS current_assignment
+        ON current_assignment.executor_assignment_id =
+           last_assignment.last_executor_assignment_id
+    WHERE current_assignment.admin_id = :executor_employee_id
+      AND t.ticket_id > :last_ticket_id
+    ORDER BY t.ticket_id
+    LIMIT :limit
+    """
 
+
+
+    SELECT_BY_CLIENT_ID = "SELECT count(ticket_id) AS one FROM tickets WHERE client_id = :client_id"
+    SELECT_BY_TICKET_USER_ID = "SELECT count(ticket_id) AS one FROM tickets WHERE user_ticket_id=:user_ticket_id"
 
     INSERT = """
     INSERT INTO tickets (
@@ -73,8 +93,7 @@ class TicketGateway:
     WHERE ticket_id = :ticket_id
     """
 
-    SELECT_BY_CLIENT_ID="SELECT count(ticket_id) AS one FROM tickets WHERE client_id = :client_id"
-    SELECT_BY_TICKET_USER_ID = "SELECT count(ticket_id) AS one FROM tickets WHERE user_ticket_id=:user_ticket_id"
+
 
 
 class TicketCommentGateway:

@@ -22,6 +22,7 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
 
 
 
+
     # ---------------------------
     # load helpers
     # ---------------------------
@@ -201,6 +202,11 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
 
                 yield tickets
                 last_id = rows[-1]["ticket_id"]
+
+
+    def iter_by_current_executor_id(self, *, executor_employee_id: int, batch_size: int = 500) -> Iterator[
+        list[Ticket]]:
+        pass
 
 
     def save(self, ticket: Ticket) -> Ticket:

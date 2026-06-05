@@ -38,6 +38,22 @@ class TicketRepository(ABC):
         More specific domain rules are checked later by workflow.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def iter_by_current_executor_id(
+            self,
+            *,
+            executor_employee_id: int,
+            batch_size: int = 500,
+    ) -> Iterator[list[Ticket]]:
+        """
+        Iterate tickets where current executor is executor_employee_id.
+
+        Current executor means:
+            latest ExecutorAssignment for ticket.
+        """
+        raise NotImplementedError
+
     # ----------------------------
     # Persistence
     # ----------------------------
