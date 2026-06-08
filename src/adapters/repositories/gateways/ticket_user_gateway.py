@@ -69,4 +69,4 @@ class TicketUserGateway:
     FROM user_tickets
     WHERE client_id = :client_id
     """
-    
+

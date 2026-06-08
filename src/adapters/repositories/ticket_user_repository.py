@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from src.adapters.repositories.base_repository import BaseRepository
+from src.adapters.repositories.gateways.ticket_user_executor_gateway import TicketUserExecutorGateway
 from src.adapters.repositories.gateways.ticket_user_gateway import TicketUserGateway
 from src.adapters.repositories.gateways.ticket_user_status_gateway import TicketUserStatusGateway
 from src.adapters.repositories.gateways.ticket_user_comment_gateway import TicketUserCommentGateway
@@ -14,6 +15,7 @@ from utils.db.exceptions import DBOperationError
 
 
 class TicketUserRepositorySQLite(BaseRepository, TicketUserRepository):
+
 
     # -------------------------
     # Load helpers
@@ -201,3 +203,30 @@ class TicketUserRepositorySQLite(BaseRepository, TicketUserRepository):
             TicketUserGateway.SELECT_BY_CLIENT_ID,
             {"client_id": client_id},
         )
+
+    def has_admin_reference(self, admin_id: int) -> bool:
+
+            """
+            Check if admin is referenced by any UserTicket-related records.
+
+            Used before deleting Admin.
+
+            Important:
+                If some tables use employee_id instead of admin_id,
+                gateway SQL should compare employee_id = :admin_id.
+            """
+
+            return (
+                    self._exists(
+                TicketUserStatusGateway.EXISTS_BY_ADMIN_ID,
+                {"admin_id": admin_id},
+            )
+                    or self._exists(
+                TicketUserCommentGateway.EXISTS_BY_ADMIN_ID,
+                {"admin_id": admin_id},
+            )
+                    or self._exists(
+                TicketUserExecutorGateway.EXISTS_BY_ADMIN_ID,
+                {"admin_id": admin_id},
+            )
+            )

@@ -30,6 +30,6 @@ class ClientRepository(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def create_by_admin(self, *, admin_id) ->bool:
+    def has_created_by_admin(self, *, admin_id) ->bool:
         raise NotImplementedError()
 

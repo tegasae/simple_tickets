@@ -58,4 +58,5 @@ class BaseRepository:
 
     def _exists(self, sql: str, params: dict[str, Any] | None = None) -> bool:
         row = self._get_one(sql, var=["one"], params=params)
-        return bool(row["one"])
+
+        return bool(row.get("one",0))

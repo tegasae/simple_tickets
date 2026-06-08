@@ -110,5 +110,5 @@ class ClientRepositorySQLite(BaseRepository, ClientRepository):
             {"client_id": client_id},
         )
 
-    def create_by_admin(self, *, admin_id) -> bool:
+    def has_created_by_admin(self, *, admin_id) -> bool:
         return self._exists(ClientGateway.SELECT_BY_ADMIN,params={'admin_id': admin_id})

@@ -23,7 +23,7 @@ class AdminCreateRequest(BaseModel):
     password: str = ""
     enable_account: bool = True
 
-    roles: set[int] = Field(default_factory=set)
+    roles: set[int] = Field(default_factory=set,examples=[[]])
 
 
 class AdminUpdateRequest(BaseModel):

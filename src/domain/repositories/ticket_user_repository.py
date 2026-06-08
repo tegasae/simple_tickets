@@ -23,3 +23,12 @@ class TicketUserRepository(ABC):
     @abstractmethod
     def does_client_exist(self, client_id: int) -> bool:
         raise NotImplementedError
+
+    @abstractmethod
+    def has_admin_reference(self, admin_id: int) -> bool:
+        """
+        Return True if admin is referenced by any UserTicket-related data.
+
+        Used before deleting Admin.
+        """
+        raise NotImplementedError

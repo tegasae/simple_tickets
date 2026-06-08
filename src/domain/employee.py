@@ -1,7 +1,8 @@
 #src/domain/employee.py
 from dataclasses import field, dataclass
 from datetime import datetime
-from typing import FrozenSet, Self, Any
+from typing import Self, Any
+
 
 from src.domain.account import NoAccount, Account
 from src.domain.exceptions import DomainOperationError
@@ -30,61 +31,61 @@ class _Employee(HasRoleIds):
         admin._is_empty = True
         return admin
 
-
-
     @classmethod
     def create_base(
             cls,
             *,
             employee_id: int,
             first_name: str,
-            last_name: str | None = None,
-            email: str | None = None,
-            phone: str | None = None,
+            last_name: str = "",
+            email: str = "",
+            phone: str = "",
             enabled: bool = True,
-            login:str | None = None,
-            password: str | None = None,
-            enabled_account: bool =True,
+            login: str = "",
+            password: str = "",
+            enabled_account: bool = True,
             version: int = 0,
-            roles:set[int] = ()
+            roles: set[int] | list[int] | None = None,
     ) -> dict[str, Any]:
         """
         Common base creation logic.
 
         - Converts raw strings to value objects.
-        - Treats empty/whitespace-only strings as "not provided" (None).
-        - Does not set account here (let the caller decide: account_id / Account / None, etc).
+        - Creates Account only if both login and password are provided.
+        - Uses NoAccount if account data is not provided.
+        - Normalizes roles to set[int].
         """
 
-        if login and password:
-            account=Account.create(account_id=0,login=login,plain_password=password,enabled=enabled_account)
-        else:
-            account=NoAccount()
-        #employee=_Employee(employee_id=employee_id,first_name=Name(first_name),
-        #             last_name=Name(last_name) if last_name else Empty(),email=Email(email) if email else Empty(),
-        #             phone=Phone(phone) if phone else Empty(), enabled=enabled,
-        #             date_created=datetime.now(),
-        #             account=account,
-        #             version=version
-        #)
-        if roles:
-            roles=set(roles)
-        else:
-            roles=set()
-        return {
-            "employee_id":employee_id,
-            "first_name": Name(first_name),
-            "last_name" : Name(last_name) if last_name else Empty(),
-             "email" : Email(email) if email else Empty(),
-             "phone": Phone(phone) if phone else Empty(),
-             "enabled": enabled,
-             "date_created": datetime.now(),
-            "account": account,
-            "version":version,
-            "_role_ids": roles
-        }
+        if (login and not password) or (not login and password):
+            raise DomainOperationError(
+                "Both the login and the password must be filled in"
+            )
 
-    def update_base(self, first_name: str|None, last_name: str|None, email: str|None=None, phone: str|None=None)->Self:
+        if login and password:
+            account = Account.create(
+                account_id=0,
+                login=login,
+                plain_password=password,
+                enabled=enabled_account,
+            )
+        else:
+            account = NoAccount()
+
+        role_ids = set(roles or [])
+
+        return {
+            "employee_id": employee_id,
+            "first_name": Name(first_name),
+            "last_name": Name(last_name) if last_name else Empty(),
+            "email": Email(email) if email else Empty(),
+            "phone": Phone(phone) if phone else Empty(),
+            "enabled": enabled,
+            "date_created": datetime.now(),
+            "account": account,
+            "version": version,
+            "_role_ids": role_ids,
+        }
+    def update_base(self, first_name: str="", last_name: str="", email: str="", phone: str="")->Self:
         self.first_name = Name(first_name)
 
         if last_name:
@@ -138,7 +139,7 @@ class _Employee(HasRoleIds):
         if isinstance(self.account,Account):
             self.account.change_password(plain_password=password)
 
-    def role_ids(self) -> FrozenSet[int]:
+    def role_ids(self) -> frozenset[int]:
         return frozenset(self._role_ids)
 
     def grant_role(self, role_id: int) -> None:
@@ -161,16 +162,16 @@ class User(_Employee):
             *,
             employee_id: int,
             first_name: str,
-            last_name: str | None = None,
-            email: str | None = None,
-            phone: str | None = None,
+            last_name: str ="",
+            email: str ="",
+            phone: str ="",
             enabled: bool = True,
-            login: str | None = None,
-            password: str | None = None,
+            login: str ="",
+            password: str ="",
             enabled_account: bool = True,
             version: int = 0,
             client_id:int,
-            roles: frozenset[int] | None = None
+            roles: set=()
     ) -> Self:
         """Create a new User with client association."""
         base_data = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
@@ -182,10 +183,10 @@ class User(_Employee):
     def update(
             self,
             *,
-            first_name: str | None = None,
-            last_name: str | None = None,
-            email: str | None = None,
-            phone: str | None = None,
+            first_name: str="",
+            last_name: str ="",
+            email: str="",
+            phone: str="",
     ) -> Self:
 
         self.update_base(first_name, last_name, email, phone)
@@ -201,15 +202,15 @@ class Admin(_Employee):
             cls,
             employee_id: int,
             first_name: str,
-            last_name: str | None = None,
-            email: str | None = None,
-            phone: str | None = None,
+            last_name: str ="",
+            email: str ="",
+            phone: str ="",
             enabled: bool = True,
-            login:str | None = None,
-            password: str | None = None,
+            login:str ="",
+            password: str ="",
             enable_account: bool = True,
             version: int = 0,
-            roles: frozenset[int] | None = None,
+            roles: set[int]=(),
             job_title:str=""
     ) -> Self:
         """Create a new Admin."""
@@ -221,7 +222,7 @@ class Admin(_Employee):
         return cls(**base_data, job_title=job_title)
 
 
-    def update(self, job_title:str|None, first_name: str|None, last_name: str|None, email: str|None=None, phone: str|None=None)->Self:
+    def update(self, job_title:str="", first_name: str="", last_name: str="", email: str="", phone: str="")->Self:
         self.update_base(first_name, last_name, email, phone)
         self.job_title = job_title
         return self

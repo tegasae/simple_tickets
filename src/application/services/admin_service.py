@@ -68,7 +68,7 @@ class AdminApplicationService:
 
             if admin_dto.roles:
                 admin = self.uow.admins.save(admin)
-                self.role_manager.grant_roles(actor=actor, target=admin, role_ids=admin_dto.roles,
+                self.role_manager.grant_roles(actor=actor, target=admin, role_ids=frozenset(admin_dto.roles),
                                               required_permission=AdminPermission.ROLE_ASSIGN)
 
 
@@ -166,7 +166,7 @@ class AdminApplicationService:
             admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
 
 
-            self.role_manager.grant_roles(actor=actor, target=admin, role_ids=admin_dto.roles,
+            self.role_manager.grant_roles(actor=actor, target=admin, role_ids=frozenset(admin_dto.roles),
                                           required_permission=AdminPermission.ROLE_ASSIGN)
 
 
@@ -177,7 +177,7 @@ class AdminApplicationService:
             actor=self.actor.require_actor_admin(actor_admin_id=admin_dto.actor_admin_id,
                                            permission=AdminPermission.ROLE_REVOKE)
             admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
-            self.role_manager.revoke_roles(actor=actor, target=admin, role_ids=admin_dto.roles,
+            self.role_manager.revoke_roles(actor=actor, target=admin, role_ids=frozenset(admin_dto.roles),
                                            required_permission=AdminPermission.ROLE_REVOKE)
 
             return self._save_and_to_dto(admin)
@@ -212,23 +212,23 @@ class AdminApplicationService:
             self.actor.require_actor_admin(actor_admin_id=admin_dto.actor_admin_id,
                                            permission=AdminPermission.ADMIN_OPERATION)
             admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
-            # todo потом это переписать, создать доменную политику, учитывая что нельзя удалить клиента который
-            #  создал этот admin, нельзя удалить заявки, которые создал этот admin или где написал комментарий или
-            #  где он исполнитель
 
-            if self.uow.clients.create_by_admin(admin_id=admin_dto.employee_id):
+
+            if self.uow.clients.has_created_by_admin(admin_id=admin_dto.employee_id):
                     raise DomainOperationError("You can't delete this admin because it has clients")
 
-            tickets=self.uow.tickets.get_all()
-            for ticket in tickets:
-                if ticket.belong(employee_id=admin.employee_id):
-                    raise DomainOperationError("You can't delete this admin because it has tickets")
+            if self.uow.tickets.has_admin_reference(admin.employee_id):
+                raise DomainOperationError(
+                    "You can't delete this admin because it has tickets"
+                )
 
-            user_tickets = self.uow.user_tickets.get_all()
-            for user_ticket in user_tickets:
-                if user_ticket.belong(employee_id=admin.employee_id):
-                    raise DomainOperationError("You can't delete this admin because it has user tickets")
+            if self.uow.user_tickets.has_admin_reference(admin.employee_id):
+                raise DomainOperationError(
+                    "You can't delete this admin because it has user tickets"
+                )
+
             self.uow.admins.delete(admin_id=admin.employee_id)
+
 
 
 

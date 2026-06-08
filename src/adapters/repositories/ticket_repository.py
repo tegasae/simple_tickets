@@ -22,6 +22,8 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
 
 
 
+
+
     # ---------------------------
     # load helpers
     # ---------------------------
@@ -287,3 +289,24 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             raise ItemNotFoundError(f"User ticket id {user_ticket_id} not found")
 
         return self._load_ticket(row)
+
+    def has_admin_reference(self, admin_id: int) -> bool:
+
+                return (
+                        self._exists(
+                            TicketGateway.EXISTS_BY_ADMIN_ID,
+                            {"admin_id": admin_id},
+                        )
+                        or self._exists(
+                    TicketStatusGateway.EXISTS_BY_ADMIN_ID,
+                    {"admin_id": admin_id},
+                )
+                        or self._exists(
+                    TicketCommentGateway.EXISTS_BY_ADMIN_ID,
+                    {"admin_id": admin_id},
+                )
+                        or self._exists(
+                    TicketExecutorGateway.EXISTS_BY_ADMIN_ID,
+                    {"admin_id": admin_id},
+                )
+                )

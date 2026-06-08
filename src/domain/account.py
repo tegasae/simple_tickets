@@ -144,7 +144,7 @@ class NoAccount:
     @property
     def login(self) -> str:
         """No account has no login."""
-        return "<no-account>"
+        return ""
 
     @property
     def date_created(self) -> datetime:

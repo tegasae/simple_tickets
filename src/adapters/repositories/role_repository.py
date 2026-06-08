@@ -3,6 +3,7 @@ from typing import Iterable, Type, Generic
 
 from src.adapters.repositories.base_repository import BaseRepository
 from src.adapters.repositories.gateways.role_gateway import RoleGateway
+from src.domain.exceptions import ItemNotFoundError
 from src.domain.rbac.role_repository import RoleRepository
 from src.domain.rbac.role_new import Role
 from src.domain.rbac.typevar import P
@@ -56,7 +57,7 @@ class RoleRepositorySQLite(BaseRepository,RoleRepository[P], Generic[P]):
 
 
         if not row:
-            raise DBOperationError(f"Role {role_id} not found")
+            raise ItemNotFoundError(f"The role {role_id} not found" )
 
         try:
             role=RoleMapper.row_to_role(row, self.permission_cls)

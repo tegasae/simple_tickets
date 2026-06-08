@@ -133,3 +133,4 @@ class AdminRepository(ABC):
     def exist_login(self, login: str) -> bool:
         """Check whether login exists."""
         raise NotImplementedError
+

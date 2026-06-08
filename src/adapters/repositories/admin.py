@@ -68,7 +68,7 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
     def get(self, admin_id: int) -> Admin:
         row = self._get_one(AdminGateway.SELECT_BY_ID, var=AdminMapper.VARS, params={"employee_id": admin_id})
         if not row:
-            raise NotFoundError(f"Admin {admin_id} not found")
+            raise ItemNotFoundError(f"Admin {admin_id} not found")
 
         admin = AdminMapper.row_to_admin(row)
         admin._role_ids = self._load_roles(admin.employee_id)

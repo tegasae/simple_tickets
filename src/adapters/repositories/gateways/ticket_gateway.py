@@ -1,6 +1,4 @@
 class TicketGateway:
-
-
     SELECT_BASE = """
     SELECT
         ticket_id,
@@ -75,7 +73,12 @@ class TicketGateway:
 
     SELECT_BY_CLIENT_ID="SELECT count(ticket_id) AS one FROM tickets WHERE client_id = :client_id"
     SELECT_BY_TICKET_USER_ID = "SELECT count(ticket_id) AS one FROM tickets WHERE user_ticket_id=:user_ticket_id"
-
+    EXISTS_BY_ADMIN_ID = """
+    SELECT 1 as one
+    FROM tickets
+    WHERE admin_id = :admin_id
+    LIMIT 1
+    """
 
 class TicketCommentGateway:
     SELECT = """
@@ -106,6 +109,13 @@ class TicketCommentGateway:
     WHERE ticket_id = :ticket_id
     """
 
+    EXISTS_BY_ADMIN_ID = """
+       SELECT 1 as one
+       FROM tickets_comment
+       WHERE admin_id = :admin_id
+       LIMIT 1
+       """
+
 
 class TicketExecutorGateway:
     SELECT = """
@@ -133,6 +143,13 @@ class TicketExecutorGateway:
     DELETE FROM tickets_executor_assignment
     WHERE ticket_id = :ticket_id
     """
+
+    EXISTS_BY_ADMIN_ID = """
+        SELECT 1 as one
+        FROM tickets_executor_assignment
+        WHERE admin_id = :admin_id
+        LIMIT 1
+        """
 
 
 class TicketStatusGateway:
@@ -168,3 +185,10 @@ class TicketStatusGateway:
     DELETE FROM tickets_status_record
     WHERE ticket_id = :ticket_id
     """
+    EXISTS_BY_ADMIN_ID = """
+        SELECT 1 as one
+        FROM tickets_status_record
+        WHERE admin_id = :admin_id
+        LIMIT 1
+        """
+

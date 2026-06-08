@@ -32,4 +32,10 @@ class TicketUserCommentGateway:
     WHERE user_ticket_id = :ticket_id
     """
 
+    EXISTS_BY_ADMIN_ID = """
+       SELECT 1 as one
+       FROM user_tickets_comment
+       WHERE employee_id = :admin_id
+       LIMIT 1
+       """
     

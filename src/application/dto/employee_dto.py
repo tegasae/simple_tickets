@@ -5,21 +5,21 @@ from dataclasses import dataclass, field
 class EmployeeDTO:
     employee_id:int=0
     actor_admin_id: int=0
-    first_name: str | None = None
-    last_name: str | None = None
+    first_name: str=""
+    last_name: str =""
     enable:bool=True
-    email: str | None = None
-    phone: str | None = None
-    login: str | None = None
-    password: str | None = None
+    email: str =""
+    phone: str =""
+    login: str =""
+    password: str =""
     enable_account: bool=True
-    roles: frozenset[int] = field(default_factory=frozenset)
+    roles: set[int] = field(default_factory=set)
 
 
 
 @dataclass(kw_only=True)
 class AdminDTO(EmployeeDTO):
-    job_title: str|None =None
+    job_title: str=""
 
 
 
