@@ -80,7 +80,6 @@ class UserApplicationService:
                 email=user_dto.email,
                 phone=user_dto.phone,
                 client_id=user_dto.client_id,
-                roles=user_dto.roles,
                 login=user_dto.login,
                 password=user_dto.password,
                 enabled=user_dto.enable,
@@ -89,7 +88,7 @@ class UserApplicationService:
 
             if user_dto.roles:
                 user = self.uow.users.save(user)
-                self.role_manager.grant_roles(actor=actor, target=user, role_ids=user_dto.roles, required_permission=AdminPermission.USER_OPERATION)
+                self.role_manager.grant_roles(actor=actor, target=user, role_ids=frozenset(user_dto.roles), required_permission=AdminPermission.USER_OPERATION)
 
 
             return self._save_and_to_dto(user)
@@ -173,7 +172,7 @@ class UserApplicationService:
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
 
-            self.role_manager.grant_roles(actor=actor, target=user, role_ids=user_dto.roles,
+            self.role_manager.grant_roles(actor=actor, target=user, role_ids=frozenset(user_dto.roles),
                                           required_permission=AdminPermission.USER_OPERATION)
             return self._save_and_to_dto(user)
 
@@ -185,7 +184,7 @@ class UserApplicationService:
                 permission=AdminPermission.USER_OPERATION,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
-            self.role_manager.revoke_roles(actor=actor, target=user, role_ids=user_dto.roles, required_permission=AdminPermission.USER_OPERATION)
+            self.role_manager.revoke_roles(actor=actor, target=user, role_ids=frozenset(user_dto.roles), required_permission=AdminPermission.USER_OPERATION)
 
             return self._save_and_to_dto(user)
 
