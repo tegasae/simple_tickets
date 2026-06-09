@@ -126,7 +126,8 @@ class AccessToken(BaseModel):
         )
 
     @classmethod
-    def decode(cls, token: str) -> "AccessToken":
+    def decode(cls, token: str) -> Self:
+
         try:
             payload = jwt.decode(
                 token,

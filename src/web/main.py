@@ -12,7 +12,7 @@ from src.web.routers.admin.clients import router as admin_clients_router
 from src.web.routers.admin.admins import router as admin_admins_router
 
 
-from src.web.routers.user.ticket import router as user_ticket_router
+from src.web.routers.user.tickets import router as user_ticket_router
 
 
 from src.web.routers.admin.users import router as admin_users_router

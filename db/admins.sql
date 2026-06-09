@@ -172,7 +172,12 @@ INSERT INTO employees VALUES(160,'string','','','','2026-06-08T17:39:36',NULL,1,
 INSERT INTO employees VALUES(161,'string','','','','2026-06-08T17:42:23',NULL,1,1,1);
 INSERT INTO employees VALUES(162,'string','','','','2026-06-08T17:43:00',NULL,1,0,0);
 INSERT INTO employees VALUES(163,'string','','','','2026-06-08T18:10:58',NULL,1,0,0);
-INSERT INTO employees VALUES(164,'string','','','','2026-06-08T18:11:46',NULL,1,0,0);
+INSERT INTO employees VALUES(164,'string','','','','2026-06-08T18:11:46',NULL,1,5,0);
+INSERT INTO employees VALUES(165,'string','','','','2026-06-09T13:27:00',NULL,1,1,0);
+INSERT INTO employees VALUES(166,'string','','','','2026-06-09T13:32:06',NULL,1,1,0);
+INSERT INTO employees VALUES(167,'string','','','','2026-06-09T13:34:55',NULL,1,1,0);
+INSERT INTO employees VALUES(168,'string','','','','2026-06-09T13:35:41',NULL,1,0,1);
+INSERT INTO employees VALUES(169,'string','','','','2026-06-09T13:36:08',NULL,1,1,1);
 CREATE TABLE admins (
     employee_id INTEGER NOT NULL PRIMARY KEY,
     job_title TEXT,
@@ -308,6 +313,8 @@ INSERT INTO admins VALUES(158,'');
 INSERT INTO admins VALUES(159,'');
 INSERT INTO admins VALUES(160,'');
 INSERT INTO admins VALUES(161,'');
+INSERT INTO admins VALUES(168,'');
+INSERT INTO admins VALUES(169,'');
 CREATE TABLE users (
     employee_id INTEGER NOT NULL PRIMARY KEY,
     client_id INTEGER NOT NULL,
@@ -346,6 +353,9 @@ INSERT INTO users VALUES(144,4);
 INSERT INTO users VALUES(162,4);
 INSERT INTO users VALUES(163,4);
 INSERT INTO users VALUES(164,4);
+INSERT INTO users VALUES(165,4);
+INSERT INTO users VALUES(166,4);
+INSERT INTO users VALUES(167,4);
 CREATE TABLE accounts (
 	account_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	employee_id INTEGER,
@@ -412,7 +422,11 @@ INSERT INTO accounts VALUES(447,142,'login-user','1bd627127cd59de4669ce89386e218
 INSERT INTO accounts VALUES(455,147,'login-new1010','409d93026fcb52ae62a8d9c892f49054a3718eca11ce14e87a95b2ec06f4e509',1,'2026-06-04T16:00:02');
 INSERT INTO accounts VALUES(466,160,'login10','d85fb61a933e0b8a45f88c89888502573a3d318657a576ef5529bf948b98882c',1,'2026-06-08T17:39:36');
 INSERT INTO accounts VALUES(468,161,'login11','d85fb61a933e0b8a45f88c89888502573a3d318657a576ef5529bf948b98882c',1,'2026-06-08T17:42:23');
-INSERT INTO accounts VALUES(471,164,'user-login','d85fb61a933e0b8a45f88c89888502573a3d318657a576ef5529bf948b98882c',1,'2026-06-08T18:11:46');
+INSERT INTO accounts VALUES(471,164,'string-login','e530f300120d9ba00f9d79b092aadd36ab4c2bfb96a6a995e8a479fdc2b0726f',1,'2026-06-08T18:11:46');
+INSERT INTO accounts VALUES(472,166,'login-u','d85fb61a933e0b8a45f88c89888502573a3d318657a576ef5529bf948b98882c',1,'2026-06-09T13:32:06');
+INSERT INTO accounts VALUES(474,167,'login-user1','d85fb61a933e0b8a45f88c89888502573a3d318657a576ef5529bf948b98882c',1,'2026-06-09T13:34:48');
+INSERT INTO accounts VALUES(476,168,'login-admin','d85fb61a933e0b8a45f88c89888502573a3d318657a576ef5529bf948b98882c',1,'2026-06-09T13:35:41');
+INSERT INTO accounts VALUES(477,169,'login-admin1','d85fb61a933e0b8a45f88c89888502573a3d318657a576ef5529bf948b98882c',1,'2026-06-09T13:36:45');
 CREATE TABLE clients (
 	client_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	admin_id INTEGER,
@@ -455,7 +469,7 @@ CREATE TABLE roles (
 INSERT INTO roles VALUES(5,'Super Admin','client.operation, client.view, admin.operation, admin.view, user.operation, user.view, ticket.operation, ticket.view, role.assign, role.revoke','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
 INSERT INTO roles VALUES(7,'Super Admin','admin.view,role.assign,audit.view,admin.update,role.revoke,create.user,ticket.create,create.admin','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
 INSERT INTO roles VALUES(60,'Super Admin','client.operation, client.view, admin.operation, admin.view, user.operation, user.view, ticket.operation, ticket.view, role.assign, role.revoke','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
-INSERT INTO roles VALUES(61,'Ticket Creator','ticket.view.own,ticket.create,ticket.update.own','Can create and view own tickets',0,'2026-03-23T12:21:42+00:00',0,0);
+INSERT INTO roles VALUES(61,'Ticket Creator','ticket.operation, ticket.operation.all, ticket.view, ticket.view.all','Can create and view own tickets',0,'2026-03-23T12:21:42+00:00',0,0);
 INSERT INTO roles VALUES(62,'Super Admin','audit.view,role.assign,admin.view','Full system access',1,'2026-03-23T12:22:06+00:00',1,0);
 INSERT INTO roles VALUES(63,'Ticket Creator','ticket.create,ticket.view.own','Can create and view own tickets',0,'2026-03-23T12:22:06+00:00',0,0);
 INSERT INTO roles VALUES(64,'Super Admin','audit.view,role.assign,admin.view','Full system access',1,'2026-03-23T12:22:34+00:00',1,0);
@@ -628,6 +642,9 @@ INSERT INTO users_roles VALUES(127,63);
 INSERT INTO users_roles VALUES(140,65);
 INSERT INTO users_roles VALUES(141,65);
 INSERT INTO users_roles VALUES(142,65);
+INSERT INTO users_roles VALUES(165,61);
+INSERT INTO users_roles VALUES(166,61);
+INSERT INTO users_roles VALUES(167,61);
 CREATE TABLE tickets_comment (
 	comment_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	ticket_id INTEGER,
@@ -1008,8 +1025,8 @@ INSERT INTO user_tickets VALUES(5,4,67,67,'Printer problem 20260515155311','2026
 INSERT INTO user_tickets VALUES(6,4,67,67,'Printer problem 20260515155810','2026-05-15T12:58:13.522030+00:00',0,NULL,0);
 INSERT INTO user_tickets VALUES(7,4,67,67,'Printer problem 20260515160016','2026-05-15T13:00:16.095893+00:00',1,'2026-05-15T13:00:16.107648+00:00',1);
 DELETE FROM sqlite_sequence;
-INSERT INTO sqlite_sequence VALUES('employees',164);
-INSERT INTO sqlite_sequence VALUES('accounts',471);
+INSERT INTO sqlite_sequence VALUES('employees',169);
+INSERT INTO sqlite_sequence VALUES('accounts',482);
 INSERT INTO sqlite_sequence VALUES('roles',66);
 INSERT INTO sqlite_sequence VALUES('clients',25);
 INSERT INTO sqlite_sequence VALUES('tickets',68);

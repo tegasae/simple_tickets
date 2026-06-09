@@ -65,14 +65,14 @@ class UserApplicationService:
 
     def create_user(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
-            self._validate_references(user_dto=user_dto)
             actor = self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.USER_OPERATION,
             )
 
             self.helper.ensure_login_is_free(login=user_dto.login)
-            self.uow.clients.get(client_id=user_dto.client_id)
+            client=self.uow.clients.get(client_id=user_dto.client_id)
+            TicketPolicy.ensure_client_enabled(client)
             user = User.create(
                 employee_id=0,
                 first_name=user_dto.first_name,
@@ -94,14 +94,17 @@ class UserApplicationService:
             return self._save_and_to_dto(user)
 
     def update_user(self, *, user_dto: UserDTO) -> UserResponseDTO:
-        with self.uow:
-            self._validate_references(user_dto=user_dto)
+        with (self.uow):
+
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.USER_OPERATION,
             )
             user=self.uow.users.get(user_id=user_dto.employee_id)
-
+            # todo здесь методо из репозитория, котоый получает client по user_id
+            client = self.uow.clients.get(client_id=user_dto.client_id)
+            TicketPolicy.ensure_client_enabled(client)
+            TicketPolicy.ensure_user_enabled(user)
             user.update(
                 first_name=user_dto.first_name,
                 last_name=user_dto.last_name,
@@ -113,21 +116,17 @@ class UserApplicationService:
 
     def attach_account(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
-            self._validate_references(user_dto=user_dto)
-            if not user_dto.login:
-                raise DomainOperationError("Login is required")
-
-            if not user_dto.password:
-                raise DomainOperationError("Password is required")
-
-            self.helper.ensure_login_is_free(login=user_dto.login)
 
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.USER_OPERATION,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
+            # todo здесь получем client по user_id
+            # todo TicketPolicy по клиенту
 
+            TicketPolicy.ensure_user_enabled(user)
+            self.helper.ensure_login_is_free(login=user_dto.login)
             user.add_account(
                 login=user_dto.login,
                 password=user_dto.password,
@@ -150,9 +149,11 @@ class UserApplicationService:
 
     def change_password(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
-            self._validate_references(user_dto=user_dto)
-            if not user_dto.password:
-                raise DomainOperationError("Password is required")
+
+
+
+            # todo здесь получем client по user_id
+            # todo TicketPolicy по клиенту
 
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
@@ -165,11 +166,12 @@ class UserApplicationService:
 
     def grant_role(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
-            self._validate_references(user_dto=user_dto)
+
             actor=self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.USER_OPERATION,
             )
+            # todo опять проверяем клиента и пользоваетеля
             user = self.uow.users.get(user_id=user_dto.employee_id)
 
             self.role_manager.grant_roles(actor=actor, target=user, role_ids=frozenset(user_dto.roles),
@@ -178,7 +180,7 @@ class UserApplicationService:
 
     def revoke_role(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
-            self._validate_references(user_dto=user_dto)
+            # todo а вот отозвать можно у любого пользователя
             actor=self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.USER_OPERATION,
@@ -189,6 +191,8 @@ class UserApplicationService:
             return self._save_and_to_dto(user)
 
     def disable(self, *, user_dto:UserDTO) -> UserResponseDTO:
+        # todo а в disable можно любого пользователя
+        # todo но заявки перенести в отлженные
         with self.uow:
             self._validate_references(user_dto=user_dto)
             self.actor.require_actor_admin(
@@ -201,17 +205,20 @@ class UserApplicationService:
             return self._save_and_to_dto(user)
 
     def enable(self, *, user_dto:UserDTO) -> UserResponseDTO:
+
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.USER_OPERATION,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
+            # todo только для enable client
             user.enable()
 
             return self._save_and_to_dto(user)
 
     def delete(self, *, user_dto: UserDTO) -> None:
+
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
@@ -220,9 +227,7 @@ class UserApplicationService:
             user = self.uow.users.get(user_id=user_dto.employee_id)
 
             user_tickets = self.uow.user_tickets.get_all()
-            # todo потом создать доменную политику учитывая, что нельзя удалить user, который создавал user_ticket
-            #  или комментировал user_ticket
-
+            # todo проверить участвуебт пользователб в заявках
             for user_ticket in user_tickets:
                 if user_ticket.belong(employee_id=user.employee_id):
                     raise DomainOperationError(

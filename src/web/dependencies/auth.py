@@ -11,6 +11,7 @@ from src.services.uow.uow import UnitOfWork
 from src.web.auth.services.auth_service import AdminAuthService, UserAuthService
 from src.web.auth.services.services import AuthManager, TokenService
 from src.web.auth.storage import TokenStorageMemory
+from src.web.auth.tokens import AccessToken
 from src.web.dependencies.scheme import admin_oauth2_scheme, user_oauth2_scheme
 from src.web.dependencies.services import get_uow
 
@@ -21,60 +22,21 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 
 
 
-def create_access_token(*, subject_id: int, subject_type: str) -> str:
-    now = datetime.now(timezone.utc)
-    expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-
-    payload: dict[str, Any] = {
-        "sub": str(subject_id),
-        "subject_type": subject_type,
-        "iat": now,
-        "exp": expire,
-    }
-
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
-def decode_token(token: str) -> dict[str, Any]:
-    try:
-        payload = jwt.decode(
-            token,
-            JWT_SECRET,
-            algorithms=[JWT_ALGORITHM],
-        )
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except jwt.PyJWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if "sub" not in payload or "subject_type" not in payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    return payload
 
 
 def get_current_admin_principal(
     token: str = Depends(admin_oauth2_scheme),
 ) -> dict[str, Any]:
-    return decode_token(token)
+    return AccessToken.decode(token).to_payload()
 
 
 def get_current_user_principal(
     token: str = Depends(user_oauth2_scheme),
 ) -> dict[str, Any]:
-    return decode_token(token)
+    return AccessToken.decode(token).to_payload()
+
 
 
 def require_current_admin(
