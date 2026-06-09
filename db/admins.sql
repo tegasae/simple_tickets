@@ -152,6 +152,27 @@ INSERT INTO employees VALUES(139,'string','','','телефон','2026-06-01T15:
 INSERT INTO employees VALUES(140,'string','','','','2026-06-01T17:20:06',NULL,1,1,0);
 INSERT INTO employees VALUES(141,'string','','','','2026-06-01T17:21:49',NULL,1,1,0);
 INSERT INTO employees VALUES(142,'string','','','','2026-06-01T17:24:48',NULL,1,1,0);
+INSERT INTO employees VALUES(143,'efwfrwferfergfer','ferferferfg','','','2026-06-04T14:18:52',NULL,1,4,1);
+INSERT INTO employees VALUES(144,'string','','','','2026-06-04T14:21:57',NULL,1,0,0);
+INSERT INTO employees VALUES(145,'string','6uy56u6yu56u56uy56u','','','2026-06-04T15:10:58',NULL,1,1,1);
+INSERT INTO employees VALUES(146,'string','6uy56u6yu56u56uy56u','','','2026-06-04T15:11:31',NULL,0,3,1);
+INSERT INTO employees VALUES(147,'string','6uy56u6yu56u56uy56u','','','2026-06-04T16:00:02',NULL,1,1,1);
+INSERT INTO employees VALUES(148,'string','','','','2026-06-04T16:01:58',NULL,1,1,1);
+INSERT INTO employees VALUES(149,'name','','','','2026-06-04T16:26:28',NULL,1,5,1);
+INSERT INTO employees VALUES(150,'name','','','','2026-06-04T16:36:06',NULL,1,3,1);
+INSERT INTO employees VALUES(151,'string','','','','2026-06-08T12:54:37',NULL,1,1,1);
+INSERT INTO employees VALUES(152,'string','','','','2026-06-08T12:54:50',NULL,1,1,1);
+INSERT INTO employees VALUES(153,'string','','','','2026-06-08T12:56:13',NULL,1,1,1);
+INSERT INTO employees VALUES(154,'string','','','','2026-06-08T13:48:41',NULL,1,1,1);
+INSERT INTO employees VALUES(156,'string','','','','2026-06-08T13:58:49',NULL,1,0,1);
+INSERT INTO employees VALUES(157,'string','','','','2026-06-08T13:59:33',NULL,1,0,1);
+INSERT INTO employees VALUES(158,'string','','','','2026-06-08T14:00:46',NULL,1,0,1);
+INSERT INTO employees VALUES(159,'string','','','','2026-06-08T14:03:49',NULL,1,0,1);
+INSERT INTO employees VALUES(160,'string','','','','2026-06-08T17:39:36',NULL,1,2,1);
+INSERT INTO employees VALUES(161,'string','','','','2026-06-08T17:42:23',NULL,1,1,1);
+INSERT INTO employees VALUES(162,'string','','','','2026-06-08T17:43:00',NULL,1,0,0);
+INSERT INTO employees VALUES(163,'string','','','','2026-06-08T18:10:58',NULL,1,0,0);
+INSERT INTO employees VALUES(164,'string','','','','2026-06-08T18:11:46',NULL,1,0,0);
 CREATE TABLE admins (
     employee_id INTEGER NOT NULL PRIMARY KEY,
     job_title TEXT,
@@ -270,6 +291,23 @@ INSERT INTO admins VALUES(136,'админ');
 INSERT INTO admins VALUES(137,'админ');
 INSERT INTO admins VALUES(138,'');
 INSERT INTO admins VALUES(139,'админ');
+INSERT INTO admins VALUES(143,'');
+INSERT INTO admins VALUES(145,'');
+INSERT INTO admins VALUES(146,'');
+INSERT INTO admins VALUES(147,'');
+INSERT INTO admins VALUES(148,'');
+INSERT INTO admins VALUES(149,'');
+INSERT INTO admins VALUES(150,'');
+INSERT INTO admins VALUES(151,'');
+INSERT INTO admins VALUES(152,'');
+INSERT INTO admins VALUES(153,'');
+INSERT INTO admins VALUES(154,'');
+INSERT INTO admins VALUES(156,'');
+INSERT INTO admins VALUES(157,'');
+INSERT INTO admins VALUES(158,'');
+INSERT INTO admins VALUES(159,'');
+INSERT INTO admins VALUES(160,'');
+INSERT INTO admins VALUES(161,'');
 CREATE TABLE users (
     employee_id INTEGER NOT NULL PRIMARY KEY,
     client_id INTEGER NOT NULL,
@@ -304,6 +342,10 @@ INSERT INTO users VALUES(127,4);
 INSERT INTO users VALUES(140,4);
 INSERT INTO users VALUES(141,4);
 INSERT INTO users VALUES(142,4);
+INSERT INTO users VALUES(144,4);
+INSERT INTO users VALUES(162,4);
+INSERT INTO users VALUES(163,4);
+INSERT INTO users VALUES(164,4);
 CREATE TABLE accounts (
 	account_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	employee_id INTEGER,
@@ -367,6 +409,10 @@ INSERT INTO accounts VALUES(433,133,'login-string11','57fe565614d67b08165f8f9864
 INSERT INTO accounts VALUES(435,137,'логин','1bd627127cd59de4669ce89386e2180cd63f61af5b59045329545a2f197c981b',1,'2026-06-01T15:45:56');
 INSERT INTO accounts VALUES(441,138,'string1111111111111111112111111111111','5797a9aba74864f5f0876523d4e63dd83298be2fe3c50eb4711cbb981ddb200f',1,'2026-06-01T17:11:09');
 INSERT INTO accounts VALUES(447,142,'login-user','1bd627127cd59de4669ce89386e2180cd63f61af5b59045329545a2f197c981b',1,'2026-06-01T17:24:48');
+INSERT INTO accounts VALUES(455,147,'login-new1010','409d93026fcb52ae62a8d9c892f49054a3718eca11ce14e87a95b2ec06f4e509',1,'2026-06-04T16:00:02');
+INSERT INTO accounts VALUES(466,160,'login10','d85fb61a933e0b8a45f88c89888502573a3d318657a576ef5529bf948b98882c',1,'2026-06-08T17:39:36');
+INSERT INTO accounts VALUES(468,161,'login11','d85fb61a933e0b8a45f88c89888502573a3d318657a576ef5529bf948b98882c',1,'2026-06-08T17:42:23');
+INSERT INTO accounts VALUES(471,164,'user-login','d85fb61a933e0b8a45f88c89888502573a3d318657a576ef5529bf948b98882c',1,'2026-06-08T18:11:46');
 CREATE TABLE clients (
 	client_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	admin_id INTEGER,
@@ -394,6 +440,9 @@ INSERT INTO clients VALUES(16,122,'werfrwfgwer','','efwerfwf@efwrfgerfg.ferfgget
 INSERT INTO clients VALUES(17,122,'string','','','',1,6,'2026-05-27T16:09:12.272193');
 INSERT INTO clients VALUES(19,122,'string','','111@1111.ru','',1,5,'2026-06-01T14:25:43.721135');
 INSERT INTO clients VALUES(21,122,'string','dqeded','11@11.wdqedqe','',1,8,'2026-06-03T17:07:21.677730');
+INSERT INTO clients VALUES(23,122,'string','','','',1,1,'2026-06-04T15:03:32.844573');
+INSERT INTO clients VALUES(24,122,'string','','','',1,4,'2026-06-04T15:03:55.825620');
+INSERT INTO clients VALUES(25,160,'string-клиент','','','',1,1,'2026-06-08T17:40:31.506929');
 CREATE TABLE roles (
 	role_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	name TEXT,
@@ -405,7 +454,7 @@ CREATE TABLE roles (
 	version INTEGER);
 INSERT INTO roles VALUES(5,'Super Admin','client.operation, client.view, admin.operation, admin.view, user.operation, user.view, ticket.operation, ticket.view, role.assign, role.revoke','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
 INSERT INTO roles VALUES(7,'Super Admin','admin.view,role.assign,audit.view,admin.update,role.revoke,create.user,ticket.create,create.admin','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
-INSERT INTO roles VALUES(60,'Super Admin','admin.view,role.assign,audit.view,admin.update,role.revoke,create.user,ticket.create,create.admin,ticket.update,ticket.view,operation.client,update.user','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
+INSERT INTO roles VALUES(60,'Super Admin','client.operation, client.view, admin.operation, admin.view, user.operation, user.view, ticket.operation, ticket.view, role.assign, role.revoke','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
 INSERT INTO roles VALUES(61,'Ticket Creator','ticket.view.own,ticket.create,ticket.update.own','Can create and view own tickets',0,'2026-03-23T12:21:42+00:00',0,0);
 INSERT INTO roles VALUES(62,'Super Admin','audit.view,role.assign,admin.view','Full system access',1,'2026-03-23T12:22:06+00:00',1,0);
 INSERT INTO roles VALUES(63,'Ticket Creator','ticket.create,ticket.view.own','Can create and view own tickets',0,'2026-03-23T12:22:06+00:00',0,0);
@@ -548,6 +597,20 @@ INSERT INTO admins_roles VALUES(137,64);
 INSERT INTO admins_roles VALUES(137,66);
 INSERT INTO admins_roles VALUES(139,64);
 INSERT INTO admins_roles VALUES(138,66);
+INSERT INTO admins_roles VALUES(143,5);
+INSERT INTO admins_roles VALUES(145,5);
+INSERT INTO admins_roles VALUES(146,5);
+INSERT INTO admins_roles VALUES(147,5);
+INSERT INTO admins_roles VALUES(148,5);
+INSERT INTO admins_roles VALUES(149,5);
+INSERT INTO admins_roles VALUES(150,5);
+INSERT INTO admins_roles VALUES(151,5);
+INSERT INTO admins_roles VALUES(152,5);
+INSERT INTO admins_roles VALUES(153,5);
+INSERT INTO admins_roles VALUES(154,5);
+INSERT INTO admins_roles VALUES(161,60);
+INSERT INTO admins_roles VALUES(161,5);
+INSERT INTO admins_roles VALUES(160,5);
 CREATE TABLE users_roles (
   employee_id INTEGER NOT NULL,
   role_id INTEGER NOT NULL,
@@ -613,6 +676,10 @@ INSERT INTO tickets_comment VALUES(36,61,4,'Issue is no longer актуальн�
 INSERT INTO tickets_comment VALUES(37,62,4,'Printer has been repaired successfully','2026-05-15T12:20:12.064241+00:00');
 INSERT INTO tickets_comment VALUES(38,63,4,'Issue is no longer актуальна','2026-05-15T12:20:12.082673+00:00');
 INSERT INTO tickets_comment VALUES(39,64,122,'string','2026-06-01T14:44:38.522968+00:00');
+INSERT INTO tickets_comment VALUES(40,66,122,'frfgerfg','2026-06-04T11:23:29.080661+00:00');
+INSERT INTO tickets_comment VALUES(41,66,122,'string','2026-06-04T11:25:07.616484+00:00');
+INSERT INTO tickets_comment VALUES(42,67,122,'Коментарий','2026-06-04T12:26:18.602924+00:00');
+INSERT INTO tickets_comment VALUES(43,67,122,'Долбаебы','2026-06-04T12:34:57.631702+00:00');
 CREATE TABLE tickets_executor_assignment (
 	executor_assignment_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	admin_id INTEGER, -- кто назначен
@@ -780,6 +847,13 @@ INSERT INTO tickets_status_record VALUES(125,63,4,'cancelled','2026-05-15T12:20:
 INSERT INTO tickets_status_record VALUES(126,64,122,'created','2026-06-01T14:34:56.078556+00:00');
 INSERT INTO tickets_status_record VALUES(127,64,24,'at_work','2026-06-01T14:43:48.609217+00:00');
 INSERT INTO tickets_status_record VALUES(128,64,122,'executed','2026-06-01T14:44:38.522986+00:00');
+INSERT INTO tickets_status_record VALUES(129,65,122,'created','2026-06-04T11:23:11.891604+00:00');
+INSERT INTO tickets_status_record VALUES(130,66,122,'created','2026-06-04T11:23:29.080643+00:00');
+INSERT INTO tickets_status_record VALUES(131,66,122,'deferred','2026-06-04T11:23:52.864372+00:00');
+INSERT INTO tickets_status_record VALUES(132,66,122,'cancelled','2026-06-04T11:25:07.616502+00:00');
+INSERT INTO tickets_status_record VALUES(133,67,122,'created','2026-06-04T12:26:18.602906+00:00');
+INSERT INTO tickets_status_record VALUES(134,67,122,'cancelled','2026-06-04T12:34:57.631722+00:00');
+INSERT INTO tickets_status_record VALUES(135,68,160,'created','2026-06-08T14:43:29.102654+00:00');
 CREATE TABLE user_tickets_comment (
 	user_comment_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	user_ticket_id INTEGER,
@@ -908,6 +982,10 @@ INSERT INTO tickets VALUES(61,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-0
 INSERT INTO tickets VALUES(62,4,4,NULL,NULL,NULL,'Printer issue 20260515152012','2026-05-15T12:20:12.043784+00:00',0,1,'2026-05-15T12:20:12.064259+00:00',2,2,NULL);
 INSERT INTO tickets VALUES(63,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T12:20:12.073798+00:00',0,1,'2026-05-15T12:20:12.082690+00:00',0,1,NULL);
 INSERT INTO tickets VALUES(64,4,122,NULL,NULL,NULL,'efwqerfrf','2026-06-01T14:34:56.078565+00:00',0,1,'2026-06-01T14:44:38.522988+00:00',0,2,NULL);
+INSERT INTO tickets VALUES(65,4,122,NULL,NULL,NULL,'wrfwfrferfger','2026-06-04T11:23:11.891613+00:00',0,0,NULL,0,0,NULL);
+INSERT INTO tickets VALUES(66,4,122,NULL,NULL,NULL,'wrfwfrferfger','2026-06-04T11:23:29.080651+00:00',0,1,'2026-06-04T11:25:07.616504+00:00',0,2,NULL);
+INSERT INTO tickets VALUES(67,4,122,NULL,NULL,NULL,'укп4еп4кепе','2026-06-04T12:26:18.602914+00:00',0,1,'2026-06-04T12:34:57.631724+00:00',0,2,NULL);
+INSERT INTO tickets VALUES(68,4,160,NULL,NULL,NULL,'вацкаукапцукапкепке','2026-06-08T14:43:29.102671+00:00',0,0,NULL,0,2,NULL);
 CREATE TABLE user_tickets (
 	user_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	client_id INTEGER, -- заявки от какого клиента
@@ -930,14 +1008,14 @@ INSERT INTO user_tickets VALUES(5,4,67,67,'Printer problem 20260515155311','2026
 INSERT INTO user_tickets VALUES(6,4,67,67,'Printer problem 20260515155810','2026-05-15T12:58:13.522030+00:00',0,NULL,0);
 INSERT INTO user_tickets VALUES(7,4,67,67,'Printer problem 20260515160016','2026-05-15T13:00:16.095893+00:00',1,'2026-05-15T13:00:16.107648+00:00',1);
 DELETE FROM sqlite_sequence;
-INSERT INTO sqlite_sequence VALUES('employees',142);
-INSERT INTO sqlite_sequence VALUES('accounts',448);
+INSERT INTO sqlite_sequence VALUES('employees',164);
+INSERT INTO sqlite_sequence VALUES('accounts',471);
 INSERT INTO sqlite_sequence VALUES('roles',66);
-INSERT INTO sqlite_sequence VALUES('clients',22);
-INSERT INTO sqlite_sequence VALUES('tickets',64);
-INSERT INTO sqlite_sequence VALUES('tickets_status_record',128);
+INSERT INTO sqlite_sequence VALUES('clients',25);
+INSERT INTO sqlite_sequence VALUES('tickets',68);
+INSERT INTO sqlite_sequence VALUES('tickets_status_record',135);
 INSERT INTO sqlite_sequence VALUES('tickets_executor_assignment',22);
-INSERT INTO sqlite_sequence VALUES('tickets_comment',39);
+INSERT INTO sqlite_sequence VALUES('tickets_comment',43);
 INSERT INTO sqlite_sequence VALUES('user_tickets',7);
 INSERT INTO sqlite_sequence VALUES('user_tickets_status_record',16);
 INSERT INTO sqlite_sequence VALUES('user_tickets_comment',2);
