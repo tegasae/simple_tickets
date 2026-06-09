@@ -110,13 +110,6 @@ class AdminApplicationService:
     def attach_account(self, *, admin_dto: AdminDTO) -> AdminResponseDTO:
         with self.uow:
 
-
-            if not admin_dto.login:
-                raise DomainOperationError("Login is required")
-
-            if not admin_dto.password:
-                raise DomainOperationError("Password is required")
-
             self.helper.ensure_login_is_free(login=admin_dto.login)
             self.actor.require_actor_admin(actor_admin_id=admin_dto.actor_admin_id,
                                            permission=AdminPermission.ADMIN_OPERATION)

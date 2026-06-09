@@ -102,8 +102,8 @@ class UserApplicationService:
             )
             user=self.uow.users.get(user_id=user_dto.employee_id)
             # todo здесь методо из репозитория, котоый получает client по user_id
-            client = self.uow.clients.get(client_id=user_dto.client_id)
-            TicketPolicy.ensure_client_enabled(client)
+            #client = self.uow.clients.get(client_id=user_dto.client_id)
+            #TicketPolicy.ensure_client_enabled(client)
             TicketPolicy.ensure_user_enabled(user)
             user.update(
                 first_name=user_dto.first_name,
@@ -194,7 +194,7 @@ class UserApplicationService:
         # todo а в disable можно любого пользователя
         # todo но заявки перенести в отлженные
         with self.uow:
-            self._validate_references(user_dto=user_dto)
+
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.USER_OPERATION,

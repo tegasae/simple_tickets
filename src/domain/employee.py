@@ -56,20 +56,6 @@ class _Employee(HasRoleIds):
         - Normalizes roles to set[int].
         """
 
-        if (login and not password) or (not login and password):
-            raise DomainOperationError(
-                "Both the login and the password must be filled in"
-            )
-
-        if login and password:
-            account = Account.create(
-                account_id=0,
-                login=login,
-                plain_password=password,
-                enabled=enabled_account,
-            )
-        else:
-            account = NoAccount()
 
         role_ids = set(roles or [])
 
@@ -81,7 +67,7 @@ class _Employee(HasRoleIds):
             "phone": Phone(phone) if phone else Empty(),
             "enabled": enabled,
             "date_created": datetime.now(),
-            "account": account,
+            "account": _Employee._create_account(login=login,password=password,enabled_account=enabled_account),
             "version": version,
             "_role_ids": role_ids,
         }
@@ -122,13 +108,23 @@ class _Employee(HasRoleIds):
     def is_empty(self) -> bool:
         return self._is_empty
 
-    def add_account(self, login:str,password:str,enabled_account) -> Self:
+    @staticmethod
+    def _create_account(login:str,password:str,enabled_account)->Account|NoAccount:
+        if (login and not password) or (not login and password):
+            raise DomainOperationError(
+                "Both the login and the password must be filled in"
+            )
         if login and password:
             account=Account.create(account_id=0,login=login,plain_password=password,enabled=enabled_account)
         else:
-            account=NoAccount()
-        self.account=account
-        return self
+            account = NoAccount()
+        return account
+
+    def add_account(self, login:str,password:str,enabled_account) -> Self:
+        if self.enabled:
+            self.account=_Employee._create_account(login=login,password=password,enabled_account=enabled_account)
+        else:
+            raise DomainOperationError(f"The employee {self.employee_id} is disabled")
 
     def remove_account(self) -> Self:
         if isinstance(self.account,Account):
@@ -143,6 +139,8 @@ class _Employee(HasRoleIds):
         return frozenset(self._role_ids)
 
     def grant_role(self, role_id: int) -> None:
+        if not self.enabled:
+            raise DomainOperationError(f"The disabled {self.employee_id} can't be granted roles")
         self._role_ids.add(role_id)
 
 

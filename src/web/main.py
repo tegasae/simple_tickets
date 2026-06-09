@@ -1,6 +1,7 @@
 import uvicorn
 from fastapi import FastAPI
 
+from src.adapters.repositories.exceptions import OptimisticLockError
 from src.domain.exceptions import ItemValidationError, DomainOperationError
 from src.web.auth.exceptions import TokenError, TokenNotFoundError, TokenExpiredError, UserNotValidError, \
     InvalidCredentialsError
@@ -48,7 +49,8 @@ def create_app() -> FastAPI:
             ItemValidationError: 400,
             PermissionError: 403,
             ValueError: 400,
-            DomainOperationError:400
+            DomainOperationError:400,
+            OptimisticLockError:500
         }
     )
     registry.add_all_handlers_from_module(
