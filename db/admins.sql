@@ -7,9 +7,6 @@ CREATE TABLE departments (
     version INTEGER DEFAULT 0,
     date_created TEXT
 );
-INSERT INTO departments VALUES(1,'1111',1,4,'2026-06-10T13:35:41.996949');
-
-
 CREATE TABLE employees (
 	employee_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	first_name TEXT,
