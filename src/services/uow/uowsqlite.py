@@ -5,6 +5,7 @@ from typing import Self
 
 from src.adapters.repositories.admin import AdminRepositorySQLite
 from src.adapters.repositories.client_repository import ClientRepositorySQLite
+from src.adapters.repositories.department_repository import DepartmentRepositorySQLite
 from src.adapters.repositories.role_repository import RoleRepositorySQLite
 from src.adapters.repositories.ticket_repository import TicketRepositorySQLite
 from src.adapters.repositories.ticket_user_repository import TicketUserRepositorySQLite
@@ -40,7 +41,7 @@ class SQLiteUnitOfWork(UnitOfWork):
         self.user_tickets = TicketUserRepositorySQLite(conn=self.connection)
         self.roles_admin =  RoleRepositorySQLite(conn=self.connection,permission_cls=AdminPermission,is_admin=True)
         self.roles_user = RoleRepositorySQLite(conn=self.connection, permission_cls=UserPermission, is_admin=False)
-
+        self.departments=DepartmentRepositorySQLite(conn=self.connection)
     # --------------------------------
     # Context manager
     # --------------------------------

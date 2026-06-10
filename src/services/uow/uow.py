@@ -5,6 +5,7 @@ from typing import ContextManager, Self
 from src.domain.rbac.permissions import AdminPermission, UserPermission
 from src.domain.rbac.role_repository import RoleRepository
 from src.domain.repositories.admin_repository import AdminRepository
+from src.domain.repositories.department_repository import DepartmentRepository
 from src.domain.repositories.ticket_user_repository import TicketUserRepository
 from src.domain.repositories.user_repository import UserRepository
 from src.domain.repositories.client_repository import ClientRepository
@@ -27,6 +28,7 @@ class UnitOfWork(ContextManager, ABC):
     user_tickets: TicketUserRepository
     roles_admin:RoleRepository[AdminPermission]
     roles_user:RoleRepository[UserPermission]
+    department:DepartmentRepository
     # --------------------------------
     # Context manager
     # --------------------------------

@@ -79,3 +79,6 @@ class TicketRepository(ABC):
     def has_admin_reference(self, admin_id: int) -> bool:
         raise NotImplementedError
 
+    @abstractmethod
+    def has_department_reference(self, department_id: int) -> bool:
+        raise NotImplementedError

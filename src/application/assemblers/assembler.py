@@ -1,11 +1,12 @@
 # src/application/assemblers/assembler.py
+from src.application.dto.department_dto import DepartmentResponseDTO
 from src.application.dto.employee_dto import AdminResponseDTO, UserResponseDTO
 from src.application.dto.ticket_dto import TicketResponseDTO, TicketUserResponseDTO
 from src.domain.client import Client
+from src.domain.department import Department
 from src.domain.employee import Admin, User
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
-from src.domain.value_objects import Empty
 from src.application.dto.client_dto import ClientResponseDTO
 
 
@@ -82,9 +83,9 @@ class TicketUserAssembler:
 
         return TicketUserResponseDTO(
             ticket_id=ticket_user.ticket_id,
-            date_created=unwrap(ticket_user.date_created),
-            description=unwrap(ticket_user.description),
-            date_finished=unwrap(ticket_user.date_finished),
+            date_created=str(ticket_user.date_created),
+            description=str(ticket_user.description),
+            date_finished=str(ticket_user.date_finished),
             contact_user_id=ticket_user.contact_user_id,
             user_id=ticket_user.user_id,
             statuses=statuses,
@@ -101,6 +102,7 @@ class AdminAssembler:
                                  email=str(admin.email),
                                  enabled=admin.enabled,
                                  job_title=admin.job_title,
+                                 department_id=admin.department_id,
                                  last_name=str(admin.last_name),
                                  login=str(admin.account.login),
                                  enabled_login=admin.account.enabled,
@@ -123,3 +125,15 @@ class UserAssembler:
                                  roles=user.role_ids(),
                                  date_created=str(user.date_created))
 
+
+
+
+class DepartmentAssembler:
+    @staticmethod
+    def to_dto(department: Department) -> DepartmentResponseDTO:
+        return DepartmentResponseDTO(
+            department_id=department.department_id,
+            name=str(department.name),
+            enabled=department.enabled,
+            date_created=department.date_created,
+        )

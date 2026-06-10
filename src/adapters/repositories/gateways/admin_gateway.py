@@ -9,12 +9,12 @@ class AdminGateway:
     """
 
     INSERT = (
-        "INSERT INTO admins (employee_id, job_title) "
-        "VALUES (:employee_id, :job_title)"
+        "INSERT INTO admins (employee_id, job_title,department_id) "
+        "VALUES (:employee_id, :job_title,:department_id)"
     )
 
     UPDATE = (
-        "UPDATE admins SET job_title = :job_title "
+        "UPDATE admins SET job_title = :job_title, department_id=:department_id"
         "WHERE employee_id = :employee_id"
     )
 
@@ -28,7 +28,7 @@ class AdminGateway:
         "SELECT "
         "e.employee_id, e.first_name, e.last_name, e.email, e.phone, e.date_created, "
         "e.enabled, e.version, "
-        "a.job_title, "
+        "a.job_title, a.department_id"
         "acc.account_id, acc.login, acc.password, acc.enabled AS account_enabled, acc.date_created AS account_date_created "
         "FROM admins a "
         "JOIN employees e ON e.employee_id = a.employee_id "
@@ -58,3 +58,10 @@ class AdminGateway:
         WHERE login = :login
         LIMIT 1
         """
+
+    EXISTS_BY_DEPARTMENT_ID = """
+    SELECT 1 as one
+    FROM admins
+    WHERE department_id = :department_id
+    LIMIT 1
+    """

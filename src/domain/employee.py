@@ -5,7 +5,7 @@ from typing import Self, Any
 
 
 from src.domain.account import NoAccount, Account
-from src.domain.exceptions import DomainOperationError
+from src.domain.exceptions import DomainOperationError, ItemValidationError
 from src.domain.rbac.employee_protocol import HasRoleIds
 from src.domain.value_objects import Email, Phone, Name, Empty
 
@@ -194,7 +194,7 @@ class User(_Employee):
 @dataclass(kw_only=True,eq=False)
 class Admin(_Employee):
     job_title: str=""
-
+    department_id: int =0
     @classmethod
     def create(
             cls,
@@ -209,7 +209,8 @@ class Admin(_Employee):
             enable_account: bool = True,
             version: int = 0,
             roles: set[int]=(),
-            job_title:str=""
+            job_title:str="",
+            department_id:int=0
     ) -> Self:
         """Create a new Admin."""
 
@@ -217,10 +218,28 @@ class Admin(_Employee):
                                     phone=phone, enabled=enabled, login=login, password=password,
                                     enabled_account=enable_account, version=version, roles=roles)
 
-        return cls(**base_data, job_title=job_title)
+        return cls(**base_data, job_title=job_title,department_id=department_id)
 
 
     def update(self, job_title:str="", first_name: str="", last_name: str="", email: str="", phone: str="")->Self:
         self.update_base(first_name, last_name, email, phone)
         self.job_title = job_title
         return self
+
+    def change_department(self, department_id: int ) -> None:
+        """
+        Change Admin department.
+
+        Business rule about AT_WORK tickets is checked in application service,
+        because Admin does not know all tickets.
+        """
+        if department_id and int(department_id) and department_id <= 0:
+            raise ItemValidationError("Department ID must be positive")
+
+        self.department_id = department_id
+
+    def remove_department(self) -> None:
+        self.department_id = 0
+
+    def has_department(self) -> bool:
+        return bool(self.department_id)

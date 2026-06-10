@@ -1,5 +1,7 @@
 # src/application/services/service_factory.py
+from src.application.services.department_service import DepartmentApplicationService
 from src.application.services.role_admin_service import AdminRoleService, UserRoleService
+from src.domain.department import Department
 from src.services.uow.uow import UnitOfWork
 
 from src.application.services.admin_service import AdminApplicationService
@@ -33,3 +35,6 @@ class ApplicationServiceFactory:
 
     def role_user_service(self) -> UserRoleService:
         return UserRoleService(self.uow)
+
+    def department_service(self) -> DepartmentApplicationService:
+        return DepartmentApplicationService(self.uow)

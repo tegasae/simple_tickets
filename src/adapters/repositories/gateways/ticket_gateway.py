@@ -80,6 +80,14 @@ class TicketGateway:
     LIMIT 1
     """
 
+    EXISTS_BY_DEPARTMENT_ID = """
+        SELECT 1 as one
+        FROM tickets
+        WHERE department_id = :department_id
+        LIMIT 1
+        """
+
+
 class TicketCommentGateway:
     SELECT = """
     SELECT comment_ticket_id, admin_id, comment, date_created

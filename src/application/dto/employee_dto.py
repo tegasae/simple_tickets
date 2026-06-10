@@ -20,6 +20,8 @@ class EmployeeDTO:
 @dataclass(kw_only=True)
 class AdminDTO(EmployeeDTO):
     job_title: str=""
+    department_id:int=0
+
 
 
 
@@ -49,7 +51,7 @@ class EmployeeResponseDTO:
 @dataclass(kw_only=True,frozen=True)
 class AdminResponseDTO(EmployeeResponseDTO):
     job_title: str
-
+    department_id:int
 
 @dataclass(kw_only=True,frozen=True)
 class UserResponseDTO(EmployeeResponseDTO):

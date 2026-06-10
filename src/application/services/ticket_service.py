@@ -328,3 +328,5 @@ class TicketApplicationService:
 
             tickets = self.uow.tickets.get_all()
             return [TicketAssembler.to_dto(ticket) for ticket in tickets]
+
+

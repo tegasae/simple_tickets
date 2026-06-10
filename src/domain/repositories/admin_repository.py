@@ -134,3 +134,7 @@ class AdminRepository(ABC):
         """Check whether login exists."""
         raise NotImplementedError
 
+
+    @abstractmethod
+    def has_department_reference(self, department_id: int) -> bool:
+        raise NotImplementedError

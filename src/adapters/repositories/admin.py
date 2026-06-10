@@ -209,3 +209,9 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
             {"login": login},
         )
         return bool(row)
+
+    def has_department_reference(self, department_id: int) -> bool:
+        return self._exists(
+            AdminGateway.EXISTS_BY_DEPARTMENT_ID,
+            {"department_id": department_id},
+        )

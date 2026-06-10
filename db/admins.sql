@@ -1,5 +1,15 @@
 PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
+CREATE TABLE departments (
+    department_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    enabled INTEGER DEFAULT 1,
+    version INTEGER DEFAULT 0,
+    date_created TEXT
+);
+INSERT INTO departments VALUES(1,'1111',1,4,'2026-06-10T13:35:41.996949');
+
+
 CREATE TABLE employees (
 	employee_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	first_name TEXT,
@@ -178,143 +188,150 @@ INSERT INTO employees VALUES(166,'string','','','','2026-06-09T13:32:06',NULL,1,
 INSERT INTO employees VALUES(167,'string','','','','2026-06-09T13:34:55',NULL,1,1,0);
 INSERT INTO employees VALUES(168,'string','','','','2026-06-09T13:35:41',NULL,1,0,1);
 INSERT INTO employees VALUES(169,'string','','','','2026-06-09T13:36:08',NULL,1,1,1);
+INSERT INTO employees VALUES(170,'string','','','','2026-06-09T17:28:30',NULL,1,0,1);
+INSERT INTO employees VALUES(171,'new2','','','','2026-06-09T17:29:33',NULL,1,9,1);
+INSERT INTO employees VALUES(172,'n2','','','','2026-06-09T17:38:04',NULL,1,8,0);
 CREATE TABLE admins (
     employee_id INTEGER NOT NULL PRIMARY KEY,
-    job_title TEXT,
-    FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE RESTRICT
+    job_title TEXT, 
+    department_id INTEGER DEFAULT NULL,
+    FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE RESTRICT,
+    FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE RESTRICT
 );
-INSERT INTO admins VALUES(1,'Senior Administrator');
-INSERT INTO admins VALUES(2,'Senior Administrator');
-INSERT INTO admins VALUES(3,'Senior Administrator');
-INSERT INTO admins VALUES(4,'Senior Administrator');
-INSERT INTO admins VALUES(5,'Senior Administrator');
-INSERT INTO admins VALUES(6,'Senior Administrator');
-INSERT INTO admins VALUES(7,'Senior Administrator');
-INSERT INTO admins VALUES(13,'Senior Administrator');
-INSERT INTO admins VALUES(14,'Senior Administrator');
-INSERT INTO admins VALUES(15,'Senior Administrator');
-INSERT INTO admins VALUES(16,'Senior Administrator');
-INSERT INTO admins VALUES(17,'System Administrator');
-INSERT INTO admins VALUES(18,'System Administrator');
-INSERT INTO admins VALUES(20,'System Administrator');
-INSERT INTO admins VALUES(21,'System Administrator');
-INSERT INTO admins VALUES(22,'System Administrator');
-INSERT INTO admins VALUES(23,'System Administrator');
-INSERT INTO admins VALUES(24,'System Administrator');
-INSERT INTO admins VALUES(25,'System Administrator');
-INSERT INTO admins VALUES(26,'System Administrator');
-INSERT INTO admins VALUES(27,'System Administrator');
-INSERT INTO admins VALUES(28,'System Administrator');
-INSERT INTO admins VALUES(29,'System Administrator');
-INSERT INTO admins VALUES(30,'System Administrator');
-INSERT INTO admins VALUES(31,'System Administrator');
-INSERT INTO admins VALUES(32,'System Administrator');
-INSERT INTO admins VALUES(33,'System Administrator');
-INSERT INTO admins VALUES(34,'System Administrator');
-INSERT INTO admins VALUES(35,'System Administrator');
-INSERT INTO admins VALUES(36,'System Administrator');
-INSERT INTO admins VALUES(37,'System Administrator');
-INSERT INTO admins VALUES(38,'System Administrator');
-INSERT INTO admins VALUES(39,'Senior Administrator');
-INSERT INTO admins VALUES(40,'Senior Administrator');
-INSERT INTO admins VALUES(41,'System Administrator');
-INSERT INTO admins VALUES(42,'Senior Administrator');
-INSERT INTO admins VALUES(43,'Senior Administrator');
-INSERT INTO admins VALUES(44,'System Administrator');
-INSERT INTO admins VALUES(45,'Senior Administrator');
-INSERT INTO admins VALUES(46,'System Administrator');
-INSERT INTO admins VALUES(47,'Senior Administrator');
-INSERT INTO admins VALUES(48,'System Administrator');
-INSERT INTO admins VALUES(49,'Senior Administrator');
-INSERT INTO admins VALUES(54,'System Administrator');
-INSERT INTO admins VALUES(55,'System Administrator');
-INSERT INTO admins VALUES(56,'System Administrator');
-INSERT INTO admins VALUES(57,'System Administrator');
-INSERT INTO admins VALUES(58,'Senior Administrator');
-INSERT INTO admins VALUES(59,'Senior Administrator');
-INSERT INTO admins VALUES(66,'System Administrator');
-INSERT INTO admins VALUES(68,'System Administrator');
-INSERT INTO admins VALUES(70,'');
-INSERT INTO admins VALUES(71,'');
-INSERT INTO admins VALUES(72,'');
-INSERT INTO admins VALUES(73,'');
-INSERT INTO admins VALUES(74,'');
-INSERT INTO admins VALUES(75,'');
-INSERT INTO admins VALUES(76,'');
-INSERT INTO admins VALUES(77,'');
-INSERT INTO admins VALUES(78,'');
-INSERT INTO admins VALUES(79,'');
-INSERT INTO admins VALUES(80,'');
-INSERT INTO admins VALUES(81,'');
-INSERT INTO admins VALUES(82,'');
-INSERT INTO admins VALUES(83,'');
-INSERT INTO admins VALUES(84,'');
-INSERT INTO admins VALUES(85,'');
-INSERT INTO admins VALUES(86,'');
-INSERT INTO admins VALUES(87,'');
-INSERT INTO admins VALUES(88,'');
-INSERT INTO admins VALUES(89,'');
-INSERT INTO admins VALUES(90,'');
-INSERT INTO admins VALUES(91,'');
-INSERT INTO admins VALUES(92,'');
-INSERT INTO admins VALUES(93,'');
-INSERT INTO admins VALUES(94,'');
-INSERT INTO admins VALUES(95,'');
-INSERT INTO admins VALUES(96,'');
-INSERT INTO admins VALUES(97,'');
-INSERT INTO admins VALUES(98,'');
-INSERT INTO admins VALUES(99,'');
-INSERT INTO admins VALUES(100,'');
-INSERT INTO admins VALUES(101,'');
-INSERT INTO admins VALUES(102,'');
-INSERT INTO admins VALUES(103,'');
-INSERT INTO admins VALUES(104,'');
-INSERT INTO admins VALUES(105,'');
-INSERT INTO admins VALUES(106,'');
-INSERT INTO admins VALUES(110,'Senior System Administrator');
-INSERT INTO admins VALUES(111,'Senior System Administrator');
-INSERT INTO admins VALUES(112,'Senior System Administrator');
-INSERT INTO admins VALUES(113,'Senior System Administrator');
-INSERT INTO admins VALUES(114,'Senior System Administrator');
-INSERT INTO admins VALUES(115,'Senior System Administrator');
-INSERT INTO admins VALUES(116,'Senior System Administrator');
-INSERT INTO admins VALUES(117,'Senior System Administrator');
-INSERT INTO admins VALUES(118,'System Administrator');
-INSERT INTO admins VALUES(119,'Senior Operations Manager');
-INSERT INTO admins VALUES(120,'Senior Operations Manager');
-INSERT INTO admins VALUES(121,'Senior Operations Manager');
-INSERT INTO admins VALUES(122,'Senior Operations Manager');
-INSERT INTO admins VALUES(128,'job title');
-INSERT INTO admins VALUES(129,'job title');
-INSERT INTO admins VALUES(130,'');
-INSERT INTO admins VALUES(131,'админ');
-INSERT INTO admins VALUES(132,'админ');
-INSERT INTO admins VALUES(133,'админ');
-INSERT INTO admins VALUES(134,'админ');
-INSERT INTO admins VALUES(135,'админ');
-INSERT INTO admins VALUES(136,'админ');
-INSERT INTO admins VALUES(137,'админ');
-INSERT INTO admins VALUES(138,'');
-INSERT INTO admins VALUES(139,'админ');
-INSERT INTO admins VALUES(143,'');
-INSERT INTO admins VALUES(145,'');
-INSERT INTO admins VALUES(146,'');
-INSERT INTO admins VALUES(147,'');
-INSERT INTO admins VALUES(148,'');
-INSERT INTO admins VALUES(149,'');
-INSERT INTO admins VALUES(150,'');
-INSERT INTO admins VALUES(151,'');
-INSERT INTO admins VALUES(152,'');
-INSERT INTO admins VALUES(153,'');
-INSERT INTO admins VALUES(154,'');
-INSERT INTO admins VALUES(156,'');
-INSERT INTO admins VALUES(157,'');
-INSERT INTO admins VALUES(158,'');
-INSERT INTO admins VALUES(159,'');
-INSERT INTO admins VALUES(160,'');
-INSERT INTO admins VALUES(161,'');
-INSERT INTO admins VALUES(168,'');
-INSERT INTO admins VALUES(169,'');
+INSERT INTO admins VALUES(1,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(2,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(3,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(4,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(5,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(6,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(7,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(13,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(14,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(15,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(16,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(17,'System Administrator',NULL);
+INSERT INTO admins VALUES(18,'System Administrator',NULL);
+INSERT INTO admins VALUES(20,'System Administrator',NULL);
+INSERT INTO admins VALUES(21,'System Administrator',NULL);
+INSERT INTO admins VALUES(22,'System Administrator',NULL);
+INSERT INTO admins VALUES(23,'System Administrator',NULL);
+INSERT INTO admins VALUES(24,'System Administrator',NULL);
+INSERT INTO admins VALUES(25,'System Administrator',NULL);
+INSERT INTO admins VALUES(26,'System Administrator',NULL);
+INSERT INTO admins VALUES(27,'System Administrator',NULL);
+INSERT INTO admins VALUES(28,'System Administrator',NULL);
+INSERT INTO admins VALUES(29,'System Administrator',NULL);
+INSERT INTO admins VALUES(30,'System Administrator',NULL);
+INSERT INTO admins VALUES(31,'System Administrator',NULL);
+INSERT INTO admins VALUES(32,'System Administrator',NULL);
+INSERT INTO admins VALUES(33,'System Administrator',NULL);
+INSERT INTO admins VALUES(34,'System Administrator',NULL);
+INSERT INTO admins VALUES(35,'System Administrator',NULL);
+INSERT INTO admins VALUES(36,'System Administrator',NULL);
+INSERT INTO admins VALUES(37,'System Administrator',NULL);
+INSERT INTO admins VALUES(38,'System Administrator',NULL);
+INSERT INTO admins VALUES(39,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(40,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(41,'System Administrator',NULL);
+INSERT INTO admins VALUES(42,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(43,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(44,'System Administrator',NULL);
+INSERT INTO admins VALUES(45,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(46,'System Administrator',NULL);
+INSERT INTO admins VALUES(47,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(48,'System Administrator',NULL);
+INSERT INTO admins VALUES(49,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(54,'System Administrator',NULL);
+INSERT INTO admins VALUES(55,'System Administrator',NULL);
+INSERT INTO admins VALUES(56,'System Administrator',NULL);
+INSERT INTO admins VALUES(57,'System Administrator',NULL);
+INSERT INTO admins VALUES(58,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(59,'Senior Administrator',NULL);
+INSERT INTO admins VALUES(66,'System Administrator',NULL);
+INSERT INTO admins VALUES(68,'System Administrator',NULL);
+INSERT INTO admins VALUES(70,'',NULL);
+INSERT INTO admins VALUES(71,'',NULL);
+INSERT INTO admins VALUES(72,'',NULL);
+INSERT INTO admins VALUES(73,'',NULL);
+INSERT INTO admins VALUES(74,'',NULL);
+INSERT INTO admins VALUES(75,'',NULL);
+INSERT INTO admins VALUES(76,'',NULL);
+INSERT INTO admins VALUES(77,'',NULL);
+INSERT INTO admins VALUES(78,'',NULL);
+INSERT INTO admins VALUES(79,'',NULL);
+INSERT INTO admins VALUES(80,'',NULL);
+INSERT INTO admins VALUES(81,'',NULL);
+INSERT INTO admins VALUES(82,'',NULL);
+INSERT INTO admins VALUES(83,'',NULL);
+INSERT INTO admins VALUES(84,'',NULL);
+INSERT INTO admins VALUES(85,'',NULL);
+INSERT INTO admins VALUES(86,'',NULL);
+INSERT INTO admins VALUES(87,'',NULL);
+INSERT INTO admins VALUES(88,'',NULL);
+INSERT INTO admins VALUES(89,'',NULL);
+INSERT INTO admins VALUES(90,'',NULL);
+INSERT INTO admins VALUES(91,'',NULL);
+INSERT INTO admins VALUES(92,'',NULL);
+INSERT INTO admins VALUES(93,'',NULL);
+INSERT INTO admins VALUES(94,'',NULL);
+INSERT INTO admins VALUES(95,'',NULL);
+INSERT INTO admins VALUES(96,'',NULL);
+INSERT INTO admins VALUES(97,'',NULL);
+INSERT INTO admins VALUES(98,'',NULL);
+INSERT INTO admins VALUES(99,'',NULL);
+INSERT INTO admins VALUES(100,'',NULL);
+INSERT INTO admins VALUES(101,'',NULL);
+INSERT INTO admins VALUES(102,'',NULL);
+INSERT INTO admins VALUES(103,'',NULL);
+INSERT INTO admins VALUES(104,'',NULL);
+INSERT INTO admins VALUES(105,'',NULL);
+INSERT INTO admins VALUES(106,'',NULL);
+INSERT INTO admins VALUES(110,'Senior System Administrator',NULL);
+INSERT INTO admins VALUES(111,'Senior System Administrator',NULL);
+INSERT INTO admins VALUES(112,'Senior System Administrator',NULL);
+INSERT INTO admins VALUES(113,'Senior System Administrator',NULL);
+INSERT INTO admins VALUES(114,'Senior System Administrator',NULL);
+INSERT INTO admins VALUES(115,'Senior System Administrator',NULL);
+INSERT INTO admins VALUES(116,'Senior System Administrator',NULL);
+INSERT INTO admins VALUES(117,'Senior System Administrator',NULL);
+INSERT INTO admins VALUES(118,'System Administrator',NULL);
+INSERT INTO admins VALUES(119,'Senior Operations Manager',NULL);
+INSERT INTO admins VALUES(120,'Senior Operations Manager',NULL);
+INSERT INTO admins VALUES(121,'Senior Operations Manager',NULL);
+INSERT INTO admins VALUES(122,'Senior Operations Manager',NULL);
+INSERT INTO admins VALUES(128,'job title',NULL);
+INSERT INTO admins VALUES(129,'job title',NULL);
+INSERT INTO admins VALUES(130,'',NULL);
+INSERT INTO admins VALUES(131,'админ',NULL);
+INSERT INTO admins VALUES(132,'админ',NULL);
+INSERT INTO admins VALUES(133,'админ',NULL);
+INSERT INTO admins VALUES(134,'админ',NULL);
+INSERT INTO admins VALUES(135,'админ',NULL);
+INSERT INTO admins VALUES(136,'админ',NULL);
+INSERT INTO admins VALUES(137,'админ',NULL);
+INSERT INTO admins VALUES(138,'',NULL);
+INSERT INTO admins VALUES(139,'админ',NULL);
+INSERT INTO admins VALUES(143,'',NULL);
+INSERT INTO admins VALUES(145,'',NULL);
+INSERT INTO admins VALUES(146,'',NULL);
+INSERT INTO admins VALUES(147,'',NULL);
+INSERT INTO admins VALUES(148,'',NULL);
+INSERT INTO admins VALUES(149,'',NULL);
+INSERT INTO admins VALUES(150,'',NULL);
+INSERT INTO admins VALUES(151,'',NULL);
+INSERT INTO admins VALUES(152,'',NULL);
+INSERT INTO admins VALUES(153,'',NULL);
+INSERT INTO admins VALUES(154,'',NULL);
+INSERT INTO admins VALUES(156,'',NULL);
+INSERT INTO admins VALUES(157,'',NULL);
+INSERT INTO admins VALUES(158,'',NULL);
+INSERT INTO admins VALUES(159,'',NULL);
+INSERT INTO admins VALUES(160,'',NULL);
+INSERT INTO admins VALUES(161,'',NULL);
+INSERT INTO admins VALUES(168,'',NULL);
+INSERT INTO admins VALUES(169,'',NULL);
+INSERT INTO admins VALUES(170,'',NULL);
+INSERT INTO admins VALUES(171,'',NULL);
 CREATE TABLE users (
     employee_id INTEGER NOT NULL PRIMARY KEY,
     client_id INTEGER NOT NULL,
@@ -356,6 +373,7 @@ INSERT INTO users VALUES(164,4);
 INSERT INTO users VALUES(165,4);
 INSERT INTO users VALUES(166,4);
 INSERT INTO users VALUES(167,4);
+INSERT INTO users VALUES(172,4);
 CREATE TABLE accounts (
 	account_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	employee_id INTEGER,
@@ -427,6 +445,8 @@ INSERT INTO accounts VALUES(472,166,'login-u','d85fb61a933e0b8a45f88c89888502573
 INSERT INTO accounts VALUES(474,167,'login-user1','d85fb61a933e0b8a45f88c89888502573a3d318657a576ef5529bf948b98882c',1,'2026-06-09T13:34:48');
 INSERT INTO accounts VALUES(476,168,'login-admin','d85fb61a933e0b8a45f88c89888502573a3d318657a576ef5529bf948b98882c',1,'2026-06-09T13:35:41');
 INSERT INTO accounts VALUES(477,169,'login-admin1','d85fb61a933e0b8a45f88c89888502573a3d318657a576ef5529bf948b98882c',1,'2026-06-09T13:36:45');
+INSERT INTO accounts VALUES(483,170,'htyhyrujujuj','ff7bd97b1a7789ddd2775122fd6817f3173672da9f802ceec57f284325bf589f',1,'2026-06-09T17:28:30');
+INSERT INTO accounts VALUES(485,172,'erfertgrtg','ff7bd97b1a7789ddd2775122fd6817f3173672da9f802ceec57f284325bf589f',1,'2026-06-09T17:38:04');
 CREATE TABLE clients (
 	client_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	admin_id INTEGER,
@@ -471,7 +491,7 @@ INSERT INTO roles VALUES(7,'Super Admin','admin.view,role.assign,audit.view,admi
 INSERT INTO roles VALUES(60,'Super Admin','client.operation, client.view, admin.operation, admin.view, user.operation, user.view, ticket.operation, ticket.view, role.assign, role.revoke','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
 INSERT INTO roles VALUES(61,'Ticket Creator','ticket.operation, ticket.operation.all, ticket.view, ticket.view.all','Can create and view own tickets',0,'2026-03-23T12:21:42+00:00',0,0);
 INSERT INTO roles VALUES(62,'Super Admin','audit.view,role.assign,admin.view','Full system access',1,'2026-03-23T12:22:06+00:00',1,0);
-INSERT INTO roles VALUES(63,'Ticket Creator','ticket.create,ticket.view.own','Can create and view own tickets',0,'2026-03-23T12:22:06+00:00',0,0);
+INSERT INTO roles VALUES(63,'Ticket Creator','ticket.operation, ticket.operation.all, ticket.view, ticket.view.all','Can create and view own tickets',0,'2026-03-23T12:22:06+00:00',0,0);
 INSERT INTO roles VALUES(64,'Super Admin','audit.view,role.assign,admin.view','Full system access',1,'2026-03-23T12:22:34+00:00',1,0);
 INSERT INTO roles VALUES(65,'Ticket Creator','ticket.view.own,ticket.create','Can create and view own tickets',0,'2026-03-23T12:22:34+00:00',0,0);
 INSERT INTO roles VALUES(66,'Super Admin','audit.view,role.assign,admin.view','Full system access',1,'2026-03-23T12:22:49+00:00',1,0);
@@ -625,6 +645,7 @@ INSERT INTO admins_roles VALUES(154,5);
 INSERT INTO admins_roles VALUES(161,60);
 INSERT INTO admins_roles VALUES(161,5);
 INSERT INTO admins_roles VALUES(160,5);
+INSERT INTO admins_roles VALUES(171,5);
 CREATE TABLE users_roles (
   employee_id INTEGER NOT NULL,
   role_id INTEGER NOT NULL,
@@ -645,6 +666,8 @@ INSERT INTO users_roles VALUES(142,65);
 INSERT INTO users_roles VALUES(165,61);
 INSERT INTO users_roles VALUES(166,61);
 INSERT INTO users_roles VALUES(167,61);
+INSERT INTO users_roles VALUES(172,61);
+INSERT INTO users_roles VALUES(172,63);
 CREATE TABLE tickets_comment (
 	comment_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	ticket_id INTEGER,
@@ -928,81 +951,15 @@ CREATE TABLE tickets (
 	is_closed INTEGER DEFAULT (0), -- заявка завершена
 	date_closed TEXT, -- дата завершения или снятия заявки
 	urgency_level INTEGER DEFAULT (0), -- срочная или несрочная 
+        department_id INTEGER DEFAULT NULL,
 	version INTEGER, description TEXT, -- версия
 	CONSTRAINT tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
 	CONSTRAINT tickets_admin_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict,
 	CONSTRAINT tickets_user_user_FK FOREIGN KEY (user_id) REFERENCES employees(employee_id) on delete restrict,
 	CONSTRAINT tickets_user_ticket_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict,
-	CONSTRAINT tickets_user_ticket_contact_user_FK FOREIGN KEY (user_ticket_contact_user_id) REFERENCES employees(employee_id) on delete restrict
+        CONSTRAINT tickets_user_ticket_contact_user_FK FOREIGN KEY (user_ticket_contact_user_id) REFERENCES employees(employee_id) on delete restrict,
+        CONSTRAINT tickets_departments_FK FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE RESTRICT
 );
-INSERT INTO tickets VALUES(1,1,1,NULL,NULL,NULL,'11111','2026-03-10T13:48:03.830911+00:00',0,0,NULL,1,0,NULL);
-INSERT INTO tickets VALUES(2,1,1,NULL,NULL,NULL,'Internet does not work','2026-03-10T14:07:20.876669+00:00',0,1,'2026-03-10T14:07:20.879247+00:00',1,4,NULL);
-INSERT INTO tickets VALUES(3,1,1,NULL,NULL,NULL,'Internet does not work','2026-03-10T14:52:29.171187+00:00',0,1,'2026-03-10T14:52:29.176422+00:00',1,4,NULL);
-INSERT INTO tickets VALUES(4,1,1,NULL,NULL,NULL,'Internet does not work','2026-03-10T14:54:39.986069+00:00',0,1,'2026-03-10T14:54:39.987652+00:00',1,4,NULL);
-INSERT INTO tickets VALUES(5,1,1,NULL,NULL,NULL,'Internet does not work','2026-03-10T15:59:38.565549+00:00',0,1,'2026-03-10T15:59:38.567645+00:00',1,4,NULL);
-INSERT INTO tickets VALUES(6,4,4,NULL,NULL,NULL,'','2026-05-14T16:31:14.273520+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(7,4,4,NULL,NULL,NULL,'','2026-05-14T16:31:44.306346+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(8,4,4,NULL,NULL,NULL,'','2026-05-14T16:32:27.899960+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(9,4,4,NULL,NULL,NULL,'','2026-05-14T16:33:11.825428+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(10,4,4,NULL,NULL,NULL,'','2026-05-14T16:34:32.494733+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(11,4,4,NULL,NULL,NULL,'','2026-05-14T16:34:58.283447+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(12,4,4,NULL,NULL,NULL,'','2026-05-14T16:35:17.816423+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(13,4,4,NULL,NULL,NULL,'','2026-05-14T16:36:05.103307+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(14,4,4,NULL,NULL,NULL,'','2026-05-14T16:36:28.064861+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(15,4,4,NULL,NULL,NULL,'','2026-05-14T16:37:03.376891+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(16,4,4,NULL,NULL,NULL,'','2026-05-14T16:44:04.363209+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(17,4,4,NULL,NULL,NULL,'Printer issue 20260514194656','2026-05-14T16:46:56.079426+00:00',0,1,'2026-05-14T16:46:56.099615+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(18,4,4,NULL,NULL,NULL,'Printer issue 20260514194740','2026-05-14T16:47:40.132291+00:00',0,1,'2026-05-14T16:47:40.150426+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(19,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-14T16:47:40.158668+00:00',0,1,'2026-05-14T16:47:40.165588+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(20,4,4,NULL,NULL,NULL,'Printer issue 20260514195858','2026-05-14T16:58:58.745152+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(21,4,4,NULL,NULL,NULL,'Printer issue 20260514195915','2026-05-14T16:59:15.498531+00:00',0,1,'2026-05-14T16:59:15.516184+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(22,4,4,NULL,NULL,NULL,'Printer issue 20260514195933','2026-05-14T16:59:33.337050+00:00',0,1,'2026-05-14T16:59:33.358976+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(23,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-14T16:59:33.366893+00:00',0,1,'2026-05-14T16:59:33.373417+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(24,4,4,NULL,NULL,NULL,'Printer issue 20260515125153','2026-05-15T09:51:53.208193+00:00',0,1,'2026-05-15T09:54:04.709008+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(25,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T09:57:24.979609+00:00',0,1,'2026-05-15T09:57:30.663838+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(26,4,4,NULL,NULL,NULL,'Printer issue 20260515131424','2026-05-15T10:14:24.089307+00:00',0,0,NULL,2,1,NULL);
-INSERT INTO tickets VALUES(27,4,4,NULL,NULL,NULL,'Printer issue 20260515132432','2026-05-15T10:24:32.568510+00:00',0,1,'2026-05-15T10:24:40.466634+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(28,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T10:24:40.484527+00:00',0,1,'2026-05-15T10:24:40.503695+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(29,4,4,NULL,NULL,NULL,'Printer issue 20260515132506','2026-05-15T10:25:06.470709+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(30,4,4,NULL,NULL,NULL,'Printer issue 20260515132901','2026-05-15T10:29:01.968013+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(31,4,4,NULL,NULL,NULL,'Printer issue 20260515133131','2026-05-15T10:31:31.026458+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(32,4,4,NULL,NULL,NULL,'Printer issue 20260515133325','2026-05-15T10:33:25.737598+00:00',0,0,NULL,2,1,NULL);
-INSERT INTO tickets VALUES(33,4,4,NULL,NULL,NULL,'Printer issue 20260515133441','2026-05-15T10:34:41.060838+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(34,4,4,NULL,NULL,NULL,'Printer issue 20260515141626','2026-05-15T11:16:26.619400+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(35,4,4,NULL,NULL,NULL,'Printer issue 20260515143419','2026-05-15T11:34:19.601170+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(36,4,4,NULL,NULL,NULL,'Printer issue 20260515143439','2026-05-15T11:34:39.821984+00:00',0,1,'2026-05-15T11:34:39.842165+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(37,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T11:34:39.851531+00:00',0,1,'2026-05-15T11:34:39.860532+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(38,4,4,NULL,NULL,NULL,'Printer issue 20260515143454','2026-05-15T11:34:54.427988+00:00',0,1,'2026-05-15T11:34:54.445067+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(39,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T11:34:54.452150+00:00',0,1,'2026-05-15T11:34:54.459003+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(40,4,4,NULL,NULL,NULL,'Printer issue 20260515143458','2026-05-15T11:34:58.654549+00:00',0,1,'2026-05-15T11:34:58.676839+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(41,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T11:34:58.686587+00:00',0,1,'2026-05-15T11:34:58.695731+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(42,4,4,NULL,NULL,NULL,'Printer issue 20260515143528','2026-05-15T11:35:28.354346+00:00',0,1,'2026-05-15T11:35:28.372064+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(43,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T11:35:28.383183+00:00',0,1,'2026-05-15T11:35:28.392587+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(44,4,4,NULL,NULL,NULL,'Printer issue 20260515143605','2026-05-15T11:36:05.011672+00:00',0,0,NULL,2,1,NULL);
-INSERT INTO tickets VALUES(45,4,4,NULL,NULL,NULL,'Printer issue 20260515144602','2026-05-15T11:46:02.473805+00:00',0,1,'2026-05-15T11:46:02.500118+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(46,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T11:46:02.511272+00:00',0,1,'2026-05-15T11:46:02.526724+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(47,4,4,NULL,NULL,NULL,'Printer issue 20260515144700','2026-05-15T11:47:00.391987+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(48,4,4,NULL,NULL,NULL,'Printer issue 20260515144727','2026-05-15T11:47:27.328066+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(49,4,4,NULL,NULL,NULL,'Printer issue 20260515144727','2026-05-15T11:47:27.521912+00:00',0,0,NULL,2,0,NULL);
-INSERT INTO tickets VALUES(50,4,4,NULL,NULL,NULL,'Printer issue 20260515144746','2026-05-15T11:47:46.345413+00:00',0,1,'2026-05-15T11:47:46.361339+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(51,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T11:47:46.370204+00:00',0,1,'2026-05-15T11:47:46.379224+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(52,4,4,NULL,NULL,NULL,'Printer issue 20260515151239','2026-05-15T12:12:39.548427+00:00',0,1,'2026-05-15T12:12:39.565268+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(53,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T12:12:39.575508+00:00',0,1,'2026-05-15T12:12:39.585620+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(54,4,4,NULL,NULL,NULL,'Printer issue 20260515151609','2026-05-15T12:16:09.664445+00:00',0,1,'2026-05-15T12:16:09.684657+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(55,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T12:16:09.695480+00:00',0,1,'2026-05-15T12:16:09.706141+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(56,4,4,NULL,NULL,NULL,'Printer issue 20260515151802','2026-05-15T12:18:02.968666+00:00',0,1,'2026-05-15T12:18:02.991881+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(57,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T12:18:03.002706+00:00',0,1,'2026-05-15T12:18:03.012987+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(58,4,4,NULL,NULL,NULL,'Printer issue 20260515151919','2026-05-15T12:19:19.649056+00:00',0,1,'2026-05-15T12:19:19.664585+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(59,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T12:19:19.672228+00:00',0,1,'2026-05-15T12:19:19.679616+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(60,4,4,NULL,NULL,NULL,'Printer issue 20260515152002','2026-05-15T12:20:02.482962+00:00',0,1,'2026-05-15T12:20:02.504265+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(61,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T12:20:02.515324+00:00',0,1,'2026-05-15T12:20:02.526576+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(62,4,4,NULL,NULL,NULL,'Printer issue 20260515152012','2026-05-15T12:20:12.043784+00:00',0,1,'2026-05-15T12:20:12.064259+00:00',2,2,NULL);
-INSERT INTO tickets VALUES(63,4,4,NULL,NULL,NULL,'Temporary test ticket','2026-05-15T12:20:12.073798+00:00',0,1,'2026-05-15T12:20:12.082690+00:00',0,1,NULL);
-INSERT INTO tickets VALUES(64,4,122,NULL,NULL,NULL,'efwqerfrf','2026-06-01T14:34:56.078565+00:00',0,1,'2026-06-01T14:44:38.522988+00:00',0,2,NULL);
-INSERT INTO tickets VALUES(65,4,122,NULL,NULL,NULL,'wrfwfrferfger','2026-06-04T11:23:11.891613+00:00',0,0,NULL,0,0,NULL);
-INSERT INTO tickets VALUES(66,4,122,NULL,NULL,NULL,'wrfwfrferfger','2026-06-04T11:23:29.080651+00:00',0,1,'2026-06-04T11:25:07.616504+00:00',0,2,NULL);
-INSERT INTO tickets VALUES(67,4,122,NULL,NULL,NULL,'укп4еп4кепе','2026-06-04T12:26:18.602914+00:00',0,1,'2026-06-04T12:34:57.631724+00:00',0,2,NULL);
-INSERT INTO tickets VALUES(68,4,160,NULL,NULL,NULL,'вацкаукапцукапкепке','2026-06-08T14:43:29.102671+00:00',0,0,NULL,0,2,NULL);
 CREATE TABLE user_tickets (
 	user_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	client_id INTEGER, -- заявки от какого клиента
@@ -1025,8 +982,8 @@ INSERT INTO user_tickets VALUES(5,4,67,67,'Printer problem 20260515155311','2026
 INSERT INTO user_tickets VALUES(6,4,67,67,'Printer problem 20260515155810','2026-05-15T12:58:13.522030+00:00',0,NULL,0);
 INSERT INTO user_tickets VALUES(7,4,67,67,'Printer problem 20260515160016','2026-05-15T13:00:16.095893+00:00',1,'2026-05-15T13:00:16.107648+00:00',1);
 DELETE FROM sqlite_sequence;
-INSERT INTO sqlite_sequence VALUES('employees',169);
-INSERT INTO sqlite_sequence VALUES('accounts',482);
+INSERT INTO sqlite_sequence VALUES('employees',172);
+INSERT INTO sqlite_sequence VALUES('accounts',493);
 INSERT INTO sqlite_sequence VALUES('roles',66);
 INSERT INTO sqlite_sequence VALUES('clients',25);
 INSERT INTO sqlite_sequence VALUES('tickets',68);
@@ -1036,6 +993,9 @@ INSERT INTO sqlite_sequence VALUES('tickets_comment',43);
 INSERT INTO sqlite_sequence VALUES('user_tickets',7);
 INSERT INTO sqlite_sequence VALUES('user_tickets_status_record',16);
 INSERT INTO sqlite_sequence VALUES('user_tickets_comment',2);
+INSERT INTO sqlite_sequence VALUES('departments',1);
 CREATE UNIQUE INDEX accounts_login_IDX ON accounts (login);
 CREATE UNIQUE INDEX accounts_employee_uq ON accounts(employee_id);
+CREATE UNIQUE INDEX idx_departments_name
+ON departments(name);
 COMMIT;

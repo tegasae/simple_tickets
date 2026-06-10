@@ -310,3 +310,9 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
                     {"admin_id": admin_id},
                 )
                 )
+
+    def has_department_reference(self, department_id: int) -> bool:
+        return self._exists(
+            TicketGateway.EXISTS_BY_DEPARTMENT_ID,
+            {"department_id": department_id},
+        )
