@@ -72,7 +72,7 @@ class AdminMapper:
             last_name=row.get("last_name"),
             email=row.get("email"),
             phone=row.get("phone"),
-            department_id=row.get("departmnet_id",0)
+            department_id=row.get("department_id",0) or 0
         )
 
         admin.enabled = bool(row.get("enabled", 1))
@@ -122,7 +122,7 @@ class AdminMapper:
         return {
             "employee_id": int(admin.employee_id),
             "job_title": str(admin.job_title or ""),
-            "department_id": admin.department_id
+            "department_id": admin.department_id or None
         }
 
     @staticmethod

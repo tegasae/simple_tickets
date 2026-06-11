@@ -14,7 +14,7 @@ from src.web.models.admins import (
     AdminCreateRequest,
     AdminResponse,
     AdminRolesRequest,
-    AdminUpdateRequest,
+    AdminUpdateRequest, AdminChangeDepartmentRequest,
 )
 
 
@@ -147,7 +147,7 @@ def admin_roles_request_to_dto(
     return AdminDTO(
         actor_admin_id=actor_admin_id,
         employee_id=employee_id,
-        roles=frozenset(request.roles),
+        roles=request.roles,
     )
 
 
@@ -458,3 +458,46 @@ def delete_admin(
     asf.admin_service().delete(admin_dto=dto)
 
     return None
+
+@router.patch(
+    "/{employee_id}/department",
+    response_model=AdminResponse,
+)
+def change_admin_department(
+    employee_id: int,
+    request: AdminChangeDepartmentRequest,
+    actor_admin_id: int = Depends(get_employee_id_from_request),
+    asf=Depends(get_application_service_factory),
+):
+    dto = AdminDTO(
+        actor_admin_id=actor_admin_id,
+        employee_id=employee_id,
+        department_id=request.department_id,
+    )
+
+    response_dto = asf.admin_service().change_department(
+        admin_dto=dto,
+    )
+
+    return to_admin_response(response_dto)
+
+@router.delete(
+    "/{employee_id}/department",
+    response_model=AdminResponse,
+)
+def remove_admin_department(
+    employee_id: int,
+    actor_admin_id: int = Depends(get_employee_id_from_request),
+    asf=Depends(get_application_service_factory),
+):
+    dto = AdminDTO(
+        actor_admin_id=actor_admin_id,
+        employee_id=employee_id,
+
+    )
+
+    response_dto = asf.admin_service().remove_department(
+        admin_dto=dto,
+    )
+
+    return to_admin_response(response_dto)

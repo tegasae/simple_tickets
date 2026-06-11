@@ -95,6 +95,18 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
         admin._role_ids = self._load_roles(admin.employee_id)
         return admin
 
+    def get_all_by_department_id(self, department_id: int) -> list[Admin]:
+        rows = self._get_many(
+            AdminGateway.SELECT_BY_DEPARTMENT_ID,
+            AdminMapper.VARS,
+            {"department_id": department_id},
+        )
+
+        return [
+            AdminMapper.row_to_admin(row)
+            for row in rows
+        ]
+
     # -------------------------
     # Writes
     # -------------------------

@@ -3,14 +3,14 @@
 from src.adapters.repositories.base_repository import BaseRepository
 from src.adapters.repositories.exceptions import (
     OptimisticLockError,
-    NotFoundError,
+    NotFoundError, PersistenceError,
 )
 
 from src.adapters.repositories.gateways.department_gateway import DepartmentGateway
 from src.adapters.repositories.mappers.department_mapper import DepartmentMapper
 
 from src.domain.department import Department
-from src.domain.exceptions import ItemNotFoundError
+from src.domain.exceptions import ItemNotFoundError, ItemAlreadyExistsError
 from src.domain.repositories.department_repository import DepartmentRepository
 
 
@@ -62,31 +62,34 @@ class DepartmentRepositorySQLite(BaseRepository, DepartmentRepository):
     # -------------------------
 
     def save(self, department: Department) -> Department:
-        if department.department_id == 0:
-            result = self._exec(
-                DepartmentGateway.INSERT,
+        try:
+            if department.department_id == 0:
+                result = self._exec(
+                    DepartmentGateway.INSERT,
+                    DepartmentMapper.params(department),
+                )
+
+                department.department_id = result.last_row_id
+                department.version = 0
+
+                return department
+
+            upd = self._exec(
+                DepartmentGateway.UPDATE,
                 DepartmentMapper.params(department),
             )
 
-            department.department_id = result.last_row_id
-            department.version = 0
+            if upd.rowcount == 0:
+                if not self.exists(department.department_id):
+                    raise NotFoundError(
+                        f"Department {department.department_id} no longer exists"
+                    )
 
-            return department
-
-        upd = self._exec(
-            DepartmentGateway.UPDATE,
-            DepartmentMapper.params(department),
-        )
-
-        if upd.rowcount == 0:
-            if not self.exists(department.department_id):
-                raise NotFoundError(
-                    f"Department {department.department_id} no longer exists"
+                raise OptimisticLockError(
+                    f"Department {department.department_id} version mismatch"
                 )
-
-            raise OptimisticLockError(
-                f"Department {department.department_id} version mismatch"
-            )
+        except PersistenceError:
+            raise ItemAlreadyExistsError(item_name=str(department.name))
 
         department.version += 1
 

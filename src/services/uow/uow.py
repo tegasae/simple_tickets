@@ -28,7 +28,7 @@ class UnitOfWork(ContextManager, ABC):
     user_tickets: TicketUserRepository
     roles_admin:RoleRepository[AdminPermission]
     roles_user:RoleRepository[UserPermission]
-    department:DepartmentRepository
+    departments:DepartmentRepository
     # --------------------------------
     # Context manager
     # --------------------------------

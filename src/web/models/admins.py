@@ -22,7 +22,7 @@ class AdminCreateRequest(BaseModel):
     login: str = ""
     password: str = ""
     enable_account: bool = True
-
+    department_id: int=0
     roles: set[int] = Field(default_factory=set,examples=[[]])
 
 
@@ -38,7 +38,7 @@ class AdminUpdateRequest(BaseModel):
     email: str = ""
     phone: str = ""
     job_title: str = ""
-
+    department_id: int=0
 
 class AdminAttachAccountRequest(BaseModel):
     """
@@ -72,6 +72,11 @@ class AdminRolesRequest(BaseModel):
     roles: set[int] = Field(default_factory=set)
 
 
+class AdminChangeDepartmentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    department_id: int = 0
+
 class AdminResponse(BaseModel):
     """
     Web response model.
@@ -100,7 +105,7 @@ class AdminResponse(BaseModel):
     roles: set[int] = Field(default_factory=set)
 
     job_title: str = ""
-
+    department_id: int=0
     @field_validator(
         "first_name",
         "last_name",

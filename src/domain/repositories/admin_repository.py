@@ -45,6 +45,10 @@ class AdminRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_all_by_department_id(self, department_id: int) -> list[Admin]:
+        raise NotImplementedError
+
+    @abstractmethod
     def exists(self, admin_id: int) -> bool:
         """
         Check whether admin exists.

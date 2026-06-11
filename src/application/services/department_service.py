@@ -4,7 +4,9 @@ from src.application.dto.department_dto import DepartmentDTO, DepartmentResponse
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.department import Department
 from src.domain.exceptions import DomainOperationError
+from src.domain.policy.department import DepartmentPolicy
 from src.domain.rbac.permissions import AdminPermission
+
 
 
 class DepartmentApplicationService:
@@ -98,9 +100,13 @@ class DepartmentApplicationService:
             department = self.uow.departments.get(
                 department_id=department_dto.department_id,
             )
-
-            department.disable()
-
+            admins = self.uow.admins.get_all_by_department_id(
+                department_id=department.department_id,
+            )
+            DepartmentPolicy.ensure_can_disable(
+                department=department,
+                admins=admins,
+            )
             saved_department = self.uow.departments.save(department)
 
             return DepartmentAssembler.to_dto(saved_department)

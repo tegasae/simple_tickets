@@ -107,7 +107,7 @@ def user_create_request_to_dto(
         password=request.password,
         enable=request.enable,
         enable_account=request.enable_account,
-        roles=frozenset(request.roles),
+        roles=request.roles,
     )
 
 
@@ -179,7 +179,7 @@ def user_roles_request_to_dto(
     return UserDTO(
         actor_admin_id=actor_admin_id,
         employee_id=employee_id,
-        roles=frozenset(request.roles),
+        roles=request.roles,
     )
 
 
@@ -231,14 +231,19 @@ def create_user(
     description="Get all users.",
 )
 def get_all_users(
+    client_id:int=0,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    dto = UserDTO(actor_admin_id=actor_admin_id)
+    dto = UserDTO(actor_admin_id=actor_admin_id,client_id=client_id)
 
-    response_dtos = asf.user_service().get_all(user_dto=dto)
-
+    if not client_id:
+        response_dtos = asf.user_service().get_all(user_dto=dto)
+    else:
+        response_dtos = asf.user_service().get_by_client_id(user_dto=dto)
     return to_user_responses(response_dtos)
+
+
 
 
 @router.get(
@@ -261,6 +266,9 @@ def find_user_by_login(
     response_dto = asf.user_service().find_by_login(user_dto=dto)
 
     return to_user_response(response_dto)
+
+
+
 
 
 @router.get(

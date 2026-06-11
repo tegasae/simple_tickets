@@ -5,6 +5,7 @@ from src.application.helper.actor_helper import EmployeeActorHelper
 from src.application.helper.employee_helper import EmployeeHelper
 from src.domain.employee import Admin
 from src.domain.exceptions import DomainOperationError
+from src.domain.policy.admin import AdminPolicy
 from src.domain.rbac.permissions import AdminPermission
 from src.services.uow.uow import UnitOfWork
 
@@ -199,6 +200,39 @@ class AdminApplicationService:
 
             return self._save_and_to_dto(admin)
 
+    def change_department(self, *, admin_dto: AdminDTO) -> AdminResponseDTO:
+        with self.uow:
+            self.actor.require_actor_admin(
+                actor_admin_id=admin_dto.actor_admin_id,
+                permission=AdminPermission.ADMIN_OPERATION,
+            )
+
+            admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
+            if admin_dto.department_id:
+                department = self.uow.departments.get(
+                    department_id=admin_dto.department_id,
+                )
+                # todo нельзя поменять department, если admin назначен исполнителем. Потом ставить значение has_at_work_ticket
+                AdminPolicy.ensure_can_change_department(admin=admin, department=department,has_at_work_tickets=False)
+
+
+
+            return self._save_and_to_dto(admin)
+
+
+    def remove_department(self, *, admin_dto: AdminDTO) -> AdminResponseDTO:
+        with self.uow:
+            self.actor.require_actor_admin(
+                actor_admin_id=admin_dto.actor_admin_id,
+                permission=AdminPermission.ADMIN_OPERATION,
+            )
+
+            admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
+            admin.remove_department()
+
+            return self._save_and_to_dto(admin)
+
+
     def delete(self, *, admin_dto: AdminDTO) -> None:
         with self.uow:
 
@@ -256,4 +290,6 @@ class AdminApplicationService:
                                            permission=AdminPermission.ADMIN_VIEW)
 
             return [AdminAssembler.to_dto(admin) for admin in self.uow.admins.get_all()]
+
+
 

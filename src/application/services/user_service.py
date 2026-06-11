@@ -101,9 +101,9 @@ class UserApplicationService:
                 permission=AdminPermission.USER_OPERATION,
             )
             user=self.uow.users.get(user_id=user_dto.employee_id)
-            # todo здесь методо из репозитория, котоый получает client по user_id
-            #client = self.uow.clients.get(client_id=user_dto.client_id)
-            #TicketPolicy.ensure_client_enabled(client)
+
+            client = self.uow.clients.get(client_id=user.client_id)
+            TicketPolicy.ensure_client_enabled(client)
             TicketPolicy.ensure_user_enabled(user)
             user.update(
                 first_name=user_dto.first_name,
@@ -122,9 +122,9 @@ class UserApplicationService:
                 permission=AdminPermission.USER_OPERATION,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
-            # todo здесь получем client по user_id
-            # todo TicketPolicy по клиенту
+            client = self.uow.clients.get(client_id=user.client_id)
 
+            TicketPolicy.ensure_client_enabled(client)
             TicketPolicy.ensure_user_enabled(user)
             self.helper.ensure_login_is_free(login=user_dto.login)
             user.add_account(
@@ -152,14 +152,14 @@ class UserApplicationService:
 
 
 
-            # todo здесь получем client по user_id
-            # todo TicketPolicy по клиенту
 
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.USER_OPERATION,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
+            client = self.uow.clients.get(client_id=user.client_id)
+            TicketPolicy.ensure_client_enabled(client)
             user.change_password(password=user_dto.password)
 
             return self._save_and_to_dto(user)
@@ -171,16 +171,18 @@ class UserApplicationService:
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.USER_OPERATION,
             )
-            # todo опять проверяем клиента и пользоваетеля
-            user = self.uow.users.get(user_id=user_dto.employee_id)
 
+            user = self.uow.users.get(user_id=user_dto.employee_id)
+            client = self.uow.clients.get(client_id=user.client_id)
+
+            TicketPolicy.ensure_client_enabled(client)
             self.role_manager.grant_roles(actor=actor, target=user, role_ids=frozenset(user_dto.roles),
                                           required_permission=AdminPermission.USER_OPERATION)
             return self._save_and_to_dto(user)
 
     def revoke_role(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
-            # todo а вот отозвать можно у любого пользователя
+
             actor=self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.USER_OPERATION,
@@ -191,7 +193,7 @@ class UserApplicationService:
             return self._save_and_to_dto(user)
 
     def disable(self, *, user_dto:UserDTO) -> UserResponseDTO:
-        # todo а в disable можно любого пользователя
+
         # todo но заявки перенести в отлженные
         with self.uow:
 
@@ -212,7 +214,8 @@ class UserApplicationService:
                 permission=AdminPermission.USER_OPERATION,
             )
             user = self.uow.users.get(user_id=user_dto.employee_id)
-            # todo только для enable client
+            client = self.uow.clients.get(client_id=user.client_id)
+            TicketPolicy.ensure_client_enabled(client)
             user.enable()
 
             return self._save_and_to_dto(user)
@@ -272,4 +275,15 @@ class UserApplicationService:
             return [
                 UserAssembler.to_dto(user)
                 for user in self.uow.users.get_all()
+            ]
+
+    def get_by_client_id(self,*,user_dto:UserDTO)->list[UserResponseDTO]:
+        with self.uow:
+            self.actor.require_actor_admin(
+                actor_admin_id=user_dto.actor_admin_id,
+                permission=AdminPermission.USER_VIEW,
+            )
+            return [
+                UserAssembler.to_dto(user)
+                for user in self.uow.users.get_all_by_client_id(client_id=user_dto.client_id)
             ]

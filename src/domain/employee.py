@@ -235,8 +235,10 @@ class Admin(_Employee):
         """
         if department_id and int(department_id) and department_id <= 0:
             raise ItemValidationError("Department ID must be positive")
-
-        self.department_id = department_id
+        if department_id:
+            self.department_id = department_id
+        else:
+            self.department_id = 0
 
     def remove_department(self) -> None:
         self.department_id = 0
