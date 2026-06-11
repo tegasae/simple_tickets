@@ -195,6 +195,7 @@ class UserApplicationService:
     def disable(self, *, user_dto:UserDTO) -> UserResponseDTO:
 
         # todo но заявки перенести в отлженные
+
         with self.uow:
 
             self.actor.require_actor_admin(
