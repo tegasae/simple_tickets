@@ -17,12 +17,12 @@ from src.domain.ticket_components import Comment
 
 class StatusTicketOfClient(Enum):
 
-    CREATED = "created"
-    CONFIRMED = "confirmed"
-    AT_WORK = "at_work"
-    EXECUTED = "executed"
-    CANCELED_BY_ADMIN = "canceled_by_admin"
-    CANCELED_BY_CLIENT = "canceled_by_client"
+    CREATED = "created" # создана пользователем
+    CONFIRMED = "confirmed" # потдверждена, на ее осонове создани Ticket
+    AT_WORK = "at_work" # в работе, значит есть исполнитель у Ticket
+    EXECUTED = "executed" # выполнена
+    CANCELED_BY_ADMIN = "canceled_by_admin" # отменена Admin
+    CANCELED_BY_CLIENT = "canceled_by_client" # отменена User
 
     @classmethod
     def can_transition(cls, from_status: Self, to_status: Self) -> bool:
@@ -46,7 +46,7 @@ class StatusTicketOfClient(Enum):
             cls.CANCELED_BY_CLIENT: [],
             cls.CANCELED_BY_ADMIN: [],
         }
-
+    
         return to_status in transitions.get(from_status, [])
 
     @classmethod

@@ -2,48 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from enum import Enum
-
-from typing import Any, Optional, Self
+from typing import Self
 
 from src.domain.exceptions import DomainOperationError
-from src.domain.ticket_components import Comment, ExecutorAssignment
 
-class TicketStatus(Enum):
-    CREATED = "created"
-    AT_WORK = "at_work"
-    EXECUTED = "executed"
-    CANCELLED = "cancelled"
-    DEFERRED = "deferred"
-
-    @classmethod
-    def can_transition(cls, from_status: Self, to_status: Self) -> bool:
-        transitions = {
-            cls.CREATED: [cls.AT_WORK, cls.CANCELLED, cls.DEFERRED],
-            cls.AT_WORK: [cls.EXECUTED, cls.CANCELLED, cls.DEFERRED],
-            cls.DEFERRED: [cls.AT_WORK, cls.CANCELLED],
-            cls.EXECUTED: [],
-            cls.CANCELLED: [],
-        }
-        return to_status in transitions.get(from_status, [])
-
-    @classmethod
-    def status_is_frozen(cls, status: Self) -> bool:
-        if status in [cls.EXECUTED, cls.CANCELLED]:
-            return True
-        else:
-            return False
-
-
-@dataclass(kw_only=True)
-class TicketStatusRecord:
-    status_id: int=0
-    actor_employee_id: int
-    status: TicketStatus
-    date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, TicketStatusRecord) and self.status == other.status
+from src.domain.policy.ticket_workflow_policy import TicketWorkflowPolicy
+from src.domain.statuses.ticket_status import TicketStatus, TERMINAL_TICKET_STATUSES
+from src.domain.statuses.ticket_status_record import StatusRecordTicket
+from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordFactory
+from src.domain.ticket_components import Comment
 
 
 @dataclass(kw_only=True)
@@ -51,47 +18,58 @@ class Ticket:
     """
     Ticket aggregate.
 
-    Important:
-    - __post_init__ does NOT create CREATED automatically anymore.
-    - CREATED is added only by Ticket.create(...).
-    - Repository may rehydrate with full history safely.
+    Responsibilities:
+    - store ticket data;
+    - store status history;
+    - store plain comments;
+    - compute current status and current executor from history;
+    - protect local invariants.
+
+    Not responsible for:
+    - actor permissions;
+    - department rules;
+    - executor-department compatibility;
+    - concrete workflow use cases.
+
+    Workflow operations should live in TicketWorkflowService.
     """
+
     ticket_id: int
     client_id: int
     admin_id: int
+
     text_of_ticket: str = ""
     user_id: int = 0
     contact_user_id: int = 0
 
-    statuses: list[TicketStatusRecord] = field(default_factory=list)
+    statuses: list[StatusRecordTicket] = field(default_factory=list)
     comments: list[Comment] = field(default_factory=list)
-    executors: list[ExecutorAssignment] = field(default_factory=list)
 
     date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
     is_remote: bool = False
     is_closed: bool = False
-    date_finished: Optional[datetime] = None
+    date_finished: datetime | None = None
+
     version: int = 0
     urgency_level: int = 0
     user_ticket_id: int = 0
 
     @classmethod
     def create(
-            cls,
-            *,
-            ticket_id: int,
-            client_id: int,
-            admin_id: int,
-            text_of_ticket: str = "",
-            user_id: int = 0,
-            contact_user_id: int = 0,
-            is_remote: bool = False,
-            urgency_level: int = 0,
-            user_ticket_id: int = 0,
-            executor_id: int = 0,
-            comment: str = "",
+        cls,
+        *,
+        ticket_id: int,
+        client_id: int,
+        admin_id: int,
+        text_of_ticket: str = "",
+        user_id: int = 0,
+        contact_user_id: int = 0,
+        is_remote: bool = False,
+        urgency_level: int = 0,
+        user_ticket_id: int = 0,
+        comment: str = "",
     ) -> Self:
-
         ticket = cls(
             ticket_id=ticket_id,
             client_id=client_id,
@@ -103,19 +81,11 @@ class Ticket:
             urgency_level=urgency_level,
             user_ticket_id=user_ticket_id,
             statuses=[
-                TicketStatusRecord(
+                TicketStatusRecordFactory.created(
                     actor_employee_id=admin_id,
-                    status=TicketStatus.CREATED,
                 )
             ],
         )
-
-        if executor_id:
-            ticket.add_executor(
-                ExecutorAssignment(
-                    admin_id=executor_id,
-                )
-            )
 
         if comment.strip():
             ticket.add_comment(
@@ -129,24 +99,23 @@ class Ticket:
 
     @classmethod
     def rehydrate(
-            cls,
-            *,
-            ticket_id: int,
-            client_id: int,
-            admin_id: int,
-            text_of_ticket: str = "",
-            user_id: int = 0,
-            contact_user_id: int = 0,
-            statuses: list[TicketStatusRecord],
-            comments: list[Comment] | None = None,
-            executors: list[ExecutorAssignment] | None = None,
-            date_created: datetime,
-            is_remote: bool = False,
-            is_closed: bool = False,
-            date_finished: Optional[datetime] = None,
-            version: int = 0,
-            urgency_level: int = 0,
-            user_ticket_id: int = 0,
+        cls,
+        *,
+        ticket_id: int,
+        client_id: int,
+        admin_id: int,
+        text_of_ticket: str = "",
+        user_id: int = 0,
+        contact_user_id: int = 0,
+        statuses: list[StatusRecordTicket],
+        comments: list[Comment] | None = None,
+        date_created: datetime,
+        is_remote: bool = False,
+        is_closed: bool = False,
+        date_finished: datetime | None = None,
+        version: int = 0,
+        urgency_level: int = 0,
+        user_ticket_id: int = 0,
     ) -> Self:
         if not statuses:
             raise DomainOperationError("Cannot rehydrate Ticket without status history")
@@ -160,7 +129,6 @@ class Ticket:
             contact_user_id=contact_user_id,
             statuses=statuses,
             comments=comments or [],
-            executors=executors or [],
             date_created=date_created,
             is_remote=is_remote,
             is_closed=is_closed,
@@ -171,38 +139,12 @@ class Ticket:
         )
 
     def __post_init__(self) -> None:
-        """
-        Validate and recompute derived state only.
-
-        Important:
-        - do not append CREATED here;
-        - creation belongs to create();
-        - loading from DB belongs to rehydrate().
-        """
         self.text_of_ticket = self.text_of_ticket.strip()
 
         if not self.text_of_ticket:
             raise DomainOperationError("Ticket text_of_ticket cannot be empty")
 
-        if not self.statuses:
-            self.is_closed = False
-            self.date_finished = None
-            return
-
-        current = self.current_status()
-
-        if current in (TicketStatus.EXECUTED, TicketStatus.CANCELLED):
-            self.is_closed = True
-
-            if self.date_finished is None:
-                self.date_finished = self.statuses[-1].date_created
-        else:
-            self.is_closed = False
-            self.date_finished = None
-
-    def _ensure_not_closed(self):
-        if TicketStatus.status_is_frozen(self.statuses[-1].status):
-            raise DomainOperationError(f"The ticket {self.ticket_id} is frozen")
+        self._recompute_closed_state()
 
     # ----------------------------
     # Queries
@@ -211,132 +153,166 @@ class Ticket:
     def current_status(self) -> TicketStatus:
         if not self.statuses:
             raise DomainOperationError("Ticket has no status history")
+
         return self.statuses[-1].status
 
+    def current_status_record(self) -> StatusRecordTicket:
+        if not self.statuses:
+            raise DomainOperationError("Ticket has no status history")
 
-    def new_statuses(self)->list[TicketStatusRecord]:
-        n_statuses=[]
-        for s in self.statuses:
-            if s.status_id==0:
-                n_statuses.append(s)
-        return n_statuses
+        return self.statuses[-1]
 
-    def current_executor(self) -> ExecutorAssignment:
-        try:
-            return self.executors[-1]
-        except IndexError:
-            raise DomainOperationError("No executor available")
+    def current_executor_id(self) -> int:
+        """
+        Returns current responsible executor.
 
-    def new_executors(self)->list[ExecutorAssignment]:
-        n_executors=[]
-        for e in self.executors:
-            if e.executor_id==0:
-                n_executors.append(e)
-        return n_executors
+        0 means: no current executor.
+
+        Source of truth:
+        last status record with executor_id > 0.
+        """
+        for record in reversed(self.statuses):
+            if record.executor_id > 0:
+                return record.executor_id
+
+        return 0
+
+    def has_executor(self) -> bool:
+        return self.current_executor_id() > 0
+
+    def is_terminal(self) -> bool:
+        return self.current_status() in TERMINAL_TICKET_STATUSES
+
+    def new_statuses(self) -> list[StatusRecordTicket]:
+        return [
+            status
+            for status in self.statuses
+            if status.status_id == 0
+        ]
+
+    def new_comments(self) -> list[Comment]:
+        return [
+            comment
+            for comment in self.comments
+            if comment.comment_id == 0
+        ]
+
     # ----------------------------
     # Commands
     # ----------------------------
 
-    def change_status(self, new_status: TicketStatus, actor_employee_id: int) -> None:
-        self._ensure_not_closed()
+    def append_status(self, record: StatusRecordTicket) -> None:
+        """
+        Adds new status record to ticket history.
 
-        cur = self.current_status()
-        if not TicketStatus.can_transition(cur, new_status):
-            raise DomainOperationError(
-                f"Cannot change status from {cur.value} to {new_status.value}"
-            )
+        This method checks only local invariants:
+        - ticket is not terminal;
+        - transition is allowed by workflow graph.
 
-        self.statuses.append(
-            TicketStatusRecord(
-                status=new_status,
-                actor_employee_id=actor_employee_id,
-            )
+        It does not check:
+        - actor permissions;
+        - department rules;
+        - executor availability;
+        - executor belongs to ticket department.
+        """
+        self._ensure_not_terminal()
+
+        TicketWorkflowPolicy.ensure_can_change_status(
+            current_status=self.current_status(),
+            new_status=record.status,
         )
 
-
-        if new_status in (TicketStatus.EXECUTED, TicketStatus.CANCELLED):
-            self.is_closed = True
-            self.date_finished = datetime.now(timezone.utc)
+        self.statuses.append(record)
+        self._recompute_closed_state()
 
     def add_comment(self, comment: Comment) -> None:
-        self._ensure_not_closed()
+        """
+        Adds plain ticket comment.
 
+        Comment is not a workflow status comment.
+        Status-related comments are stored inside StatusRecordTicket.comment.
+        """
+        self._ensure_not_terminal()
         self.comments.append(comment)
 
-    def new_comments(self)->list[Comment]:
-        n_comments = []
-        for c in self.comments:
-            if c.comment_id == 0:
-                n_comments.append(c)
-        return n_comments
+    # ----------------------------
+    # Internal helpers
+    # ----------------------------
 
-    def add_executor(self, assignment: ExecutorAssignment) -> None:
-        self._ensure_not_closed()
-        self.executors.append(assignment)
-
-
-    def defer(self, actor_employee_id: int) -> None:
-        self.change_status(TicketStatus.DEFERRED, actor_employee_id)
-
-    def at_work(self, executor_id: int = 0) -> None:
-        self.change_status(TicketStatus.AT_WORK, executor_id)
-
-        if executor_id:
-            current_executor_id = executor_id
-        else:
-            current_executor_id = self.current_executor().executor_id
-
-        self.add_executor(
-            assignment=ExecutorAssignment(
-                admin_id=current_executor_id
+    def _ensure_not_terminal(self) -> None:
+        if self.is_terminal():
+            raise DomainOperationError(
+                f"The ticket {self.ticket_id} is in terminal status {self.current_status()}"
             )
-        )
 
+    def _recompute_closed_state(self) -> None:
+        if not self.statuses:
+            self.is_closed = False
+            self.date_finished = None
+            return
 
-    def execute(self, actor_employee_id: int,comment:str="") -> None:
-        if comment:
-            self.add_comment(comment=Comment(employee_id=actor_employee_id,comment=comment))
-        self.change_status(TicketStatus.EXECUTED, actor_employee_id)
+        current = self.current_status()
 
-    def cancel(self, actor_employee_id: int,comment:str) -> None:
-        comment=comment.strip()
-        if not comment:
-            raise DomainOperationError("Comment cannot be empty")
+        if current in TERMINAL_TICKET_STATUSES:
+            self.is_closed = True
 
-        self.add_comment(Comment(employee_id=actor_employee_id, comment=comment))
-        self.change_status(TicketStatus.CANCELLED, actor_employee_id)
+            if self.date_finished is None:
+                self.date_finished = self.current_status_record().date_created
+        else:
+            self.is_closed = False
+            self.date_finished = None
 
-
-
-
-    def belong(self,employee_id: int) -> bool:
-        if employee_id==self.admin_id:
-            return True
-        for comment in self.comments:
-            if employee_id==comment.employee_id:
-                return True
-        for status in self.statuses:
-            if employee_id==status.actor_employee_id:
-                return True
-
-        for executor in self.executors:
-            if employee_id==executor.executor_id:
-                return True
-        return False
+    # ----------------------------
+    # Analytics
+    # ----------------------------
 
     def working_time(self) -> int:
-        if not self.statuses or len(self.statuses) == 1:
+        """
+        Returns total working time in seconds.
+
+        Counts only periods where status was AT_WORK.
+
+        AT_WORK interval:
+        - starts at AT_WORK record date_created;
+        - ends at next status record date_created;
+        - if AT_WORK is current status, ends at now.
+        """
+        if len(self.statuses) <= 1:
             return 0
 
         total_seconds = 0
 
-        for current_status, next_status in zip(self.statuses, self.statuses[1:]):
-            if current_status.status == TicketStatus.AT_WORK:
-                delta = next_status.date_created - current_status.date_created
+        for current_record, next_record in zip(self.statuses, self.statuses[1:]):
+            if current_record.status == TicketStatus.AT_WORK:
+                delta = next_record.date_created - current_record.date_created
                 total_seconds += int(delta.total_seconds())
 
-        if self.statuses[-1].status == TicketStatus.AT_WORK:
-            delta = datetime.now(timezone.utc) - self.statuses[-1].date_created
+        if self.current_status() == TicketStatus.AT_WORK:
+            delta = datetime.now(timezone.utc) - self.current_status_record().date_created
             total_seconds += int(delta.total_seconds())
 
         return total_seconds
+
+    def belong(self, employee_id: int) -> bool:
+        """
+        Checks whether employee is mentioned in ticket history.
+
+        Note:
+        This method is only a historical/reference check.
+        It should not be used for permission decisions.
+        """
+        if employee_id == self.admin_id:
+            return True
+
+        for comment in self.comments:
+            if employee_id == comment.employee_id:
+                return True
+
+        for status in self.statuses:
+            if employee_id == status.actor_employee_id:
+                return True
+
+            if status.executor_id == employee_id:
+                return True
+
+        return False
