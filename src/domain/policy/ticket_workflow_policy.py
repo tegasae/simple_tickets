@@ -8,17 +8,27 @@ class TicketWorkflowPolicy:
     """
     Проверяет допустимость переходов между статусами Ticket.
 
-    Граф переходов хранится рядом с TicketStatus,
+    Граф переходов хранится в ticket_status.py рядом с TicketStatus,
     потому что это часть описания workflow-статусов.
 
-    Эта policy не проверяет:
-    - роли actor-а;
-    - department;
-    - executor;
-    - плановые и фактические даты.
+    Эта policy проверяет только общий граф:
 
-    Она проверяет только сам переход:
-    current_status -> new_status.
+        current_status -> new_status
+
+    Она НЕ проверяет:
+    - роли actor-а;
+    - permissions;
+    - является ли actor текущим executor;
+    - department;
+    - executor.department_id == ticket.department_id;
+    - enabled/disabled admin;
+    - enabled/disabled department;
+    - наличие planned_start_at;
+    - наличие executor_id;
+    - наличие actual_started_at / actual_finished_at.
+
+    Валидность payload-а проверяет TicketStatusRecord.
+    Создание корректных записей выполняет TicketStatusRecordFactory.
     """
 
     @staticmethod
@@ -55,7 +65,7 @@ class TicketWorkflowPolicy:
     def _ensure_not_terminal(current_status: TicketStatus) -> None:
         if current_status in TERMINAL_TICKET_STATUSES:
             raise DomainOperationError(
-                f"Ticket in terminal status {current_status} cannot be changed"
+                f"Ticket in terminal status {current_status.value} cannot be changed"
             )
 
     @staticmethod
@@ -71,5 +81,5 @@ class TicketWorkflowPolicy:
 
         if new_status not in allowed_statuses:
             raise DomainOperationError(
-                f"Transition {current_status} -> {new_status} is not allowed"
+                f"Transition {current_status.value} -> {new_status.value} is not allowed"
             )

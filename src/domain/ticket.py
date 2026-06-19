@@ -1,14 +1,15 @@
-from __future__ import annotations
+# src/domain/ticket.py
+
+
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Self
 
 from src.domain.exceptions import DomainOperationError
-
 from src.domain.policy.ticket_workflow_policy import TicketWorkflowPolicy
 from src.domain.statuses.ticket_status import TicketStatus, TERMINAL_TICKET_STATUSES
-from src.domain.statuses.ticket_status_record import StatusRecordTicket
+from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordFactory
 from src.domain.ticket_components import Comment
 
@@ -19,19 +20,23 @@ class Ticket:
     Ticket aggregate.
 
     Responsibilities:
-    - store ticket data;
-    - store status history;
-    - store plain comments;
-    - compute current status and current executor from history;
-    - protect local invariants.
+    - хранит данные заявки;
+    - хранит историю workflow-статусов;
+    - хранит обычные комментарии к заявке;
+    - вычисляет текущий статус;
+    - вычисляет текущего исполнителя из текущей status-record;
+    - защищает локальные инварианты.
 
     Not responsible for:
-    - actor permissions;
+    - permissions;
+    - actor role checks;
     - department rules;
-    - executor-department compatibility;
+    - executor.department_id == ticket.department_id;
+    - enabled / disabled Admin;
+    - enabled / disabled Department;
     - concrete workflow use cases.
 
-    Workflow operations should live in TicketWorkflowService.
+    Workflow-сценарии должны жить в TicketWorkflowService.
     """
 
     ticket_id: int
@@ -42,7 +47,7 @@ class Ticket:
     user_id: int = 0
     contact_user_id: int = 0
 
-    statuses: list[StatusRecordTicket] = field(default_factory=list)
+    statuses: list[TicketStatusRecord] = field(default_factory=list)
     comments: list[Comment] = field(default_factory=list)
 
     date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -70,6 +75,13 @@ class Ticket:
         user_ticket_id: int = 0,
         comment: str = "",
     ) -> Self:
+        """
+        Создаёт новую заявку.
+
+        CREATED добавляется только здесь.
+        __post_init__ не должен автоматически добавлять CREATED.
+        """
+
         ticket = cls(
             ticket_id=ticket_id,
             client_id=client_id,
@@ -107,7 +119,7 @@ class Ticket:
         text_of_ticket: str = "",
         user_id: int = 0,
         contact_user_id: int = 0,
-        statuses: list[StatusRecordTicket],
+        statuses: list[TicketStatusRecord],
         comments: list[Comment] | None = None,
         date_created: datetime,
         is_remote: bool = False,
@@ -117,6 +129,12 @@ class Ticket:
         urgency_level: int = 0,
         user_ticket_id: int = 0,
     ) -> Self:
+        """
+        Восстанавливает Ticket из БД.
+
+        Repository обязан передать полную историю статусов.
+        """
+
         if not statuses:
             raise DomainOperationError("Cannot rehydrate Ticket without status history")
 
@@ -156,7 +174,7 @@ class Ticket:
 
         return self.statuses[-1].status
 
-    def current_status_record(self) -> StatusRecordTicket:
+    def current_status_record(self) -> TicketStatusRecord:
         if not self.statuses:
             raise DomainOperationError("Ticket has no status history")
 
@@ -164,18 +182,22 @@ class Ticket:
 
     def current_executor_id(self) -> int:
         """
-        Returns current responsible executor.
+        Возвращает текущего ответственного исполнителя.
 
-        0 means: no current executor.
+        0 означает: текущий исполнитель отсутствует.
 
-        Source of truth:
-        last status record with executor_id > 0.
+        Важно:
+        источник истины — текущая status-record, а не последняя
+        историческая запись с executor_id > 0.
+
+        Например:
+            READY_TO_WORK executor_id=10
+            SCHEDULED executor_id=0
+
+        После этого текущего исполнителя нет.
         """
-        for record in reversed(self.statuses):
-            if record.executor_id > 0:
-                return record.executor_id
 
-        return 0
+        return self.current_status_record().executor_id
 
     def has_executor(self) -> bool:
         return self.current_executor_id() > 0
@@ -183,14 +205,22 @@ class Ticket:
     def is_terminal(self) -> bool:
         return self.current_status() in TERMINAL_TICKET_STATUSES
 
-    def new_statuses(self) -> list[StatusRecordTicket]:
+    def new_statuses(self) -> list[TicketStatusRecord]:
+        """
+        Возвращает новые status-records, ещё не сохранённые в БД.
+        """
+
         return [
             status
             for status in self.statuses
-            if status.status_id == 0
+            if status.is_new()
         ]
 
     def new_comments(self) -> list[Comment]:
+        """
+        Возвращает новые обычные комментарии, ещё не сохранённые в БД.
+        """
+
         return [
             comment
             for comment in self.comments
@@ -201,20 +231,23 @@ class Ticket:
     # Commands
     # ----------------------------
 
-    def append_status(self, record: StatusRecordTicket) -> None:
+    def append_status(self, record: TicketStatusRecord) -> None:
         """
-        Adds new status record to ticket history.
+        Добавляет новую workflow-запись в историю заявки.
 
-        This method checks only local invariants:
-        - ticket is not terminal;
-        - transition is allowed by workflow graph.
+        Проверяет только локальные инварианты:
+        - заявка не terminal;
+        - переход допустим по общему графу workflow.
 
-        It does not check:
-        - actor permissions;
-        - department rules;
-        - executor availability;
-        - executor belongs to ticket department.
+        Не проверяет:
+        - permissions;
+        - actor kind;
+        - actor является текущим executor или нет;
+        - executor существует;
+        - executor enabled;
+        - executor принадлежит department заявки.
         """
+
         self._ensure_not_terminal()
 
         TicketWorkflowPolicy.ensure_can_change_status(
@@ -227,11 +260,12 @@ class Ticket:
 
     def add_comment(self, comment: Comment) -> None:
         """
-        Adds plain ticket comment.
+        Добавляет обычный комментарий к заявке.
 
-        Comment is not a workflow status comment.
-        Status-related comments are stored inside StatusRecordTicket.comment.
+        Это не комментарий к workflow-статусу.
+        Комментарии к workflow-событиям лежат в TicketStatusRecord.comment.
         """
+
         self._ensure_not_terminal()
         self.comments.append(comment)
 
@@ -242,18 +276,23 @@ class Ticket:
     def _ensure_not_terminal(self) -> None:
         if self.is_terminal():
             raise DomainOperationError(
-                f"The ticket {self.ticket_id} is in terminal status {self.current_status()}"
+                f"The ticket {self.ticket_id} is in terminal status "
+                f"{self.current_status().value}"
             )
 
     def _recompute_closed_state(self) -> None:
+        """
+        Пересчитывает derived state.
+
+        is_closed/date_finished — производные от текущего статуса.
+        """
+
         if not self.statuses:
             self.is_closed = False
             self.date_finished = None
             return
 
-        current = self.current_status()
-
-        if current in TERMINAL_TICKET_STATUSES:
+        if self.current_status() in TERMINAL_TICKET_STATUSES:
             self.is_closed = True
 
             if self.date_finished is None:
@@ -268,39 +307,72 @@ class Ticket:
 
     def working_time(self) -> int:
         """
-        Returns total working time in seconds.
+        Возвращает рабочее время в секундах.
 
-        Counts only periods where status was AT_WORK.
+        Считаем:
+        - AT_WORK по системной истории статусов;
+        - OFFLINE_WORK по фактическим actual_started_at / actual_finished_at.
 
-        AT_WORK interval:
-        - starts at AT_WORK record date_created;
-        - ends at next status record date_created;
-        - if AT_WORK is current status, ends at now.
+        AT_WORK:
+            date_created -> next status date_created
+            если AT_WORK текущий статус -> date_created -> now
+
+        OFFLINE_WORK:
+            actual_started_at -> actual_finished_at
+
+        Если у OFFLINE_WORK нет actual_finished_at,
+        длительность не считаем, потому что она неизвестна.
         """
-        if len(self.statuses) <= 1:
+
+        if not self.statuses:
             return 0
 
         total_seconds = 0
 
         for current_record, next_record in zip(self.statuses, self.statuses[1:]):
             if current_record.status == TicketStatus.AT_WORK:
-                delta = next_record.date_created - current_record.date_created
-                total_seconds += int(delta.total_seconds())
+                total_seconds += self._seconds_between(
+                    current_record.date_created,
+                    next_record.date_created,
+                )
 
-        if self.current_status() == TicketStatus.AT_WORK:
-            delta = datetime.now(timezone.utc) - self.current_status_record().date_created
-            total_seconds += int(delta.total_seconds())
+            elif current_record.status == TicketStatus.OFFLINE_WORK:
+                total_seconds += self._offline_work_seconds(current_record)
+
+        last_record = self.current_status_record()
+
+        if last_record.status == TicketStatus.AT_WORK:
+            total_seconds += self._seconds_between(
+                last_record.date_created,
+                self._now_like(last_record.date_created),
+            )
+
+        elif last_record.status == TicketStatus.OFFLINE_WORK:
+            total_seconds += self._offline_work_seconds(last_record)
 
         return total_seconds
 
+    def _offline_work_seconds(self, record: TicketStatusRecord) -> int:
+        if record.actual_started_at is None or record.actual_finished_at is None:
+            return 0
+
+        return self._seconds_between(
+            record.actual_started_at,
+            record.actual_finished_at,
+        )
+
+
     def belong(self, employee_id: int) -> bool:
         """
-        Checks whether employee is mentioned in ticket history.
+        Проверяет, упоминается ли сотрудник в истории заявки.
 
-        Note:
-        This method is only a historical/reference check.
-        It should not be used for permission decisions.
+        Это не permission check.
+
+        Использовать для принятия решений о доступе нельзя.
+        Для удаления Admin/User лучше использовать repository-level
+        has_admin_reference / has_user_reference.
         """
+
         if employee_id == self.admin_id:
             return True
 
@@ -312,7 +384,38 @@ class Ticket:
             if employee_id == status.actor_employee_id:
                 return True
 
-            if status.executor_id == employee_id:
+            if employee_id == status.executor_id:
                 return True
 
         return False
+
+    @staticmethod
+    def _seconds_between(start: datetime, finish: datetime) -> int:
+        """
+        Возвращает разницу между datetime в секундах.
+
+        Новый код должен использовать timezone-aware UTC datetime.
+        Но этот helper терпим к старым naive datetime из БД.
+        """
+
+        if start.tzinfo is None and finish.tzinfo is not None:
+            finish = finish.replace(tzinfo=None)
+
+        if start.tzinfo is not None and finish.tzinfo is None:
+            start = start.replace(tzinfo=None)
+
+        delta = finish - start
+        return int(delta.total_seconds())
+
+    @staticmethod
+    def _now_like(value: datetime) -> datetime:
+        """
+        Возвращает now() в формате, совместимом с value:
+        - если value timezone-aware, возвращает aware UTC now;
+        - если value naive, возвращает naive now.
+        """
+
+        if value.tzinfo is None:
+            return datetime.now()
+
+        return datetime.now(timezone.utc)

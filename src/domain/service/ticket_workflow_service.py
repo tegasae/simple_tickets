@@ -1,191 +1,299 @@
-from src.domain.employee import User
-from src.domain.ticket import Ticket, TicketStatus
-from src.domain.ticket_user import TicketUser
-from src.domain.ticket_components import Comment, ExecutorAssignment
+# src/domain/services/ticket_workflow_service.py
+
+from __future__ import annotations
+
+from datetime import datetime
+
+from src.domain.exceptions import DomainOperationError
+from src.domain.policy.ticket_workflow_actor_policy import (
+    TicketWorkflowActorKind,
+    TicketWorkflowActorPolicy,
+)
+from src.domain.statuses.ticket_status import TicketStatus
+from src.domain.statuses.ticket_status_record import TicketStatusRecord
+from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordFactory
+from src.domain.ticket import Ticket
+
 
 
 class TicketWorkflowService:
     """
-    Domain workflow service.
+    Domain service для workflow-операций над Ticket.
 
-    Coordinates related domain objects:
-        - Ticket
-        - TicketUser
+    Этот сервис:
+    - создаёт TicketStatusRecord через factory;
+    - проверяет actor-specific workflow rule;
+    - добавляет status-record в Ticket.
 
-    Does NOT:
-        - use repositories;
-        - open transactions;
-        - check permissions;
-        - return DTOs.
+    Этот сервис НЕ проверяет:
+    - RBAC permissions;
+    - существует ли actor в БД;
+    - существует ли executor в БД;
+    - enabled/disabled Admin;
+    - enabled/disabled Department;
+    - executor.department_id == ticket.department_id.
+
+    Всё это должно проверяться выше — в application service.
     """
 
+    # ----------------------------
+    # Executor operations
+    # ----------------------------
+
     @staticmethod
-    def create_from_admin(
-            *,
-        ticket_id: int,
-        client_id: int,
-        admin_id: int,
-        text_of_ticket: str = "",
-        user_id: int = 0,
-        contact_user_id: int = 0,
-        is_remote: bool = False,
-        urgency_level: int = 0,
-        user_ticket: TicketUser | None = None,
-        executor_id: int = 0,
+    def take_to_work(
+        *,
+        ticket: Ticket,
+        actor_employee_id: int,
         comment: str = "",
-    ) -> Ticket:
-        user_ticket_id = 0
-
-        if user_ticket is not None:
-            user_ticket_id = user_ticket.ticket_id
-            user_ticket.confirm(actor_employee_id=admin_id)
-            text_of_ticket = (
-                f"{text_of_ticket}\n\n"
-                f"{user_ticket.description}"
-            ).strip()
-
-
-        return Ticket.create(
-            ticket_id=ticket_id,
-            client_id=client_id,
-            admin_id=admin_id,
-            text_of_ticket=text_of_ticket,
-            user_id=user_id,
-            contact_user_id=contact_user_id,
-            is_remote=is_remote,
-            urgency_level=urgency_level,
-            user_ticket_id=user_ticket_id,
-            executor_id=executor_id,
-            comment=comment,
-        )
-
-    @staticmethod
-    def start_work(
-            *,
-        ticket: Ticket,
-        user_ticket: TicketUser | None,
-        actor_admin_id: int,
-        executor_id: int = 0,
-    ) -> None:
-        ticket.at_work(
-            executor_id=executor_id
-        )
-
-        if user_ticket is not None:
-            user_ticket.start_work(
-                actor_employee_id=executor_id or actor_admin_id,
-            )
-
-    @staticmethod
-    def defer_admin(
-            *,
-            ticket: Ticket,
-            actor_admin_id: int,
-
-    ) -> None:
-        ticket.defer(
-            actor_employee_id=actor_admin_id,
-        )
-
-
-    @staticmethod
-    def execute(
-            *,
-        ticket: Ticket,
-        user_ticket: TicketUser | None,
-        actor_admin_id: int,
-        comment: str = "",
-    ) -> None:
-        ticket.execute(
-            actor_employee_id=actor_admin_id,
-            comment=comment,
-        )
-
-        if user_ticket is not None:
-            user_ticket.execute(
-                actor_employee_id=actor_admin_id,
-            )
-
-    @staticmethod
-    def cancel_by_admin(
-            *,
-        ticket: Ticket,
-        user_ticket: TicketUser | None,
-        actor_admin_id: int,
-        comment: str = "",
-    ) -> None:
-        ticket.cancel(
-            actor_employee_id=actor_admin_id,
-            comment=comment,
-        )
-
-        if user_ticket is not None:
-            user_ticket.cancel_by_admin(
-                actor_employee_id=actor_admin_id,
-            )
-
-    @staticmethod
-    def add_comment_from_admin(
-            *,
-        ticket: Ticket,
-        actor_admin_id: int,
-        comment: str,
-    ) -> None:
-        ticket.add_comment(
-            Comment(
-                employee_id=actor_admin_id,
-                comment=comment,
-            )
-        )
-
-    @staticmethod
-    def assign_executor(
-            *,
-        ticket: Ticket,
-        actor_admin_id: int,
-        executor_id: int,
-    ) -> None:
-        ticket.add_executor(
-            ExecutorAssignment(
-                admin_id=actor_admin_id,
-                executor_id=executor_id,
-            )
-        )
-
-
-    @staticmethod
-    def defer_ticket_due_to_client_disabled(
-            *,
-        ticket: Ticket,
-        actor_admin_id: int,
-        comment: str = "",
-    ) -> bool:
+    ) -> TicketStatusRecord:
         """
-        Defer admin ticket because client was disabled.
+        Исполнитель начинает работу над заявкой.
 
-        Returns:
-            True  - ticket changed
-            False - ticket skipped
+        Допустимые статусы:
+        - ASSIGNED
+        - READY_TO_WORK
+
+        Важно:
+        actor должен быть текущим executor заявки.
         """
-        if ticket.is_closed:
-            return False
 
-        current_status = ticket.current_status()
+        TicketWorkflowService._ensure_current_executor(
+            ticket=ticket,
+            actor_employee_id=actor_employee_id,
+        )
 
-        if current_status in {
-            TicketStatus.EXECUTED,
-            TicketStatus.CANCELLED,
-        }:
-            return False
+        record = TicketStatusRecordFactory.at_work(
+            actor_employee_id=actor_employee_id,
+            executor_id=ticket.current_executor_id(),
+            comment=comment,
+        )
 
-        ticket.defer(actor_employee_id=actor_admin_id)
-        if comment:
-            ticket.add_comment(Comment(employee_id=actor_admin_id,comment=comment))
+        TicketWorkflowService._append_executor_status(
+            ticket=ticket,
+            record=record,
+        )
 
-
-        return True
+        return record
 
     @staticmethod
-    def disable_user_due_to_client_disabled(*, user: User):
+    def pause_work(
+        *,
+        ticket: Ticket,
+        actor_employee_id: int,
+        comment: str = "",
+    ) -> TicketStatusRecord:
+        """
+        Исполнитель временно приостанавливает работу.
 
-        user.disable()
+        Допустимый переход:
+        - AT_WORK -> PAUSED
+
+        Важно:
+        actor должен быть текущим executor заявки.
+        """
+
+        TicketWorkflowService._ensure_current_executor(
+            ticket=ticket,
+            actor_employee_id=actor_employee_id,
+        )
+
+        record = TicketStatusRecordFactory.paused(
+            actor_employee_id=actor_employee_id,
+            executor_id=ticket.current_executor_id(),
+            comment=comment,
+        )
+
+        TicketWorkflowService._append_executor_status(
+            ticket=ticket,
+            record=record,
+        )
+
+        return record
+
+    @staticmethod
+    def resume_work(
+        *,
+        ticket: Ticket,
+        actor_employee_id: int,
+        comment: str = "",
+    ) -> TicketStatusRecord:
+        """
+        Исполнитель возвращается к работе после паузы.
+
+        Допустимый переход:
+        - PAUSED -> AT_WORK
+
+        Важно:
+        actor должен быть текущим executor заявки.
+        """
+
+        TicketWorkflowService._ensure_current_executor(
+            ticket=ticket,
+            actor_employee_id=actor_employee_id,
+        )
+
+        record = TicketStatusRecordFactory.at_work(
+            actor_employee_id=actor_employee_id,
+            executor_id=ticket.current_executor_id(),
+            comment=comment,
+        )
+
+        TicketWorkflowService._append_executor_status(
+            ticket=ticket,
+            record=record,
+        )
+
+        return record
+
+    @staticmethod
+    def register_offline_work(
+        *,
+        ticket: Ticket,
+        actor_employee_id: int,
+        actual_started_at: datetime,
+        actual_finished_at: datetime,
+        comment: str = "",
+    ) -> TicketStatusRecord:
+        """
+        Исполнитель вносит выполненную offline-работу задним числом.
+
+        Допустимые переходы:
+        - ASSIGNED -> OFFLINE_WORK
+        - READY_TO_WORK -> OFFLINE_WORK
+
+        Важно:
+        - actor должен быть текущим executor заявки;
+        - actual_started_at обязателен;
+        - actual_finished_at обязателен.
+        """
+
+        TicketWorkflowService._ensure_current_executor(
+            ticket=ticket,
+            actor_employee_id=actor_employee_id,
+        )
+
+        record = TicketStatusRecordFactory.offline_work(
+            actor_employee_id=actor_employee_id,
+            executor_id=ticket.current_executor_id(),
+            actual_started_at=actual_started_at,
+            actual_finished_at=actual_finished_at,
+            comment=comment,
+        )
+
+        TicketWorkflowService._append_executor_status(
+            ticket=ticket,
+            record=record,
+        )
+
+        return record
+
+    @staticmethod
+    def submit_for_review(
+        *,
+        ticket: Ticket,
+        actor_employee_id: int,
+        comment: str = "",
+    ) -> TicketStatusRecord:
+        """
+        Исполнитель отправляет результат на проверку.
+
+        Допустимые переходы:
+        - AT_WORK -> READY_FOR_REVIEW
+        - OFFLINE_WORK -> READY_FOR_REVIEW
+
+        Важно:
+        actor должен быть текущим executor заявки.
+        """
+
+        TicketWorkflowService._ensure_current_executor(
+            ticket=ticket,
+            actor_employee_id=actor_employee_id,
+        )
+
+        actual_finished_at = TicketWorkflowService._resolve_actual_finished_at(
+            ticket=ticket,
+        )
+
+        record = TicketStatusRecordFactory.ready_for_review(
+            actor_employee_id=actor_employee_id,
+            executor_id=ticket.current_executor_id(),
+            actual_finished_at=actual_finished_at,
+            comment=comment,
+        )
+
+        TicketWorkflowService._append_executor_status(
+            ticket=ticket,
+            record=record,
+        )
+
+        return record
+
+    # ----------------------------
+    # Internal helpers
+    # ----------------------------
+
+    @staticmethod
+    def _append_executor_status(
+        *,
+        ticket: Ticket,
+        record: TicketStatusRecord,
+    ) -> None:
+        """
+        Проверяет executor actor-policy и добавляет статус в Ticket.
+
+        ticket.append_status(record) отдельно проверит общий workflow graph.
+        Но actor-policy тоже вызывает общий graph, чтобы actor-specific rules
+        не могли случайно расширить workflow.
+        """
+
+        TicketWorkflowActorPolicy.ensure_actor_can_change_status(
+            actor_kind=TicketWorkflowActorKind.EXECUTOR,
+            current_status=ticket.current_status(),
+            new_status=record.status,
+        )
+
+        ticket.append_status(record)
+
+    @staticmethod
+    def _ensure_current_executor(
+        *,
+        ticket: Ticket,
+        actor_employee_id: int,
+    ) -> None:
+        """
+        Executor operation может выполнить только текущий executor заявки.
+        """
+
+        if actor_employee_id <= 0:
+            raise DomainOperationError("Actor employee ID must be positive")
+
+        current_executor_id = ticket.current_executor_id()
+
+        if current_executor_id == 0:
+            raise DomainOperationError("Ticket has no current executor")
+
+        if actor_employee_id != current_executor_id:
+            raise DomainOperationError(
+                f"Actor {actor_employee_id} is not current ticket executor"
+            )
+
+    @staticmethod
+    def _resolve_actual_finished_at(
+        *,
+        ticket: Ticket,
+    ) -> datetime | None:
+        """
+        Для AT_WORK actual_finished_at ставит factory автоматически.
+
+        Для OFFLINE_WORK фактическое окончание уже известно,
+        поэтому READY_FOR_REVIEW должен сохранить именно его,
+        а не текущее время внесения записи.
+        """
+
+        current_record = ticket.current_status_record()
+
+        if current_record.status == TicketStatus.OFFLINE_WORK:
+            return current_record.actual_finished_at
+
+        return None

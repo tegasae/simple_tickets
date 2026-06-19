@@ -1,15 +1,15 @@
 # src/domain/ticket_status_record_factory.py
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.domain.exceptions import ItemValidationError
 from src.domain.statuses.ticket_status import TicketStatus
-from src.domain.statuses.ticket_status_record import StatusRecordTicket
+from src.domain.statuses.ticket_status_record import TicketStatusRecord
 
 
 class TicketStatusRecordFactory:
     """
-    Фабрика записей статусов заявки.
+    Фабрика записей workflow-статусов Ticket.
 
     Здесь задаются правила создания конкретных бизнес-событий:
 
@@ -18,6 +18,9 @@ class TicketStatusRecordFactory:
     - где actual_started_at ставится автоматически;
     - где actual_started_at должен быть передан явно;
     - где comment обязателен.
+
+    Сама TicketStatusRecord проверяет валидность записи.
+    Factory задаёт бизнес-смысл операции.
     """
 
     @staticmethod
@@ -25,8 +28,8 @@ class TicketStatusRecordFactory:
         *,
         actor_employee_id: int,
         comment: str = "",
-    ) -> StatusRecordTicket:
-        return StatusRecordTicket(
+    ) -> TicketStatusRecord:
+        return TicketStatusRecord(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.CREATED,
             comment=comment,
@@ -37,8 +40,8 @@ class TicketStatusRecordFactory:
         *,
         actor_employee_id: int,
         comment: str = "",
-    ) -> StatusRecordTicket:
-        return StatusRecordTicket(
+    ) -> TicketStatusRecord:
+        return TicketStatusRecord(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.ACCEPTED,
             comment=comment,
@@ -49,13 +52,13 @@ class TicketStatusRecordFactory:
         *,
         actor_employee_id: int,
         comment: str,
-    ) -> StatusRecordTicket:
+    ) -> TicketStatusRecord:
         TicketStatusRecordFactory._require_comment(
             comment,
             "Reject reason is required",
         )
 
-        return StatusRecordTicket(
+        return TicketStatusRecord(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.REJECTED,
             comment=comment,
@@ -66,13 +69,13 @@ class TicketStatusRecordFactory:
         *,
         actor_employee_id: int,
         comment: str,
-    ) -> StatusRecordTicket:
+    ) -> TicketStatusRecord:
         TicketStatusRecordFactory._require_comment(
             comment,
             "Defer reason is required",
         )
 
-        return StatusRecordTicket(
+        return TicketStatusRecord(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.DEFERRED,
             comment=comment,
@@ -84,13 +87,15 @@ class TicketStatusRecordFactory:
         actor_employee_id: int,
         planned_start_at: datetime,
         planned_finish_at: datetime | None = None,
-        executor_id: int = 0,
         comment: str = "",
-    ) -> StatusRecordTicket:
-        return StatusRecordTicket(
+    ) -> TicketStatusRecord:
+        """
+        SCHEDULED = есть плановое время, но нет исполнителя.
+        """
+        return TicketStatusRecord(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.SCHEDULED,
-            executor_id=executor_id,
+            executor_id=0,
             planned_start_at=planned_start_at,
             planned_finish_at=planned_finish_at,
             comment=comment,
@@ -101,15 +106,37 @@ class TicketStatusRecordFactory:
         *,
         actor_employee_id: int,
         executor_id: int,
-        planned_start_at: datetime | None = None,
-        planned_finish_at: datetime | None = None,
         comment: str = "",
-    ) -> StatusRecordTicket:
+    ) -> TicketStatusRecord:
+        """
+        ASSIGNED = есть исполнитель, но нет планового времени.
+        """
         TicketStatusRecordFactory._require_executor(executor_id)
 
-        return StatusRecordTicket(
+        return TicketStatusRecord(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.ASSIGNED,
+            executor_id=executor_id,
+            comment=comment,
+        )
+
+    @staticmethod
+    def ready_to_work(
+        *,
+        actor_employee_id: int,
+        executor_id: int,
+        planned_start_at: datetime,
+        planned_finish_at: datetime | None = None,
+        comment: str = "",
+    ) -> TicketStatusRecord:
+        """
+        READY_TO_WORK = есть и исполнитель, и плановое время.
+        """
+        TicketStatusRecordFactory._require_executor(executor_id)
+
+        return TicketStatusRecord(
+            actor_employee_id=actor_employee_id,
+            status=TicketStatus.READY_TO_WORK,
             executor_id=executor_id,
             planned_start_at=planned_start_at,
             planned_finish_at=planned_finish_at,
@@ -122,14 +149,19 @@ class TicketStatusRecordFactory:
         actor_employee_id: int,
         executor_id: int,
         comment: str = "",
-    ) -> StatusRecordTicket:
+    ) -> TicketStatusRecord:
+        """
+        AT_WORK = исполнитель начал работу сейчас.
+
+        actual_started_at ставится автоматически.
+        """
         TicketStatusRecordFactory._require_executor(executor_id)
 
-        return StatusRecordTicket(
+        return TicketStatusRecord(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.AT_WORK,
             executor_id=executor_id,
-            actual_started_at=datetime.now(),
+            actual_started_at=datetime.now(timezone.utc),
             comment=comment,
         )
 
@@ -139,10 +171,14 @@ class TicketStatusRecordFactory:
         actor_employee_id: int,
         executor_id: int,
         comment: str = "",
-    ) -> StatusRecordTicket:
+    ) -> TicketStatusRecord:
+        """
+        PAUSED = работа временно приостановлена,
+        ответственный исполнитель сохраняется.
+        """
         TicketStatusRecordFactory._require_executor(executor_id)
 
-        return StatusRecordTicket(
+        return TicketStatusRecord(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.PAUSED,
             executor_id=executor_id,
@@ -151,16 +187,21 @@ class TicketStatusRecordFactory:
 
     @staticmethod
     def offline_work(
-        *,
-        actor_employee_id: int,
-        executor_id: int,
-        actual_started_at: datetime,
-        actual_finished_at: datetime | None = None,
-        comment: str = "",
-    ) -> StatusRecordTicket:
+            *,
+            actor_employee_id: int,
+            executor_id: int,
+            actual_started_at: datetime,
+            actual_finished_at: datetime,
+            comment: str = "",
+    ) -> TicketStatusRecord:
+        """
+        OFFLINE_WORK = работа выполнена офлайн и внесена задним числом.
+
+        actual_started_at и actual_finished_at обязательны.
+        """
         TicketStatusRecordFactory._require_executor(executor_id)
 
-        return StatusRecordTicket(
+        return TicketStatusRecord(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.OFFLINE_WORK,
             executor_id=executor_id,
@@ -176,14 +217,20 @@ class TicketStatusRecordFactory:
         executor_id: int,
         actual_finished_at: datetime | None = None,
         comment: str = "",
-    ) -> StatusRecordTicket:
+    ) -> TicketStatusRecord:
+        """
+        READY_FOR_REVIEW = исполнитель завершил свой этап,
+        результат ждёт подтверждения.
+
+        actual_finished_at по умолчанию ставится автоматически.
+        """
         TicketStatusRecordFactory._require_executor(executor_id)
 
-        return StatusRecordTicket(
+        return TicketStatusRecord(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.READY_FOR_REVIEW,
             executor_id=executor_id,
-            actual_finished_at=actual_finished_at or datetime.now(),
+            actual_finished_at=actual_finished_at or datetime.now(timezone.utc),
             comment=comment,
         )
 
@@ -192,8 +239,8 @@ class TicketStatusRecordFactory:
         *,
         actor_employee_id: int,
         comment: str = "",
-    ) -> StatusRecordTicket:
-        return StatusRecordTicket(
+    ) -> TicketStatusRecord:
+        return TicketStatusRecord(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.EXECUTED,
             comment=comment,
@@ -204,13 +251,13 @@ class TicketStatusRecordFactory:
         *,
         actor_employee_id: int,
         comment: str,
-    ) -> StatusRecordTicket:
+    ) -> TicketStatusRecord:
         TicketStatusRecordFactory._require_comment(
             comment,
             "Cancel reason is required",
         )
 
-        return StatusRecordTicket(
+        return TicketStatusRecord(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.CANCELLED,
             comment=comment,
