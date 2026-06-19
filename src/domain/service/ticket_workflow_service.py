@@ -15,7 +15,6 @@ from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordF
 from src.domain.ticket import Ticket
 
 
-
 class TicketWorkflowService:
     """
     Domain service для workflow-операций над Ticket.
@@ -230,6 +229,227 @@ class TicketWorkflowService:
         return record
 
     # ----------------------------
+    # Manager operations
+    # ----------------------------
+
+    @staticmethod
+    def accept(
+        *,
+        ticket: Ticket,
+        actor_employee_id: int,
+        comment: str = "",
+    ) -> TicketStatusRecord:
+        """
+        Manager принимает созданную заявку.
+
+        Допустимый переход:
+        - CREATED -> ACCEPTED
+        """
+
+        record = TicketStatusRecordFactory.accepted(
+            actor_employee_id=actor_employee_id,
+            comment=comment,
+        )
+
+        TicketWorkflowService._append_manager_status(
+            ticket=ticket,
+            record=record,
+        )
+
+        return record
+
+    @staticmethod
+    def reject(
+        *,
+        ticket: Ticket,
+        actor_employee_id: int,
+        comment: str,
+    ) -> TicketStatusRecord:
+        """
+        Manager отклоняет заявку до принятия.
+
+        Допустимый переход:
+        - CREATED -> REJECTED
+
+        comment обязателен.
+        """
+
+        record = TicketStatusRecordFactory.rejected(
+            actor_employee_id=actor_employee_id,
+            comment=comment,
+        )
+
+        TicketWorkflowService._append_manager_status(
+            ticket=ticket,
+            record=record,
+        )
+
+        return record
+
+    @staticmethod
+    def defer(
+        *,
+        ticket: Ticket,
+        actor_employee_id: int,
+        comment: str,
+    ) -> TicketStatusRecord:
+        """
+        Manager откладывает заявку.
+
+        Например:
+        - нужны данные от клиента;
+        - нужно согласование;
+        - нужен доступ;
+        - нужна управленческая пауза.
+
+        comment обязателен.
+        """
+
+        record = TicketStatusRecordFactory.deferred(
+            actor_employee_id=actor_employee_id,
+            comment=comment,
+        )
+
+        TicketWorkflowService._append_manager_status(
+            ticket=ticket,
+            record=record,
+        )
+
+        return record
+
+    @staticmethod
+    def schedule(
+        *,
+        ticket: Ticket,
+        actor_employee_id: int,
+        planned_start_at: datetime,
+        planned_finish_at: datetime | None = None,
+        comment: str = "",
+    ) -> TicketStatusRecord:
+        """
+        Manager планирует заявку без назначения исполнителя.
+
+        Создаёт статус:
+        - SCHEDULED
+
+        Смысл:
+        - planned_start_at есть;
+        - executor_id = 0.
+        """
+
+        record = TicketStatusRecordFactory.scheduled(
+            actor_employee_id=actor_employee_id,
+            planned_start_at=planned_start_at,
+            planned_finish_at=planned_finish_at,
+            comment=comment,
+        )
+
+        TicketWorkflowService._append_manager_status(
+            ticket=ticket,
+            record=record,
+        )
+
+        return record
+
+    @staticmethod
+    def assign(
+        *,
+        ticket: Ticket,
+        actor_employee_id: int,
+        executor_id: int,
+        comment: str = "",
+    ) -> TicketStatusRecord:
+        """
+        Manager назначает исполнителя без планового времени.
+
+        Создаёт статус:
+        - ASSIGNED
+
+        Смысл:
+        - executor_id > 0;
+        - planned_start_at отсутствует.
+        """
+
+        record = TicketStatusRecordFactory.assigned(
+            actor_employee_id=actor_employee_id,
+            executor_id=executor_id,
+            comment=comment,
+        )
+
+        TicketWorkflowService._append_manager_status(
+            ticket=ticket,
+            record=record,
+        )
+
+        return record
+
+    @staticmethod
+    def ready_to_work(
+        *,
+        ticket: Ticket,
+        actor_employee_id: int,
+        executor_id: int,
+        planned_start_at: datetime,
+        planned_finish_at: datetime | None = None,
+        comment: str = "",
+    ) -> TicketStatusRecord:
+        """
+        Manager назначает исполнителя и плановое время.
+
+        Создаёт статус:
+        - READY_TO_WORK
+
+        Смысл:
+        - executor_id > 0;
+        - planned_start_at есть.
+        """
+
+        record = TicketStatusRecordFactory.ready_to_work(
+            actor_employee_id=actor_employee_id,
+            executor_id=executor_id,
+            planned_start_at=planned_start_at,
+            planned_finish_at=planned_finish_at,
+            comment=comment,
+        )
+
+        TicketWorkflowService._append_manager_status(
+            ticket=ticket,
+            record=record,
+        )
+
+        return record
+
+    @staticmethod
+    def cancel(
+        *,
+        ticket: Ticket,
+        actor_employee_id: int,
+        comment: str,
+    ) -> TicketStatusRecord:
+        """
+        Manager отменяет уже принятую заявку.
+
+        Допустимые переходы определяются общим workflow-графом.
+
+        Важно:
+        - CREATED -> CANCELLED запрещён;
+        - для CREATED есть REJECTED;
+        - comment обязателен.
+        """
+
+        record = TicketStatusRecordFactory.cancelled(
+            actor_employee_id=actor_employee_id,
+            comment=comment,
+        )
+
+        TicketWorkflowService._append_manager_status(
+            ticket=ticket,
+            record=record,
+        )
+
+        return record
+
+    # ----------------------------
     # Internal helpers
     # ----------------------------
 
@@ -243,12 +463,34 @@ class TicketWorkflowService:
         Проверяет executor actor-policy и добавляет статус в Ticket.
 
         ticket.append_status(record) отдельно проверит общий workflow graph.
-        Но actor-policy тоже вызывает общий graph, чтобы actor-specific rules
+        Actor-policy тоже вызывает общий graph, чтобы executor-rules
         не могли случайно расширить workflow.
         """
 
         TicketWorkflowActorPolicy.ensure_actor_can_change_status(
             actor_kind=TicketWorkflowActorKind.EXECUTOR,
+            current_status=ticket.current_status(),
+            new_status=record.status,
+        )
+
+        ticket.append_status(record)
+
+    @staticmethod
+    def _append_manager_status(
+        *,
+        ticket: Ticket,
+        record: TicketStatusRecord,
+    ) -> None:
+        """
+        Проверяет manager actor-policy и добавляет статус в Ticket.
+
+        ticket.append_status(record) отдельно проверит общий workflow graph.
+        Actor-policy тоже вызывает общий graph, чтобы manager-rules
+        не могли случайно расширить workflow.
+        """
+
+        TicketWorkflowActorPolicy.ensure_actor_can_change_status(
+            actor_kind=TicketWorkflowActorKind.MANAGER,
             current_status=ticket.current_status(),
             new_status=record.status,
         )
