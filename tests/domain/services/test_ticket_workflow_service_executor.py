@@ -1,4 +1,4 @@
-# tests/domain/services/test_ticket_workflow_service_executor.py
+# tests/domain/services/test_ticket_service_executor.py
 
 from datetime import datetime, timedelta, timezone
 
