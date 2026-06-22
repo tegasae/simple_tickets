@@ -20,8 +20,8 @@ class ClientService(BaseService[Client]):
 
     def __init__(self, uow: AbstractUnitOfWork, requesting_admin_name: str = ""):
         super().__init__(uow, requesting_admin_name)
-        # Client service doesn't need additional services in constructor
-        # Domain service (AdminClientManagementService) is created per-operation
+        # Client services doesn't need additional services in constructor
+        # Domain services (AdminClientManagementService) is created per-operation
 
     # ========== CRUD OPERATIONS ==========
 
@@ -31,7 +31,7 @@ class ClientService(BaseService[Client]):
         with (self.uow):
 
 
-            # Create domain service
+            # Create domain services
             service = AdminClientManagementService()
 
             # Determine admin ID (creator or specified)
@@ -126,12 +126,12 @@ class ClientService(BaseService[Client]):
             if client.is_deleted:
                 raise DomainOperationError(f"Client {client.name} is already deleted")
 
-            # Create domain service
+            # Create domain services
             service = AdminClientManagementService(
                 client=client
             )
 
-            # Delete client (business logic in domain service)
+            # Delete client (business logic in domain services)
             service.delete_client()
 
             # Mark as deleted (soft delete) or remove (hard delete)
@@ -257,7 +257,7 @@ class ClientService(BaseService[Client]):
             if client.is_deleted:
                 raise DomainOperationError(f"Cannot update deleted client {client.name}")
 
-            # Create domain service
+            # Create domain services
             service = AdminClientManagementService(
                 client=client
             )

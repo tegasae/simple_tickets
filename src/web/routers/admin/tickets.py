@@ -218,7 +218,7 @@ def ticket_id_to_dto(
         and _validate_references() requires client_id/admin_id.
 
         If delete/get_by_id later require client_id, use a request body or
-        load ticket before _validate_references() inside application service.
+        load ticket before _validate_references() inside application services.
     """
     return TicketDTO(
         actor_admin_id=actor_admin_id,

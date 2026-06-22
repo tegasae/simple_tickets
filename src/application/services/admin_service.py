@@ -11,7 +11,7 @@ from src.services.uow.uow import UnitOfWork
 
 class AdminApplicationService:
     """
-    Application service for Admin.
+    Application services for Admin.
 
     Uses:
         - UnitOfWork

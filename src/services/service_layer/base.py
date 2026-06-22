@@ -55,7 +55,7 @@ def with_permission_check(permission: PermissionAdmin):
 
 class BaseService(ABC, Generic[T]):
     """
-    Base service class with common functionality
+    Base services class with common functionality
     All services should inherit from this
     """
 
@@ -142,5 +142,5 @@ class BaseService(ABC, Generic[T]):
 
 
     def _log_operation(self, operation: str, **details) -> None:
-        """Structured logging for service operations"""
+        """Structured logging for services operations"""
         self.logger.info(f"{operation} - {details}")

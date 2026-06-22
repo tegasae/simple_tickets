@@ -15,7 +15,7 @@ from src.services.uow.uow import UnitOfWork
 
 class UserApplicationService:
     """
-    Application service for User.
+    Application services for User.
 
     Responsibilities:
         - open UnitOfWork

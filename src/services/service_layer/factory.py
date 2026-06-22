@@ -26,7 +26,7 @@ class ServiceFactory(Generic[ServiceType]):
 
     def get_admin_service(self) -> AdminService:
         """Get or create AdminService instance"""
-        # Check if we need to create new service or update existing one
+        # Check if we need to create new services or update existing one
         need_new_service = False
 
         if AdminService not in self._services:
@@ -40,7 +40,7 @@ class ServiceFactory(Generic[ServiceType]):
                 # Admin name changed (or wasn't set before)
                 need_new_service = True
             elif not self.admin_name and existing_admin:
-                # Was authenticated, now public - need new service
+                # Was authenticated, now public - need new services
                 need_new_service = True
 
         if need_new_service:
@@ -59,5 +59,5 @@ class ServiceFactory(Generic[ServiceType]):
         return ClientService(uow=self.uow, requesting_admin_name=self.admin_name)
 
     def clear_cache(self):
-        """Clear service cache (useful for testing)"""
+        """Clear services cache (useful for testing)"""
         self._services.clear()

@@ -11,7 +11,7 @@ from src.domain.rbac.permissions import AdminPermission
 
 class DepartmentApplicationService:
     """
-    Application service for Department use cases.
+    Application services for Department use cases.
 
     Department rules:
     - Only Admin with required permission can manage departments.
