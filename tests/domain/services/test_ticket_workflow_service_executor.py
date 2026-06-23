@@ -1,11 +1,12 @@
-# tests/domain/services/test_ticket_workflow_service_executor.py
+# tests/domain/services/test_ticket_service_executor.py
 
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from src.domain.exceptions import DomainOperationError
-from src.domain.service.ticket_workflow_service import TicketWorkflowService
+from src.domain.services.ticket_execution_service import TicketExecutionService
+
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordFactory
 from src.domain.ticket import Ticket
@@ -71,7 +72,7 @@ def make_ready_to_work_ticket(*, executor_id: int = 20) -> Ticket:
 def make_at_work_ticket(*, executor_id: int = 20) -> Ticket:
     ticket = make_assigned_ticket(executor_id=executor_id)
 
-    TicketWorkflowService.take_to_work(
+    TicketExecutionService.take_to_work(
         ticket=ticket,
         actor_employee_id=executor_id,
     )
@@ -82,7 +83,7 @@ def make_at_work_ticket(*, executor_id: int = 20) -> Ticket:
 def make_paused_ticket(*, executor_id: int = 20) -> Ticket:
     ticket = make_at_work_ticket(executor_id=executor_id)
 
-    TicketWorkflowService.pause_work(
+    TicketExecutionService.pause_work(
         ticket=ticket,
         actor_employee_id=executor_id,
         comment="temporary pause",
@@ -94,7 +95,7 @@ def make_paused_ticket(*, executor_id: int = 20) -> Ticket:
 def make_offline_work_ticket(*, executor_id: int = 20) -> Ticket:
     ticket = make_assigned_ticket(executor_id=executor_id)
 
-    TicketWorkflowService.register_offline_work(
+    TicketExecutionService.register_offline_work(
         ticket=ticket,
         actor_employee_id=executor_id,
         actual_started_at=PAST_START,
@@ -113,7 +114,7 @@ def make_offline_work_ticket(*, executor_id: int = 20) -> Ticket:
 def test_take_to_work_from_assigned() -> None:
     ticket = make_assigned_ticket(executor_id=20)
 
-    record = TicketWorkflowService.take_to_work(
+    record = TicketExecutionService.take_to_work(
         ticket=ticket,
         actor_employee_id=20,
         comment="start work",
@@ -132,7 +133,7 @@ def test_take_to_work_from_assigned() -> None:
 def test_take_to_work_from_ready_to_work() -> None:
     ticket = make_ready_to_work_ticket(executor_id=20)
 
-    record = TicketWorkflowService.take_to_work(
+    record = TicketExecutionService.take_to_work(
         ticket=ticket,
         actor_employee_id=20,
     )
@@ -148,7 +149,7 @@ def test_take_to_work_rejects_actor_who_is_not_current_executor() -> None:
     ticket = make_assigned_ticket(executor_id=20)
 
     with pytest.raises(DomainOperationError):
-        TicketWorkflowService.take_to_work(
+        TicketExecutionService.take_to_work(
             ticket=ticket,
             actor_employee_id=999,
         )
@@ -161,7 +162,7 @@ def test_take_to_work_rejects_ticket_without_executor() -> None:
     ticket = make_accepted_ticket()
 
     with pytest.raises(DomainOperationError):
-        TicketWorkflowService.take_to_work(
+        TicketExecutionService.take_to_work(
             ticket=ticket,
             actor_employee_id=20,
         )
@@ -181,7 +182,7 @@ def test_take_to_work_rejects_scheduled_ticket_without_executor() -> None:
     )
 
     with pytest.raises(DomainOperationError):
-        TicketWorkflowService.take_to_work(
+        TicketExecutionService.take_to_work(
             ticket=ticket,
             actor_employee_id=20,
         )
@@ -198,7 +199,7 @@ def test_take_to_work_rejects_scheduled_ticket_without_executor() -> None:
 def test_pause_work_from_at_work() -> None:
     ticket = make_at_work_ticket(executor_id=20)
 
-    record = TicketWorkflowService.pause_work(
+    record = TicketExecutionService.pause_work(
         ticket=ticket,
         actor_employee_id=20,
         comment="waiting for access",
@@ -217,7 +218,7 @@ def test_pause_work_rejects_actor_who_is_not_current_executor() -> None:
     ticket = make_at_work_ticket(executor_id=20)
 
     with pytest.raises(DomainOperationError):
-        TicketWorkflowService.pause_work(
+        TicketExecutionService.pause_work(
             ticket=ticket,
             actor_employee_id=999,
         )
@@ -230,7 +231,7 @@ def test_pause_work_rejects_when_ticket_is_not_at_work() -> None:
     ticket = make_assigned_ticket(executor_id=20)
 
     with pytest.raises(DomainOperationError):
-        TicketWorkflowService.pause_work(
+        TicketExecutionService.pause_work(
             ticket=ticket,
             actor_employee_id=20,
         )
@@ -246,7 +247,7 @@ def test_pause_work_rejects_when_ticket_is_not_at_work() -> None:
 def test_resume_work_from_paused() -> None:
     ticket = make_paused_ticket(executor_id=20)
 
-    record = TicketWorkflowService.resume_work(
+    record = TicketExecutionService.resume_work(
         ticket=ticket,
         actor_employee_id=20,
         comment="resume work",
@@ -266,7 +267,7 @@ def test_resume_work_rejects_actor_who_is_not_current_executor() -> None:
     ticket = make_paused_ticket(executor_id=20)
 
     with pytest.raises(DomainOperationError):
-        TicketWorkflowService.resume_work(
+        TicketExecutionService.resume_work(
             ticket=ticket,
             actor_employee_id=999,
         )
@@ -279,7 +280,7 @@ def test_resume_work_rejects_when_ticket_is_not_paused() -> None:
     ticket = make_at_work_ticket(executor_id=20)
 
     with pytest.raises(DomainOperationError):
-        TicketWorkflowService.resume_work(
+        TicketExecutionService.resume_work(
             ticket=ticket,
             actor_employee_id=20,
         )
@@ -295,7 +296,7 @@ def test_resume_work_rejects_when_ticket_is_not_paused() -> None:
 def test_register_offline_work_from_assigned() -> None:
     ticket = make_assigned_ticket(executor_id=20)
 
-    record = TicketWorkflowService.register_offline_work(
+    record = TicketExecutionService.register_offline_work(
         ticket=ticket,
         actor_employee_id=20,
         actual_started_at=PAST_START,
@@ -317,7 +318,7 @@ def test_register_offline_work_from_assigned() -> None:
 def test_register_offline_work_from_ready_to_work() -> None:
     ticket = make_ready_to_work_ticket(executor_id=20)
 
-    record = TicketWorkflowService.register_offline_work(
+    record = TicketExecutionService.register_offline_work(
         ticket=ticket,
         actor_employee_id=20,
         actual_started_at=PAST_START,
@@ -337,7 +338,7 @@ def test_register_offline_work_rejects_actor_who_is_not_current_executor() -> No
     ticket = make_assigned_ticket(executor_id=20)
 
     with pytest.raises(DomainOperationError):
-        TicketWorkflowService.register_offline_work(
+        TicketExecutionService.register_offline_work(
             ticket=ticket,
             actor_employee_id=999,
             actual_started_at=PAST_START,
@@ -351,7 +352,7 @@ def test_register_offline_work_rejects_when_ticket_has_no_executor() -> None:
     ticket = make_accepted_ticket()
 
     with pytest.raises(DomainOperationError):
-        TicketWorkflowService.register_offline_work(
+        TicketExecutionService.register_offline_work(
             ticket=ticket,
             actor_employee_id=20,
             actual_started_at=PAST_START,
@@ -365,7 +366,7 @@ def test_register_offline_work_rejects_when_transition_is_not_executor_transitio
     ticket = make_at_work_ticket(executor_id=20)
 
     with pytest.raises(DomainOperationError):
-        TicketWorkflowService.register_offline_work(
+        TicketExecutionService.register_offline_work(
             ticket=ticket,
             actor_employee_id=20,
             actual_started_at=PAST_START,
@@ -385,7 +386,7 @@ def test_submit_for_review_from_at_work() -> None:
 
     before = datetime.now(timezone.utc)
 
-    record = TicketWorkflowService.submit_for_review(
+    record = TicketExecutionService.submit_for_review(
         ticket=ticket,
         actor_employee_id=20,
         comment="done",
@@ -407,7 +408,7 @@ def test_submit_for_review_from_at_work() -> None:
 def test_submit_for_review_from_offline_work_keeps_offline_actual_finish() -> None:
     ticket = make_offline_work_ticket(executor_id=20)
 
-    record = TicketWorkflowService.submit_for_review(
+    record = TicketExecutionService.submit_for_review(
         ticket=ticket,
         actor_employee_id=20,
         comment="offline work done",
@@ -427,7 +428,7 @@ def test_submit_for_review_rejects_actor_who_is_not_current_executor() -> None:
     ticket = make_at_work_ticket(executor_id=20)
 
     with pytest.raises(DomainOperationError):
-        TicketWorkflowService.submit_for_review(
+        TicketExecutionService.submit_for_review(
             ticket=ticket,
             actor_employee_id=999,
         )
@@ -439,7 +440,7 @@ def test_submit_for_review_rejects_when_ticket_is_not_at_work_or_offline_work() 
     ticket = make_assigned_ticket(executor_id=20)
 
     with pytest.raises(DomainOperationError):
-        TicketWorkflowService.submit_for_review(
+        TicketExecutionService.submit_for_review(
             ticket=ticket,
             actor_employee_id=20,
         )

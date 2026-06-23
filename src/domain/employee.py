@@ -230,7 +230,7 @@ class Admin(_Employee):
         """
         Change Admin department.
 
-        Business rule about AT_WORK tickets is checked in application service,
+        Business rule about AT_WORK tickets is checked in application services,
         because Admin does not know all tickets.
         """
         if department_id and int(department_id) and department_id <= 0:

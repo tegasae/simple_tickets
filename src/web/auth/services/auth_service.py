@@ -39,7 +39,7 @@ class AuthServiceAbstract(ABC):
 
 class AdminAuthService(AuthServiceAbstract):
     """
-    Authentication service for Admin realm.
+    Authentication services for Admin realm.
 
     Responsibilities:
         - find admin by login/name;

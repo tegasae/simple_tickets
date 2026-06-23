@@ -12,7 +12,7 @@ connection=Connection.create_connection(url="../../db/admins.db", engine=sqlite3
 uow = SQLiteUnitOfWork(connection)
 service_factory = RoleServiceFactory(uow)
 
-# Use admin role service
+# Use admin role services
 admin_service = service_factory.admin_service()
 
 # ✅ Create admin role - type safe
@@ -35,7 +35,7 @@ admin_role = admin_service.create_role(
 #     permissions={UserPermission.CREATE_TICKET},  # Type error!
 # )
 
-# Use user role service
+# Use user role services
 user_service = service_factory.user_service()
 
 # ✅ Create user role
@@ -56,6 +56,6 @@ print(all_user_roles)
 # Delete a role
 #admin_service.delete_role(admin_role.role_id)
 
-# Or use generic service if needed
+# Or use generic services if needed
 #generic_service = service_factory.generic_service()
 #role = generic_service.get_role(1, AdminPermission)

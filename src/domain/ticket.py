@@ -36,7 +36,7 @@ class Ticket:
     - enabled / disabled Department;
     - concrete workflow use cases.
 
-    Workflow-сценарии должны жить в TicketWorkflowService.
+    Workflow-сценарии должны жить в: TicketExecutionService, TicketManagementService, TicketReviewService
     """
 
     ticket_id: int

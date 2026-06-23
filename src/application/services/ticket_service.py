@@ -3,7 +3,7 @@ from src.application.dto.ticket_dto import TicketDTO, TicketResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
 
 from src.domain.policy.ticket import TicketPolicy
-from src.domain.service.ticket_workflow_service import TicketWorkflowService
+
 
 from src.domain.ticket import Ticket
 from src.domain.rbac.permissions import AdminPermission
@@ -13,7 +13,7 @@ from src.services.uow.uow import UnitOfWork
 
 class TicketApplicationService:
     """
-    Application service for Ticket.
+    Application services for Ticket.
 
     Responsibilities:
         - permission checks

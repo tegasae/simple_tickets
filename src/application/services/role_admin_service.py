@@ -16,9 +16,9 @@ T = TypeVar("T", bound=PermissionBase)
 
 class RoleService(Generic[T]):
     """
-    Generic role service that works with any permission type.
+    Generic role services that works with any permission type.
 
-    This service uses the appropriate repository based on permission type.
+    This services uses the appropriate repository based on permission type.
     """
 
     def __init__(self, uow: UnitOfWork):
@@ -135,7 +135,7 @@ class RoleService(Generic[T]):
 
 class AdminRoleService:
     """
-    Specialized service for admin roles.
+    Specialized services for admin roles.
     Provides type-safe methods for admin permissions only.
     """
 
@@ -173,7 +173,7 @@ class AdminRoleService:
 
 class UserRoleService:
     """
-    Specialized service for user roles.
+    Specialized services for user roles.
     Provides type-safe methods for user permissions only.
     """
 
@@ -214,20 +214,20 @@ class UserRoleService:
 class RoleServiceFactory:
     """
     Factory to create appropriate role services.
-    This helps with dependency injection and service composition.
+    This helps with dependency injection and services composition.
     """
 
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
 
     def admin_service(self) -> AdminRoleService:
-        """Get a service for admin roles."""
+        """Get a services for admin roles."""
         return AdminRoleService(self.uow)
 
     def user_service(self) -> UserRoleService:
-        """Get a service for user roles."""
+        """Get a services for user roles."""
         return UserRoleService(self.uow)
 
     def generic_service(self) -> RoleService:
-        """Get a generic service for a specific permission type."""
+        """Get a generic services for a specific permission type."""
         return RoleService(self.uow)

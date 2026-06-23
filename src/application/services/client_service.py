@@ -8,7 +8,7 @@ from src.domain.client import Client
 from src.domain.policy.client import ClientPolicy
 from src.domain.policy.ticket import TicketPolicy
 from src.domain.rbac.permissions import AdminPermission
-from src.domain.service.ticket_workflow_service import TicketWorkflowService
+from src.domain.services.ticket_workflow_service import TicketWorkflowService
 from src.services.uow.uow import UnitOfWork
 
 
@@ -16,7 +16,7 @@ from src.services.uow.uow import UnitOfWork
 
 class ClientApplicationService:
     """
-    Application service using UoW + DTO.
+    Application services using UoW + DTO.
     """
 
     def __init__(self, uow: UnitOfWork):
