@@ -151,6 +151,18 @@ class TicketStatusRecord:
     def _validate_status_payload(self) -> None:
         state = get_ticket_state(self.status)
 
+        if self.status == TicketStatus.DEFERRED and not self.comment:
+            raise ItemValidationError(
+                "DEFERRED requires comment"
+            )
+        if self.status == TicketStatus.REJECTED and not self.comment:
+            raise ItemValidationError(
+                "REJECTED requires comment"
+            )
+        if self.status == TicketStatus.CANCELLED and not self.comment:
+            raise ItemValidationError(
+                "CANCELLED requires comment"
+            )
         self._validate_executor_payload(
             requires_executor=state.requires_executor,
         )

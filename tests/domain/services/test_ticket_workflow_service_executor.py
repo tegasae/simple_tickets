@@ -6,10 +6,10 @@ import pytest
 
 from src.domain.exceptions import DomainOperationError
 from src.domain.services.ticket_execution_service import TicketExecutionService
-
 from src.domain.statuses.ticket_status import TicketStatus
-from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordFactory
+from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket import Ticket
+
 
 NOW = datetime.now(timezone.utc)
 
@@ -33,8 +33,9 @@ def make_accepted_ticket() -> Ticket:
     ticket = make_created_ticket()
 
     ticket.append_status(
-        TicketStatusRecordFactory.accepted(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.ACCEPTED,
         )
     )
 
@@ -45,8 +46,9 @@ def make_assigned_ticket(*, executor_id: int = 20) -> Ticket:
     ticket = make_accepted_ticket()
 
     ticket.append_status(
-        TicketStatusRecordFactory.assigned(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.ASSIGNED,
             executor_id=executor_id,
         )
     )
@@ -58,8 +60,9 @@ def make_ready_to_work_ticket(*, executor_id: int = 20) -> Ticket:
     ticket = make_accepted_ticket()
 
     ticket.append_status(
-        TicketStatusRecordFactory.ready_to_work(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.READY_TO_WORK,
             executor_id=executor_id,
             planned_start_at=FUTURE_START,
             planned_finish_at=FUTURE_FINISH,
@@ -175,8 +178,9 @@ def test_take_to_work_rejects_scheduled_ticket_without_executor() -> None:
     ticket = make_accepted_ticket()
 
     ticket.append_status(
-        TicketStatusRecordFactory.scheduled(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.SCHEDULED,
             planned_start_at=FUTURE_START,
         )
     )
@@ -362,7 +366,7 @@ def test_register_offline_work_rejects_when_ticket_has_no_executor() -> None:
     assert ticket.current_status() == TicketStatus.ACCEPTED
 
 
-def test_register_offline_work_rejects_when_transition_is_not_executor_transition() -> None:
+def test_register_offline_work_rejects_when_transition_is_not_allowed() -> None:
     ticket = make_at_work_ticket(executor_id=20)
 
     with pytest.raises(DomainOperationError):

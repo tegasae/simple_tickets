@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.domain.exceptions import DomainOperationError
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordFactory
+
 from src.domain.ticket import Ticket
 
 
@@ -26,9 +26,11 @@ class TicketExecutionService:
             actor_employee_id=actor_employee_id,
         )
 
-        record = TicketStatusRecordFactory.at_work(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.AT_WORK,
             executor_id=executor_id,
+            actual_started_at=datetime.now(timezone.utc),
             comment=comment,
         )
 
@@ -51,12 +53,12 @@ class TicketExecutionService:
             actor_employee_id=actor_employee_id,
         )
 
-        record = TicketStatusRecordFactory.paused(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.PAUSED,
             executor_id=executor_id,
             comment=comment,
         )
-
         TicketExecutionService._append_status(
             ticket=ticket,
             record=record,
@@ -76,9 +78,11 @@ class TicketExecutionService:
             actor_employee_id=actor_employee_id,
         )
 
-        record = TicketStatusRecordFactory.at_work(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.AT_WORK,
             executor_id=executor_id,
+            actual_started_at=datetime.now(timezone.utc),
             comment=comment,
         )
 
@@ -103,8 +107,9 @@ class TicketExecutionService:
             actor_employee_id=actor_employee_id,
         )
 
-        record = TicketStatusRecordFactory.offline_work(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.OFFLINE_WORK,
             executor_id=executor_id,
             actual_started_at=actual_started_at,
             actual_finished_at=actual_finished_at,
@@ -130,12 +135,16 @@ class TicketExecutionService:
             actor_employee_id=actor_employee_id,
         )
 
-        record = TicketStatusRecordFactory.ready_for_review(
-            actor_employee_id=actor_employee_id,
-            executor_id=executor_id,
-            actual_finished_at=(
+        actual_finished_at = (
                 TicketExecutionService._resolve_actual_finished_at(ticket)
-            ),
+                or datetime.now(timezone.utc)
+        )
+
+        record = TicketStatusRecord(
+            actor_employee_id=actor_employee_id,
+            status=TicketStatus.READY_FOR_REVIEW,
+            executor_id=executor_id,
+            actual_finished_at=actual_finished_at,
             comment=comment,
         )
 

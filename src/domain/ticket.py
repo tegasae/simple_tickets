@@ -14,7 +14,7 @@ from src.domain.statuses.ticket_status import (
     is_terminal_ticket_status,
 )
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordFactory
+
 from src.domain.ticket_components import Comment
 
 
@@ -97,8 +97,9 @@ class Ticket:
             urgency_level=urgency_level,
             user_ticket_id=user_ticket_id,
             statuses=[
-                TicketStatusRecordFactory.created(
+                TicketStatusRecord(
                     actor_employee_id=admin_id,
+                    status=TicketStatus.CREATED,
                 )
             ],
         )

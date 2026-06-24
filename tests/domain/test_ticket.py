@@ -7,7 +7,6 @@ import pytest
 from src.domain.exceptions import DomainOperationError
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordFactory
 from src.domain.ticket import Ticket
 from src.domain.ticket_components import Comment
 
@@ -202,8 +201,9 @@ def test_current_status_returns_last_status() -> None:
     ticket = make_ticket()
 
     ticket.append_status(
-        TicketStatusRecordFactory.accepted(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.ACCEPTED,
         )
     )
 
@@ -214,13 +214,15 @@ def test_current_executor_id_returns_executor_from_current_status_record() -> No
     ticket = make_ticket()
 
     ticket.append_status(
-        TicketStatusRecordFactory.accepted(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.ACCEPTED,
         )
     )
     ticket.append_status(
-        TicketStatusRecordFactory.assigned(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.ASSIGNED,
             executor_id=20,
         )
     )
@@ -234,13 +236,15 @@ def test_current_executor_id_does_not_use_old_executor_from_history() -> None:
     ticket = make_ticket()
 
     ticket.append_status(
-        TicketStatusRecordFactory.accepted(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.ACCEPTED,
         )
     )
     ticket.append_status(
-        TicketStatusRecordFactory.ready_to_work(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.READY_TO_WORK,
             executor_id=20,
             planned_start_at=FUTURE_1H,
         )
@@ -249,8 +253,9 @@ def test_current_executor_id_does_not_use_old_executor_from_history() -> None:
     assert ticket.current_executor_id() == 20
 
     ticket.append_status(
-        TicketStatusRecordFactory.scheduled(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.SCHEDULED,
             planned_start_at=FUTURE_2H,
         )
     )
@@ -269,8 +274,9 @@ def test_append_status_allows_valid_transition() -> None:
     ticket = make_ticket()
 
     ticket.append_status(
-        TicketStatusRecordFactory.accepted(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.ACCEPTED,
         )
     )
 
@@ -283,8 +289,9 @@ def test_append_status_rejects_invalid_transition() -> None:
 
     with pytest.raises(DomainOperationError):
         ticket.append_status(
-            TicketStatusRecordFactory.cancelled(
+            TicketStatusRecord(
                 actor_employee_id=10,
+                status=TicketStatus.CANCELLED,
                 comment="client cancelled",
             )
         )
@@ -296,8 +303,9 @@ def test_append_status_rejects_change_after_terminal_status() -> None:
     ticket = make_ticket()
 
     ticket.append_status(
-        TicketStatusRecordFactory.rejected(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.REJECTED,
             comment="invalid request",
         )
     )
@@ -306,8 +314,9 @@ def test_append_status_rejects_change_after_terminal_status() -> None:
 
     with pytest.raises(DomainOperationError):
         ticket.append_status(
-            TicketStatusRecordFactory.accepted(
+            TicketStatusRecord(
                 actor_employee_id=10,
+                status=TicketStatus.ACCEPTED,
             )
         )
 
@@ -316,13 +325,15 @@ def test_append_terminal_status_closes_ticket() -> None:
     ticket = make_ticket()
 
     ticket.append_status(
-        TicketStatusRecordFactory.accepted(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.ACCEPTED,
         )
     )
     ticket.append_status(
-        TicketStatusRecordFactory.cancelled(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.CANCELLED,
             comment="client cancelled",
         )
     )
@@ -356,8 +367,9 @@ def test_add_comment_rejects_comment_after_terminal_status() -> None:
     ticket = make_ticket()
 
     ticket.append_status(
-        TicketStatusRecordFactory.rejected(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.REJECTED,
             comment="invalid request",
         )
     )
@@ -384,8 +396,9 @@ def test_new_statuses_returns_only_unsaved_statuses() -> None:
         date_created=PAST_5H,
     )
 
-    new_status = TicketStatusRecordFactory.accepted(
+    new_status = TicketStatusRecord(
         actor_employee_id=10,
+        status=TicketStatus.ACCEPTED,
     )
 
     ticket = Ticket.rehydrate(
@@ -593,13 +606,15 @@ def test_belong_detects_admin_comment_actor_and_executor_references() -> None:
     ticket = make_ticket()
 
     ticket.append_status(
-        TicketStatusRecordFactory.accepted(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.ACCEPTED,
         )
     )
     ticket.append_status(
-        TicketStatusRecordFactory.assigned(
+        TicketStatusRecord(
             actor_employee_id=10,
+            status=TicketStatus.ASSIGNED,
             executor_id=20,
         )
     )

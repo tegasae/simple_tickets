@@ -665,232 +665,6 @@ INSERT INTO users_roles VALUES(166,61);
 INSERT INTO users_roles VALUES(167,61);
 INSERT INTO users_roles VALUES(172,61);
 INSERT INTO users_roles VALUES(172,63);
-CREATE TABLE tickets_comment (
-	comment_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	ticket_id INTEGER,
-	admin_id INTEGER, -- кто оставил комментарий
-	comment TEXT,
-	date_created TEXT,
-	CONSTRAINT comment_tickets_admin_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on DELETE restrict,
-	CONSTRAINT comment_tickets_tickets_FK FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) on delete restrict
-);
-INSERT INTO tickets_comment VALUES(1,2,2,'Investigating the issue','2026-03-10T14:07:20.878841+00:00');
-INSERT INTO tickets_comment VALUES(2,3,2,'Investigating the issue','2026-03-10T14:52:29.176047+00:00');
-INSERT INTO tickets_comment VALUES(3,4,2,'Investigating the issue','2026-03-10T14:54:39.987280+00:00');
-INSERT INTO tickets_comment VALUES(4,5,2,'Investigating the issue','2026-03-10T15:59:38.566972+00:00');
-INSERT INTO tickets_comment VALUES(5,17,4,'Printer has been repaired successfully','2026-05-14T16:46:56.099595+00:00');
-INSERT INTO tickets_comment VALUES(6,18,4,'Printer has been repaired successfully','2026-05-14T16:47:40.150406+00:00');
-INSERT INTO tickets_comment VALUES(7,19,4,'Issue is no longer актуальна','2026-05-14T16:47:40.165570+00:00');
-INSERT INTO tickets_comment VALUES(8,21,4,'Printer has been repaired successfully','2026-05-14T16:59:15.516159+00:00');
-INSERT INTO tickets_comment VALUES(9,22,4,'Printer has been repaired successfully','2026-05-14T16:59:33.358952+00:00');
-INSERT INTO tickets_comment VALUES(10,23,4,'Issue is no longer актуальна','2026-05-14T16:59:33.373397+00:00');
-INSERT INTO tickets_comment VALUES(11,24,4,'Printer has been repaired successfully','2026-05-15T09:54:04.708948+00:00');
-INSERT INTO tickets_comment VALUES(12,25,4,'Issue is no longer актуальна','2026-05-15T09:57:30.663780+00:00');
-INSERT INTO tickets_comment VALUES(13,27,4,'Printer has been repaired successfully','2026-05-15T10:24:40.466596+00:00');
-INSERT INTO tickets_comment VALUES(14,28,4,'Issue is no longer актуальна','2026-05-15T10:24:40.503660+00:00');
-INSERT INTO tickets_comment VALUES(15,36,4,'Printer has been repaired successfully','2026-05-15T11:34:39.842145+00:00');
-INSERT INTO tickets_comment VALUES(16,37,4,'Issue is no longer актуальна','2026-05-15T11:34:39.860417+00:00');
-INSERT INTO tickets_comment VALUES(17,38,4,'Printer has been repaired successfully','2026-05-15T11:34:54.445050+00:00');
-INSERT INTO tickets_comment VALUES(18,39,4,'Issue is no longer актуальна','2026-05-15T11:34:54.458887+00:00');
-INSERT INTO tickets_comment VALUES(19,40,4,'Printer has been repaired successfully','2026-05-15T11:34:58.676821+00:00');
-INSERT INTO tickets_comment VALUES(20,41,4,'Issue is no longer актуальна','2026-05-15T11:34:58.695587+00:00');
-INSERT INTO tickets_comment VALUES(21,42,4,'Printer has been repaired successfully','2026-05-15T11:35:28.372041+00:00');
-INSERT INTO tickets_comment VALUES(22,43,4,'Issue is no longer актуальна','2026-05-15T11:35:28.392428+00:00');
-INSERT INTO tickets_comment VALUES(23,45,4,'Printer has been repaired successfully','2026-05-15T11:46:02.500098+00:00');
-INSERT INTO tickets_comment VALUES(24,46,4,'Issue is no longer актуальна','2026-05-15T11:46:02.526703+00:00');
-INSERT INTO tickets_comment VALUES(25,50,4,'Printer has been repaired successfully','2026-05-15T11:47:46.361320+00:00');
-INSERT INTO tickets_comment VALUES(26,51,4,'Issue is no longer актуальна','2026-05-15T11:47:46.379108+00:00');
-INSERT INTO tickets_comment VALUES(27,52,4,'Printer has been repaired successfully','2026-05-15T12:12:39.565248+00:00');
-INSERT INTO tickets_comment VALUES(28,53,4,'Issue is no longer актуальна','2026-05-15T12:12:39.585504+00:00');
-INSERT INTO tickets_comment VALUES(29,54,4,'Printer has been repaired successfully','2026-05-15T12:16:09.684638+00:00');
-INSERT INTO tickets_comment VALUES(30,55,4,'Issue is no longer актуальна','2026-05-15T12:16:09.706123+00:00');
-INSERT INTO tickets_comment VALUES(31,56,4,'Printer has been repaired successfully','2026-05-15T12:18:02.991862+00:00');
-INSERT INTO tickets_comment VALUES(32,57,4,'Issue is no longer актуальна','2026-05-15T12:18:03.012968+00:00');
-INSERT INTO tickets_comment VALUES(33,58,4,'Printer has been repaired successfully','2026-05-15T12:19:19.664566+00:00');
-INSERT INTO tickets_comment VALUES(34,59,4,'Issue is no longer актуальна','2026-05-15T12:19:19.679598+00:00');
-INSERT INTO tickets_comment VALUES(35,60,4,'Printer has been repaired successfully','2026-05-15T12:20:02.504247+00:00');
-INSERT INTO tickets_comment VALUES(36,61,4,'Issue is no longer актуальна','2026-05-15T12:20:02.526559+00:00');
-INSERT INTO tickets_comment VALUES(37,62,4,'Printer has been repaired successfully','2026-05-15T12:20:12.064241+00:00');
-INSERT INTO tickets_comment VALUES(38,63,4,'Issue is no longer актуальна','2026-05-15T12:20:12.082673+00:00');
-INSERT INTO tickets_comment VALUES(39,64,122,'string','2026-06-01T14:44:38.522968+00:00');
-INSERT INTO tickets_comment VALUES(40,66,122,'frfgerfg','2026-06-04T11:23:29.080661+00:00');
-INSERT INTO tickets_comment VALUES(41,66,122,'string','2026-06-04T11:25:07.616484+00:00');
-INSERT INTO tickets_comment VALUES(42,67,122,'Коментарий','2026-06-04T12:26:18.602924+00:00');
-INSERT INTO tickets_comment VALUES(43,67,122,'Долбаебы','2026-06-04T12:34:57.631702+00:00');
-CREATE TABLE tickets_executor_assignment (
-	executor_assignment_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	admin_id INTEGER, -- кто назначен
-	ticket_id INTEGER,
-	date_assignment TEXT,  
-	CONSTRAINT executor_assignments_admin_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete RESTRICT,
-	CONSTRAINT executor_assignments_tickets_FK FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) on DELETE restrict
-);
-INSERT INTO tickets_executor_assignment VALUES(1,2,2,'2026-03-10T14:07:20.878523+00:00');
-INSERT INTO tickets_executor_assignment VALUES(2,2,3,'2026-03-10T14:52:29.175756+00:00');
-INSERT INTO tickets_executor_assignment VALUES(3,2,4,'2026-03-10T14:54:39.987042+00:00');
-INSERT INTO tickets_executor_assignment VALUES(4,2,5,'2026-03-10T15:59:38.566729+00:00');
-INSERT INTO tickets_executor_assignment VALUES(5,4,36,'2026-05-15T11:34:39.832510+00:00');
-INSERT INTO tickets_executor_assignment VALUES(6,4,38,'2026-05-15T11:34:54.437039+00:00');
-INSERT INTO tickets_executor_assignment VALUES(7,4,40,'2026-05-15T11:34:58.666676+00:00');
-INSERT INTO tickets_executor_assignment VALUES(8,4,42,'2026-05-15T11:35:28.363279+00:00');
-INSERT INTO tickets_executor_assignment VALUES(9,4,44,'2026-05-15T11:36:09.454476+00:00');
-INSERT INTO tickets_executor_assignment VALUES(10,4,45,'2026-05-15T11:46:02.485569+00:00');
-INSERT INTO tickets_executor_assignment VALUES(11,14,50,'2026-05-15T11:47:46.353382+00:00');
-INSERT INTO tickets_executor_assignment VALUES(12,14,52,'2026-05-15T12:12:39.558103+00:00');
-INSERT INTO tickets_executor_assignment VALUES(13,14,54,'2026-05-15T12:16:09.674584+00:00');
-INSERT INTO tickets_executor_assignment VALUES(14,4,56,'2026-05-15T12:18:02.968675+00:00');
-INSERT INTO tickets_executor_assignment VALUES(15,14,56,'2026-05-15T12:18:02.980899+00:00');
-INSERT INTO tickets_executor_assignment VALUES(16,4,58,'2026-05-15T12:19:19.649064+00:00');
-INSERT INTO tickets_executor_assignment VALUES(17,14,58,'2026-05-15T12:19:19.657510+00:00');
-INSERT INTO tickets_executor_assignment VALUES(18,14,60,'2026-05-15T12:20:02.482972+00:00');
-INSERT INTO tickets_executor_assignment VALUES(19,14,60,'2026-05-15T12:20:02.493895+00:00');
-INSERT INTO tickets_executor_assignment VALUES(20,14,62,'2026-05-15T12:20:12.043793+00:00');
-INSERT INTO tickets_executor_assignment VALUES(21,14,62,'2026-05-15T12:20:12.054782+00:00');
-INSERT INTO tickets_executor_assignment VALUES(22,24,64,'2026-06-01T14:43:48.609226+00:00');
-CREATE TABLE tickets_status_record (
-	ticket_status_record_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	ticket_id INTEGER,
-	admin_id INTEGER, -- кто установил статус
-	status TEXT,
-	date_created TEXT,
-	CONSTRAINT tickets_status_record_tickets_FK FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) on delete restrict,
-	CONSTRAINT tickets_status_record_employees_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on DELETE restrict
-);
-INSERT INTO tickets_status_record VALUES(1,2,1,'created','2026-03-10T14:07:20.876688+00:00');
-INSERT INTO tickets_status_record VALUES(2,2,2,'at_work','2026-03-10T14:07:20.879072+00:00');
-INSERT INTO tickets_status_record VALUES(3,2,2,'executed','2026-03-10T14:07:20.879245+00:00');
-INSERT INTO tickets_status_record VALUES(4,3,1,'created','2026-03-10T14:52:29.171204+00:00');
-INSERT INTO tickets_status_record VALUES(5,3,2,'at_work','2026-03-10T14:52:29.176268+00:00');
-INSERT INTO tickets_status_record VALUES(6,3,2,'executed','2026-03-10T14:52:29.176420+00:00');
-INSERT INTO tickets_status_record VALUES(7,4,1,'created','2026-03-10T14:54:39.986088+00:00');
-INSERT INTO tickets_status_record VALUES(8,4,2,'at_work','2026-03-10T14:54:39.987494+00:00');
-INSERT INTO tickets_status_record VALUES(9,4,2,'executed','2026-03-10T14:54:39.987651+00:00');
-INSERT INTO tickets_status_record VALUES(10,5,1,'created','2026-03-10T15:59:38.565566+00:00');
-INSERT INTO tickets_status_record VALUES(11,5,2,'at_work','2026-03-10T15:59:38.567180+00:00');
-INSERT INTO tickets_status_record VALUES(12,5,2,'executed','2026-03-10T15:59:38.567643+00:00');
-INSERT INTO tickets_status_record VALUES(13,6,4,'created','2026-05-14T16:31:14.273509+00:00');
-INSERT INTO tickets_status_record VALUES(14,7,4,'created','2026-05-14T16:31:44.306332+00:00');
-INSERT INTO tickets_status_record VALUES(15,8,4,'created','2026-05-14T16:32:27.899946+00:00');
-INSERT INTO tickets_status_record VALUES(16,9,4,'created','2026-05-14T16:33:11.825406+00:00');
-INSERT INTO tickets_status_record VALUES(17,10,4,'created','2026-05-14T16:34:32.494720+00:00');
-INSERT INTO tickets_status_record VALUES(18,11,4,'created','2026-05-14T16:34:58.283435+00:00');
-INSERT INTO tickets_status_record VALUES(19,12,4,'created','2026-05-14T16:35:17.816401+00:00');
-INSERT INTO tickets_status_record VALUES(20,13,4,'created','2026-05-14T16:36:05.103295+00:00');
-INSERT INTO tickets_status_record VALUES(21,14,4,'created','2026-05-14T16:36:28.064850+00:00');
-INSERT INTO tickets_status_record VALUES(22,15,4,'created','2026-05-14T16:37:03.376871+00:00');
-INSERT INTO tickets_status_record VALUES(23,16,4,'created','2026-05-14T16:44:04.363186+00:00');
-INSERT INTO tickets_status_record VALUES(24,17,4,'created','2026-05-14T16:46:56.079400+00:00');
-INSERT INTO tickets_status_record VALUES(25,17,4,'at_work','2026-05-14T16:46:56.090228+00:00');
-INSERT INTO tickets_status_record VALUES(26,17,4,'executed','2026-05-14T16:46:56.099613+00:00');
-INSERT INTO tickets_status_record VALUES(27,18,4,'created','2026-05-14T16:47:40.132278+00:00');
-INSERT INTO tickets_status_record VALUES(28,18,4,'at_work','2026-05-14T16:47:40.141996+00:00');
-INSERT INTO tickets_status_record VALUES(29,18,4,'executed','2026-05-14T16:47:40.150424+00:00');
-INSERT INTO tickets_status_record VALUES(30,19,4,'created','2026-05-14T16:47:40.158662+00:00');
-INSERT INTO tickets_status_record VALUES(31,19,4,'cancelled','2026-05-14T16:47:40.165587+00:00');
-INSERT INTO tickets_status_record VALUES(32,20,4,'created','2026-05-14T16:58:58.745140+00:00');
-INSERT INTO tickets_status_record VALUES(33,21,4,'created','2026-05-14T16:59:15.498518+00:00');
-INSERT INTO tickets_status_record VALUES(34,21,4,'at_work','2026-05-14T16:59:15.507879+00:00');
-INSERT INTO tickets_status_record VALUES(35,21,4,'executed','2026-05-14T16:59:15.516182+00:00');
-INSERT INTO tickets_status_record VALUES(36,22,4,'created','2026-05-14T16:59:33.337036+00:00');
-INSERT INTO tickets_status_record VALUES(37,22,4,'at_work','2026-05-14T16:59:33.350294+00:00');
-INSERT INTO tickets_status_record VALUES(38,22,4,'executed','2026-05-14T16:59:33.358973+00:00');
-INSERT INTO tickets_status_record VALUES(39,23,4,'created','2026-05-14T16:59:33.366886+00:00');
-INSERT INTO tickets_status_record VALUES(40,23,4,'cancelled','2026-05-14T16:59:33.373415+00:00');
-INSERT INTO tickets_status_record VALUES(41,24,4,'created','2026-05-15T09:51:53.208171+00:00');
-INSERT INTO tickets_status_record VALUES(42,24,4,'at_work','2026-05-15T09:53:24.022717+00:00');
-INSERT INTO tickets_status_record VALUES(43,24,4,'executed','2026-05-15T09:54:04.709005+00:00');
-INSERT INTO tickets_status_record VALUES(44,25,4,'created','2026-05-15T09:57:24.979593+00:00');
-INSERT INTO tickets_status_record VALUES(45,25,4,'cancelled','2026-05-15T09:57:30.663835+00:00');
-INSERT INTO tickets_status_record VALUES(46,26,4,'created','2026-05-15T10:14:24.089285+00:00');
-INSERT INTO tickets_status_record VALUES(47,26,4,'at_work','2026-05-15T10:22:48.891800+00:00');
-INSERT INTO tickets_status_record VALUES(48,27,4,'created','2026-05-15T10:24:32.568490+00:00');
-INSERT INTO tickets_status_record VALUES(49,27,4,'at_work','2026-05-15T10:24:34.135565+00:00');
-INSERT INTO tickets_status_record VALUES(50,27,4,'executed','2026-05-15T10:24:40.466632+00:00');
-INSERT INTO tickets_status_record VALUES(51,28,4,'created','2026-05-15T10:24:40.484516+00:00');
-INSERT INTO tickets_status_record VALUES(52,28,4,'cancelled','2026-05-15T10:24:40.503693+00:00');
-INSERT INTO tickets_status_record VALUES(53,29,4,'created','2026-05-15T10:25:06.470686+00:00');
-INSERT INTO tickets_status_record VALUES(54,30,4,'created','2026-05-15T10:29:01.967992+00:00');
-INSERT INTO tickets_status_record VALUES(55,31,4,'created','2026-05-15T10:31:31.026437+00:00');
-INSERT INTO tickets_status_record VALUES(56,32,4,'created','2026-05-15T10:33:25.737578+00:00');
-INSERT INTO tickets_status_record VALUES(57,32,4,'at_work','2026-05-15T10:33:48.623554+00:00');
-INSERT INTO tickets_status_record VALUES(58,33,4,'created','2026-05-15T10:34:41.060815+00:00');
-INSERT INTO tickets_status_record VALUES(59,34,4,'created','2026-05-15T11:16:26.619378+00:00');
-INSERT INTO tickets_status_record VALUES(60,35,4,'created','2026-05-15T11:34:19.601157+00:00');
-INSERT INTO tickets_status_record VALUES(61,36,4,'created','2026-05-15T11:34:39.821973+00:00');
-INSERT INTO tickets_status_record VALUES(62,36,4,'at_work','2026-05-15T11:34:39.832502+00:00');
-INSERT INTO tickets_status_record VALUES(63,36,4,'executed','2026-05-15T11:34:39.842163+00:00');
-INSERT INTO tickets_status_record VALUES(64,37,4,'created','2026-05-15T11:34:39.851526+00:00');
-INSERT INTO tickets_status_record VALUES(65,37,4,'cancelled','2026-05-15T11:34:39.860530+00:00');
-INSERT INTO tickets_status_record VALUES(66,38,4,'created','2026-05-15T11:34:54.427975+00:00');
-INSERT INTO tickets_status_record VALUES(67,38,4,'at_work','2026-05-15T11:34:54.437032+00:00');
-INSERT INTO tickets_status_record VALUES(68,38,4,'executed','2026-05-15T11:34:54.445066+00:00');
-INSERT INTO tickets_status_record VALUES(69,39,4,'created','2026-05-15T11:34:54.452145+00:00');
-INSERT INTO tickets_status_record VALUES(70,39,4,'cancelled','2026-05-15T11:34:54.459001+00:00');
-INSERT INTO tickets_status_record VALUES(71,40,4,'created','2026-05-15T11:34:58.654537+00:00');
-INSERT INTO tickets_status_record VALUES(72,40,4,'at_work','2026-05-15T11:34:58.666669+00:00');
-INSERT INTO tickets_status_record VALUES(73,40,4,'executed','2026-05-15T11:34:58.676837+00:00');
-INSERT INTO tickets_status_record VALUES(74,41,4,'created','2026-05-15T11:34:58.686581+00:00');
-INSERT INTO tickets_status_record VALUES(75,41,4,'cancelled','2026-05-15T11:34:58.695728+00:00');
-INSERT INTO tickets_status_record VALUES(76,42,4,'created','2026-05-15T11:35:28.354335+00:00');
-INSERT INTO tickets_status_record VALUES(77,42,4,'at_work','2026-05-15T11:35:28.363271+00:00');
-INSERT INTO tickets_status_record VALUES(78,42,4,'executed','2026-05-15T11:35:28.372062+00:00');
-INSERT INTO tickets_status_record VALUES(79,43,4,'created','2026-05-15T11:35:28.383176+00:00');
-INSERT INTO tickets_status_record VALUES(80,43,4,'cancelled','2026-05-15T11:35:28.392584+00:00');
-INSERT INTO tickets_status_record VALUES(81,44,4,'created','2026-05-15T11:36:05.011653+00:00');
-INSERT INTO tickets_status_record VALUES(82,44,4,'at_work','2026-05-15T11:36:09.454462+00:00');
-INSERT INTO tickets_status_record VALUES(83,45,4,'created','2026-05-15T11:46:02.473791+00:00');
-INSERT INTO tickets_status_record VALUES(84,45,4,'at_work','2026-05-15T11:46:02.485562+00:00');
-INSERT INTO tickets_status_record VALUES(85,45,4,'executed','2026-05-15T11:46:02.500116+00:00');
-INSERT INTO tickets_status_record VALUES(86,46,4,'created','2026-05-15T11:46:02.511265+00:00');
-INSERT INTO tickets_status_record VALUES(87,46,4,'cancelled','2026-05-15T11:46:02.526722+00:00');
-INSERT INTO tickets_status_record VALUES(88,47,4,'created','2026-05-15T11:47:00.391974+00:00');
-INSERT INTO tickets_status_record VALUES(89,48,4,'created','2026-05-15T11:47:27.328052+00:00');
-INSERT INTO tickets_status_record VALUES(90,49,4,'created','2026-05-15T11:47:27.521898+00:00');
-INSERT INTO tickets_status_record VALUES(91,50,4,'created','2026-05-15T11:47:46.345401+00:00');
-INSERT INTO tickets_status_record VALUES(92,50,14,'at_work','2026-05-15T11:47:46.353374+00:00');
-INSERT INTO tickets_status_record VALUES(93,50,4,'executed','2026-05-15T11:47:46.361337+00:00');
-INSERT INTO tickets_status_record VALUES(94,51,4,'created','2026-05-15T11:47:46.370198+00:00');
-INSERT INTO tickets_status_record VALUES(95,51,4,'cancelled','2026-05-15T11:47:46.379222+00:00');
-INSERT INTO tickets_status_record VALUES(96,52,4,'created','2026-05-15T12:12:39.548413+00:00');
-INSERT INTO tickets_status_record VALUES(97,52,14,'at_work','2026-05-15T12:12:39.558093+00:00');
-INSERT INTO tickets_status_record VALUES(98,52,4,'executed','2026-05-15T12:12:39.565267+00:00');
-INSERT INTO tickets_status_record VALUES(99,53,4,'created','2026-05-15T12:12:39.575501+00:00');
-INSERT INTO tickets_status_record VALUES(100,53,4,'cancelled','2026-05-15T12:12:39.585618+00:00');
-INSERT INTO tickets_status_record VALUES(101,54,4,'created','2026-05-15T12:16:09.664432+00:00');
-INSERT INTO tickets_status_record VALUES(102,54,14,'at_work','2026-05-15T12:16:09.674578+00:00');
-INSERT INTO tickets_status_record VALUES(103,54,4,'executed','2026-05-15T12:16:09.684655+00:00');
-INSERT INTO tickets_status_record VALUES(104,55,4,'created','2026-05-15T12:16:09.695475+00:00');
-INSERT INTO tickets_status_record VALUES(105,55,4,'cancelled','2026-05-15T12:16:09.706139+00:00');
-INSERT INTO tickets_status_record VALUES(106,56,4,'created','2026-05-15T12:18:02.968654+00:00');
-INSERT INTO tickets_status_record VALUES(107,56,14,'at_work','2026-05-15T12:18:02.980893+00:00');
-INSERT INTO tickets_status_record VALUES(108,56,4,'executed','2026-05-15T12:18:02.991879+00:00');
-INSERT INTO tickets_status_record VALUES(109,57,4,'created','2026-05-15T12:18:03.002700+00:00');
-INSERT INTO tickets_status_record VALUES(110,57,4,'cancelled','2026-05-15T12:18:03.012985+00:00');
-INSERT INTO tickets_status_record VALUES(111,58,4,'created','2026-05-15T12:19:19.649044+00:00');
-INSERT INTO tickets_status_record VALUES(112,58,14,'at_work','2026-05-15T12:19:19.657504+00:00');
-INSERT INTO tickets_status_record VALUES(113,58,4,'executed','2026-05-15T12:19:19.664583+00:00');
-INSERT INTO tickets_status_record VALUES(114,59,4,'created','2026-05-15T12:19:19.672222+00:00');
-INSERT INTO tickets_status_record VALUES(115,59,4,'cancelled','2026-05-15T12:19:19.679614+00:00');
-INSERT INTO tickets_status_record VALUES(116,60,4,'created','2026-05-15T12:20:02.482948+00:00');
-INSERT INTO tickets_status_record VALUES(117,60,14,'at_work','2026-05-15T12:20:02.493889+00:00');
-INSERT INTO tickets_status_record VALUES(118,60,4,'executed','2026-05-15T12:20:02.504263+00:00');
-INSERT INTO tickets_status_record VALUES(119,61,4,'created','2026-05-15T12:20:02.515319+00:00');
-INSERT INTO tickets_status_record VALUES(120,61,4,'cancelled','2026-05-15T12:20:02.526574+00:00');
-INSERT INTO tickets_status_record VALUES(121,62,4,'created','2026-05-15T12:20:12.043773+00:00');
-INSERT INTO tickets_status_record VALUES(122,62,14,'at_work','2026-05-15T12:20:12.054777+00:00');
-INSERT INTO tickets_status_record VALUES(123,62,4,'executed','2026-05-15T12:20:12.064258+00:00');
-INSERT INTO tickets_status_record VALUES(124,63,4,'created','2026-05-15T12:20:12.073792+00:00');
-INSERT INTO tickets_status_record VALUES(125,63,4,'cancelled','2026-05-15T12:20:12.082688+00:00');
-INSERT INTO tickets_status_record VALUES(126,64,122,'created','2026-06-01T14:34:56.078556+00:00');
-INSERT INTO tickets_status_record VALUES(127,64,24,'at_work','2026-06-01T14:43:48.609217+00:00');
-INSERT INTO tickets_status_record VALUES(128,64,122,'executed','2026-06-01T14:44:38.522986+00:00');
-INSERT INTO tickets_status_record VALUES(129,65,122,'created','2026-06-04T11:23:11.891604+00:00');
-INSERT INTO tickets_status_record VALUES(130,66,122,'created','2026-06-04T11:23:29.080643+00:00');
-INSERT INTO tickets_status_record VALUES(131,66,122,'deferred','2026-06-04T11:23:52.864372+00:00');
-INSERT INTO tickets_status_record VALUES(132,66,122,'cancelled','2026-06-04T11:25:07.616502+00:00');
-INSERT INTO tickets_status_record VALUES(133,67,122,'created','2026-06-04T12:26:18.602906+00:00');
-INSERT INTO tickets_status_record VALUES(134,67,122,'cancelled','2026-06-04T12:34:57.631722+00:00');
-INSERT INTO tickets_status_record VALUES(135,68,160,'created','2026-06-08T14:43:29.102654+00:00');
 CREATE TABLE user_tickets_comment (
 	user_comment_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	user_ticket_id INTEGER,
@@ -935,28 +709,6 @@ CREATE TABLE user_tickets_executor_assignments (
 	CONSTRAINT executor_assignments_admin_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict,
 	CONSTRAINT executor_assignments_tickets_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict
 );
-CREATE TABLE tickets (
-	ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	client_id INTEGER, -- клиент
-	admin_id INTEGER, -- создатель заявки
-	user_id INTEGER DEFAULT NULL, -- заявитель от клиента, может не быть
-	user_ticket_contact_user_id INTEGER NULL, -- контактное лицо от клиента. может не быть
-	user_ticket_id INTEGER DEFAULT NULL, -- связь с заявкой созданной пользователем клиентом, может не быть 
-	text_of_ticket TEXT, -- текст заявки
-	date_created TEXT, -- дата создания
-	is_remote INTEGER DEFAULT (0), -- сделана удаленно, возможно удаленное решение
-	is_closed INTEGER DEFAULT (0), -- заявка завершена
-	date_closed TEXT, -- дата завершения или снятия заявки
-	urgency_level INTEGER DEFAULT (0), -- срочная или несрочная 
-        department_id INTEGER DEFAULT NULL,
-	version INTEGER, description TEXT, -- версия
-	CONSTRAINT tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
-	CONSTRAINT tickets_admin_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict,
-	CONSTRAINT tickets_user_user_FK FOREIGN KEY (user_id) REFERENCES employees(employee_id) on delete restrict,
-	CONSTRAINT tickets_user_ticket_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict,
-        CONSTRAINT tickets_user_ticket_contact_user_FK FOREIGN KEY (user_ticket_contact_user_id) REFERENCES employees(employee_id) on delete restrict,
-        CONSTRAINT tickets_departments_FK FOREIGN KEY (department_id) REFERENCES departments(department_id) ON DELETE RESTRICT
-);
 CREATE TABLE user_tickets (
 	user_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	client_id INTEGER, -- заявки от какого клиента
@@ -978,15 +730,108 @@ INSERT INTO user_tickets VALUES(4,4,67,67,'Printer problem 20260515155041','2026
 INSERT INTO user_tickets VALUES(5,4,67,67,'Printer problem 20260515155311','2026-05-15T12:53:13.470707+00:00',0,NULL,0);
 INSERT INTO user_tickets VALUES(6,4,67,67,'Printer problem 20260515155810','2026-05-15T12:58:13.522030+00:00',0,NULL,0);
 INSERT INTO user_tickets VALUES(7,4,67,67,'Printer problem 20260515160016','2026-05-15T13:00:16.095893+00:00',1,'2026-05-15T13:00:16.107648+00:00',1);
+CREATE TABLE ticket_comments (
+    ticket_comment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    ticket_id INTEGER NOT NULL,
+    employee_id INTEGER NOT NULL,
+
+    comment TEXT NOT NULL,
+    date_created TEXT NOT NULL,
+
+    FOREIGN KEY (ticket_id)
+        REFERENCES tickets(ticket_id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (employee_id)
+        REFERENCES employees(employee_id)
+        ON DELETE RESTRICT
+);
+CREATE TABLE ticket_status_records (
+    status_id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    ticket_id INTEGER NOT NULL,
+
+    actor_employee_id INTEGER NOT NULL,
+
+    status TEXT NOT NULL,
+    date_created TEXT NOT NULL,
+
+    executor_id INTEGER NULL,
+
+    planned_start_at TEXT NULL,
+    planned_finish_at TEXT NULL,
+
+    actual_started_at TEXT NULL,
+    actual_finished_at TEXT NULL,
+
+    comment TEXT NOT NULL DEFAULT '',
+
+    FOREIGN KEY (ticket_id)
+        REFERENCES tickets(ticket_id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (actor_employee_id)
+        REFERENCES employees(employee_id)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (executor_id)
+        REFERENCES admins(employee_id)
+        ON DELETE RESTRICT
+);
+CREATE TABLE tickets (
+    ticket_id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    client_id INTEGER NOT NULL,
+    admin_id INTEGER NOT NULL,
+
+    user_id INTEGER NULL,
+    contact_user_id INTEGER NULL,
+    user_ticket_id INTEGER NULL,
+
+    department_id INTEGER NULL,
+
+    text_of_ticket TEXT NOT NULL,
+    description TEXT NULL,
+
+    date_created TEXT NOT NULL,
+
+    is_remote INTEGER NOT NULL DEFAULT 0
+        CHECK (is_remote IN (0, 1)),
+
+    urgency_level INTEGER NOT NULL DEFAULT 0,
+
+    version INTEGER NOT NULL DEFAULT 0,
+
+    FOREIGN KEY (client_id)
+        REFERENCES clients(client_id)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (admin_id)
+        REFERENCES admins(employee_id)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(employee_id)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (contact_user_id)
+        REFERENCES users(employee_id)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (user_ticket_id)
+        REFERENCES user_tickets(user_ticket_id)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (department_id)
+        REFERENCES departments(department_id)
+        ON DELETE RESTRICT
+);
 DELETE FROM sqlite_sequence;
 INSERT INTO sqlite_sequence VALUES('employees',172);
 INSERT INTO sqlite_sequence VALUES('accounts',493);
 INSERT INTO sqlite_sequence VALUES('roles',66);
 INSERT INTO sqlite_sequence VALUES('clients',25);
-INSERT INTO sqlite_sequence VALUES('tickets',68);
-INSERT INTO sqlite_sequence VALUES('tickets_status_record',135);
-INSERT INTO sqlite_sequence VALUES('tickets_executor_assignment',22);
-INSERT INTO sqlite_sequence VALUES('tickets_comment',43);
 INSERT INTO sqlite_sequence VALUES('user_tickets',7);
 INSERT INTO sqlite_sequence VALUES('user_tickets_status_record',16);
 INSERT INTO sqlite_sequence VALUES('user_tickets_comment',2);
@@ -995,4 +840,25 @@ CREATE UNIQUE INDEX accounts_login_IDX ON accounts (login);
 CREATE UNIQUE INDEX accounts_employee_uq ON accounts(employee_id);
 CREATE UNIQUE INDEX idx_departments_name
 ON departments(name);
+CREATE INDEX idx_tickets_client_id
+    ON tickets(client_id);
+CREATE INDEX idx_tickets_department_id
+    ON tickets(department_id);
+CREATE INDEX idx_tickets_user_ticket_id
+    ON tickets(user_ticket_id);
+CREATE INDEX idx_ticket_status_records_history
+    ON ticket_status_records(
+        ticket_id,
+        date_created,
+        status_id
+    );
+CREATE INDEX idx_ticket_status_records_executor
+    ON ticket_status_records(executor_id)
+    WHERE executor_id IS NOT NULL;
+CREATE INDEX idx_ticket_comments_history
+    ON ticket_comments(
+        ticket_id,
+        date_created,
+        ticket_comment_id
+    );
 COMMIT;

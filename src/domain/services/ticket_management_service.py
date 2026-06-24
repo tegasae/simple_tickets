@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-
+from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordFactory
+
 from src.domain.ticket import Ticket
 
 
@@ -24,8 +24,9 @@ class TicketManagementService:
         actor_employee_id: int,
         comment: str = "",
     ) -> TicketStatusRecord:
-        record = TicketStatusRecordFactory.accepted(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.ACCEPTED,
             comment=comment,
         )
 
@@ -43,8 +44,9 @@ class TicketManagementService:
         actor_employee_id: int,
         comment: str,
     ) -> TicketStatusRecord:
-        record = TicketStatusRecordFactory.rejected(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.REJECTED,
             comment=comment,
         )
 
@@ -62,8 +64,9 @@ class TicketManagementService:
         actor_employee_id: int,
         comment: str,
     ) -> TicketStatusRecord:
-        record = TicketStatusRecordFactory.deferred(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.DEFERRED,
             comment=comment,
         )
 
@@ -83,13 +86,13 @@ class TicketManagementService:
         planned_finish_at: datetime | None = None,
         comment: str = "",
     ) -> TicketStatusRecord:
-        record = TicketStatusRecordFactory.scheduled(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.SCHEDULED,
             planned_start_at=planned_start_at,
             planned_finish_at=planned_finish_at,
             comment=comment,
         )
-
         TicketManagementService._append_status(
             ticket=ticket,
             record=record,
@@ -105,8 +108,9 @@ class TicketManagementService:
         executor_id: int,
         comment: str = "",
     ) -> TicketStatusRecord:
-        record = TicketStatusRecordFactory.assigned(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.ASSIGNED,
             executor_id=executor_id,
             comment=comment,
         )
@@ -128,8 +132,9 @@ class TicketManagementService:
         planned_finish_at: datetime | None = None,
         comment: str = "",
     ) -> TicketStatusRecord:
-        record = TicketStatusRecordFactory.ready_to_work(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.READY_TO_WORK,
             executor_id=executor_id,
             planned_start_at=planned_start_at,
             planned_finish_at=planned_finish_at,
@@ -150,8 +155,9 @@ class TicketManagementService:
         actor_employee_id: int,
         comment: str,
     ) -> TicketStatusRecord:
-        record = TicketStatusRecordFactory.cancelled(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.CANCELLED,
             comment=comment,
         )
 
