@@ -56,7 +56,15 @@ class BaseRepository:
         except Exception as e:
             raise PersistenceError(str(e)) from e
 
-    def _exists(self, sql: str, params: dict[str, Any] | None = None) -> bool:
-        row = self._get_one(sql, var=["one"], params=params)
+    def _exists(
+            self,
+            sql: str,
+            params: dict[str, Any] | None = None,
+    ) -> bool:
+        row = self._get_one(
+            sql,
+            var=["one"],
+            params=params,
+        )
 
-        return bool(row.get("one",0))
+        return bool(row and row.get("one", 0))

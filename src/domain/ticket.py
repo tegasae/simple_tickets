@@ -55,7 +55,7 @@ class Ticket:
     comments: list[Comment] = field(default_factory=list)
 
     date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-
+    department_id:int=0
     is_remote: bool = False
     is_closed: bool = False
     date_finished: datetime | None = None
@@ -63,6 +63,7 @@ class Ticket:
     version: int = 0
     urgency_level: int = 0
     user_ticket_id: int = 0
+    description:str=""
 
     @classmethod
     def create(
@@ -77,7 +78,10 @@ class Ticket:
         is_remote: bool = False,
         urgency_level: int = 0,
         user_ticket_id: int = 0,
+        department_id:int=0,
         comment: str = "",
+        description:str=""
+
     ) -> Self:
         """
         Создаёт новую заявку.
@@ -96,6 +100,8 @@ class Ticket:
             is_remote=is_remote,
             urgency_level=urgency_level,
             user_ticket_id=user_ticket_id,
+            department_id=department_id,
+            description=description,
             statuses=[
                 TicketStatusRecord(
                     actor_employee_id=admin_id,
@@ -127,6 +133,8 @@ class Ticket:
         statuses: list[TicketStatusRecord],
         comments: list[Comment] | None = None,
         date_created: datetime,
+        department_id:int=0,
+        description: str="",
         is_remote: bool = False,
         is_closed: bool = False,
         date_finished: datetime | None = None,
@@ -155,10 +163,12 @@ class Ticket:
             date_created=date_created,
             is_remote=is_remote,
             is_closed=is_closed,
+            department_id=department_id,
             date_finished=date_finished,
             version=version,
             urgency_level=urgency_level,
             user_ticket_id=user_ticket_id,
+            description=description,
         )
 
     def __post_init__(self) -> None:
