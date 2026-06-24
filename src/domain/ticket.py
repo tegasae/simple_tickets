@@ -8,7 +8,11 @@ from typing import Self
 
 from src.domain.exceptions import DomainOperationError
 from src.domain.policy.ticket_workflow_policy import TicketWorkflowPolicy
-from src.domain.statuses.ticket_status import TicketStatus, TERMINAL_TICKET_STATUSES
+from src.domain.statuses.ticket_status import (
+    TicketStatus,
+    is_department_change_locked,
+    is_terminal_ticket_status,
+)
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordFactory
 from src.domain.ticket_components import Comment
@@ -203,7 +207,9 @@ class Ticket:
         return self.current_executor_id() > 0
 
     def is_terminal(self) -> bool:
-        return self.current_status() in TERMINAL_TICKET_STATUSES
+        return is_terminal_ticket_status(
+            self.current_status(),
+        )
 
     def new_statuses(self) -> list[TicketStatusRecord]:
         """
@@ -215,6 +221,12 @@ class Ticket:
             for status in self.statuses
             if status.is_new()
         ]
+
+    def change_department(self)->None:
+        if is_department_change_locked(self.current_status()):
+            raise DomainOperationError(
+                "Cannot change ticket department in current status"
+            )
 
     def new_comments(self) -> list[Comment]:
         """
@@ -284,7 +296,7 @@ class Ticket:
         """
         Пересчитывает derived state.
 
-        is_closed/date_finished — производные от текущего статуса.
+        is_closed и date_finished определяются текущим статусом.
         """
 
         if not self.statuses:
@@ -292,15 +304,12 @@ class Ticket:
             self.date_finished = None
             return
 
-        if self.current_status() in TERMINAL_TICKET_STATUSES:
-            self.is_closed = True
+        self.is_closed = self.is_terminal()
 
-            if self.date_finished is None:
-                self.date_finished = self.current_status_record().date_created
+        if self.is_closed:
+            self.date_finished = self.current_status_record().date_created
         else:
-            self.is_closed = False
             self.date_finished = None
-
     # ----------------------------
     # Analytics
     # ----------------------------
