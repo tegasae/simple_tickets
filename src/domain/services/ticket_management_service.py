@@ -2,10 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.domain.policy.ticket_workflow_actor_policy import (
-    TicketWorkflowActorKind,
-    TicketWorkflowActorPolicy,
-)
+
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordFactory
 from src.domain.ticket import Ticket
@@ -167,14 +164,8 @@ class TicketManagementService:
 
     @staticmethod
     def _append_status(
-        *,
-        ticket: Ticket,
-        record: TicketStatusRecord,
+            *,
+            ticket: Ticket,
+            record: TicketStatusRecord,
     ) -> None:
-        TicketWorkflowActorPolicy.ensure_actor_can_change_status(
-            actor_kind=TicketWorkflowActorKind.MANAGER,
-            current_status=ticket.current_status(),
-            new_status=record.status,
-        )
-
         ticket.append_status(record)

@@ -3,10 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from src.domain.exceptions import DomainOperationError
-from src.domain.policy.ticket_workflow_actor_policy import (
-    TicketWorkflowActorKind,
-    TicketWorkflowActorPolicy,
-)
+from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordFactory
 from src.domain.ticket import Ticket
@@ -27,6 +24,7 @@ class TicketReviewService:
         """
         READY_FOR_REVIEW -> EXECUTED
         """
+
 
         record = TicketStatusRecordFactory.executed(
             actor_employee_id=actor_employee_id,
@@ -52,6 +50,7 @@ class TicketReviewService:
 
         Возвращает заявку тому же исполнителю.
         """
+
 
         executor_id = TicketReviewService._current_executor_or_raise(
             ticket
@@ -110,6 +109,7 @@ class TicketReviewService:
         READY_FOR_REVIEW -> SCHEDULED
         """
 
+
         record = TicketStatusRecordFactory.scheduled(
             actor_employee_id=actor_employee_id,
             planned_start_at=planned_start_at,
@@ -138,6 +138,7 @@ class TicketReviewService:
         READY_FOR_REVIEW -> READY_TO_WORK
         """
 
+
         record = TicketStatusRecordFactory.ready_to_work(
             actor_employee_id=actor_employee_id,
             executor_id=executor_id,
@@ -164,6 +165,7 @@ class TicketReviewService:
         READY_FOR_REVIEW -> DEFERRED
         """
 
+
         record = TicketStatusRecordFactory.deferred(
             actor_employee_id=actor_employee_id,
             comment=comment,
@@ -178,16 +180,14 @@ class TicketReviewService:
 
     @staticmethod
     def _append_status(
-        *,
-        ticket: Ticket,
-        record: TicketStatusRecord,
+            *,
+            ticket: Ticket,
+            record: TicketStatusRecord,
     ) -> None:
-        TicketWorkflowActorPolicy.ensure_actor_can_change_status(
-            actor_kind=TicketWorkflowActorKind.REVIEWER,
-            current_status=ticket.current_status(),
-            new_status=record.status,
-        )
-
+        if ticket.current_status() != TicketStatus.READY_FOR_REVIEW:
+            raise DomainOperationError(
+                "Ticket must be in READY_FOR_REVIEW status"
+            )
         ticket.append_status(record)
 
     @staticmethod
@@ -200,3 +200,4 @@ class TicketReviewService:
             )
 
         return executor_id
+
