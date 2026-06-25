@@ -7,12 +7,12 @@ from datetime import datetime, timezone
 from typing import Self
 
 from src.domain.exceptions import DomainOperationError
-from src.domain.policy.ticket_workflow_policy import TicketWorkflowPolicy
+
 from src.domain.statuses.ticket_status import (
     TicketStatus,
-    is_department_change_locked,
-    is_terminal_ticket_status,
+    get_ticket_state
 )
+
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 
 from src.domain.ticket_components import Comment
@@ -218,8 +218,29 @@ class Ticket:
         return self.current_executor_id() > 0
 
     def is_terminal(self) -> bool:
-        return is_terminal_ticket_status(
-            self.current_status(),
+        return get_ticket_state(
+            self.current_status()
+        ).terminal
+
+    def can_change_status(
+            self,
+            new_status: TicketStatus,
+    ) -> bool:
+        """
+        Returns True when Ticket may transition to new_status
+        according to its current TicketState.
+
+        Does not mutate Ticket.
+        """
+        current_state = get_ticket_state(
+            self.current_status()
+        )
+
+        if current_state.terminal:
+            return False
+
+        return current_state.allows_transition_to(
+            new_status
         )
 
     def new_statuses(self) -> list[TicketStatusRecord]:
@@ -233,11 +254,14 @@ class Ticket:
             if status.is_new()
         ]
 
-    def change_department(self)->None:
-        if is_department_change_locked(self.current_status()):
+    def change_department(self) -> None:
+        if get_ticket_state(
+                self.current_status()
+        ).locks_department_change:
             raise DomainOperationError(
                 "Cannot change ticket department in current status"
             )
+
 
     def new_comments(self) -> list[Comment]:
         """
@@ -256,27 +280,19 @@ class Ticket:
 
     def append_status(self, record: TicketStatusRecord) -> None:
         """
-        Добавляет новую workflow-запись в историю заявки.
+        Adds a workflow record to Ticket history.
 
-        Проверяет только локальные инварианты:
-        - заявка не terminal;
-        - переход допустим по общему графу workflow.
-
-        Не проверяет:
-        - permissions;
-        - actor kind;
-        - actor является текущим executor или нет;
-        - executor существует;
-        - executor enabled;
-        - executor принадлежит department заявки.
+        Ticket itself protects the aggregate invariant:
+        the status transition must be allowed by TicketState.
         """
-
         self._ensure_not_terminal()
 
-        TicketWorkflowPolicy.ensure_can_change_status(
-            current_status=self.current_status(),
-            new_status=record.status,
-        )
+        if not self.can_change_status(record.status):
+            raise DomainOperationError(
+                "Ticket status transition is not allowed: "
+                f"{self.current_status().value} -> "
+                f"{record.status.value}"
+            )
 
         self.statuses.append(record)
         self._recompute_closed_state()
@@ -292,9 +308,13 @@ class Ticket:
         self._ensure_not_terminal()
         self.comments.append(comment)
 
+
+
     # ----------------------------
     # Internal helpers
     # ----------------------------
+
+
 
     def _ensure_not_terminal(self) -> None:
         if self.is_terminal():

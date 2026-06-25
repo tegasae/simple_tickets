@@ -7,7 +7,8 @@ from src.domain.employee import Admin
 from src.domain.exceptions import DomainOperationError
 from src.domain.policy.admin import AdminPolicy
 from src.domain.rbac.permissions import AdminPermission
-from src.services.uow.uow import UnitOfWork
+from src.domain.uow.unit_of_work import UnitOfWork
+
 
 class AdminApplicationService:
     """
