@@ -212,9 +212,7 @@ class TicketStatusRecord:
             self._validate_at_work_payload()
             return
 
-        if self.status == TicketStatus.OFFLINE_WORK:
-            self._validate_offline_work_payload()
-            return
+
 
         if self.status == TicketStatus.READY_FOR_REVIEW:
             self._validate_ready_for_review_payload()
@@ -233,27 +231,27 @@ class TicketStatusRecord:
                 "AT_WORK cannot have actual finish time"
             )
 
-    def _validate_offline_work_payload(self) -> None:
-        if self.actual_started_at is None:
-            raise ItemValidationError(
-                "OFFLINE_WORK requires actual start time"
-            )
 
-        if self.actual_finished_at is None:
-            raise ItemValidationError(
-                "OFFLINE_WORK requires actual finish time"
-            )
 
     def _validate_ready_for_review_payload(self) -> None:
-        if self.actual_started_at is not None:
+        if self.executor_id <= 0:
             raise ItemValidationError(
-                "READY_FOR_REVIEW cannot have actual start time"
+                "READY_FOR_REVIEW requires executor_id"
             )
 
         if self.actual_finished_at is None:
             raise ItemValidationError(
-                "READY_FOR_REVIEW requires actual finish time"
+                "READY_FOR_REVIEW requires actual_finished_at"
             )
+
+        if (
+                self.actual_started_at is not None
+                and self.actual_started_at > self.actual_finished_at
+        ):
+            raise ItemValidationError(
+                "actual_started_at cannot be after actual_finished_at"
+            )
+
 
     def _ensure_no_actual_times(self) -> None:
         if self.actual_started_at is not None:

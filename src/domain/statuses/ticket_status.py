@@ -16,7 +16,6 @@ class TicketStatus(StrEnum):
     READY_TO_WORK = "ready_to_work"
     AT_WORK = "at_work"
     PAUSED = "paused"
-    OFFLINE_WORK = "offline_work"
     READY_FOR_REVIEW = "ready_for_review"
     EXECUTED = "executed"
     CANCELLED = "cancelled"
@@ -113,6 +112,7 @@ SCHEDULED_STATE: Final = TicketState(
         TicketStatus.ACCEPTED,
         TicketStatus.DEFERRED,
         TicketStatus.CANCELLED,
+        TicketStatus.READY_FOR_REVIEW,  #
     }),
 )
 
@@ -126,9 +126,9 @@ ASSIGNED_STATE: Final = TicketState(
         TicketStatus.SCHEDULED,
         TicketStatus.ACCEPTED,
         TicketStatus.AT_WORK,
-        TicketStatus.OFFLINE_WORK,
         TicketStatus.DEFERRED,
         TicketStatus.CANCELLED,
+        TicketStatus.READY_FOR_REVIEW,  #
     }),
 )
 
@@ -143,9 +143,9 @@ READY_TO_WORK_STATE: Final = TicketState(
         TicketStatus.ASSIGNED,
         TicketStatus.ACCEPTED,
         TicketStatus.AT_WORK,
-        TicketStatus.OFFLINE_WORK,
         TicketStatus.DEFERRED,
         TicketStatus.CANCELLED,
+        TicketStatus.READY_FOR_REVIEW,  #
     }),
 )
 
@@ -180,15 +180,6 @@ PAUSED_STATE: Final = TicketState(
     }),
 )
 
-OFFLINE_WORK_STATE: Final = TicketState(
-    status=TicketStatus.OFFLINE_WORK,
-    requires_executor=True,
-    work_started=True,
-    locks_department_change=True,
-    allowed_next=frozenset({
-        TicketStatus.READY_FOR_REVIEW,
-    }),
-)
 
 READY_FOR_REVIEW_STATE: Final = TicketState(
     status=TicketStatus.READY_FOR_REVIEW,
@@ -229,7 +220,6 @@ _TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
         READY_TO_WORK_STATE,
         AT_WORK_STATE,
         PAUSED_STATE,
-        OFFLINE_WORK_STATE,
         READY_FOR_REVIEW_STATE,
         EXECUTED_STATE,
         CANCELLED_STATE,

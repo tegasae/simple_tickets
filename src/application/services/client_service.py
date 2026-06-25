@@ -7,10 +7,10 @@ from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.client import Client
 from src.domain.policy.client import ClientPolicy
 from src.domain.policy.ticket import TicketPolicy
-from src.domain.policy.ticket_workflow_policy import TicketWorkflowPolicy
+
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.ticket_management_service import TicketManagementService
-from src.domain.statuses.ticket_status import TicketStatus
+
 
 from src.domain.uow.unit_of_work import UnitOfWork
 
@@ -195,16 +195,11 @@ class ClientApplicationService:
                 batch_size=500,
         ):
             for ticket in tickets_batch:
-                if not TicketWorkflowPolicy.can_change_status(
-                        current_status=ticket.current_status(),
-                        new_status=TicketStatus.DEFERRED,
-                ):
-                    continue
-
-                self.ticket_management.defer(
+                changed = self.ticket_management.handle_client_disabled(
                     ticket=ticket,
                     actor_employee_id=actor_admin_id,
                     comment="Client disabled",
                 )
 
-                self.uow.tickets.save(ticket)
+                if changed:
+                    self.uow.tickets.save(ticket)

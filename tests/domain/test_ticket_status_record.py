@@ -260,57 +260,7 @@ def test_paused_can_have_executor() -> None:
     assert record.executor_id == 10
 
 
-# ----------------------------
-# OFFLINE_WORK
-# ----------------------------
 
-
-def test_offline_work_requires_executor() -> None:
-    assert_invalid(
-        status=TicketStatus.OFFLINE_WORK,
-        actual_started_at=PAST_START,
-        actual_finished_at=PAST_FINISH,
-    )
-
-
-def test_offline_work_requires_actual_start() -> None:
-    assert_invalid(
-        status=TicketStatus.OFFLINE_WORK,
-        executor_id=10,
-        actual_finished_at=PAST_FINISH,
-    )
-
-
-def test_offline_work_requires_actual_finish() -> None:
-    assert_invalid(
-        status=TicketStatus.OFFLINE_WORK,
-        executor_id=10,
-        actual_started_at=PAST_START,
-    )
-
-
-def test_offline_work_cannot_have_planned_time() -> None:
-    assert_invalid(
-        status=TicketStatus.OFFLINE_WORK,
-        executor_id=10,
-        planned_start_at=PAST_START,
-        actual_started_at=PAST_START,
-        actual_finished_at=PAST_FINISH,
-    )
-
-
-def test_offline_work_can_have_executor_actual_start_and_actual_finish() -> None:
-    record = make_record(
-        status=TicketStatus.OFFLINE_WORK,
-        executor_id=10,
-        actual_started_at=PAST_START,
-        actual_finished_at=PAST_FINISH,
-    )
-
-    assert record.status == TicketStatus.OFFLINE_WORK
-    assert record.executor_id == 10
-    assert record.actual_started_at == PAST_START
-    assert record.actual_finished_at == PAST_FINISH
 
 
 # ----------------------------
@@ -458,13 +408,7 @@ def test_planned_finish_cannot_be_before_planned_start() -> None:
     )
 
 
-def test_actual_finish_cannot_be_before_actual_start() -> None:
-    assert_invalid(
-        status=TicketStatus.OFFLINE_WORK,
-        executor_id=10,
-        actual_started_at=PAST_FINISH,
-        actual_finished_at=PAST_START,
-    )
+
 
 
 def test_actual_start_cannot_be_in_future() -> None:
@@ -475,10 +419,3 @@ def test_actual_start_cannot_be_in_future() -> None:
     )
 
 
-def test_actual_finish_cannot_be_in_future() -> None:
-    assert_invalid(
-        status=TicketStatus.OFFLINE_WORK,
-        executor_id=10,
-        actual_started_at=PAST_START,
-        actual_finished_at=FUTURE,
-    )

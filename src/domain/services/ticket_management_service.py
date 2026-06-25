@@ -57,12 +57,14 @@ class TicketManagementService:
 
         return record
 
+
+
     @staticmethod
     def defer(
-        *,
-        ticket: Ticket,
-        actor_employee_id: int,
-        comment: str,
+            *,
+            ticket: Ticket,
+            actor_employee_id: int,
+            comment: str,
     ) -> TicketStatusRecord:
         record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
@@ -70,12 +72,50 @@ class TicketManagementService:
             comment=comment,
         )
 
-        TicketManagementService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+        ticket.append_status(record)
 
         return record
+
+    @staticmethod
+    def handle_client_disabled(
+            *,
+            ticket: Ticket,
+            actor_employee_id: int,
+            comment: str = "",
+    ) -> bool:
+        """
+         Applies Ticket workflow rules after Client was disabled.
+
+         Returns:
+             True  - Ticket was changed;
+             False - Ticket must remain in its current status.
+         """
+        current_status = ticket.current_status()
+
+        if current_status == TicketStatus.CREATED:
+            TicketManagementService.reject(
+                ticket=ticket,
+                actor_employee_id=actor_employee_id,
+                comment=comment,
+            )
+            return True
+
+        if current_status in {
+            TicketStatus.ACCEPTED,
+            TicketStatus.SCHEDULED,
+            TicketStatus.ASSIGNED,
+            TicketStatus.READY_TO_WORK,
+        }:
+            TicketManagementService.defer(
+                ticket=ticket,
+                actor_employee_id=actor_employee_id,
+                comment=comment,
+            )
+            return True
+
+        return False
+
+
 
     @staticmethod
     def schedule(
