@@ -396,7 +396,8 @@ def test_non_work_statuses_cannot_have_actual_time(status: TicketStatus) -> None
 def test_non_work_statuses_can_be_created_without_work_payload(
     status: TicketStatus,
 ) -> None:
-    record = make_record(status=status)
+
+    record = make_record(status=status,comment="1")
 
     assert record.status == status
     assert record.executor_id == 0

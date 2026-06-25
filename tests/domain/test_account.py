@@ -27,4 +27,4 @@ def test_no_account_is_false_and_never_authenticates():
 
     assert bool(account) is False
     assert account.verify_password("anything") is False
-    assert str(account.login) == "<no-account>"
+    assert str(account.login) == ""

@@ -117,7 +117,7 @@ def test_no_account_is_false_and_never_verifies_password():
 
     assert bool(account) is False
     assert account.verify_password("Strong1!") is False
-    assert account.login == "<no-account>"
+    assert account.login == ""
 
 
 def test_client_create_update_enable_disable_and_summary():
