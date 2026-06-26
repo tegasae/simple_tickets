@@ -347,23 +347,31 @@ class Ticket:
 
         self.department_id = department_id
 
-    def update_details(
+    def update_ticket_text(
             self,
             *,
             text_of_ticket: str,
-            description: str,
-            contact_user_id: int,
     ) -> None:
         state = get_ticket_state(self.current_status_record().status)
 
-        if not state.allows_details_update:
+        if not state.allows_ticket_text_update:
             raise DomainOperationError(
-                "Ticket details cannot be changed in the current status."
+                "Ticket text cannot be changed in the current status."
             )
 
         self.text_of_ticket = text_of_ticket
+
+    def update_description(
+            self,
+            *,
+            description: str,
+    ) -> None:
+        if self.is_terminal():
+            raise DomainOperationError(
+                "Ticket description cannot be changed after ticket completion."
+            )
+
         self.description = description
-        self.contact_user_id = contact_user_id
     # ----------------------------
     # Internal workflow helpers
     # ----------------------------
