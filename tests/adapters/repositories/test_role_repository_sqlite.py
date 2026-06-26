@@ -8,7 +8,7 @@ def test_role_repository_add_get_all_delete_admin_role(sqlite_schema):
     role = Role(
         role_id=0,
         name="ticket manager",
-        permissions=frozenset({AdminPermission.CREATE_TICKET, AdminPermission.UPDATE_TICKET}),
+        permissions=frozenset({AdminPermission.TICKET_OPERATION, AdminPermission.TICKET_OPERATION}),
         description="Can manage tickets",
     )
 
@@ -17,7 +17,7 @@ def test_role_repository_add_get_all_delete_admin_role(sqlite_schema):
 
     assert saved.role_id > 0
     assert loaded.name == "ticket manager"
-    assert loaded.has_permission(AdminPermission.CREATE_TICKET)
+    assert loaded.has_permission(AdminPermission.TICKET_OPERATION)
     assert any(r.role_id == saved.role_id and r.name == saved.name for r in repo.all())
 
     repo.delete(saved.role_id)
@@ -28,8 +28,8 @@ def test_role_repository_separates_admin_and_user_realms(sqlite_schema):
     admin_repo = RoleRepositorySQLite(conn=sqlite_schema, permission_cls=AdminPermission, is_admin=True)
     user_repo = RoleRepositorySQLite(conn=sqlite_schema, permission_cls=UserPermission, is_admin=False)
 
-    admin_repo.add(Role(role_id=0, name="admin role", permissions=frozenset({AdminPermission.CREATE_USER})))
-    user_repo.add(Role(role_id=0, name="user role", permissions=frozenset({UserPermission.CREATE_TICKET})))
+    admin_repo.add(Role(role_id=0, name="admin role", permissions=frozenset({AdminPermission.USER_OPERATION})))
+    user_repo.add(Role(role_id=0, name="user role", permissions=frozenset({UserPermission.TICKET_OPERATION})))
 
     assert [r.name for r in admin_repo.all()] == ["admin role"]
     assert [r.name for r in user_repo.all()] == ["user role"]

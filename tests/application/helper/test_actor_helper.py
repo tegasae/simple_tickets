@@ -10,11 +10,11 @@ def test_require_actor_admin_returns_admin_with_permission(uow):
     admin = Admin.create(employee_id=1, first_name="Root")
     admin.grant_role(1)
     uow.admins.save(admin)
-    uow.roles_admin.save(Role(role_id=1, name="operators", permissions=frozenset({AdminPermission.CREATE_USER})))
+    uow.roles_admin.save(Role(role_id=1, name="operators", permissions=frozenset({AdminPermission.USER_OPERATION})))
 
     helper = EmployeeActorHelper(uow)  # type: ignore[arg-type]
 
-    assert helper.require_actor_admin(actor_admin_id=1, permission=AdminPermission.CREATE_USER) == admin
+    assert helper.require_actor_admin(actor_admin_id=1, permission=AdminPermission.USER_OPERATION) == admin
 
 
 def test_require_actor_admin_rejects_missing_permission(uow):
@@ -23,14 +23,14 @@ def test_require_actor_admin_rejects_missing_permission(uow):
     helper = EmployeeActorHelper(uow)  # type: ignore[arg-type]
 
     with pytest.raises(PermissionError):
-        helper.require_actor_admin(actor_admin_id=1, permission=AdminPermission.CREATE_USER)
+        helper.require_actor_admin(actor_admin_id=1, permission=AdminPermission.USER_OPERATION)
 
 
 def test_require_actor_user_returns_user_with_permission(uow):
     user = User.create(employee_id=2, first_name="Alice", client_id=10)
     user.grant_role(5)
     uow.users.save(user)
-    uow.roles_user.save(Role(role_id=5, name="ticket creator", permissions=frozenset({UserPermission.CREATE_TICKET})))
+    uow.roles_user.save(Role(role_id=5, name="ticket creator", permissions=frozenset({UserPermission.TICKET_OPERATION})))
     helper = EmployeeActorHelper(uow)  # type: ignore[arg-type]
 
-    assert helper.require_actor_user(actor_user_id=2, permission=UserPermission.CREATE_TICKET) == user
+    assert helper.require_actor_user(actor_user_id=2, permission=UserPermission.TICKET_OPERATION) == user

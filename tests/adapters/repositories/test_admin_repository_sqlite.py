@@ -11,7 +11,7 @@ def test_admin_repository_save_get_update_roles_and_account(sqlite_schema):
         login="john-admin",
         password="Secret123!",
         job_title="Engineer",
-        roles=frozenset({1, 2}),
+        roles=({1, 2}),
     )
 
     saved = repo.save(admin)

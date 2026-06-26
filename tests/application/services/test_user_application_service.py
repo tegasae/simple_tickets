@@ -19,10 +19,10 @@ def prepare_actor_and_client(uow):
             name="user manager",
             permissions=frozenset(
                 {
-                    AdminPermission.CREATE_USER,
-                    AdminPermission.UPDATE_USER,
-                    AdminPermission.ASSIGN_ROLE,
-                    AdminPermission.REVOKE_ROLE,
+                    AdminPermission.USER_OPERATION,
+                    AdminPermission.USER_OPERATION,
+                    AdminPermission.ROLE_ASSIGN,
+                    AdminPermission.ROLE_REVOKE,
                 }
             ),
         )
@@ -87,7 +87,7 @@ def test_attach_detach_and_change_password(uow):
     assert uow.users.get(2).account.verify_password("NewSecret123!") is True
 
     detached = service.detach_account(user_dto=UserDTO(actor_admin_id=1, employee_id=2, client_id=1))
-    assert detached.login == "<no-account>"
+    assert detached.login == ""
 
 
 def test_disable_enable_user(uow):

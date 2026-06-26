@@ -43,6 +43,17 @@ class FakeRepository:
     def get_all(self):
         return list(self.items.values())
 
+    def get_all_by_client_id(
+            self,
+            *,
+            client_id: int,
+    ):
+        return [
+            entity
+            for entity in self.items.values()
+            if getattr(entity, "client_id", None) == client_id
+        ]
+
     def delete(self, entity_id):
         del self.items[int(entity_id)]
 
@@ -72,3 +83,22 @@ class FakeRepository:
             or getattr(entity, "contact_user_id", None) == user_id
             for entity in self.items.values()
         )
+
+    def iter_active_by_client_id(
+            self,
+            *,
+            client_id: int,
+            batch_size: int,
+    ):
+        if batch_size <= 0:
+            raise ValueError("batch_size must be greater than zero")
+
+        tickets = [
+            ticket
+            for ticket in self.items.values()
+            if getattr(ticket, "client_id", None) == client_id
+               and not ticket.is_terminal()
+        ]
+
+        for start in range(0, len(tickets), batch_size):
+            yield tickets[start:start + batch_size]
