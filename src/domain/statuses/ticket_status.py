@@ -57,7 +57,7 @@ class TicketState:
     requires_planned_start: bool = False
     work_started: bool = False
     locks_department_change: bool = False
-
+    allows_details_update: bool = True
     allowed_next: frozenset[TicketStatus] = frozenset()
 
     def allows_transition_to(
@@ -72,15 +72,18 @@ CREATED_STATE: Final = TicketState(
     allowed_next=frozenset({
         TicketStatus.ACCEPTED,
         TicketStatus.REJECTED,
+
     }),
 )
 
 REJECTED_STATE: Final = TicketState(
+    allows_details_update=False,
     status=TicketStatus.REJECTED,
     terminal=True,
 )
 
 ACCEPTED_STATE: Final = TicketState(
+
     status=TicketStatus.ACCEPTED,
     allowed_next=frozenset({
         TicketStatus.DEFERRED,
@@ -154,6 +157,7 @@ AT_WORK_STATE: Final = TicketState(
     requires_executor=True,
     work_started=True,
     locks_department_change=True,
+    allows_details_update=False,
     allowed_next=frozenset({
         TicketStatus.PAUSED,
         TicketStatus.READY_FOR_REVIEW,
@@ -170,6 +174,7 @@ PAUSED_STATE: Final = TicketState(
     requires_executor=True,
     work_started=True,
     locks_department_change=True,
+    allows_details_update=False,
     allowed_next=frozenset({
         TicketStatus.AT_WORK,
         TicketStatus.DEFERRED,
@@ -186,6 +191,7 @@ READY_FOR_REVIEW_STATE: Final = TicketState(
     requires_executor=True,
     work_started=True,
     locks_department_change=True,
+    allows_details_update=False,
     allowed_next=frozenset({
         TicketStatus.EXECUTED,
         TicketStatus.AT_WORK,
@@ -199,11 +205,13 @@ READY_FOR_REVIEW_STATE: Final = TicketState(
 
 EXECUTED_STATE: Final = TicketState(
     status=TicketStatus.EXECUTED,
+    allows_details_update=False,
     terminal=True,
 )
 
 CANCELLED_STATE: Final = TicketState(
     status=TicketStatus.CANCELLED,
+    allows_details_update=False,
     terminal=True,
 )
 

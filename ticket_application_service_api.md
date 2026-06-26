@@ -80,7 +80,7 @@ return_to_ready_to_work(...)
 return_to_deferred(...)
 
 # Чтение
-list_tickets(criteria)
+list_tickets()
 get_ticket(ticket_id)
 ```
 

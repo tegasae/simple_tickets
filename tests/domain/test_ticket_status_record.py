@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from src.domain.exceptions import ItemValidationError
-from src.domain.statuses.ticket_status import TicketStatus
+from src.domain.statuses.ticket_status import TicketStatus, get_ticket_state
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 
 NOW = datetime.now(timezone.utc)
@@ -419,3 +419,31 @@ def test_actual_start_cannot_be_in_future() -> None:
     )
 
 
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (TicketStatus.CREATED, True),
+        (TicketStatus.ACCEPTED, True),
+        (TicketStatus.DEFERRED, True),
+        (TicketStatus.SCHEDULED, True),
+        (TicketStatus.ASSIGNED, True),
+        (TicketStatus.READY_TO_WORK, True),
+
+        (TicketStatus.AT_WORK, False),
+        (TicketStatus.PAUSED, False),
+        (TicketStatus.READY_FOR_REVIEW, False),
+
+        (TicketStatus.REJECTED, False),
+        (TicketStatus.EXECUTED, False),
+        (TicketStatus.CANCELLED, False),
+    ],
+)
+def test_ticket_state_defines_when_details_can_be_updated(
+    status: TicketStatus,
+    expected: bool,
+) -> None:
+    state = get_ticket_state(status)
+
+    assert state.allows_details_update is expected
