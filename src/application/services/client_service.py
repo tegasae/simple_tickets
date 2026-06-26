@@ -7,11 +7,12 @@ from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.client import Client
 from src.domain.policy.client import ClientPolicy
 from src.domain.policy.ticket import TicketPolicy
+
 from src.domain.rbac.permissions import AdminPermission
-from src.domain.services.ticket_workflow_service import TicketWorkflowService
-from src.services.uow.uow import UnitOfWork
+from src.domain.services.ticket_management_service import TicketManagementService
 
 
+from src.domain.uow.unit_of_work import UnitOfWork
 
 
 class ClientApplicationService:
@@ -22,7 +23,7 @@ class ClientApplicationService:
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
         self.actor = EmployeeActorHelper(self.uow)
-        self.workflow = TicketWorkflowService()
+        self.ticket_management = TicketManagementService()
 
     def _save_and_to_dto(self, client: Client) -> ClientResponseDTO:
         saved_client = self.uow.clients.save(client)
@@ -69,7 +70,7 @@ class ClientApplicationService:
                 created_by_admin_id=actor.employee_id
             )
 
-            client = self.uow.clients.save(client)
+
             return self._save_and_to_dto(client)
 
     # --------------------------------
@@ -96,32 +97,31 @@ class ClientApplicationService:
     # Enable / disable
     # --------------------------------
 
-    def disable(self, dto_client:ClientDTO) -> ClientResponseDTO:
-
+    def disable(self, dto_client: ClientDTO) -> ClientResponseDTO:
         with self.uow:
-            actor=self.actor.require_actor_admin(
+            actor = self.actor.require_actor_admin(
                 actor_admin_id=dto_client.actor_admin_id,
                 permission=AdminPermission.CLIENT_OPERATION,
             )
+
             client = self.uow.clients.get(dto_client.client_id)
             client.disable()
-            for tickets_batch in self.uow.tickets.iter_active_by_client_id(
-                    client_id=client.client_id,
-                    batch_size=500,
-            ):
-                for ticket in tickets_batch:
-                    changed = self.workflow.defer_ticket_due_to_client_disabled(
-                        ticket=ticket,
-                        actor_admin_id=actor.employee_id,
-                    )
 
-                    if changed:
-                        self.uow.tickets.save(ticket=ticket)
-            users=self.uow.users.get_all_by_client_id(client_id=client.client_id)
-            for u in users:
-                self.workflow.disable_user_due_to_client_disabled(user=u)
-                self.uow.users.save(u)
+            self._defer_tickets_due_to_client_disabled(
+                client_id=client.client_id,
+                actor_admin_id=actor.employee_id,
+            )
+
+            users = self.uow.users.get_all_by_client_id(
+                client_id=client.client_id,
+            )
+
+            for user in users:
+                user.disable()
+                self.uow.users.save(user)
+
             return self._save_and_to_dto(client)
+
 
     def enable(self, dto_client:ClientDTO) -> ClientResponseDTO:
         with self.uow:
@@ -183,3 +183,23 @@ class ClientApplicationService:
             )
             clients = self.uow.clients.get_all()
             return [ClientAssembler.to_dto(c) for c in clients]
+
+    def _defer_tickets_due_to_client_disabled(
+            self,
+            *,
+            client_id: int,
+            actor_admin_id: int,
+    ) -> None:
+        for tickets_batch in self.uow.tickets.iter_active_by_client_id(
+                client_id=client_id,
+                batch_size=500,
+        ):
+            for ticket in tickets_batch:
+                changed = self.ticket_management.handle_client_disabled(
+                    ticket=ticket,
+                    actor_employee_id=actor_admin_id,
+                    comment="Client disabled",
+                )
+
+                if changed:
+                    self.uow.tickets.save(ticket)

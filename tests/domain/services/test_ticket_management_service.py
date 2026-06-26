@@ -6,8 +6,9 @@ from src.domain.exceptions import DomainOperationError, ItemValidationError
 from src.domain.services.ticket_execution_service import TicketExecutionService
 from src.domain.services.ticket_management_service import TicketManagementService
 from src.domain.statuses.ticket_status import TicketStatus
+from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket import Ticket
-
+from tests.domain.test_ticket import PAST_2H, PAST_1H
 
 MANAGER_ID = 10
 EXECUTOR_ID = 20
@@ -66,6 +67,8 @@ def make_assigned_ticket(*, executor_id: int = EXECUTOR_ID) -> Ticket:
     return ticket
 
 
+
+
 def make_ready_to_work_ticket(*, executor_id: int = EXECUTOR_ID) -> Ticket:
     ticket = make_accepted_ticket()
 
@@ -90,6 +93,39 @@ def make_at_work_ticket() -> Ticket:
 
     return ticket
 
+
+def make_ready_for_review_ticket() -> Ticket:
+    ticket = make_ready_to_work_ticket()
+
+    ticket.append_status(
+        TicketStatusRecord(
+            actor_employee_id=EXECUTOR_ID,
+            status=TicketStatus.READY_FOR_REVIEW,
+            executor_id=EXECUTOR_ID,
+            actual_started_at=PAST_2H,
+            actual_finished_at=PAST_1H,
+            comment="Work registered later",
+        )
+    )
+
+    return ticket
+
+def make_paused_ticket(
+    *,
+    executor_id: int = EXECUTOR_ID,
+) -> Ticket:
+    ticket = make_at_work_ticket()
+
+    ticket.append_status(
+        TicketStatusRecord(
+            actor_employee_id=executor_id,
+            status=TicketStatus.PAUSED,
+            executor_id=executor_id,
+            comment="Work paused",
+        )
+    )
+
+    return ticket
 
 def test_accept_created_ticket() -> None:
     ticket = make_created_ticket()
@@ -536,3 +572,54 @@ def test_management_operation_rejects_terminal_ticket() -> None:
         )
 
     assert ticket.current_status() == TicketStatus.CANCELLED
+
+def test_handle_client_disabled_rejects_created_ticket() -> None:
+    ticket = make_created_ticket()
+
+    changed = TicketManagementService.handle_client_disabled(
+        ticket=ticket,
+        actor_employee_id=10,
+        comment="Client disabled"
+    )
+
+    assert changed
+    assert ticket.current_status() == TicketStatus.REJECTED
+    assert ticket.current_status_record().comment == "Client disabled"
+
+def test_handle_client_disabled_defers_accepted_ticket() -> None:
+    ticket = make_accepted_ticket()
+
+    changed = TicketManagementService.handle_client_disabled(
+        ticket=ticket,
+        actor_employee_id=10,
+        comment="1"
+    )
+
+    assert changed
+    assert ticket.current_status() == TicketStatus.DEFERRED
+
+@pytest.mark.parametrize(
+    "ticket_factory",
+    [
+        make_at_work_ticket,
+        make_paused_ticket,
+        make_ready_for_review_ticket,
+        make_ready_for_review_ticket,
+    ],
+)
+def test_handle_client_disabled_does_not_change_in_progress_ticket(
+    ticket_factory,
+) -> None:
+    ticket = ticket_factory()
+
+    original_status = ticket.current_status()
+    original_count = len(ticket.statuses)
+
+    changed = TicketManagementService.handle_client_disabled(
+        ticket=ticket,
+        actor_employee_id=10,
+    )
+
+    assert not changed
+    assert ticket.current_status() == original_status
+    assert len(ticket.statuses) == original_count

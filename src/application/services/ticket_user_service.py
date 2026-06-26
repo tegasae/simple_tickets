@@ -7,7 +7,7 @@ from src.domain.policy.ticket_user_ticket import TicketUserTicketPolicy
 from src.domain.rbac.permissions import UserPermission
 from src.domain.ticket_components import Comment
 from src.domain.ticket_user import TicketUser
-from src.services.uow.uow import UnitOfWork
+from src.domain.uow.unit_of_work import UnitOfWork
 
 
 class TicketUserApplicationService:

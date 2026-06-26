@@ -8,9 +8,7 @@ from src.domain.employee import User
 from src.domain.exceptions import DomainOperationError
 from src.domain.policy.ticket import TicketPolicy
 from src.domain.rbac.permissions import AdminPermission
-from src.services.uow.uow import UnitOfWork
-
-
+from src.domain.uow.unit_of_work import UnitOfWork
 
 
 class UserApplicationService:

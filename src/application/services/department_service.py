@@ -6,7 +6,7 @@ from src.domain.department import Department
 from src.domain.exceptions import DomainOperationError
 from src.domain.policy.department import DepartmentPolicy
 from src.domain.rbac.permissions import AdminPermission
-
+from src.domain.uow.unit_of_work import UnitOfWork
 
 
 class DepartmentApplicationService:
@@ -19,7 +19,7 @@ class DepartmentApplicationService:
     - Department cannot be deleted if Admins or Tickets still reference it.
     """
 
-    def __init__(self, uow):
+    def __init__(self, uow:UnitOfWork):
         self.uow = uow
         self.actor = EmployeeActorHelper(self.uow)
 

@@ -7,8 +7,7 @@ from src.domain.policy.ticket import TicketPolicy
 
 from src.domain.ticket import Ticket
 from src.domain.rbac.permissions import AdminPermission
-
-from src.services.uow.uow import UnitOfWork
+from src.domain.uow.unit_of_work import UnitOfWork
 
 
 class TicketApplicationService:

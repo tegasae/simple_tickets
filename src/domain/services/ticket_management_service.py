@@ -2,12 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.domain.policy.ticket_workflow_actor_policy import (
-    TicketWorkflowActorKind,
-    TicketWorkflowActorPolicy,
-)
+from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordFactory
+
 from src.domain.ticket import Ticket
 
 
@@ -27,8 +24,9 @@ class TicketManagementService:
         actor_employee_id: int,
         comment: str = "",
     ) -> TicketStatusRecord:
-        record = TicketStatusRecordFactory.accepted(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.ACCEPTED,
             comment=comment,
         )
 
@@ -46,8 +44,9 @@ class TicketManagementService:
         actor_employee_id: int,
         comment: str,
     ) -> TicketStatusRecord:
-        record = TicketStatusRecordFactory.rejected(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.REJECTED,
             comment=comment,
         )
 
@@ -55,27 +54,68 @@ class TicketManagementService:
             ticket=ticket,
             record=record,
         )
+
+        return record
+
+
+
+    @staticmethod
+    def defer(
+            *,
+            ticket: Ticket,
+            actor_employee_id: int,
+            comment: str,
+    ) -> TicketStatusRecord:
+        record = TicketStatusRecord(
+            actor_employee_id=actor_employee_id,
+            status=TicketStatus.DEFERRED,
+            comment=comment,
+        )
+
+        ticket.append_status(record)
 
         return record
 
     @staticmethod
-    def defer(
-        *,
-        ticket: Ticket,
-        actor_employee_id: int,
-        comment: str,
-    ) -> TicketStatusRecord:
-        record = TicketStatusRecordFactory.deferred(
-            actor_employee_id=actor_employee_id,
-            comment=comment,
-        )
+    def handle_client_disabled(
+            *,
+            ticket: Ticket,
+            actor_employee_id: int,
+            comment: str = "",
+    ) -> bool:
+        """
+         Applies Ticket workflow rules after Client was disabled.
 
-        TicketManagementService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+         Returns:
+             True  - Ticket was changed;
+             False - Ticket must remain in its current status.
+         """
+        current_status = ticket.current_status()
 
-        return record
+        if current_status == TicketStatus.CREATED:
+            TicketManagementService.reject(
+                ticket=ticket,
+                actor_employee_id=actor_employee_id,
+                comment=comment,
+            )
+            return True
+
+        if current_status in {
+            TicketStatus.ACCEPTED,
+            TicketStatus.SCHEDULED,
+            TicketStatus.ASSIGNED,
+            TicketStatus.READY_TO_WORK,
+        }:
+            TicketManagementService.defer(
+                ticket=ticket,
+                actor_employee_id=actor_employee_id,
+                comment=comment,
+            )
+            return True
+
+        return False
+
+
 
     @staticmethod
     def schedule(
@@ -86,13 +126,13 @@ class TicketManagementService:
         planned_finish_at: datetime | None = None,
         comment: str = "",
     ) -> TicketStatusRecord:
-        record = TicketStatusRecordFactory.scheduled(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.SCHEDULED,
             planned_start_at=planned_start_at,
             planned_finish_at=planned_finish_at,
             comment=comment,
         )
-
         TicketManagementService._append_status(
             ticket=ticket,
             record=record,
@@ -108,8 +148,9 @@ class TicketManagementService:
         executor_id: int,
         comment: str = "",
     ) -> TicketStatusRecord:
-        record = TicketStatusRecordFactory.assigned(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.ASSIGNED,
             executor_id=executor_id,
             comment=comment,
         )
@@ -131,8 +172,9 @@ class TicketManagementService:
         planned_finish_at: datetime | None = None,
         comment: str = "",
     ) -> TicketStatusRecord:
-        record = TicketStatusRecordFactory.ready_to_work(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.READY_TO_WORK,
             executor_id=executor_id,
             planned_start_at=planned_start_at,
             planned_finish_at=planned_finish_at,
@@ -153,8 +195,9 @@ class TicketManagementService:
         actor_employee_id: int,
         comment: str,
     ) -> TicketStatusRecord:
-        record = TicketStatusRecordFactory.cancelled(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.CANCELLED,
             comment=comment,
         )
 
@@ -167,14 +210,8 @@ class TicketManagementService:
 
     @staticmethod
     def _append_status(
-        *,
-        ticket: Ticket,
-        record: TicketStatusRecord,
+            *,
+            ticket: Ticket,
+            record: TicketStatusRecord,
     ) -> None:
-        TicketWorkflowActorPolicy.ensure_actor_can_change_status(
-            actor_kind=TicketWorkflowActorKind.MANAGER,
-            current_status=ticket.current_status(),
-            new_status=record.status,
-        )
-
         ticket.append_status(record)

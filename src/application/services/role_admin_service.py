@@ -5,7 +5,7 @@ from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.role_new import Role
 from src.domain.rbac.permissions import AdminPermission, UserPermission, PermissionBase
 from src.domain.rbac.role_repository import RoleRepository
-from src.services.uow.uow import UnitOfWork
+from src.domain.uow.unit_of_work import UnitOfWork
 
 # Type variables for different permission types
 T = TypeVar("T", bound=PermissionBase)

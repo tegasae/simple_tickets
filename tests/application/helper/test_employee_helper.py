@@ -30,8 +30,8 @@ def test_employee_helper_rejects_existing_user_login(uow):
 
 
 def test_employee_helper_returns_role_managers(uow):
-    uow.roles_admin.save(Role(role_id=1, name="admin", permissions=frozenset({AdminPermission.ASSIGN_ROLE})))
-    uow.roles_user.save(Role(role_id=2, name="user", permissions=frozenset({UserPermission.CREATE_TICKET})))
+    uow.roles_admin.save(Role(role_id=1, name="admin", permissions=frozenset({AdminPermission.ROLE_ASSIGN})))
+    uow.roles_user.save(Role(role_id=2, name="user", permissions=frozenset({UserPermission.TICKET_OPERATION})))
 
     helper = EmployeeHelper(uow)  # type: ignore[arg-type]
 

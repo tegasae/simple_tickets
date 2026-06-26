@@ -1,3 +1,6 @@
+# src/adapters/repositories/gateways/ticket_gateway.py
+
+
 class TicketGateway:
     SELECT_BASE = """
     SELECT
@@ -5,35 +8,77 @@ class TicketGateway:
         client_id,
         admin_id,
         user_id,
-        user_ticket_contact_user_id,
+        contact_user_id,
         user_ticket_id,
+        department_id,
         text_of_ticket,
+        description,
         date_created,
         is_remote,
-        is_closed,
-        date_closed,
         urgency_level,
         version
     FROM tickets
     """
 
-    SELECT_BY_ID=SELECT_BASE+" WHERE ticket_id = :ticket_id"
-    SELECT_BY_USER_TICKET_ID = SELECT_BASE + " WHERE user_ticket_id = :user_ticket_id"
-    SELECT_ACTIVE_BY_CLIENT_ID_BATCH=SELECT_BASE + " WHERE client_id = :client_id AND ticket_id > :last_id ORDER BY ticket_id LIMIT :limit"
+    SELECT_BY_ID = SELECT_BASE + """
+    WHERE ticket_id = :ticket_id
+    """
 
+    SELECT_ALL = SELECT_BASE + """
+    ORDER BY ticket_id
+    """
+
+    SELECT_BY_USER_TICKET_ID = SELECT_BASE + """
+    WHERE user_ticket_id = :user_ticket_id
+    """
+
+    SELECT_ACTIVE_BY_CLIENT_ID_BATCH = """
+    SELECT
+        t.ticket_id,
+        t.client_id,
+        t.admin_id,
+        t.user_id,
+        t.contact_user_id,
+        t.user_ticket_id,
+        t.department_id,
+        t.text_of_ticket,
+        t.description,
+        t.date_created,
+        t.is_remote,
+        t.urgency_level,
+        t.version
+    FROM tickets AS t
+    JOIN ticket_status_records AS current_status
+        ON current_status.status_id = (
+            SELECT status_record.status_id
+            FROM ticket_status_records AS status_record
+            WHERE status_record.ticket_id = t.ticket_id
+            ORDER BY status_record.status_id DESC
+            LIMIT 1
+        )
+    WHERE t.client_id = :client_id
+      AND t.ticket_id > :last_id
+      AND current_status.status NOT IN (
+          'rejected',
+          'executed',
+          'cancelled'
+      )
+    ORDER BY t.ticket_id
+    LIMIT :limit
+    """
 
     INSERT = """
     INSERT INTO tickets (
         client_id,
         admin_id,
         user_id,
-        user_ticket_contact_user_id,
+        contact_user_id,
         user_ticket_id,
+        department_id,
         text_of_ticket,
+        description,
         date_created,
         is_remote,
-        is_closed,
-        date_closed,
         urgency_level,
         version
     )
@@ -43,11 +88,11 @@ class TicketGateway:
         :user_id,
         :contact_user_id,
         :user_ticket_id,
+        :department_id,
         :text_of_ticket,
+        :description,
         :date_created,
         :is_remote,
-        :is_closed,
-        :date_closed,
         :urgency_level,
         :version
     )
@@ -56,10 +101,10 @@ class TicketGateway:
     UPDATE = """
     UPDATE tickets
     SET
+        department_id = :department_id,
         text_of_ticket = :text_of_ticket,
+        description = :description,
         is_remote = :is_remote,
-        is_closed = :is_closed,
-        date_closed = :date_closed,
         urgency_level = :urgency_level,
         version = version + 1
     WHERE ticket_id = :ticket_id
@@ -71,132 +116,123 @@ class TicketGateway:
     WHERE ticket_id = :ticket_id
     """
 
-    SELECT_BY_CLIENT_ID="SELECT count(ticket_id) AS one FROM tickets WHERE client_id = :client_id"
-    SELECT_BY_TICKET_USER_ID = "SELECT count(ticket_id) AS one FROM tickets WHERE user_ticket_id=:user_ticket_id"
+    COUNT_BY_CLIENT_ID = """
+    SELECT COUNT(*) AS cnt
+    FROM tickets
+    WHERE client_id = :client_id
+    """
+
+    COUNT_BY_USER_TICKET_ID = """
+    SELECT COUNT(*) AS cnt
+    FROM tickets
+    WHERE user_ticket_id = :user_ticket_id
+    """
+
     EXISTS_BY_ADMIN_ID = """
-    SELECT 1 as one
+    SELECT 1 AS one
     FROM tickets
     WHERE admin_id = :admin_id
     LIMIT 1
     """
 
     EXISTS_BY_DEPARTMENT_ID = """
-        SELECT 1 as one
-        FROM tickets
-        WHERE department_id = :department_id
-        LIMIT 1
-        """
+    SELECT 1 AS one
+    FROM tickets
+    WHERE department_id = :department_id
+    LIMIT 1
+    """
 
 
 class TicketCommentGateway:
-    SELECT = """
-    SELECT comment_ticket_id, admin_id, comment, date_created
-    FROM tickets_comment
+    SELECT_BY_TICKET_ID = """
+    SELECT
+        ticket_comment_id,
+        employee_id,
+        comment,
+        date_created
+    FROM ticket_comments
     WHERE ticket_id = :ticket_id
-    ORDER BY comment_ticket_id
+    ORDER BY ticket_comment_id
     """
 
     INSERT = """
-    INSERT INTO tickets_comment (
+    INSERT INTO ticket_comments (
         ticket_id,
-        admin_id,
+        employee_id,
         comment,
         date_created
     )
     VALUES (
         :ticket_id,
-        :admin_id,
+        :employee_id,
         :comment,
         :date_created
     )
     """
 
-
-    DELETE_ALL = """
-    DELETE FROM tickets_comment
-    WHERE ticket_id = :ticket_id
+    EXISTS_BY_EMPLOYEE_ID = """
+    SELECT 1 AS one
+    FROM ticket_comments
+    WHERE employee_id = :employee_id
+    LIMIT 1
     """
-
-    EXISTS_BY_ADMIN_ID = """
-       SELECT 1 as one
-       FROM tickets_comment
-       WHERE admin_id = :admin_id
-       LIMIT 1
-       """
-
-
-class TicketExecutorGateway:
-    SELECT = """
-    SELECT executor_assignment_id, admin_id, date_assignment
-    FROM tickets_executor_assignment
-    WHERE ticket_id = :ticket_id
-    ORDER BY executor_assignment_id
-    """
-
-    INSERT = """
-    INSERT INTO tickets_executor_assignment (
-        ticket_id,
-        admin_id,
-        date_assignment
-    )
-    VALUES (
-        :ticket_id,
-        :admin_id,
-        :date_assignment
-    )
-    """
-
-
-    DELETE_ALL = """
-    DELETE FROM tickets_executor_assignment
-    WHERE ticket_id = :ticket_id
-    """
-
-    EXISTS_BY_ADMIN_ID = """
-        SELECT 1 as one
-        FROM tickets_executor_assignment
-        WHERE admin_id = :admin_id
-        LIMIT 1
-        """
 
 
 class TicketStatusGateway:
-    SELECT = """
-    SELECT ticket_status_record_id, admin_id, status, date_created
-    FROM tickets_status_record
+    SELECT_BY_TICKET_ID = """
+    SELECT
+        status_id,
+        actor_employee_id,
+        status,
+        date_created,
+        executor_id,
+        planned_start_at,
+        planned_finish_at,
+        actual_started_at,
+        actual_finished_at,
+        comment
+    FROM ticket_status_records
     WHERE ticket_id = :ticket_id
-    ORDER BY ticket_status_record_id
+    ORDER BY status_id
     """
 
     INSERT = """
-    INSERT INTO tickets_status_record (
+    INSERT INTO ticket_status_records (
         ticket_id,
-        admin_id,
+        actor_employee_id,
         status,
-        date_created
+        date_created,
+        executor_id,
+        planned_start_at,
+        planned_finish_at,
+        actual_started_at,
+        actual_finished_at,
+        comment
     )
     VALUES (
         :ticket_id,
-        :admin_id,
+        :actor_employee_id,
         :status,
-        :date_created
+        :date_created,
+        :executor_id,
+        :planned_start_at,
+        :planned_finish_at,
+        :actual_started_at,
+        :actual_finished_at,
+        :comment
     )
     """
 
-    COUNT1 = """
+    COUNT_BY_TICKET_ID = """
     SELECT COUNT(*) AS cnt
-    FROM tickets_status_record
+    FROM ticket_status_records
     WHERE ticket_id = :ticket_id
     """
 
-    DELETE_ALL = """
-    DELETE FROM tickets_status_record
-    WHERE ticket_id = :ticket_id
+    EXISTS_BY_EMPLOYEE_ID = """
+    SELECT 1 AS one
+    FROM ticket_status_records
+    WHERE actor_employee_id = :employee_id
+       OR executor_id = :employee_id
+    LIMIT 1
     """
-    EXISTS_BY_ADMIN_ID = """
-        SELECT 1 as one
-        FROM tickets_status_record
-        WHERE admin_id = :admin_id
-        LIMIT 1
-        """
-

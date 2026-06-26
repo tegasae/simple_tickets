@@ -183,10 +183,13 @@ def sqlite_schema(sqlite_connection):
     );
 
     CREATE TABLE admins (
-        employee_id INTEGER PRIMARY KEY,
-        job_title TEXT,
-        FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE
-    );
+    employee_id INTEGER NOT NULL PRIMARY KEY,
+    job_title TEXT,
+    department_id INTEGER NULL,
+    FOREIGN KEY (employee_id)
+        REFERENCES employees(employee_id)
+        ON DELETE RESTRICT
+);
 
     CREATE TABLE users (
         employee_id INTEGER PRIMARY KEY,

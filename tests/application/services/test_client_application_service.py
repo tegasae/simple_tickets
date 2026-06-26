@@ -12,7 +12,7 @@ def prepare_actor(uow):
     admin = Admin.create(employee_id=1, first_name="Root")
     admin.grant_role(1)
     uow.admins.save(admin)
-    uow.roles_admin.save(Role(role_id=1, name="operator", permissions=frozenset({AdminPermission.OPERATION_CLIENT})))
+    uow.roles_admin.save(Role(role_id=1, name="operator", permissions=frozenset({AdminPermission.CLIENT_OPERATION})))
     return admin
 
 

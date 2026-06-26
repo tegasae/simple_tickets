@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from src.application.dto.client_dto import ClientDTO
-from src.application.dto.employee_dto import AdminDTO, UserDTO
+from src.application.dto.employee_dto import UserDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.application.helper.employee_helper import EmployeeHelper
 from src.application.services.client_service import ClientApplicationService
@@ -23,7 +23,7 @@ def test_actor_helper_returns_admin_with_required_permission(
 
     actor = helper.require_actor_admin(
         actor_admin_id=admin_with_all_permissions.employee_id,
-        permission=AdminPermission.CREATE_TICKET,
+        permission=AdminPermission.TICKET_OPERATION,
     )
 
     assert actor == admin_with_all_permissions
@@ -37,7 +37,7 @@ def test_actor_helper_rejects_admin_without_required_permission(
         (),
         {
             "role_id": 1,
-            "permissions": frozenset({AdminPermission.VIEW_TICKET}),
+            "permissions": frozenset({AdminPermission.TICKET_VIEW}),
         },
     )()
 
@@ -52,7 +52,7 @@ def test_actor_helper_rejects_admin_without_required_permission(
     with pytest.raises(PermissionError):
         helper.require_actor_admin(
             actor_admin_id=admin_with_all_permissions.employee_id,
-            permission=AdminPermission.CREATE_TICKET,
+            permission=AdminPermission.TICKET_OPERATION,
         )
 
 def test_actor_helper_returns_user_with_required_permission(uow, user):
@@ -60,7 +60,7 @@ def test_actor_helper_returns_user_with_required_permission(uow, user):
 
     actor = helper.require_actor_user(
         actor_user_id=user.employee_id,
-        permission=UserPermission.CREATE_TICKET,
+        permission=UserPermission.TICKET_OPERATION,
     )
 
     assert actor == user
@@ -197,7 +197,7 @@ def test_user_service_attach_detach_account(uow, admin_with_all_permissions, oth
     assert attached.login == "attached_login"
 
     detached = service.detach_account(user_dto=dto)
-    assert detached.login == "<no-account>"
+    assert detached.login == ""
     assert isinstance(other_user.account, NoAccount)
 
 
@@ -207,10 +207,10 @@ def test_user_service_change_password_requires_password(uow, admin_with_all_perm
         actor_admin_id=admin_with_all_permissions.employee_id,
         employee_id=user.employee_id,
         client_id=user.client_id,
-        password=None,
+        password="",
     )
 
-    with pytest.raises(DomainOperationError, match="Password is required"):
+    with pytest.raises(ValueError, match="Password cannot be empty"):
         service.change_password(user_dto=dto)
 
 

@@ -1,290 +1,262 @@
-# src/domain/ticket_status.py
+# src/domain/statuses/ticket_status.py
 
+
+from dataclasses import dataclass
 from enum import StrEnum
+from typing import Final
 
 
 class TicketStatus(StrEnum):
-    """
-    Workflow-статусы заявки.
-
-    Важно:
-    - статус не просто поле;
-    - каждая новая запись статуса — это бизнес-событие;
-    - старые записи статусов не редактируются.
-
-    До начала работы есть три разных состояния:
-
-    SCHEDULED:
-        есть плановое время, но нет исполнителя.
-
-    ASSIGNED:
-        есть исполнитель, но нет планового времени.
-
-    READY_TO_WORK:
-        есть и плановое время, и исполнитель.
-    """
-
-    # Заявка создана, но ещё не подтверждена как корректная.
     CREATED = "created"
-
-    # Заявка отклонена до принятия. Конечный статус.
     REJECTED = "rejected"
-
-    # Заявка принята как корректная и стала рабочей заявкой.
     ACCEPTED = "accepted"
-
-    # Заявка отложена: нужны данные, согласование, доступы,
-    # решение менеджера или другое внешнее ожидание.
     DEFERRED = "deferred"
-
-    # Есть плановое время выполнения, но исполнитель ещё не назначен.
     SCHEDULED = "scheduled"
-
-    # Есть назначенный исполнитель, но плановое время не задано.
     ASSIGNED = "assigned"
-
-    # Есть и плановое время, и назначенный исполнитель.
-    # Заявка готова к началу работы.
     READY_TO_WORK = "ready_to_work"
-
-    # Исполнитель работает над заявкой прямо сейчас.
-    # actual_started_at для этого статуса ставится автоматически.
     AT_WORK = "at_work"
-
-    # Работа началась, но временно приостановлена.
-    # Ответственный исполнитель сохраняется.
     PAUSED = "paused"
-
-    # Работа внесена задним числом.
-    # Используется, если исполнитель не мог вовремя перевести заявку в AT_WORK.
-    # actual_started_at и actual_finished_at обязательны.
-    OFFLINE_WORK = "offline_work"
-
-    # Исполнитель завершил свой этап работы,
-    # но результат ещё должен быть подтверждён клиентом или другим сотрудником.
     READY_FOR_REVIEW = "ready_for_review"
-
-    # Заявка выполнена и подтверждена. Конечный статус.
     EXECUTED = "executed"
-
-    # Заявка снята после того, как уже была принята. Конечный статус.
     CANCELLED = "cancelled"
 
 
-# Статусы, после которых заявка больше не должна изменяться.
-TERMINAL_TICKET_STATUSES = frozenset({
-    TicketStatus.REJECTED,
-    TicketStatus.EXECUTED,
-    TicketStatus.CANCELLED,
-})
+@dataclass(frozen=True, slots=True)
+class TicketState:
+    """
+    Неизменяемое описание одного workflow-состояния.
+
+    status:
+        Стабильный код для хранения, DTO и API.
+
+    terminal:
+        После такого состояния Ticket больше не изменяется.
+
+    requires_executor:
+        В status-record должен быть executor_id > 0.
+
+    requires_planned_start:
+        В status-record должен быть planned_start_at.
+
+    work_started:
+        Работа над заявкой уже началась или результат уже передан
+        на подтверждение.
+
+    locks_department_change:
+        Department заявки нельзя менять обычной операцией.
+
+    allowed_next:
+        Следующие статусы, допустимые по общему workflow-графу.
+        Это не RBAC и не описание того, кто вызывает use case.
+    """
+
+    status: TicketStatus
+
+    terminal: bool = False
+    requires_executor: bool = False
+    requires_planned_start: bool = False
+    work_started: bool = False
+    locks_department_change: bool = False
+    allows_ticket_text_update: bool = False
+    allowed_next: frozenset[TicketStatus] = frozenset()
+
+    def allows_transition_to(
+        self,
+        new_status: TicketStatus,
+    ) -> bool:
+        return TicketStatus(new_status) in self.allowed_next
 
 
-# Статусы, в которых обязательно должен быть ответственный исполнитель.
-#
-# SCHEDULED сюда не входит:
-# SCHEDULED означает "запланировано, но исполнитель ещё не назначен".
-#
-# READY_TO_WORK входит:
-# READY_TO_WORK означает "есть и время, и исполнитель".
-EXECUTOR_REQUIRED_STATUSES = frozenset({
-    TicketStatus.ASSIGNED,
-    TicketStatus.READY_TO_WORK,
-    TicketStatus.AT_WORK,
-    TicketStatus.PAUSED,
-    TicketStatus.OFFLINE_WORK,
-    TicketStatus.READY_FOR_REVIEW,
-})
-
-
-# Статусы, для которых обязательна плановая дата.
-#
-# ASSIGNED сюда не входит:
-# ASSIGNED означает "исполнитель назначен, но планового времени нет".
-#
-# READY_TO_WORK входит:
-# READY_TO_WORK означает "есть и время, и исполнитель".
-PLANNED_START_REQUIRED_STATUSES = frozenset({
-    TicketStatus.SCHEDULED,
-    TicketStatus.READY_TO_WORK,
-})
-
-
-# Статусы, означающие, что работа уже фактически началась
-# или исполнитель уже заявил результат.
-#
-# READY_TO_WORK сюда не входит:
-# заявка готова к работе, но работа ещё не началась.
-WORK_STARTED_STATUSES = frozenset({
-    TicketStatus.AT_WORK,
-    TicketStatus.PAUSED,
-    TicketStatus.OFFLINE_WORK,
-    TicketStatus.READY_FOR_REVIEW,
-})
-
-
-# Статусы, в которых department заявки нельзя менять всегда.
-#
-# SCHEDULED сюда не входит:
-# заявка может быть запланирована без исполнителя,
-# и позже может выясниться, что нужен другой department.
-#
-# ASSIGNED входит:
-# исполнитель уже назначен, значит department нельзя менять простым изменением поля.
-#
-# READY_TO_WORK входит:
-# есть и исполнитель, и плановое время.
-TICKET_DEPARTMENT_CHANGE_FORBIDDEN_STATUSES = frozenset({
-    TicketStatus.ASSIGNED,
-    TicketStatus.READY_TO_WORK,
-    TicketStatus.AT_WORK,
-    TicketStatus.PAUSED,
-    TicketStatus.OFFLINE_WORK,
-    TicketStatus.READY_FOR_REVIEW,
-    TicketStatus.EXECUTED,
-    TicketStatus.CANCELLED,
-    TicketStatus.REJECTED,
-})
-
-
-# Граф допустимых переходов между статусами.
-#
-# Здесь указана только теоретическая допустимость перехода.
-# Роли actor-а здесь не проверяются.
-#
-# Например:
-# - AT_WORK -> ASSIGNED бизнесом возможен как аварийный переход;
-# - но обычный исполнитель не должен иметь права его делать.
-ALLOWED_TICKET_STATUS_TRANSITIONS = {
-    TicketStatus.CREATED: frozenset({
+CREATED_STATE: Final = TicketState(
+    status=TicketStatus.CREATED,
+    allows_ticket_text_update = True,
+    allowed_next=frozenset({
         TicketStatus.ACCEPTED,
         TicketStatus.REJECTED,
-    }),
 
-    TicketStatus.ACCEPTED: frozenset({
+    }),
+)
+
+REJECTED_STATE: Final = TicketState(
+    status=TicketStatus.REJECTED,
+    terminal=True,
+)
+
+ACCEPTED_STATE: Final = TicketState(
+
+    status=TicketStatus.ACCEPTED,
+    allows_ticket_text_update = True,
+    allowed_next=frozenset({
         TicketStatus.DEFERRED,
         TicketStatus.SCHEDULED,
         TicketStatus.ASSIGNED,
         TicketStatus.READY_TO_WORK,
         TicketStatus.CANCELLED,
     }),
+)
 
-    TicketStatus.DEFERRED: frozenset({
+DEFERRED_STATE: Final = TicketState(
+    status=TicketStatus.DEFERRED,
+    allowed_next=frozenset({
         TicketStatus.ACCEPTED,
         TicketStatus.SCHEDULED,
         TicketStatus.ASSIGNED,
         TicketStatus.READY_TO_WORK,
         TicketStatus.CANCELLED,
     }),
+)
 
-    TicketStatus.SCHEDULED: frozenset({
-        # Перепланирование.
+SCHEDULED_STATE: Final = TicketState(
+    status=TicketStatus.SCHEDULED,
+    requires_planned_start=True,
+    allowed_next=frozenset({
         TicketStatus.SCHEDULED,
-
-        # Назначили исполнителя при сохранённой плановой дате.
         TicketStatus.READY_TO_WORK,
-
-        # Сняли плановую дату и назначили исполнителя.
         TicketStatus.ASSIGNED,
-
-        # Сняли плановую дату, заявка снова просто принята.
         TicketStatus.ACCEPTED,
-
         TicketStatus.DEFERRED,
         TicketStatus.CANCELLED,
+        TicketStatus.READY_FOR_REVIEW,  #
     }),
+)
 
-    TicketStatus.ASSIGNED: frozenset({
-        # Переназначение исполнителя.
+ASSIGNED_STATE: Final = TicketState(
+    status=TicketStatus.ASSIGNED,
+    requires_executor=True,
+    locks_department_change=True,
+    allowed_next=frozenset({
         TicketStatus.ASSIGNED,
-
-        # Добавили плановую дату при сохранённом исполнителе.
         TicketStatus.READY_TO_WORK,
-
-        # Сняли исполнителя и назначили плановую дату.
         TicketStatus.SCHEDULED,
-
-        # Сняли исполнителя, заявка снова просто принята.
         TicketStatus.ACCEPTED,
-
-        # Исполнитель начал работу без планирования.
         TicketStatus.AT_WORK,
-
-        # Исполнитель внёс работу задним числом.
-        TicketStatus.OFFLINE_WORK,
-
         TicketStatus.DEFERRED,
         TicketStatus.CANCELLED,
+        TicketStatus.READY_FOR_REVIEW,  #
     }),
+)
 
-    TicketStatus.READY_TO_WORK: frozenset({
-        # Изменили исполнителя и/или плановую дату.
+READY_TO_WORK_STATE: Final = TicketState(
+    status=TicketStatus.READY_TO_WORK,
+    requires_executor=True,
+    requires_planned_start=True,
+    locks_department_change=True,
+    allowed_next=frozenset({
         TicketStatus.READY_TO_WORK,
-
-        # Сняли исполнителя, плановая дата осталась.
         TicketStatus.SCHEDULED,
-
-        # Сняли плановую дату, исполнитель остался.
         TicketStatus.ASSIGNED,
-
-        # Сняли и исполнителя, и плановую дату.
         TicketStatus.ACCEPTED,
-
-        # Работа началась.
         TicketStatus.AT_WORK,
-
-        # Работа внесена задним числом.
-        TicketStatus.OFFLINE_WORK,
-
         TicketStatus.DEFERRED,
         TicketStatus.CANCELLED,
+        TicketStatus.READY_FOR_REVIEW,  #
     }),
+)
 
-    TicketStatus.AT_WORK: frozenset({
-        # Обычные действия исполнителя.
+AT_WORK_STATE: Final = TicketState(
+    status=TicketStatus.AT_WORK,
+    requires_executor=True,
+    work_started=True,
+    locks_department_change=True,
+    allowed_next=frozenset({
         TicketStatus.PAUSED,
         TicketStatus.READY_FOR_REVIEW,
-
-        # Управленческие / аварийные переходы.
         TicketStatus.DEFERRED,
         TicketStatus.SCHEDULED,
         TicketStatus.ASSIGNED,
         TicketStatus.READY_TO_WORK,
         TicketStatus.CANCELLED,
     }),
+)
 
-    TicketStatus.PAUSED: frozenset({
-        # Исполнитель вернулся к работе.
+PAUSED_STATE: Final = TicketState(
+    status=TicketStatus.PAUSED,
+    requires_executor=True,
+    work_started=True,
+    locks_department_change=True,
+    allowed_next=frozenset({
         TicketStatus.AT_WORK,
-
-        # Управленческие переходы.
         TicketStatus.DEFERRED,
         TicketStatus.SCHEDULED,
         TicketStatus.ASSIGNED,
         TicketStatus.READY_TO_WORK,
         TicketStatus.CANCELLED,
     }),
+)
 
-    TicketStatus.OFFLINE_WORK: frozenset({
-        TicketStatus.READY_FOR_REVIEW,
-    }),
 
-    TicketStatus.READY_FOR_REVIEW: frozenset({
-        # Результат подтверждён.
+READY_FOR_REVIEW_STATE: Final = TicketState(
+    status=TicketStatus.READY_FOR_REVIEW,
+    requires_executor=True,
+    work_started=True,
+    locks_department_change=True,
+
+    allowed_next=frozenset({
         TicketStatus.EXECUTED,
-
-        # Результат не подтверждён, нужна доработка.
         TicketStatus.AT_WORK,
-
-        # Нужно переназначение / новое планирование / ожидание.
         TicketStatus.ASSIGNED,
         TicketStatus.SCHEDULED,
         TicketStatus.READY_TO_WORK,
         TicketStatus.DEFERRED,
-
         TicketStatus.CANCELLED,
     }),
+)
 
-    TicketStatus.REJECTED: frozenset(),
-    TicketStatus.EXECUTED: frozenset(),
-    TicketStatus.CANCELLED: frozenset(),
+EXECUTED_STATE: Final = TicketState(
+    status=TicketStatus.EXECUTED,
+    terminal=True,
+)
+
+CANCELLED_STATE: Final = TicketState(
+    status=TicketStatus.CANCELLED,
+    terminal=True,
+)
+
+
+_TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
+    state.status: state
+    for state in (
+        CREATED_STATE,
+        REJECTED_STATE,
+        ACCEPTED_STATE,
+        DEFERRED_STATE,
+        SCHEDULED_STATE,
+        ASSIGNED_STATE,
+        READY_TO_WORK_STATE,
+        AT_WORK_STATE,
+        PAUSED_STATE,
+        READY_FOR_REVIEW_STATE,
+        EXECUTED_STATE,
+        CANCELLED_STATE,
+    )
 }
+
+
+def get_ticket_state(
+    status: TicketStatus,
+) -> TicketState:
+    return _TICKET_STATES[TicketStatus(status)]
+
+
+def is_ticket_status_transition_allowed(
+    *,
+    current_status: TicketStatus,
+    new_status: TicketStatus,
+) -> bool:
+    return get_ticket_state(current_status).allows_transition_to(
+        new_status,
+    )
+
+
+def is_terminal_ticket_status(
+    status: TicketStatus,
+) -> bool:
+    return get_ticket_state(status).terminal
+
+
+def is_department_change_locked(
+    status: TicketStatus,
+) -> bool:
+    state = get_ticket_state(status)
+
+    return state.terminal or state.locks_department_change

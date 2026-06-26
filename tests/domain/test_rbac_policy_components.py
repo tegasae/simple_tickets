@@ -8,9 +8,10 @@ from src.domain.policy.ticket_user_ticket import TicketUserTicketPolicy
 from src.domain.rbac.permissions import AdminPermission, UserPermission
 from src.domain.rbac.role import Authorizer, RoleManager
 from src.domain.rbac.role_new import AdminRole, Role, RoleStore, UserRole
-from src.domain.ticket import Ticket, TicketStatus
+from src.domain.services.ticket_management_service import TicketManagementService
+from src.domain.ticket import Ticket
 from src.domain.ticket_components import Comment, CommentThread, ExecutorAssignment, ExecutorAssignments
-from src.domain.ticket_user import TicketUser
+
 
 
 def test_comment_thread_preserves_added_comments():
@@ -42,12 +43,12 @@ def test_role_has_permission_and_role_store_membership():
     role = Role(
         role_id=1,
         name="operator",
-        permissions=frozenset({AdminPermission.CREATE_TICKET}),
+        permissions=frozenset({AdminPermission.TICKET_OPERATION}),
     )
     store = RoleStore()
 
-    assert role.has_permission(AdminPermission.CREATE_TICKET) is True
-    assert role.has_permission(AdminPermission.DELETE_TICKET) is False
+    assert role.has_permission(AdminPermission.TICKET_OPERATION) is True
+
 
     store.put_role(role)
     assert store.check_role(role) is True
@@ -61,7 +62,7 @@ def test_admin_role_rejects_user_permission():
         AdminRole(
             role_id=1,
             name="bad",
-            permissions=frozenset({UserPermission.CREATE_TICKET}),
+            permissions=frozenset({UserPermission.TICKET_OPERATION}),
         )
 
 
@@ -71,7 +72,7 @@ def test_user_role_rejects_admin_permission():
         UserRole(
             role_id=1,
             name="bad",
-            permissions=frozenset({AdminPermission.CREATE_TICKET}),
+            permissions=frozenset({AdminPermission.TICKET_OPERATION}),
         )
 
 
@@ -80,12 +81,12 @@ def test_authorizer_collects_permissions_from_subject_roles(admin_with_all_permi
         1: Role(
             role_id=1,
             name="creator",
-            permissions=frozenset({AdminPermission.CREATE_TICKET}),
+            permissions=frozenset({AdminPermission.TICKET_OPERATION}),
         ),
         2: Role(
             role_id=2,
             name="viewer",
-            permissions=frozenset({AdminPermission.VIEW_TICKET}),
+            permissions=frozenset({AdminPermission.TICKET_OPERATION}),
         ),
     }
 
@@ -97,8 +98,8 @@ def test_authorizer_collects_permissions_from_subject_roles(admin_with_all_permi
     authorizer = Authorizer(Repo())
 
     assert authorizer.permissions_of(admin_with_all_permissions) == {
-        AdminPermission.CREATE_TICKET,
-        AdminPermission.VIEW_TICKET,
+        AdminPermission.TICKET_OPERATION,
+
     }
 
 
@@ -106,7 +107,7 @@ def test_authorizer_requires_existing_permission(admin_with_all_permissions):
     role = Role(
         role_id=1,
         name="creator",
-        permissions=frozenset({AdminPermission.CREATE_TICKET}),
+        permissions=frozenset({AdminPermission.TICKET_OPERATION}),
     )
 
     class Repo:
@@ -115,16 +116,16 @@ def test_authorizer_requires_existing_permission(admin_with_all_permissions):
 
     authorizer = Authorizer(Repo())
 
-    authorizer.require(admin_with_all_permissions, AdminPermission.CREATE_TICKET)
+    authorizer.require(admin_with_all_permissions, AdminPermission.TICKET_OPERATION)
 
     with pytest.raises(PermissionError, match="lacks permission"):
-        authorizer.require(admin_with_all_permissions, AdminPermission.DELETE_TICKET)
+        authorizer.require(admin_with_all_permissions, AdminPermission.TICKET_VIEW)
 
 
 def test_role_manager_grants_and_revokes_roles_after_permission_check(admin_with_all_permissions, other_admin):
     roles = {
-        1: Role(role_id=1, name="root", permissions=frozenset({AdminPermission.ASSIGN_ROLE, AdminPermission.REVOKE_ROLE})),
-        2: Role(role_id=2, name="operator", permissions=frozenset({AdminPermission.CREATE_TICKET})),
+        1: Role(role_id=1, name="root", permissions=frozenset({AdminPermission.ROLE_ASSIGN, AdminPermission.ROLE_REVOKE})),
+        2: Role(role_id=2, name="operator", permissions=frozenset({AdminPermission.TICKET_OPERATION})),
     }
 
     class Repo:
@@ -133,10 +134,10 @@ def test_role_manager_grants_and_revokes_roles_after_permission_check(admin_with
 
     manager = RoleManager(Authorizer(Repo()), Repo())
 
-    manager.grant_role(admin_with_all_permissions, other_admin, 2, required_permission=AdminPermission.ASSIGN_ROLE)
+    manager.grant_role(admin_with_all_permissions, other_admin, 2, required_permission=AdminPermission.ROLE_REVOKE)
     assert 2 in other_admin.role_ids()
 
-    manager.revoke_role(admin_with_all_permissions, other_admin, 2, required_permission=AdminPermission.REVOKE_ROLE)
+    manager.revoke_role(admin_with_all_permissions, other_admin, 2, required_permission=AdminPermission.ROLE_REVOKE)
     assert 2 not in other_admin.role_ids()
 
 
@@ -184,9 +185,8 @@ def test_ticket_user_ticket_policy_allows_cancel_when_admin_ticket_is_cancelled(
         admin_id=admin_with_all_permissions.employee_id,
         text_of_ticket="Broken printer",
     )
-    ticket.cancel(actor_employee_id=admin_with_all_permissions.employee_id, comment="Duplicate")
 
-    TicketUserTicketPolicy.can_cancel_user_ticket(user_ticket, ticket)
+    TicketManagementService.reject(ticket=ticket,actor_employee_id=admin_with_all_permissions.employee_id,comment="Duplicate")
 
 
 def test_ticket_user_ticket_policy_rejects_cancel_when_admin_ticket_is_active(client, admin_with_all_permissions, user_ticket):

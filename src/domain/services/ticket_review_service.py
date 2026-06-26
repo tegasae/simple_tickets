@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.domain.exceptions import DomainOperationError
-from src.domain.policy.ticket_workflow_actor_policy import (
-    TicketWorkflowActorKind,
-    TicketWorkflowActorPolicy,
-)
+from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-from src.domain.statuses.ticket_status_record_factory import TicketStatusRecordFactory
+
 from src.domain.ticket import Ticket
 
 
@@ -28,8 +25,9 @@ class TicketReviewService:
         READY_FOR_REVIEW -> EXECUTED
         """
 
-        record = TicketStatusRecordFactory.executed(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.EXECUTED,
             comment=comment,
         )
 
@@ -53,16 +51,18 @@ class TicketReviewService:
         Возвращает заявку тому же исполнителю.
         """
 
+
         executor_id = TicketReviewService._current_executor_or_raise(
             ticket
         )
 
-        record = TicketStatusRecordFactory.at_work(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.AT_WORK,
             executor_id=executor_id,
+            actual_started_at=datetime.now(timezone.utc),
             comment=comment,
         )
-
         TicketReviewService._append_status(
             ticket=ticket,
             record=record,
@@ -84,12 +84,12 @@ class TicketReviewService:
         Исполнитель может быть изменён.
         """
 
-        record = TicketStatusRecordFactory.assigned(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.ASSIGNED,
             executor_id=executor_id,
             comment=comment,
         )
-
         TicketReviewService._append_status(
             ticket=ticket,
             record=record,
@@ -110,8 +110,9 @@ class TicketReviewService:
         READY_FOR_REVIEW -> SCHEDULED
         """
 
-        record = TicketStatusRecordFactory.scheduled(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.SCHEDULED,
             planned_start_at=planned_start_at,
             planned_finish_at=planned_finish_at,
             comment=comment,
@@ -138,8 +139,9 @@ class TicketReviewService:
         READY_FOR_REVIEW -> READY_TO_WORK
         """
 
-        record = TicketStatusRecordFactory.ready_to_work(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.READY_TO_WORK,
             executor_id=executor_id,
             planned_start_at=planned_start_at,
             planned_finish_at=planned_finish_at,
@@ -164,8 +166,9 @@ class TicketReviewService:
         READY_FOR_REVIEW -> DEFERRED
         """
 
-        record = TicketStatusRecordFactory.deferred(
+        record = TicketStatusRecord(
             actor_employee_id=actor_employee_id,
+            status=TicketStatus.DEFERRED,
             comment=comment,
         )
 
@@ -178,16 +181,14 @@ class TicketReviewService:
 
     @staticmethod
     def _append_status(
-        *,
-        ticket: Ticket,
-        record: TicketStatusRecord,
+            *,
+            ticket: Ticket,
+            record: TicketStatusRecord,
     ) -> None:
-        TicketWorkflowActorPolicy.ensure_actor_can_change_status(
-            actor_kind=TicketWorkflowActorKind.REVIEWER,
-            current_status=ticket.current_status(),
-            new_status=record.status,
-        )
-
+        if ticket.current_status() != TicketStatus.READY_FOR_REVIEW:
+            raise DomainOperationError(
+                "Ticket must be in READY_FOR_REVIEW status"
+            )
         ticket.append_status(record)
 
     @staticmethod
@@ -200,3 +201,4 @@ class TicketReviewService:
             )
 
         return executor_id
+
