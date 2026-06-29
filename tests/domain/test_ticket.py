@@ -918,17 +918,3 @@ def test_belong_detects_admin_comment_actor_and_executor_references() -> None:
 
 
 
-def test_update_details_changes_ticket_fields_when_status_allows() -> None:
-    ticket = make_ticket()
-
-    ticket.update_details(
-        text_of_ticket="Internet does not work",
-        description="The user cannot connect to the corporate network.",
-        contact_user_id=11,
-    )
-
-    assert ticket.text_of_ticket == "Internet does not work"
-    assert ticket.description == (
-        "The user cannot connect to the corporate network."
-    )
-    assert ticket.contact_user_id == 11

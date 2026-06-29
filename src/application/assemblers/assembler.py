@@ -30,38 +30,74 @@ class ClientAssembler:
             date_created=str(client.date_created)
         )
 
+
 class TicketAssembler:
     @staticmethod
     def to_dto(ticket: Ticket) -> TicketResponseDTO:
-        statuses=[]
-        for status in ticket.statuses:
-             statuses.append({'id':status.status_id,'status':status.status.value,'actor_id':status.actor_employee_id,'date':str(status.date_created)})
+        statuses = [
+            {
+                "id": record.status_id,
+                "status": record.status.value,
+                "actor_id": record.actor_employee_id,
+                "executor_id": record.executor_id,
+                "date_created": str(record.date_created),
+                "planned_start_at": (
+                    str(record.planned_start_at)
+                    if record.planned_start_at is not None
+                    else None
+                ),
+                "planned_finish_at": (
+                    str(record.planned_finish_at)
+                    if record.planned_finish_at is not None
+                    else None
+                ),
+                "actual_started_at": (
+                    str(record.actual_started_at)
+                    if record.actual_started_at is not None
+                    else None
+                ),
+                "actual_finished_at": (
+                    str(record.actual_finished_at)
+                    if record.actual_finished_at is not None
+                    else None
+                ),
+                "comment": record.comment,
+            }
+            for record in ticket.statuses
+        ]
 
-        comments = []
-        for comment in ticket.comments:
-            comments.append({'id': comment.comment_id, 'comment': comment.comment, 'actor_id': comment.employee_id, 'date': str(comment.date_created)})
-
-
-        executors=[]
-        for executor in ticket.executors:
-            executors.append({'id': executor.executor_id, 'admin_id':executor.admin_id,'date': str(executor.date_created)})
-
+        comments = [
+            {
+                "id": comment.comment_id,
+                "actor_id": comment.employee_id,
+                "comment": comment.comment,
+                "date_created": str(comment.date_created),
+            }
+            for comment in ticket.comments
+        ]
 
         return TicketResponseDTO(
-            admin_id=ticket.admin_id,
             ticket_id=ticket.ticket_id,
-            date_created=str(ticket.date_created),
-            date_finished=str(ticket.date_finished),
+            client_id=ticket.client_id,
+            admin_id=ticket.admin_id,
+            user_id=ticket.user_id,
             contact_user_id=ticket.contact_user_id,
+            user_ticket_id=ticket.user_ticket_id,
+            department_id=ticket.department_id,
             text_of_ticket=ticket.text_of_ticket,
+            description=ticket.description,
+            date_created=str(ticket.date_created),
+            date_finished=(
+                str(ticket.date_finished)
+                if ticket.date_finished is not None
+                else None
+            ),
             is_remote=ticket.is_remote,
             urgency_level=ticket.urgency_level,
-            client_id=ticket.client_id,
-            user_id=ticket.user_id,
-            user_ticket_id=ticket.user_ticket_id,
+            version=ticket.version,
+            is_closed=ticket.is_closed,
             statuses=statuses,
             comments=comments,
-            executors=executors
         )
 
 

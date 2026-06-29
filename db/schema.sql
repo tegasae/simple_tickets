@@ -214,27 +214,23 @@ CREATE TABLE tickets (
         REFERENCES departments(department_id)
         ON DELETE RESTRICT
 );
-CREATE INDEX idx_tickets_client_id
-    ON tickets(client_id);
 CREATE INDEX idx_tickets_department_id
     ON tickets(department_id);
-CREATE INDEX idx_tickets_user_ticket_id
-    ON tickets(user_ticket_id);
-CREATE INDEX idx_ticket_status_records_history
-    ON ticket_status_records(
-        ticket_id,
-        date_created,
-        status_id
-    );
 CREATE INDEX idx_ticket_status_records_executor
     ON ticket_status_records(executor_id)
     WHERE executor_id IS NOT NULL;
-CREATE INDEX idx_ticket_comments_history
-    ON ticket_comments(
-        ticket_id,
-        date_created,
-        ticket_comment_id
-    );
 CREATE UNIQUE INDEX uq_tickets_user_ticket_id
 ON tickets(user_ticket_id)
 WHERE user_ticket_id IS NOT NULL;
+CREATE INDEX idx_ticket_status_records_ticket_id
+ON ticket_status_records(ticket_id, status_id);
+CREATE INDEX idx_ticket_comments_ticket_id
+ON ticket_comments(ticket_id, ticket_comment_id);
+CREATE INDEX idx_tickets_client_ticket_id
+ON tickets(client_id, ticket_id);
+CREATE INDEX idx_tickets_admin_id
+ON tickets(admin_id);
+CREATE INDEX idx_ticket_status_records_actor_employee_id
+ON ticket_status_records(actor_employee_id);
+CREATE INDEX idx_ticket_comments_employee_id
+ON ticket_comments(employee_id);

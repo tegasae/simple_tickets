@@ -315,6 +315,9 @@ class Ticket:
         TicketStatusRecord.comment.
         """
         self._ensure_not_terminal()
+        comment.comment=comment.comment.strip()
+        if not comment.comment:
+            DomainOperationError("The comment can't be empty")
         self.comments.append(comment)
 
     def change_department(
@@ -331,6 +334,7 @@ class Ticket:
         Ticket проверяет только локальный workflow-инвариант:
         в текущем статусе department может быть заблокирован.
         """
+        self._ensure_not_terminal()
         if department_id < 0:
             raise DomainOperationError(
                 "Ticket department_id cannot be negative"
@@ -353,7 +357,9 @@ class Ticket:
             text_of_ticket: str,
     ) -> None:
         state = get_ticket_state(self.current_status_record().status)
-
+        text_of_ticket=text_of_ticket.strip()
+        if not text_of_ticket:
+            DomainOperationError("The text can't be empty")
         if not state.allows_ticket_text_update:
             raise DomainOperationError(
                 "Ticket text cannot be changed in the current status."
@@ -366,6 +372,9 @@ class Ticket:
             *,
             description: str,
     ) -> None:
+        description = description.strip()
+        if not description:
+            DomainOperationError("The description can't be empty")
         if self.is_terminal():
             raise DomainOperationError(
                 "Ticket description cannot be changed after ticket completion."

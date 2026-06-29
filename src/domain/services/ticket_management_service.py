@@ -81,15 +81,26 @@ class TicketManagementService:
             *,
             ticket: Ticket,
             actor_employee_id: int,
-            comment: str = "",
+            comment: str,
     ) -> bool:
         """
-         Applies Ticket workflow rules after Client was disabled.
+        Применяет workflow-политику после отключения Client.
 
-         Returns:
-             True  - Ticket was changed;
-             False - Ticket must remain in its current status.
-         """
+        CREATED:
+            -> REJECTED
+
+        ACCEPTED / SCHEDULED / ASSIGNED / READY_TO_WORK:
+            -> DEFERRED
+
+        Остальные статусы:
+            без изменений.
+
+        Returns:
+            True, если Ticket изменилась;
+            False, если Ticket осталась без изменений.
+
+        Для REJECTED и DEFERRED comment обязателен.
+        """
         current_status = ticket.current_status()
 
         if current_status == TicketStatus.CREATED:
@@ -114,7 +125,6 @@ class TicketManagementService:
             return True
 
         return False
-
 
 
     @staticmethod
