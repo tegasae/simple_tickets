@@ -1,6 +1,6 @@
 # src/application/services/ticket_command_service.py
 
-
+from __future__ import annotations
 
 from src.application.assemblers.assembler import TicketAssembler
 from src.application.dto.ticket_dto import (
@@ -20,14 +20,6 @@ class TicketCommandApplicationService:
     """
     Application service for non-workflow Ticket commands.
 
-    Responsibilities:
-        - opens UnitOfWork;
-        - checks Admin permission;
-        - validates cross-aggregate references;
-        - invokes Ticket aggregate commands;
-        - saves Ticket aggregate;
-        - maps result to TicketResponseDTO.
-
     Workflow transitions belong to:
         - TicketManagementApplicationService;
         - TicketExecutionApplicationService;
@@ -39,7 +31,7 @@ class TicketCommandApplicationService:
         self.actor = EmployeeActorHelper(self.uow)
 
     # --------------------------------
-    # Internal helpers
+    # Helpers
     # --------------------------------
 
     def _save_and_to_dto(
@@ -48,16 +40,6 @@ class TicketCommandApplicationService:
     ) -> TicketResponseDTO:
         saved_ticket = self.uow.tickets.save(ticket)
         return TicketAssembler.to_dto(saved_ticket)
-
-    def _require_ticket_operation(
-        self,
-        *,
-        actor_admin_id: int,
-    ):
-        return self.actor.require_actor_admin(
-            actor_admin_id=actor_admin_id,
-            permission=AdminPermission.TICKET_OPERATION,
-        )
 
     def _get_enabled_department(
         self,
@@ -135,8 +117,9 @@ class TicketCommandApplicationService:
         ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         with self.uow:
-            actor = self._require_ticket_operation(
+            actor = self.actor.require_actor_admin(
                 actor_admin_id=ticket_dto.actor_admin_id,
+                permission=AdminPermission.TICKET_OPERATION,
             )
 
             if ticket_dto.admin_id != actor.employee_id:
@@ -171,8 +154,9 @@ class TicketCommandApplicationService:
         ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         with self.uow:
-            self._require_ticket_operation(
+            self.actor.require_actor_admin(
                 actor_admin_id=ticket_dto.actor_admin_id,
+                permission=AdminPermission.TICKET_OPERATION,
             )
 
             ticket = self.uow.tickets.get(
@@ -190,8 +174,9 @@ class TicketCommandApplicationService:
         ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         with self.uow:
-            self._require_ticket_operation(
+            self.actor.require_actor_admin(
                 actor_admin_id=ticket_dto.actor_admin_id,
+                permission=AdminPermission.TICKET_OPERATION,
             )
 
             ticket = self.uow.tickets.get(
@@ -209,8 +194,9 @@ class TicketCommandApplicationService:
         ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         with self.uow:
-            actor = self._require_ticket_operation(
+            actor = self.actor.require_actor_admin(
                 actor_admin_id=ticket_dto.actor_admin_id,
+                permission=AdminPermission.TICKET_OPERATION,
             )
 
             ticket = self.uow.tickets.get(
@@ -231,8 +217,9 @@ class TicketCommandApplicationService:
         ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         with self.uow:
-            self._require_ticket_operation(
+            self.actor.require_actor_admin(
                 actor_admin_id=ticket_dto.actor_admin_id,
+                permission=AdminPermission.TICKET_OPERATION,
             )
 
             ticket = self.uow.tickets.get(
@@ -256,15 +243,14 @@ class TicketCommandApplicationService:
         ticket_dto: TicketDTO,
     ) -> None:
         with self.uow:
-            self._require_ticket_operation(
+            self.actor.require_actor_admin(
                 actor_admin_id=ticket_dto.actor_admin_id,
+                permission=AdminPermission.TICKET_OPERATION,
             )
 
-            # Ensures Ticket exists before DELETE.
             self.uow.tickets.get(
                 ticket_id=ticket_dto.ticket_id,
             )
-
             self.uow.tickets.delete(
                 ticket_id=ticket_dto.ticket_id,
             )

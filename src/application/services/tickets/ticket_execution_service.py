@@ -1,32 +1,32 @@
-# src/application/services/tickets/ticket_management_service.py
+# src/application/services/ticket_execution_service.py
 
-from __future__ import annotations
+
 
 from src.application.assemblers.assembler import TicketAssembler
 from src.application.dto.ticket_dto import TicketDTO, TicketResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
+from src.domain.employee import Admin
 from src.domain.exceptions import DomainOperationError
 from src.domain.policy.ticket import TicketPolicy
 from src.domain.rbac.permissions import AdminPermission
-from src.domain.services.ticket_management_service import (
-    TicketManagementService as TicketManagementDomainService,
+from src.domain.services.ticket_execution_service import (
+    TicketExecutionService as TicketExecutionDomainService,
 )
 from src.domain.ticket import Ticket
 from src.domain.uow.unit_of_work import UnitOfWork
 
 
-class TicketManagementApplicationService:
+class TicketExecutionApplicationService:
     """
-    Application service for Ticket management workflow.
+    Application service for Ticket execution actions.
 
-    Responsibilities:
-        - opens UnitOfWork;
-        - checks actor permissions;
-        - loads Ticket and related aggregates;
-        - checks cross-aggregate rules;
-        - invokes TicketManagement domain service;
-        - saves Ticket;
-        - returns TicketResponseDTO.
+    Domain workflow rules belong to TicketExecutionService.
+    This class is responsible for:
+        - UnitOfWork;
+        - RBAC;
+        - aggregate loading;
+        - cross-aggregate executor checks;
+        - persistence and DTO mapping.
     """
 
     def __init__(self, uow: UnitOfWork) -> None:
@@ -44,26 +44,12 @@ class TicketManagementApplicationService:
         saved_ticket = self.uow.tickets.save(ticket)
         return TicketAssembler.to_dto(saved_ticket)
 
-    def _get_manageable_ticket(
-        self,
-        *,
-        ticket_id: int,
-    ) -> Ticket:
-        ticket = self.uow.tickets.get(ticket_id=ticket_id)
-
-        client = self.uow.clients.get(
-            client_id=ticket.client_id,
-        )
-        TicketPolicy.ensure_client_enabled(client)
-
-        return ticket
-
-    def _get_assignable_executor(
+    def _get_executor_for_ticket(
         self,
         *,
         ticket: Ticket,
         executor_id: int,
-    ):
+    ) -> Admin:
         if executor_id <= 0:
             raise DomainOperationError("Executor id is required")
 
@@ -74,12 +60,12 @@ class TicketManagementApplicationService:
 
         if ticket.department_id <= 0:
             raise DomainOperationError(
-                "Cannot assign executor: Ticket has no department"
+                "Cannot register work: Ticket has no department"
             )
 
         if executor.department_id <= 0:
             raise DomainOperationError(
-                f"Cannot assign executor: "
+                f"Cannot register work: "
                 f"Admin {executor.employee_id} has no department"
             )
 
@@ -88,13 +74,13 @@ class TicketManagementApplicationService:
         )
         if not department.enabled:
             raise DomainOperationError(
-                f"Cannot assign executor: "
+                f"Cannot register work: "
                 f"Department {department.department_id} is disabled"
             )
 
         if executor.department_id != ticket.department_id:
             raise DomainOperationError(
-                f"Cannot assign executor: "
+                f"Cannot register work: "
                 f"Admin {executor.employee_id} belongs to department "
                 f"{executor.department_id}, expected "
                 f"{ticket.department_id}"
@@ -103,10 +89,10 @@ class TicketManagementApplicationService:
         return executor
 
     # --------------------------------
-    # Management workflow
+    # Execution workflow
     # --------------------------------
 
-    def accept_ticket(
+    def take_to_work(
         self,
         *,
         ticket_dto: TicketDTO,
@@ -117,11 +103,11 @@ class TicketManagementApplicationService:
                 permission=AdminPermission.TICKET_OPERATION,
             )
 
-            ticket = self._get_manageable_ticket(
+            ticket = self.uow.tickets.get(
                 ticket_id=ticket_dto.ticket_id,
             )
 
-            TicketManagementDomainService.accept(
+            TicketExecutionDomainService.take_to_work(
                 ticket=ticket,
                 actor_employee_id=actor.employee_id,
                 comment=ticket_dto.comment,
@@ -129,7 +115,7 @@ class TicketManagementApplicationService:
 
             return self._save_and_to_dto(ticket)
 
-    def reject_ticket(
+    def pause_work(
         self,
         *,
         ticket_dto: TicketDTO,
@@ -140,11 +126,11 @@ class TicketManagementApplicationService:
                 permission=AdminPermission.TICKET_OPERATION,
             )
 
-            ticket = self._get_manageable_ticket(
+            ticket = self.uow.tickets.get(
                 ticket_id=ticket_dto.ticket_id,
             )
 
-            TicketManagementDomainService.reject(
+            TicketExecutionDomainService.pause_work(
                 ticket=ticket,
                 actor_employee_id=actor.employee_id,
                 comment=ticket_dto.comment,
@@ -152,7 +138,7 @@ class TicketManagementApplicationService:
 
             return self._save_and_to_dto(ticket)
 
-    def defer_ticket(
+    def resume_work(
         self,
         *,
         ticket_dto: TicketDTO,
@@ -163,11 +149,11 @@ class TicketManagementApplicationService:
                 permission=AdminPermission.TICKET_OPERATION,
             )
 
-            ticket = self._get_manageable_ticket(
+            ticket = self.uow.tickets.get(
                 ticket_id=ticket_dto.ticket_id,
             )
 
-            TicketManagementDomainService.defer(
+            TicketExecutionDomainService.resume_work(
                 ticket=ticket,
                 actor_employee_id=actor.employee_id,
                 comment=ticket_dto.comment,
@@ -175,7 +161,7 @@ class TicketManagementApplicationService:
 
             return self._save_and_to_dto(ticket)
 
-    def schedule_ticket(
+    def submit_for_review(
         self,
         *,
         ticket_dto: TicketDTO,
@@ -186,106 +172,54 @@ class TicketManagementApplicationService:
                 permission=AdminPermission.TICKET_OPERATION,
             )
 
-            ticket = self._get_manageable_ticket(
+            ticket = self.uow.tickets.get(
                 ticket_id=ticket_dto.ticket_id,
             )
 
-            if ticket_dto.planned_start_at is None:
+            TicketExecutionDomainService.submit_for_review(
+                ticket=ticket,
+                actor_employee_id=actor.employee_id,
+                comment=ticket_dto.comment,
+            )
+
+            return self._save_and_to_dto(ticket)
+
+    def record_completed_work_for_review(
+        self,
+        *,
+        ticket_dto: TicketDTO,
+    ) -> TicketResponseDTO:
+        with self.uow:
+            actor = self.actor.require_actor_admin(
+                actor_admin_id=ticket_dto.actor_admin_id,
+                permission=AdminPermission.TICKET_OPERATION,
+            )
+
+            ticket = self.uow.tickets.get(
+                ticket_id=ticket_dto.ticket_id,
+            )
+
+            if ticket_dto.actual_started_at is None:
                 raise DomainOperationError(
-                    "planned_start_at is required"
+                    "actual_started_at is required"
                 )
 
-            TicketManagementDomainService.schedule(
-                ticket=ticket,
-                actor_employee_id=actor.employee_id,
-                planned_start_at=ticket_dto.planned_start_at,
-                planned_finish_at=ticket_dto.planned_finish_at,
-                comment=ticket_dto.comment,
-            )
+            if ticket_dto.actual_finished_at is None:
+                raise DomainOperationError(
+                    "actual_finished_at is required"
+                )
 
-            return self._save_and_to_dto(ticket)
-
-    def assign_executor(
-        self,
-        *,
-        ticket_dto: TicketDTO,
-    ) -> TicketResponseDTO:
-        with self.uow:
-            actor = self.actor.require_actor_admin(
-                actor_admin_id=ticket_dto.actor_admin_id,
-                permission=AdminPermission.TICKET_OPERATION,
-            )
-
-            ticket = self._get_manageable_ticket(
-                ticket_id=ticket_dto.ticket_id,
-            )
-            executor = self._get_assignable_executor(
+            executor = self._get_executor_for_ticket(
                 ticket=ticket,
                 executor_id=ticket_dto.executor_id,
             )
 
-            TicketManagementDomainService.assign(
+            TicketExecutionDomainService.record_completed_work_for_review(
                 ticket=ticket,
                 actor_employee_id=actor.employee_id,
                 executor_id=executor.employee_id,
-                comment=ticket_dto.comment,
-            )
-
-            return self._save_and_to_dto(ticket)
-
-    def ready_to_work(
-        self,
-        *,
-        ticket_dto: TicketDTO,
-    ) -> TicketResponseDTO:
-        with self.uow:
-            actor = self.actor.require_actor_admin(
-                actor_admin_id=ticket_dto.actor_admin_id,
-                permission=AdminPermission.TICKET_OPERATION,
-            )
-
-            ticket = self._get_manageable_ticket(
-                ticket_id=ticket_dto.ticket_id,
-            )
-            executor = self._get_assignable_executor(
-                ticket=ticket,
-                executor_id=ticket_dto.executor_id,
-            )
-
-            if ticket_dto.planned_start_at is None:
-                raise DomainOperationError(
-                    "planned_start_at is required"
-                )
-
-            TicketManagementDomainService.ready_to_work(
-                ticket=ticket,
-                actor_employee_id=actor.employee_id,
-                executor_id=executor.employee_id,
-                planned_start_at=ticket_dto.planned_start_at,
-                planned_finish_at=ticket_dto.planned_finish_at,
-                comment=ticket_dto.comment,
-            )
-
-            return self._save_and_to_dto(ticket)
-
-    def cancel_ticket(
-        self,
-        *,
-        ticket_dto: TicketDTO,
-    ) -> TicketResponseDTO:
-        with self.uow:
-            actor = self.actor.require_actor_admin(
-                actor_admin_id=ticket_dto.actor_admin_id,
-                permission=AdminPermission.TICKET_OPERATION,
-            )
-
-            ticket = self._get_manageable_ticket(
-                ticket_id=ticket_dto.ticket_id,
-            )
-
-            TicketManagementDomainService.cancel(
-                ticket=ticket,
-                actor_employee_id=actor.employee_id,
+                actual_started_at=ticket_dto.actual_started_at,
+                actual_finished_at=ticket_dto.actual_finished_at,
                 comment=ticket_dto.comment,
             )
 
