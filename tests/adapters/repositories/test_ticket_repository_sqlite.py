@@ -14,6 +14,8 @@ from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket import Ticket
 from src.domain.ticket_components import Comment
 from utils.db.connect import Connection
+from src.adapters.uow.sqlite_unit_of_work import SQLiteUnitOfWork
+
 
 
 NOW = datetime.now(timezone.utc)
@@ -130,6 +132,18 @@ CREATE TABLE tickets (
 
     FOREIGN KEY (department_id)
         REFERENCES departments(department_id)
+        ON DELETE RESTRICT,
+        
+    FOREIGN KEY (admin_id)
+    REFERENCES admins(employee_id)
+    ON DELETE RESTRICT,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(employee_id)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (contact_user_id)
+        REFERENCES users(employee_id)
         ON DELETE RESTRICT
 );
 
@@ -652,3 +666,158 @@ def test_get_all_returns_loaded_aggregates(
         ticket.current_status() == TicketStatus.CREATED
         for ticket in tickets
     )
+
+
+
+def test_uow_commits_ticket_root_statuses_and_comments(
+    ticket_sqlite_connection: Connection,
+) -> None:
+    with SQLiteUnitOfWork(ticket_sqlite_connection) as uow:
+        ticket = make_ticket(comment="Created by phone")
+
+        accept(ticket)
+
+        ticket.add_comment(
+            Comment(
+                employee_id=30,
+                comment="Please visit after noon",
+            )
+        )
+
+        saved = uow.tickets.save(ticket)
+
+    with SQLiteUnitOfWork(ticket_sqlite_connection) as uow:
+        loaded = uow.tickets.get(saved.ticket_id)
+
+    assert saved.ticket_id > 0
+    assert loaded.ticket_id == saved.ticket_id
+
+    assert [record.status for record in loaded.statuses] == [
+        TicketStatus.CREATED,
+        TicketStatus.ACCEPTED,
+    ]
+    assert loaded.current_status() == TicketStatus.ACCEPTED
+
+    assert [comment.comment for comment in loaded.comments] == [
+        "Created by phone",
+        "Please visit after noon",
+    ]
+
+
+def test_uow_rolls_back_ticket_aggregate_when_operation_fails(
+    ticket_sqlite_connection: Connection,
+) -> None:
+    ticket = make_ticket(comment="Must not be persisted")
+
+    with pytest.raises(
+        RuntimeError,
+        match="Force rollback",
+    ):
+        with SQLiteUnitOfWork(ticket_sqlite_connection) as uow:
+            uow.tickets.save(ticket)
+
+            raise RuntimeError("Force rollback")
+
+    ticket_count = ticket_sqlite_connection.connect.execute(
+        """
+        SELECT COUNT(*)
+        FROM tickets
+        """
+    ).fetchone()[0]
+
+    status_count = ticket_sqlite_connection.connect.execute(
+        """
+        SELECT COUNT(*)
+        FROM ticket_status_records
+        """
+    ).fetchone()[0]
+
+    comment_count = ticket_sqlite_connection.connect.execute(
+        """
+        SELECT COUNT(*)
+        FROM ticket_comments
+        """
+    ).fetchone()[0]
+
+    assert ticket_count == 0
+    assert status_count == 0
+    assert comment_count == 0
+
+
+def test_uow_detects_stale_ticket_version(
+    ticket_sqlite_connection: Connection,
+) -> None:
+    with SQLiteUnitOfWork(ticket_sqlite_connection) as uow:
+        saved = uow.tickets.save(make_ticket())
+
+    with SQLiteUnitOfWork(ticket_sqlite_connection) as uow:
+        first_copy = uow.tickets.get(saved.ticket_id)
+
+    with SQLiteUnitOfWork(ticket_sqlite_connection) as uow:
+        stale_copy = uow.tickets.get(saved.ticket_id)
+
+    accept(first_copy)
+
+    with SQLiteUnitOfWork(ticket_sqlite_connection) as uow:
+        updated = uow.tickets.save(first_copy)
+
+    assert updated.version == 1
+
+    accept(stale_copy)
+
+    with pytest.raises(OptimisticLockError):
+        with SQLiteUnitOfWork(ticket_sqlite_connection) as uow:
+            uow.tickets.save(stale_copy)
+
+    with SQLiteUnitOfWork(ticket_sqlite_connection) as uow:
+        loaded = uow.tickets.get(saved.ticket_id)
+
+    assert loaded.version == 1
+    assert loaded.current_status() == TicketStatus.ACCEPTED
+    assert len(loaded.statuses) == 2
+
+
+def test_uow_delete_commits_cascade_for_ticket_children(
+    ticket_sqlite_connection: Connection,
+) -> None:
+    with SQLiteUnitOfWork(ticket_sqlite_connection) as uow:
+        ticket = make_ticket(comment="Initial comment")
+        accept(ticket)
+        assign(ticket)
+
+        saved = uow.tickets.save(ticket)
+
+    with SQLiteUnitOfWork(ticket_sqlite_connection) as uow:
+        uow.tickets.delete(saved.ticket_id)
+
+    ticket_count = ticket_sqlite_connection.connect.execute(
+        """
+        SELECT COUNT(*)
+        FROM tickets
+        WHERE ticket_id = ?
+        """,
+        (saved.ticket_id,),
+    ).fetchone()[0]
+
+    status_count = ticket_sqlite_connection.connect.execute(
+        """
+        SELECT COUNT(*)
+        FROM ticket_status_records
+        WHERE ticket_id = ?
+        """,
+        (saved.ticket_id,),
+    ).fetchone()[0]
+
+    comment_count = ticket_sqlite_connection.connect.execute(
+        """
+        SELECT COUNT(*)
+        FROM ticket_comments
+        WHERE ticket_id = ?
+        """,
+        (saved.ticket_id,),
+    ).fetchone()[0]
+
+    assert ticket_count == 0
+    assert status_count == 0
+    assert comment_count == 0
+

@@ -19,7 +19,7 @@ class StatusTicketOfClient(Enum):
 
     CREATED = "created" # создана пользователем
     CONFIRMED = "confirmed" # потдверждена, на ее осонове создани Ticket
-    AT_WORK = "at_work" # в работе, значит есть исполнитель у Ticket
+    AT_WORK = "at_work" # в работе, все состояния Ticket после
     EXECUTED = "executed" # выполнена
     CANCELED_BY_ADMIN = "canceled_by_admin" # отменена Admin
     CANCELED_BY_CLIENT = "canceled_by_client" # отменена User
