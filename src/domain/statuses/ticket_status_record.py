@@ -29,7 +29,7 @@ class TicketStatusRecord:
 
     status_id: int = 0
 
-    actor_employee_id: int
+    actor_employee_id: int=0
     status: TicketStatus
 
     date_created: datetime = field(

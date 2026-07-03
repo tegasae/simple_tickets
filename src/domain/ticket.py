@@ -43,7 +43,7 @@ class Ticket:
 
     ticket_id: int
     client_id: int
-    admin_id: int
+    admin_id: int = 0
 
     text_of_ticket: str = ""
     user_id: int = 0
@@ -119,7 +119,37 @@ class Ticket:
             )
 
         return ticket
+    @classmethod
+    def create_from_ticket_user(cls):
+        raise NotImplementedError
 
+    #todo 2. Изменить логику принятия Ticket
+    #todo Потому что мы ещё не закрепили, как именно User cancellation должна менять связанную Ticket.
+    # todo 4. Изменить создание Ticket в application layer
+    """User создаёт TicketUser
+
+Появится новый coordinated use case:
+
+create_ticket_user(...)
+
+В одной транзакции:
+
+1. Создать TicketUser.CREATED
+   actor = реальный User.
+
+2. Создать Ticket.CREATED
+   actor = 0.
+
+3. Установить:
+   Ticket.admin_id = 0
+   Ticket.user_ticket_id = TicketUser.ticket_id.
+
+4. Скопировать поля TicketUser в Ticket.
+
+5. Сохранить обе aggregate.
+
+Ticket не должна сама создавать TicketUser, а TicketUser не должна сама создавать Ticket.
+"""
     @classmethod
     def rehydrate(
         cls,
