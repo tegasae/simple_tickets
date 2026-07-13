@@ -1,10 +1,10 @@
 # src/domain/ticket.py
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from typing import Self
 
-from src.domain.exceptions import DomainOperationError
+from src.domain.exceptions import DomainOperationError, ItemValidationError
 from src.domain.statuses.ticket_status import (
     TicketStatus,
     get_ticket_state,
@@ -119,37 +119,102 @@ class Ticket:
             )
 
         return ticket
+
     @classmethod
-    def create_from_ticket_user(cls):
-        raise NotImplementedError
+    def create_from_ticket_user(
+            cls,
+            *,
+            ticket_id: int,
+            client_id: int,
+            user_id: int,
+            contact_user_id: int,
+            user_ticket_id: int,
+            text_of_ticket: str,
+            description: str = "",
+            urgency_level: int = 0,
+            department_id: int = 0,
+            is_remote: bool = False,
+            date_created: datetime | None = None,
+    ) -> "Ticket":
+        """
+        Create internal Ticket automatically from TicketUser.
 
-    #todo 2. Изменить логику принятия Ticket
-    #todo Потому что мы ещё не закрепили, как именно User cancellation должна менять связанную Ticket.
-    # todo 4. Изменить создание Ticket в application layer
-    """User создаёт TicketUser
+        This factory is used only by application service in the coordinated use case:
 
-Появится новый coordinated use case:
+            User creates TicketUser
+                -> application service creates linked Ticket
 
-create_ticket_user(...)
+        Important:
+            Ticket must not create TicketUser.
+            TicketUser must not create Ticket.
+            Both aggregates are coordinated by application service.
 
-В одной транзакции:
+        Initial state:
 
-1. Создать TicketUser.CREATED
-   actor = реальный User.
+            Ticket.CREATED
+            admin_id = 0
+            user_ticket_id = TicketUser.ticket_id
+            initial TicketStatusRecord.actor_employee_id = 0
 
-2. Создать Ticket.CREATED
-   actor = 0.
+        Meaning of actor_employee_id = 0:
 
-3. Установить:
-   Ticket.admin_id = 0
-   Ticket.user_ticket_id = TicketUser.ticket_id.
+            system-generated action;
+            not Admin;
+            not User;
+            not Executor.
+        """
+        if ticket_id <= 0:
+            raise ItemValidationError("Ticket id must be positive.")
 
-4. Скопировать поля TicketUser в Ticket.
+        if client_id <= 0:
+            raise ItemValidationError("Client id must be positive.")
 
-5. Сохранить обе aggregate.
+        if user_id <= 0:
+            raise ItemValidationError("User id must be positive.")
 
-Ticket не должна сама создавать TicketUser, а TicketUser не должна сама создавать Ticket.
-"""
+        if user_ticket_id <= 0:
+            raise ItemValidationError("User ticket id must be positive.")
+
+        text = text_of_ticket.strip()
+        if not text:
+            raise ItemValidationError("Text of ticket must not be empty.")
+
+        now = date_created or datetime.now(UTC)
+
+        created_status = TicketStatusRecord(
+            status_id=0,
+            actor_employee_id=0,
+            status=TicketStatus.CREATED,
+            date_created=now,
+            executor_id=0,
+            planned_start_at=None,
+            planned_finish_at=None,
+            actual_started_at=None,
+            actual_finished_at=None,
+            comment="",
+        )
+
+        return cls(
+            ticket_id=ticket_id,
+            client_id=client_id,
+            admin_id=0,
+            user_id=user_id,
+            contact_user_id=contact_user_id,
+            text_of_ticket=text,
+            statuses=[created_status],
+            comments=[],
+            date_created=now,
+            department_id=department_id,
+            is_remote=is_remote,
+            is_closed=False,
+            date_finished=None,
+            version=0,
+            urgency_level=urgency_level,
+            user_ticket_id=user_ticket_id,
+            description=description.strip(),
+        )
+
+
     @classmethod
     def rehydrate(
         cls,

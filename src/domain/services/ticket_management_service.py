@@ -1,7 +1,8 @@
-from __future__ import annotations
 
-from datetime import datetime
 
+from datetime import datetime, UTC
+
+from src.domain.exceptions import ItemValidationError
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 
@@ -19,23 +20,34 @@ class TicketManagementService:
 
     @staticmethod
     def accept(
-        *,
-        ticket: Ticket,
-        actor_employee_id: int,
-        comment: str = "",
-    ) -> TicketStatusRecord:
-        record = TicketStatusRecord(
+            *,
+            ticket: Ticket,
+            actor_employee_id: int,
+            comment: str = "",
+            date_created: datetime | None = None,
+    ) -> None:
+        if actor_employee_id <= 0:
+            raise ItemValidationError("Actor employee id must be positive.")
+
+        now = date_created or datetime.now(UTC)
+
+        status_record = TicketStatusRecord(
+            status_id=0,
             actor_employee_id=actor_employee_id,
             status=TicketStatus.ACCEPTED,
-            comment=comment,
+            date_created=now,
+            executor_id=0,
+            planned_start_at=None,
+            planned_finish_at=None,
+            actual_started_at=None,
+            actual_finished_at=None,
+            comment=comment.strip(),
         )
 
-        TicketManagementService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+        ticket.append_status(status_record)
 
-        return record
+        if ticket.admin_id == 0 and ticket.user_ticket_id != 0:
+            ticket.admin_id = actor_employee_id
 
     @staticmethod
     def reject(
@@ -54,6 +66,7 @@ class TicketManagementService:
             ticket=ticket,
             record=record,
         )
+
 
         return record
 
