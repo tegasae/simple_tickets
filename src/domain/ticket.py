@@ -12,7 +12,6 @@ from src.domain.statuses.ticket_status import (
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket_components import Comment
 
-
 @dataclass(kw_only=True)
 class Ticket:
     """
@@ -51,7 +50,6 @@ class Ticket:
 
     statuses: list[TicketStatusRecord] = field(default_factory=list)
     comments: list[Comment] = field(default_factory=list)
-
     date_created: datetime = field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
@@ -135,7 +133,7 @@ class Ticket:
             department_id: int = 0,
             is_remote: bool = False,
             date_created: datetime | None = None,
-    ) -> "Ticket":
+    ) -> Self:
         """
         Create internal Ticket automatically from TicketUser.
 

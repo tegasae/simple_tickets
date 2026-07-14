@@ -79,6 +79,7 @@ class TicketStatusRecord:
     def is_new(self) -> bool:
         return self.status_id == 0
 
+
     def has_executor(self) -> bool:
         return self.executor_id > 0
 

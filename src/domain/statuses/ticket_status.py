@@ -1,6 +1,5 @@
 # src/domain/statuses/ticket_status.py
 
-
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
@@ -8,8 +7,11 @@ from typing import Final
 
 class TicketStatus(StrEnum):
     CREATED = "created"
+    CREATED_FROM_TICKET_USER = "created_from_ticket_user"
+
     REJECTED = "rejected"
     ACCEPTED = "accepted"
+
     DEFERRED = "deferred"
     SCHEDULED = "scheduled"
     ASSIGNED = "assigned"
@@ -17,8 +19,10 @@ class TicketStatus(StrEnum):
     AT_WORK = "at_work"
     PAUSED = "paused"
     READY_FOR_REVIEW = "ready_for_review"
+
     EXECUTED = "executed"
     CANCELLED = "cancelled"
+    CANCELLED_BY_USER = "cancelled_by_user"
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +49,9 @@ class TicketState:
     locks_department_change:
         Department заявки нельзя менять обычной операцией.
 
+    allows_ticket_text_update:
+        Текст заявки можно менять обычной операцией.
+
     allowed_next:
         Следующие статусы, допустимые по общему workflow-графу.
         Это не RBAC и не описание того, кто вызывает use case.
@@ -69,23 +76,32 @@ class TicketState:
 
 CREATED_STATE: Final = TicketState(
     status=TicketStatus.CREATED,
-    allows_ticket_text_update = True,
+    allows_ticket_text_update=True,
     allowed_next=frozenset({
         TicketStatus.ACCEPTED,
         TicketStatus.REJECTED,
-
     }),
 )
+
+
+CREATED_FROM_TICKET_USER_STATE: Final = TicketState(
+    status=TicketStatus.CREATED_FROM_TICKET_USER,
+    allowed_next=frozenset({
+        TicketStatus.ACCEPTED,
+        TicketStatus.CANCELLED_BY_USER,
+    }),
+)
+
 
 REJECTED_STATE: Final = TicketState(
     status=TicketStatus.REJECTED,
     terminal=True,
 )
 
-ACCEPTED_STATE: Final = TicketState(
 
+ACCEPTED_STATE: Final = TicketState(
     status=TicketStatus.ACCEPTED,
-    allows_ticket_text_update = True,
+    allows_ticket_text_update=True,
     allowed_next=frozenset({
         TicketStatus.DEFERRED,
         TicketStatus.SCHEDULED,
@@ -94,6 +110,7 @@ ACCEPTED_STATE: Final = TicketState(
         TicketStatus.CANCELLED,
     }),
 )
+
 
 DEFERRED_STATE: Final = TicketState(
     status=TicketStatus.DEFERRED,
@@ -106,6 +123,7 @@ DEFERRED_STATE: Final = TicketState(
     }),
 )
 
+
 SCHEDULED_STATE: Final = TicketState(
     status=TicketStatus.SCHEDULED,
     requires_planned_start=True,
@@ -116,9 +134,10 @@ SCHEDULED_STATE: Final = TicketState(
         TicketStatus.ACCEPTED,
         TicketStatus.DEFERRED,
         TicketStatus.CANCELLED,
-        TicketStatus.READY_FOR_REVIEW,  #
+        TicketStatus.READY_FOR_REVIEW,
     }),
 )
+
 
 ASSIGNED_STATE: Final = TicketState(
     status=TicketStatus.ASSIGNED,
@@ -132,9 +151,10 @@ ASSIGNED_STATE: Final = TicketState(
         TicketStatus.AT_WORK,
         TicketStatus.DEFERRED,
         TicketStatus.CANCELLED,
-        TicketStatus.READY_FOR_REVIEW,  #
+        TicketStatus.READY_FOR_REVIEW,
     }),
 )
+
 
 READY_TO_WORK_STATE: Final = TicketState(
     status=TicketStatus.READY_TO_WORK,
@@ -149,9 +169,10 @@ READY_TO_WORK_STATE: Final = TicketState(
         TicketStatus.AT_WORK,
         TicketStatus.DEFERRED,
         TicketStatus.CANCELLED,
-        TicketStatus.READY_FOR_REVIEW,  #
+        TicketStatus.READY_FOR_REVIEW,
     }),
 )
+
 
 AT_WORK_STATE: Final = TicketState(
     status=TicketStatus.AT_WORK,
@@ -168,6 +189,7 @@ AT_WORK_STATE: Final = TicketState(
         TicketStatus.CANCELLED,
     }),
 )
+
 
 PAUSED_STATE: Final = TicketState(
     status=TicketStatus.PAUSED,
@@ -190,7 +212,6 @@ READY_FOR_REVIEW_STATE: Final = TicketState(
     requires_executor=True,
     work_started=True,
     locks_department_change=True,
-
     allowed_next=frozenset({
         TicketStatus.EXECUTED,
         TicketStatus.AT_WORK,
@@ -202,13 +223,21 @@ READY_FOR_REVIEW_STATE: Final = TicketState(
     }),
 )
 
+
 EXECUTED_STATE: Final = TicketState(
     status=TicketStatus.EXECUTED,
     terminal=True,
 )
 
+
 CANCELLED_STATE: Final = TicketState(
     status=TicketStatus.CANCELLED,
+    terminal=True,
+)
+
+
+CANCELLED_BY_USER_STATE: Final = TicketState(
+    status=TicketStatus.CANCELLED_BY_USER,
     terminal=True,
 )
 
@@ -217,6 +246,7 @@ _TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
     state.status: state
     for state in (
         CREATED_STATE,
+        CREATED_FROM_TICKET_USER_STATE,
         REJECTED_STATE,
         ACCEPTED_STATE,
         DEFERRED_STATE,
@@ -228,6 +258,7 @@ _TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
         READY_FOR_REVIEW_STATE,
         EXECUTED_STATE,
         CANCELLED_STATE,
+        CANCELLED_BY_USER_STATE,
     )
 }
 
