@@ -314,27 +314,20 @@ class Ticket:
         Комментарии к workflow-событиям лежат в
         TicketStatusRecord.comment.
         """
-        self._ensure_not_terminal()
+
         self.comments.append(comment)
 
     def change_department(
-        self,
-        *,
-        department_id: int,
+            self,
+            *,
+            department_id: int,
     ) -> None:
-        """
-        Меняет department Ticket.
-
-        Проверки существования Department, его enabled-state
-        и совместимости с Admin выполняются вне aggregate.
-
-        Ticket проверяет только локальный workflow-инвариант:
-        в текущем статусе department может быть заблокирован.
-        """
         if department_id < 0:
             raise DomainOperationError(
                 "Ticket department_id cannot be negative"
             )
+
+        self._ensure_not_terminal()
 
         current_state = get_ticket_state(
             self.current_status()
@@ -347,19 +340,27 @@ class Ticket:
 
         self.department_id = department_id
 
+
     def update_ticket_text(
             self,
             *,
             text_of_ticket: str,
     ) -> None:
-        state = get_ticket_state(self.current_status_record().status)
+        state = get_ticket_state(self.current_status())
 
         if not state.allows_ticket_text_update:
             raise DomainOperationError(
                 "Ticket text cannot be changed in the current status."
             )
 
-        self.text_of_ticket = text_of_ticket
+        normalized_text = text_of_ticket.strip()
+
+        if not normalized_text:
+            raise DomainOperationError(
+                "Ticket text cannot be empty."
+            )
+
+        self.text_of_ticket = normalized_text
 
     def update_description(
             self,
@@ -371,7 +372,8 @@ class Ticket:
                 "Ticket description cannot be changed after ticket completion."
             )
 
-        self.description = description
+        self.description = description.strip()
+
     # ----------------------------
     # Internal workflow helpers
     # ----------------------------
