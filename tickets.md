@@ -1,28 +1,129 @@
-# Workflow Ticket: бизнес-правила, история и граф статусов
+# Workflow Ticket и TicketUser
 
-## 1. Назначение документа
+## Статус документа
 
-Этот документ фиксирует workflow внутренней заявки `Ticket`:
+Документ объединяет:
 
-* структуру истории статусов;
-* смысл каждого статуса;
-* допустимые переходы;
-* правила для исполнителя, менеджера и review;
-* правила изменения полей Ticket;
-* границы ответственности domain layer и application layer.
+- текущий реализованный workflow `Ticket`;
+- согласованные правила связи `Ticket` и `TicketUser`;
+- целевую модель `TicketUser`;
+- изменения, которые потребуются в существующем коде;
+- открытые вопросы по пользовательскому снятию заявки.
 
-Документ описывает внутренний `Ticket`. Отдельный `TicketUser` пока не создаётся и не участвует в workflow.
+`Ticket` и `TicketUser` — самостоятельные aggregate с независимыми history records.
 
 ---
 
-## 2. Основная модель
+# 1. Общая модель
 
-`Ticket` не хранит отдельное изменяемое поле текущего статуса.
+## 1.1. Два workflow
 
-Вместо этого он хранит историю workflow-событий:
+```text
+Ticket
+    Внутренний workflow организации:
+    принятие, планирование, назначение, выполнение, review и закрытие.
 
-```python
-ticket.statuses: list[TicketStatusRecord]
+TicketUser
+    Внешний workflow пользовательской заявки:
+    создание, принятие организацией, работа, ожидание подтверждения,
+    подтверждение результата или снятие заявки.
+```
+
+`Ticket` и `TicketUser` не являются двумя представлениями одного aggregate.
+
+Они связаны, но каждый aggregate отвечает за свои инварианты и свою историю.
+
+## 1.2. Границы ответственности
+
+```text
+User и superuser Client
+    изменяют только TicketUser.
+
+Admin и Executor
+    изменяют Ticket через внутренний workflow.
+
+User и superuser Client
+    никогда не создают и не изменяют TicketStatusRecord.
+
+Ticket и TicketUser
+    не загружают и не изменяют друг друга из domain-кода.
+
+Application service
+    координирует изменения Ticket и TicketUser
+    в одной транзакции Unit of Work.
+```
+
+## 1.3. Связь Ticket и TicketUser
+
+Для связанной пары:
+
+```text
+Ticket.user_ticket_id == TicketUser.ticket_id
+Ticket.client_id == TicketUser.client_id
+```
+
+Целевая связь:
+
+```text
+TicketUser 1 ─── 1 Ticket
+```
+
+Одна пользовательская заявка не должна иметь две связанные внутренние Ticket.
+
+Для внутренней Ticket без пользовательского workflow:
+
+```text
+Ticket.user_ticket_id = 0
+```
+
+В SQLite это может храниться как `NULL`.
+
+## 1.4. Снимок данных
+
+При создании связанной пары Ticket получает снимок пользовательских данных.
+
+Минимальный набор:
+
+```text
+client_id
+user_id
+contact_user_id
+text_of_ticket
+description
+urgency_level
+```
+
+После создания:
+
+```text
+TicketUser и Ticket
+не синхронизируют содержимое автоматически.
+```
+
+Например:
+
+```text
+изменение description в Ticket
+    не меняет description в TicketUser;
+
+изменение text_of_ticket в TicketUser
+    не меняет text_of_ticket в Ticket.
+```
+
+Это исключает необходимость решать, какая сущность является текущим источником истины для одного и того же поля.
+
+---
+
+# 2. Ticket
+
+## 2.1. Основная модель
+
+`Ticket` не хранит отдельное поле текущего статуса как источник истины.
+
+Она хранит append-only историю workflow-событий:
+
+```text
+TicketStatusRecord[]
 ```
 
 Каждое изменение workflow добавляет новую неизменяемую `TicketStatusRecord`.
@@ -33,10 +134,10 @@ ticket.statuses: list[TicketStatusRecord]
 SCHEDULED → SCHEDULED
 ```
 
-не обновляет старую плановую запись, а означает отдельное бизнес-событие:
+означает:
 
 ```text
-заявка перепланирована
+заявка перепланирована.
 ```
 
 Аналогично:
@@ -48,22 +149,22 @@ ASSIGNED → ASSIGNED
 означает:
 
 ```text
-исполнитель переназначен
+исполнитель переназначен.
 ```
 
-Старые status records не редактируются и не удаляются. Каждое новое workflow-действие добавляет новую запись.
+Старые status records не редактируются и не удаляются.
 
-Текущий статус определяется последней записью:
+Текущий статус определяется последней записью истории:
 
 ```python
 ticket.current_status() == ticket.statuses[-1].status
 ```
 
-Порядок истории в persistence определяется `status_id`, а не фактическими датами выполнения работы.
+Порядок workflow history в persistence определяется `status_id`, а не фактическим временем выполнения работы.
 
 ---
 
-## 3. `TicketStatusRecord`
+## 2.2. TicketStatusRecord
 
 Каждая status record содержит:
 
@@ -84,68 +185,84 @@ actual_finished_at
 comment
 ```
 
-Смысл полей:
+### Значение полей
 
 ```text
 actor_employee_id
-    сотрудник, который зарегистрировал workflow-событие.
+    Кто зарегистрировал workflow-событие.
 
 executor_id
-    исполнитель в данном состоянии.
-    0 в domain / NULL в SQL означает, что исполнителя нет.
+    Кто является исполнителем в данном состоянии.
 
 date_created
-    момент создания workflow-record в системе.
+    Когда workflow-record создана в системе.
 
 planned_start_at / planned_finish_at
-    плановые даты выполнения.
+    Плановый интервал работы.
 
 actual_started_at / actual_finished_at
-    фактический интервал выполнения работы.
+    Фактический интервал выполнения работы.
 
 comment
-    причина или пояснение конкретного workflow-события.
+    Пояснение к конкретному workflow-событию.
 ```
 
-`date_created` и `actual_*` описывают разные вещи.
+### Системный actor
 
-Например, инженер мог завершить работу утром, а зарегистрировать её вечером:
+В domain-модели:
 
 ```text
-date_created       = 18:00
-actual_started_at  = 09:00
-actual_finished_at = 10:30
+actor_employee_id = 0
 ```
 
----
+означает:
 
-## 4. Текущий статус и текущий исполнитель
-
-### Текущий статус
-
-Источник истины о текущем статусе:
-
-```python
-ticket.current_status()
+```text
+системное действие;
+не User;
+не Admin;
+не Executor.
 ```
 
-Он возвращает статус последней status record.
+В SQLite:
 
-### Текущий исполнитель
-
-Источник истины о текущем исполнителе — только текущая status record:
-
-```python
-ticket.current_executor_id()
+```text
+actor_employee_id = 0 в domain
+    ↔
+actor_employee_id = NULL в базе данных.
 ```
 
-Он возвращает:
+`0` не означает неизвестного автора.
 
-```python
-ticket.current_status_record().executor_id
+```text
+0 == SYSTEM_GENERATED
 ```
 
-Нельзя искать «последнего исполнителя в истории».
+На текущем этапе это нужно для автоматического создания Ticket на основании TicketUser.
+
+Для ручных действий:
+
+```text
+actor_employee_id > 0
+```
+
+и содержит id реального Admin или Executor.
+
+### Отсутствующий исполнитель
+
+В domain-модели:
+
+```text
+executor_id = 0
+```
+
+означает отсутствие исполнителя.
+
+В SQLite:
+
+```text
+executor_id = NULL
+```
 
 Пример:
 
@@ -154,176 +271,210 @@ READY_TO_WORK executor_id=20
 SCHEDULED     executor_id=0
 ```
 
-После перехода в `SCHEDULED` текущего исполнителя нет, даже если ранее Ticket была назначена сотруднику `20`.
+После перехода в `SCHEDULED` текущего исполнителя нет, даже если он был указан в более ранних status records.
+
+### Дата регистрации и фактические даты
+
+`date_created` и `actual_*` — разные понятия.
+
+Например:
+
+```text
+date_created       = 18:00
+actual_started_at  = 09:00
+actual_finished_at = 10:30
+```
+
+Это означает, что работа была выполнена утром, но зарегистрирована в системе вечером.
 
 ---
 
-## 5. Обычные комментарии и комментарии workflow
+## 2.3. Root-поля Ticket и происхождение заявки
 
-В Ticket есть два разных вида комментариев.
+Для Ticket, автоматически созданной на основании TicketUser:
 
-### Комментарий status record
+```text
+Ticket.admin_id = 0
+Ticket.user_ticket_id = TicketUser.ticket_id
+Ticket.CREATED.actor_employee_id = 0
+```
+
+В SQLite:
+
+```text
+tickets.admin_id = NULL
+ticket_status_records.actor_employee_id = NULL
+```
+
+После принятия заявки Admin:
+
+```text
+Ticket.CREATED → ACCEPTED
+```
+
+в root Ticket сохраняется Admin, принявший заявку:
+
+```text
+Ticket.admin_id = accepting_admin_id
+```
+
+В истории появляется:
+
+```text
+TicketStatusRecord(
+    status=ACCEPTED,
+    actor_employee_id=accepting_admin_id,
+)
+```
+
+`Ticket.admin_id` не заменяет workflow history.
+
+Источником аудита принятия остаётся `TicketStatusRecord`.
+
+---
+
+## 2.4. Сценарии создания Ticket и TicketUser
+
+### User создаёт TicketUser
+
+Когда User создаёт TicketUser, в той же транзакции автоматически создаётся связанная Ticket.
+
+Начальное состояние пары:
+
+| Aggregate | Начальный статус | Actor initial record |
+|---|---|---:|
+| `TicketUser` | `CREATED` | id User |
+| `Ticket` | `CREATED` | `0`, системное создание |
+
+Для Ticket:
+
+```text
+admin_id = 0
+user_ticket_id = TicketUser.ticket_id
+```
+
+Ticket получает снимок данных TicketUser.
+
+### Admin принимает TicketUser
+
+Admin принимает существующую пару:
+
+```text
+TicketUser.CREATED → CONFIRMED_BY_ADMIN
+Ticket.CREATED     → ACCEPTED
+```
+
+Оба перехода выполняются одной application-service операцией и в одной транзакции.
+
+В history обеих aggregate записывается реальный Admin:
+
+```text
+TicketUserStatusRecord(
+    status=CONFIRMED_BY_ADMIN,
+    actor_employee_id=admin_id,
+)
+
+TicketStatusRecord(
+    status=ACCEPTED,
+    actor_employee_id=admin_id,
+)
+```
+
+Одновременно:
+
+```text
+Ticket.admin_id = admin_id
+```
+
+### Admin создаёт Ticket для конкретного User
+
+Если Admin создаёт Ticket с:
+
+```text
+user_id != 0
+```
+
+то в той же транзакции автоматически создаётся связанная TicketUser в состоянии:
+
+```text
+CONFIRMED_BY_ADMIN
+```
+
+Существующий `Ticket.create()` создаёт Ticket в состоянии `CREATED`.
+
+Поэтому application service должна в той же транзакции выполнить обычный переход:
+
+```text
+Ticket.CREATED → ACCEPTED
+```
+
+Итоговое состояние после commit:
+
+```text
+Ticket.ACCEPTED
+TicketUser.CONFIRMED_BY_ADMIN
+```
+
+История Ticket при этом честно сохраняет два события:
+
+```text
+Ticket.CREATED
+Ticket.ACCEPTED
+```
+
+Actor обеих Ticket records — Admin, который создал и принял заявку.
+
+Для TicketUser создаётся initial record:
+
+```text
+TicketUserStatusRecord(
+    status=CONFIRMED_BY_ADMIN,
+    actor_employee_id=admin_id,
+)
+```
+
+`TicketUser.CREATED` в этом сценарии не создаётся, потому что User не подавал заявку самостоятельно.
+
+Инвариант:
+
+```text
+Ticket.user_id != 0
+    → существует связанная TicketUser.
+```
+
+### Внутренняя Ticket без User
+
+Если Admin создаёт Ticket с:
+
+```text
+user_id = 0
+```
+
+то TicketUser не создаётся.
+
+Такая Ticket существует только во внутреннем workflow.
+
+---
+
+## 2.5. Текущий исполнитель
+
+Источник истины о текущем исполнителе — только текущая status record:
 
 ```python
-TicketStatusRecord.comment
+ticket.current_executor_id()
 ```
 
-Это комментарий к конкретному workflow-событию.
-
-Примеры:
+Она возвращает:
 
 ```text
-«Отклонено: обращение не относится к нашей службе».
-
-«Отложено: ожидаем доступ в серверную».
-
-«Отменено: клиент отозвал запрос».
+ticket.current_status_record().executor_id
 ```
 
-Для следующих статусов комментарий обязателен:
-
-```text
-REJECTED
-DEFERRED
-CANCELLED
-```
-
-### Обычный комментарий Ticket
-
-```python
-Ticket.comments
-```
-
-Это журнал сообщений и уточнений по заявке.
-
-Примеры:
-
-```text
-«Пользователь уточнил номер кабинета».
-
-«Инженер созвонился с контактным лицом».
-
-«После закрытия пользователь подтвердил, что проблема не повторяется».
-
-«Создана новая Ticket #145, потому что проблема относится к другому сотруднику».
-```
-
-Обычные комментарии можно добавлять во всех состояниях, включая terminal:
-
-```text
-REJECTED
-EXECUTED
-CANCELLED
-```
-
-Комментарий не изменяет workflow, статус, department, исполнителя или исторические поля Ticket.
-
-Закрытая Ticket не может быть изменена как рабочая заявка, но её журнал остаётся доступным для дополнения.
+Нельзя искать последнего исполнителя по всей истории.
 
 ---
 
-## 6. Политика изменения полей Ticket
-
-У разных полей разные правила изменения.
-
-| Поле              | Правило                                              |
-| ----------------- | ---------------------------------------------------- |
-| `text_of_ticket`  | Можно менять только в `CREATED` и `ACCEPTED`.        |
-| `description`     | Можно менять во всех нетерминальных состояниях.      |
-| `user_id`         | Устанавливается при создании и пока не меняется.     |
-| `contact_user_id` | Устанавливается при создании и пока не меняется.     |
-| `department_id`   | Меняется отдельной командой по специальной политике. |
-| Обычные уточнения | Добавляются через `Ticket.comments`.                 |
-
-### `text_of_ticket`
-
-`text_of_ticket` — основная формулировка заявки.
-
-Пример:
-
-```text
-«У сотрудника не работает интернет».
-```
-
-Её можно изменить только в:
-
-```text
-CREATED
-ACCEPTED
-```
-
-После `ACCEPTED` смысл заявки не переписывается. Новые сведения добавляются в комментарии.
-
-При создании и изменении текста:
-
-```text
-- пробелы по краям удаляются;
-- пустой текст запрещён.
-```
-
-### `description`
-
-`description` — актуальная вспомогательная информация для выполнения работы.
-
-Примеры:
-
-```text
-- кабинет;
-- как проехать;
-- контакт на месте;
-- код двери;
-- особенности доступа;
-- расположение оборудования;
-- допустимое время посещения.
-```
-
-`description` можно изменять во всех нетерминальных состояниях:
-
-```text
-CREATED
-ACCEPTED
-DEFERRED
-SCHEDULED
-ASSIGNED
-READY_TO_WORK
-AT_WORK
-PAUSED
-READY_FOR_REVIEW
-```
-
-В terminal-состояниях `description` не меняется:
-
-```text
-REJECTED
-EXECUTED
-CANCELLED
-```
-
-### `user_id` и `contact_user_id`
-
-```text
-user_id
-    пользователь клиента, который инициировал обращение.
-
-contact_user_id
-    пользователь, в интересах которого выполняется работа.
-```
-
-Эти поля устанавливаются при создании Ticket и пока не меняются.
-
-Если позднее выяснится, что Ticket относится к другому пользователю, не нужно переписывать старую Ticket. В будущем для этого будет отдельный сценарий:
-
-```text
-ticket.copy(...)
-```
-
-Он создаст новую Ticket в `CREATED` с возможностью изменить нужные поля, а исходная Ticket сохранится исторически корректной.
-
----
-
-## 7. Статусы Ticket
-
-Текущий набор статусов:
+## 2.6. Статусы Ticket
 
 ```text
 CREATED
@@ -342,21 +493,25 @@ CANCELLED
 
 `OFFLINE_WORK` не является статусом.
 
-Ретроспективно зарегистрированная работа — это переход сразу в:
-
-```text
-READY_FOR_REVIEW
-```
-
-с заполненными фактическими датами работы.
+Ретроспективно внесённая работа — это отдельный способ создать `READY_FOR_REVIEW` record с фактическим интервалом работы.
 
 ---
 
-## 8. Смысл статусов и допустимый payload
+## 2.7. Статусы Ticket и допустимый payload
 
 ### CREATED
 
-Ticket создана, но ещё не признана рабочей.
+Ticket создана, но ещё не принята в работу.
+
+Для Ticket, созданной из TicketUser:
+
+```text
+actor_employee_id = 0
+admin_id = 0
+user_ticket_id обязателен
+```
+
+Payload:
 
 ```text
 executor_id          отсутствует
@@ -371,8 +526,6 @@ CREATED → ACCEPTED
 CREATED → REJECTED
 ```
 
----
-
 ### REJECTED
 
 Ticket отклонена до принятия в работу.
@@ -381,22 +534,30 @@ Ticket отклонена до принятия в работу.
 REJECTED — terminal status
 ```
 
+Payload:
+
 ```text
 executor_id          отсутствует
 planned_*            отсутствуют
 actual_*             отсутствуют
 comment              обязателен
+actor_employee_id    реальный Admin
 ```
 
-Workflow и рабочие поля не меняются.
+`REJECTED` означает административное отклонение заявки.
 
-Обычные комментарии добавлять можно.
+Для связанной активной TicketUser:
 
----
+```text
+Ticket.REJECTED
+    → TicketUser.CANCELLED_BY_ADMIN
+```
 
 ### ACCEPTED
 
-Ticket признана корректной и может быть обработана.
+Ticket признана корректной и принята в работу.
+
+Payload:
 
 ```text
 executor_id          отсутствует
@@ -416,7 +577,7 @@ ACCEPTED → CANCELLED
 
 Из `ACCEPTED` нельзя напрямую перейти в `AT_WORK`.
 
-Перед обычным началом работы должна появиться запись назначения:
+Перед началом online-работы должна появиться запись назначения или готовности:
 
 ```text
 ACCEPTED
@@ -432,8 +593,6 @@ ACCEPTED
 → AT_WORK
 ```
 
----
-
 ### DEFERRED
 
 Ticket отложена.
@@ -442,13 +601,15 @@ Ticket отложена.
 
 ```text
 - нужны данные от клиента;
-- требуется согласование;
+- нужно согласование;
 - нет доступа;
 - нужны материалы;
 - требуется решение менеджера;
-- нужна передача в другой department;
-- клиент временно отключён.
+- нужно сменить department;
+- Client временно отключён.
 ```
+
+Payload:
 
 ```text
 executor_id          отсутствует
@@ -467,11 +628,11 @@ DEFERRED → READY_TO_WORK
 DEFERRED → CANCELLED
 ```
 
----
-
 ### SCHEDULED
 
 Ticket запланирована, но исполнитель ещё не назначен.
+
+Payload:
 
 ```text
 executor_id          отсутствует
@@ -506,7 +667,7 @@ SCHEDULED → CANCELLED
 SCHEDULED → READY_FOR_REVIEW
 ```
 
-допустим только как ретроспективная регистрация уже выполненной работы.
+возможен только как ретроспективная регистрация завершённой работы.
 
 В новой `READY_FOR_REVIEW` record обязательны:
 
@@ -516,11 +677,11 @@ actual_started_at
 actual_finished_at
 ```
 
----
-
 ### ASSIGNED
 
-Назначен исполнитель.
+Назначен ответственный исполнитель.
+
+Payload:
 
 ```text
 executor_id          обязателен
@@ -557,24 +718,17 @@ ASSIGNED → READY_FOR_REVIEW
 
 возможен только как ретроспективная фиксация завершённой работы.
 
----
-
 ### READY_TO_WORK
 
-Есть и исполнитель, и план выполнения.
+Определены исполнитель и план работы.
+
+Payload:
 
 ```text
 executor_id          обязателен
 planned_start_at     обязателен
 planned_finish_at    опционален
 actual_*             отсутствуют
-```
-
-Смысл:
-
-```text
-конкретный сотрудник должен выполнить работу
-в запланированный период.
 ```
 
 Повторный переход:
@@ -598,53 +752,39 @@ READY_TO_WORK → READY_FOR_REVIEW
 READY_TO_WORK → CANCELLED
 ```
 
-Переход:
-
-```text
-READY_TO_WORK → READY_FOR_REVIEW
-```
-
-может означать, что работа была выполнена, но зарегистрирована позже.
-
-В новой `READY_FOR_REVIEW` record обязательны:
-
-```text
-executor_id
-actual_started_at
-actual_finished_at
-```
-
----
+Переход в `READY_FOR_REVIEW` означает ретроспективную фиксацию выполненной работы.
 
 ### AT_WORK
 
-Работа по Ticket выполняется в данный момент.
+Работа выполняется в данный момент.
+
+Payload:
 
 ```text
 executor_id          обязателен
 actual_started_at    обязателен
-planned_*            отсутствуют
 actual_finished_at   отсутствует
+planned_*            отсутствуют
 ```
 
-При обычном начале работы `actual_started_at` устанавливает система:
+При обычном начале работы:
 
-```python
+```text
 actual_started_at = now()
 ```
 
-Рабочее время в `AT_WORK` считается по истории статусов:
+Рабочее время в online workflow определяется по истории:
 
 ```text
-AT_WORK.date_created
+AT_WORK record
     →
-дата следующей status record
+следующая status record
 ```
 
 Если `AT_WORK` является текущим статусом:
 
 ```text
-AT_WORK.date_created
+AT_WORK record
     →
 now()
 ```
@@ -662,15 +802,15 @@ AT_WORK → READY_TO_WORK
 AT_WORK → CANCELLED
 ```
 
-Первые два перехода — обычные действия исполнителя.
+Первые два перехода — обычные действия current executor.
 
-Остальные — управленческие или аварийные переходы.
-
----
+Остальные — управленческие или аварийные действия.
 
 ### PAUSED
 
-Работа начиналась, но временно остановлена.
+Работа началась, но временно остановлена.
+
+Payload:
 
 ```text
 executor_id          обязателен
@@ -682,8 +822,9 @@ actual_*             отсутствуют
 
 ```text
 PAUSED
-    внутренняя временная остановка начатой работы;
-    исполнитель сохраняется.
+    внутренняя временная пауза;
+    исполнитель сохраняется;
+    работа уже была начата.
 
 DEFERRED
     заявка отложена по внешней или управленческой причине;
@@ -702,21 +843,20 @@ PAUSED → READY_TO_WORK
 PAUSED → CANCELLED
 ```
 
----
-
 ### READY_FOR_REVIEW
 
-Исполнитель завершил свой этап работы, но результат ещё не подтверждён.
+Исполнитель завершил этап работы, но внутренний workflow ещё не завершён.
+
+Payload:
 
 ```text
 executor_id          обязателен
 actual_finished_at   обязателен
-planned_*            отсутствуют
 ```
 
-`READY_FOR_REVIEW` может быть создана двумя путями.
+`READY_FOR_REVIEW` создаётся двумя путями.
 
-#### Онлайн-работа через `AT_WORK`
+#### Online workflow через AT_WORK
 
 История:
 
@@ -724,7 +864,7 @@ planned_*            отсутствуют
 ... → AT_WORK → READY_FOR_REVIEW
 ```
 
-В `READY_FOR_REVIEW` record:
+В новой record:
 
 ```text
 executor_id
@@ -732,16 +872,9 @@ actual_finished_at
 actual_started_at = None
 ```
 
-Начало работы уже отражено записью `AT_WORK`.
+Начало работы уже отражено предыдущей `AT_WORK` record.
 
-Недопустимо:
-
-```text
-AT_WORK → READY_FOR_REVIEW
-с новым actual_started_at
-```
-
-#### Ретроспективная регистрация завершённой работы
+#### Ретроспективная регистрация работы
 
 История:
 
@@ -749,14 +882,18 @@ AT_WORK → READY_FOR_REVIEW
 SCHEDULED
     → READY_FOR_REVIEW
 
+или
+
 ASSIGNED
     → READY_FOR_REVIEW
+
+или
 
 READY_TO_WORK
     → READY_FOR_REVIEW
 ```
 
-В новой `READY_FOR_REVIEW` record обязательны:
+В новой record обязательны:
 
 ```text
 executor_id
@@ -764,15 +901,29 @@ actual_started_at
 actual_finished_at
 ```
 
-Недопустимо:
+Правило:
 
 ```text
-SCHEDULED / ASSIGNED / READY_TO_WORK
-    → READY_FOR_REVIEW
-без actual_started_at
+предыдущий статус = AT_WORK
+и actual_started_at отсутствует
+    → online workflow.
+
+предыдущий статус = SCHEDULED / ASSIGNED / READY_TO_WORK
+и actual_started_at присутствует
+    → ретроспективная регистрация.
 ```
 
-Для ретроспективно зарегистрированной работы:
+Недопустимы:
+
+```text
+AT_WORK → READY_FOR_REVIEW
+с новым actual_started_at.
+
+SCHEDULED / ASSIGNED / READY_TO_WORK → READY_FOR_REVIEW
+без actual_started_at.
+```
+
+Для ретроспективной работы:
 
 ```text
 actual_started_at <= actual_finished_at
@@ -792,15 +943,15 @@ READY_FOR_REVIEW → DEFERRED
 READY_FOR_REVIEW → CANCELLED
 ```
 
----
-
 ### EXECUTED
 
-Работа выполнена и подтверждена.
+Работа выполнена и внутренне подтверждена Admin.
 
 ```text
 EXECUTED — terminal status
 ```
+
+Payload:
 
 ```text
 executor_id          отсутствует
@@ -808,60 +959,95 @@ planned_*            отсутствуют
 actual_*             отсутствуют
 ```
 
-Нельзя:
+После `EXECUTED` Ticket не изменяется.
+
+Для связанной TicketUser:
 
 ```text
-- менять workflow;
-- менять text_of_ticket;
-- менять description;
-- менять department;
-- менять user_id или contact_user_id;
-- назначать исполнителя;
-- перепланировать Ticket.
+TicketUser.WAITING_FOR_CONFIRMATION
+    → EXECUTION_CONFIRMED_BY_ADMIN
 ```
 
-Можно:
+Но если TicketUser уже находится в:
 
 ```text
-- добавить обычный комментарий Ticket.
+EXECUTION_CONFIRMED_BY_USER
 ```
 
----
+она остаётся в этом состоянии.
 
 ### CANCELLED
 
-Ticket была рабочей, но затем снята.
+Ticket снята после принятия в работу.
 
 ```text
 CANCELLED — terminal status
 ```
+
+Для ручной административной отмены:
 
 ```text
 executor_id          отсутствует
 planned_*            отсутствуют
 actual_*             отсутствуют
 comment              обязателен
+actor_employee_id    реальный Admin
 ```
 
 Отличие:
 
 ```text
 REJECTED
-    Ticket не прошла первичную проверку.
+    Ticket отклонена до принятия.
 
 CANCELLED
-    Ticket стала рабочей, но затем была отменена.
+    Ticket была принята в работу, но затем снята.
 ```
 
-После отмены нельзя менять workflow и рабочие поля.
+Для связанной активной TicketUser:
 
-Обычные комментарии добавлять можно.
+```text
+Ticket.CANCELLED
+    → TicketUser.CANCELLED_BY_ADMIN
+```
+
+Если TicketUser уже находится в:
+
+```text
+EXECUTION_CONFIRMED_BY_USER
+```
+
+то дальнейшая отмена Ticket не переписывает этот terminal status.
 
 ---
 
-## 9. TicketState и граф статусов
+## 2.8. Terminal Ticket
 
-Граф статусов хранится только в `TicketState`.
+Для terminal Ticket:
+
+```text
+REJECTED
+EXECUTED
+CANCELLED
+```
+
+запрещены:
+
+```text
+- новые workflow transitions;
+- изменение text_of_ticket;
+- изменение description;
+- изменение department;
+- добавление обычных комментариев.
+```
+
+`is_closed` — derived-состояние. Оно определяется текущим terminal status.
+
+---
+
+## 2.9. Граф статусов Ticket
+
+Граф хранится только в `TicketState`.
 
 ```text
 TicketState
@@ -871,45 +1057,7 @@ TicketState
     requires_planned_start
     work_started
     locks_department_change
-    allows_ticket_text_update
 ```
-
-### Значение полей
-
-```text
-allowed_next
-    допустимые следующие статусы.
-
-terminal
-    workflow завершён.
-
-requires_executor
-    status record должна содержать executor_id.
-
-requires_planned_start
-    status record должна содержать planned_start_at.
-
-work_started
-    характеристика текущего активного рабочего состояния:
-    AT_WORK, PAUSED, READY_FOR_REVIEW.
-
-locks_department_change
-    блокировка изменения department
-    для нетерминальных состояний с назначением или выполнением работы.
-
-allows_ticket_text_update
-    text_of_ticket разрешено менять только в CREATED и ACCEPTED.
-```
-
-Terminal Ticket блокирует изменение department общей terminal-проверкой.
-
-Поэтому для terminal-status:
-
-```text
-locks_department_change == False
-```
-
-не означает, что department можно изменить. Это означает только, что блокировка в данном флаге не используется: Ticket уже закрыта.
 
 `Ticket` использует `TicketState` напрямую:
 
@@ -918,15 +1066,10 @@ Ticket.can_change_status(...)
     проверяет допустимость перехода без изменения aggregate.
 
 Ticket.append_status(...)
-    добавляет новую status record
-    только при допустимом переходе.
+    добавляет record только при допустимом переходе.
 ```
 
 Отдельного `TicketWorkflowPolicy` нет.
-
----
-
-## 10. Граф статусов
 
 ```mermaid
 stateDiagram-v2
@@ -1003,11 +1146,11 @@ stateDiagram-v2
 
 ---
 
-## 11. Domain services и границы ответственности
+## 2.10. Domain services и application services
 
 ### Application layer и RBAC
 
-Application layer отвечает за вопрос:
+Application layer отвечает на вопрос:
 
 ```text
 кто из реальных сотрудников может вызвать use case.
@@ -1016,35 +1159,41 @@ Application layer отвечает за вопрос:
 Например:
 
 ```text
-- может ли сотрудник принять Ticket;
-- может ли сотрудник назначить исполнителя;
-- может ли сотрудник зарегистрировать работу другого исполнителя;
-- может ли сотрудник подтвердить выполнение;
-- может ли сотрудник удалить Ticket аварийно.
+может ли сотрудник принять TicketUser;
+может ли сотрудник назначить исполнителя;
+может ли сотрудник подтвердить Ticket;
+может ли User подтвердить TicketUser;
+может ли superuser Client снять TicketUser.
 ```
 
-Эти правила определяются permissions.
+Application service не хранит граф статусов и не определяет допустимость workflow transition.
 
-Application service не хранит граф статусов и не должен самостоятельно решать допустимость перехода.
+Текущая реализация использует общие permissions:
+
+```text
+AdminPermission.TICKET_OPERATION
+AdminPermission.TICKET_VIEW
+```
+
+Проверки расположены прямо в application use cases.
+
+Позже их можно заменить детализированными permissions без изменения domain workflow.
 
 ### Ticket
 
-`Ticket` отвечает за локальные инварианты aggregate:
+`Ticket` отвечает за локальные инварианты:
 
 ```text
-- status history существует;
-- terminal Ticket не получает новых workflow-records;
+- history существует;
+- terminal Ticket не изменяется;
 - переход соответствует TicketState;
-- current executor берётся из текущей status record;
-- производные поля пересчитываются из истории;
-- текст Ticket меняется только в CREATED и ACCEPTED;
-- description меняется только в нетерминальных состояниях;
-- обычные comments можно добавлять в любом состоянии.
+- current executor определяется текущей status record;
+- derived state пересчитывается из history.
 ```
 
 ### TicketManagementService
 
-Управляет административными действиями:
+Управляет обычными административными действиями:
 
 ```text
 accept
@@ -1059,7 +1208,7 @@ handle_client_disabled
 
 ### TicketExecutionService
 
-Управляет действиями исполнителя:
+Управляет действиями current executor:
 
 ```text
 take_to_work
@@ -1069,9 +1218,7 @@ submit_for_review
 record_completed_work_for_review
 ```
 
-`record_completed_work_for_review` регистрирует завершённую работу задним числом и создаёт сразу `READY_FOR_REVIEW`.
-
-Он допустим только из:
+`record_completed_work_for_review` создаёт `READY_FOR_REVIEW` сразу и допустим только из:
 
 ```text
 SCHEDULED
@@ -1081,7 +1228,7 @@ READY_TO_WORK
 
 ### TicketReviewService
 
-Управляет review:
+Управляет этапом review:
 
 ```text
 confirm_execution
@@ -1092,7 +1239,7 @@ return_to_ready_to_work
 return_to_deferred
 ```
 
-Все review-операции выполняются только из:
+Все review-операции доступны только из:
 
 ```text
 READY_FOR_REVIEW
@@ -1100,7 +1247,7 @@ READY_FOR_REVIEW
 
 ---
 
-## 12. Обычные действия исполнителя
+## 2.11. Действия исполнителя
 
 Исполнитель — current executor Ticket.
 
@@ -1109,8 +1256,6 @@ READY_FOR_REVIEW
 ```text
 actor_employee_id == ticket.current_executor_id()
 ```
-
-Исполнитель фиксирует выполнение своей работы, но не определяет управленческую судьбу Ticket.
 
 Обычные действия исполнителя:
 
@@ -1129,68 +1274,79 @@ PAUSED
 
 SCHEDULED / ASSIGNED / READY_TO_WORK
     → READY_FOR_REVIEW
-    только через record_completed_work_for_review
+      только через record_completed_work_for_review
 ```
 
 Исполнитель не может самостоятельно:
 
 ```text
 - принять или отклонить Ticket;
-- отложить Ticket;
 - отменить Ticket;
-- перепланировать Ticket;
-- переназначить другого исполнителя;
+- отложить Ticket;
+- перепланировать;
+- переназначить исполнителя;
 - сменить department;
-- подтвердить EXECUTED.
+- перевести Ticket в EXECUTED.
 ```
 
 ---
 
-## 13. Управленческие и аварийные переходы
+## 2.12. Department
 
-Управляющий сотрудник имеет нужный permission в application layer.
-
-Он может выполнять, например:
+### Admin и Department
 
 ```text
-CREATED → ACCEPTED
-CREATED → REJECTED
+Admin может не иметь department.
+Admin может принадлежать одному department.
+Admin без department не может быть executor.
+Disabled Admin не может быть назначен executor.
+```
 
-ACCEPTED / DEFERRED
-    → SCHEDULED / ASSIGNED / READY_TO_WORK / CANCELLED
+Исполнитель должен принадлежать department Ticket:
 
-AT_WORK / PAUSED
-    → DEFERRED / SCHEDULED / ASSIGNED / READY_TO_WORK / CANCELLED
+```text
+executor.department_id == ticket.department_id
+```
 
+### Ticket и Department
+
+```text
+Ticket может не иметь department.
+Ticket без department не может получить executor.
+Ticket может принадлежать одному department.
+```
+
+Проверки существования Admin и Department, их enabled-state и совпадения department выполняются application layer или отдельной cross-aggregate policy.
+
+### Смена department Ticket
+
+Department можно менять только в состояниях:
+
+```text
+CREATED
+ACCEPTED
+DEFERRED
+SCHEDULED
+```
+
+Department заблокирован в:
+
+```text
+ASSIGNED
+READY_TO_WORK
+AT_WORK
+PAUSED
 READY_FOR_REVIEW
-    → EXECUTED
-    → AT_WORK
-    → ASSIGNED
-    → SCHEDULED
-    → READY_TO_WORK
-    → DEFERRED
-    → CANCELLED
+REJECTED
+EXECUTED
+CANCELLED
 ```
 
-Примеры аварийных сценариев:
-
-```text
-исполнитель временно недоступен:
-AT_WORK → PAUSED
-
-нужен другой исполнитель:
-AT_WORK → ASSIGNED
-
-нужно согласование:
-AT_WORK → DEFERRED
-
-нужно создать новый план:
-AT_WORK → SCHEDULED
-```
+Смена department — изменение Ticket root, а не изменение workflow history.
 
 ---
 
-## 14. Отключение Client
+## 2.13. Отключение Client
 
 Отключение Client — отдельное бизнес-событие.
 
@@ -1199,15 +1355,13 @@ AT_WORK → SCHEDULED
 ```text
 - проверяет permission;
 - отключает Client;
-- загружает связанные нетерминальные Ticket;
+- загружает связанные non-terminal Ticket;
 - вызывает TicketManagementService.handle_client_disabled(...);
 - сохраняет только изменённые Ticket;
 - отключает пользователей Client.
 ```
 
-Application service не хранит граф статусов.
-
-Правила `handle_client_disabled(...)`:
+Правила:
 
 ```text
 CREATED
@@ -1226,96 +1380,24 @@ READY_FOR_REVIEW
 REJECTED
 EXECUTED
 CANCELLED
-    → без изменения
+    → остаются без изменений
 ```
 
-Причина фиксируется в `TicketStatusRecord.comment`, например:
+Причину передаёт вызывающий use case.
+
+Она сохраняется в:
 
 ```text
-Client disabled
+TicketStatusRecord.comment
 ```
 
 ---
 
-## 15. Department
+## 2.14. Requires attention
 
-### Admin и Department
+Не вводится отдельный workflow-статус `PROBLEM`.
 
-```text
-Admin может не иметь department.
-Admin может принадлежать одному department.
-Admin без department не может быть executor.
-Disabled Admin не может быть назначен executor.
-```
-
-Исполнитель должен принадлежать тому же department, что и Ticket:
-
-```text
-executor.department_id == ticket.department_id
-```
-
-Admin нельзя перевести в другой department, пока он является current executor незавершённой Ticket.
-
-### Ticket и Department
-
-```text
-Ticket может не иметь department.
-Ticket без department не может получить executor.
-Ticket может принадлежать одному department.
-```
-
-Проверки существования Admin и Department, их enabled-state и совпадения department относятся к application layer или отдельной cross-aggregate policy, а не к `Ticket`.
-
----
-
-## 16. Смена department Ticket
-
-Department меняется отдельной командой:
-
-```python
-ticket.change_department(
-    department_id=department_id,
-)
-```
-
-Смена department разрешена в:
-
-```text
-CREATED
-ACCEPTED
-DEFERRED
-SCHEDULED
-```
-
-В `SCHEDULED` executor отсутствует по определению статуса, поэтому смена department допустима.
-
-Смена department запрещена в:
-
-```text
-ASSIGNED
-READY_TO_WORK
-AT_WORK
-PAUSED
-READY_FOR_REVIEW
-```
-
-В terminal Ticket смена department также запрещена общей terminal-проверкой:
-
-```text
-REJECTED
-EXECUTED
-CANCELLED
-```
-
-Изменение department не является update старой status record. Это отдельное изменение Ticket root, которое проходит application-level проверки.
-
----
-
-## 17. Requires attention
-
-Не вводится отдельный статус `PROBLEM`.
-
-Вместо него используется вычисляемый аналитический признак:
+Вместо него используется аналитический признак:
 
 ```text
 requires_attention
@@ -1326,32 +1408,441 @@ requires_attention
 ```text
 - Ticket перепланировалась;
 - исполнитель переназначался;
-- работа была зарегистрирована задним числом;
-- Ticket возвращалась из READY_FOR_REVIEW в работу;
-- Ticket была в AT_WORK и затем ушла в DEFERRED / SCHEDULED / ASSIGNED;
+- работа внесена задним числом;
+- Ticket возвращалась из READY_FOR_REVIEW обратно в работу;
+- Ticket была в AT_WORK и затем перешла в DEFERRED / SCHEDULED / ASSIGNED;
 - Ticket долго находится в DEFERRED;
-- planned_start_at уже прошёл, а Ticket не terminal.
+- planned_start_at уже прошло, а Ticket не terminal.
 ```
 
-`requires_attention`:
+Это read-model или аналитический признак, а не workflow status и не aggregate invariant.
+
+---
+
+# 3. TicketUser
+
+## 3.1. Статусы TicketUser
 
 ```text
-- не является workflow-status;
-- не является aggregate invariant;
-- вычисляется в read-model или аналитическом слое.
+CREATED
+CONFIRMED_BY_ADMIN
+IN_WORK
+WAITING_FOR_CONFIRMATION
+
+EXECUTION_CONFIRMED_BY_USER
+EXECUTION_CONFIRMED_BY_ADMIN
+
+CANCELLED_BY_USER
+CANCELLED_BY_ADMIN
+```
+
+Terminal-статусы:
+
+```text
+EXECUTION_CONFIRMED_BY_USER
+EXECUTION_CONFIRMED_BY_ADMIN
+CANCELLED_BY_USER
+CANCELLED_BY_ADMIN
+```
+
+| Код | Отображение | Terminal | Смысл |
+|---|---|:---:|---|
+| `CREATED` | Создана | Нет | User создал заявку; связанная Ticket ждёт принятия Admin. |
+| `CONFIRMED_BY_ADMIN` | Подтверждена админом | Нет | Admin принял заявку; Ticket находится в `ACCEPTED`. |
+| `IN_WORK` | В работе | Нет | Ticket находится в рабочем или организационном состоянии. |
+| `WAITING_FOR_CONFIRMATION` | Ожидает подтверждения | Нет | Ticket находится в `READY_FOR_REVIEW`. |
+| `EXECUTION_CONFIRMED_BY_USER` | Выполнение подтверждено пользователем | Да | Автор TicketUser или superuser Client подтвердил результат. |
+| `EXECUTION_CONFIRMED_BY_ADMIN` | Выполнение подтверждено админом | Да | Admin перевёл Ticket в `EXECUTED`, не ожидая User. |
+| `CANCELLED_BY_USER` | Снята пользователем | Да | Заявка снята User или superuser Client. |
+| `CANCELLED_BY_ADMIN` | Снята админом | Да | Admin отклонил заявку либо Ticket была отклонена или отменена Admin. |
+
+---
+
+## 3.2. Прямое соответствие Ticket → TicketUser
+
+Соответствие действует, пока TicketUser не находится в terminal-статусе.
+
+| Состояние Ticket | Состояние TicketUser |
+|---|---|
+| `CREATED` | `CREATED` |
+| `ACCEPTED` | `CONFIRMED_BY_ADMIN` |
+| `DEFERRED` | `IN_WORK` |
+| `SCHEDULED` | `IN_WORK` |
+| `ASSIGNED` | `IN_WORK` |
+| `READY_TO_WORK` | `IN_WORK` |
+| `AT_WORK` | `IN_WORK` |
+| `PAUSED` | `IN_WORK` |
+| `READY_FOR_REVIEW` | `WAITING_FOR_CONFIRMATION` |
+| `EXECUTED` | `EXECUTION_CONFIRMED_BY_ADMIN` |
+| `REJECTED` | `CANCELLED_BY_ADMIN` |
+| `CANCELLED` | `CANCELLED_BY_ADMIN` |
+
+Для Ticket без связанной TicketUser эта таблица не применяется.
+
+Прямая синхронизация означает:
+
+```text
+AT_WORK → DEFERRED → ACCEPTED
+```
+
+даёт:
+
+```text
+IN_WORK → IN_WORK → CONFIRMED_BY_ADMIN
+```
+
+История TicketUser отражает внешнее состояние заявки, а не непрерывность внутренней работы Ticket.
+
+---
+
+## 3.3. Подтверждение выполнения
+
+Когда Ticket достигает review:
+
+```text
+Ticket.READY_FOR_REVIEW
+    → TicketUser.WAITING_FOR_CONFIRMATION
+```
+
+Дальше существуют два независимых пути.
+
+### Подтверждение User или superuser Client
+
+```text
+TicketUser.WAITING_FOR_CONFIRMATION
+    → EXECUTION_CONFIRMED_BY_USER
+```
+
+Подтвердить могут:
+
+```text
+автор TicketUser;
+superuser того же Client.
+```
+
+Ticket при этом не изменяется:
+
+```text
+Ticket остаётся READY_FOR_REVIEW.
+```
+
+User и superuser Client не создают `TicketStatusRecord`.
+
+### Подтверждение Admin
+
+Admin может не ждать User и завершить Ticket:
+
+```text
+Ticket.READY_FOR_REVIEW
+    → Ticket.EXECUTED
+```
+
+В той же транзакции:
+
+```text
+TicketUser.WAITING_FOR_CONFIRMATION
+    → EXECUTION_CONFIRMED_BY_ADMIN
+```
+
+Actor TicketUser status record — Admin, завершивший Ticket.
+
+### Подтверждение User не переписывается
+
+Если TicketUser уже находится в:
+
+```text
+EXECUTION_CONFIRMED_BY_USER
+```
+
+то дальнейшие действия с Ticket не меняют это terminal-состояние.
+
+| Новое состояние Ticket | Результат для TicketUser |
+|---|---|
+| `EXECUTED` | Остаётся `EXECUTION_CONFIRMED_BY_USER`. |
+| Рабочий статус после возврата из review | Остаётся `EXECUTION_CONFIRMED_BY_USER`. |
+| `READY_FOR_REVIEW` повторно | Остаётся `EXECUTION_CONFIRMED_BY_USER`. |
+| `REJECTED` | Остаётся `EXECUTION_CONFIRMED_BY_USER`. |
+| `CANCELLED` | Остаётся `EXECUTION_CONFIRMED_BY_USER`. |
+
+`EXECUTION_CONFIRMED_BY_USER` — исторически состоявшийся факт пользовательского подтверждения.
+
+Внутренний workflow Ticket его не переписывает.
+
+---
+
+## 3.4. Граф TicketUser
+
+```mermaid
+stateDiagram-v2
+    [*] --> CREATED
+
+    CREATED --> CONFIRMED_BY_ADMIN: Ticket.CREATED → ACCEPTED
+    CREATED --> CANCELLED_BY_ADMIN: Admin rejects Ticket
+    CREATED --> CANCELLED_BY_USER: User or Client superuser cancels
+
+    CONFIRMED_BY_ADMIN --> IN_WORK: Ticket enters working state
+    IN_WORK --> CONFIRMED_BY_ADMIN: Ticket returns to ACCEPTED
+
+    IN_WORK --> WAITING_FOR_CONFIRMATION: Ticket → READY_FOR_REVIEW
+    WAITING_FOR_CONFIRMATION --> IN_WORK: Ticket returns to working state
+    WAITING_FOR_CONFIRMATION --> CONFIRMED_BY_ADMIN: Ticket → ACCEPTED
+
+    WAITING_FOR_CONFIRMATION --> EXECUTION_CONFIRMED_BY_USER: User or Client superuser confirms
+    WAITING_FOR_CONFIRMATION --> EXECUTION_CONFIRMED_BY_ADMIN: Ticket → EXECUTED
+
+    CONFIRMED_BY_ADMIN --> CANCELLED_BY_ADMIN: Ticket → REJECTED or CANCELLED
+    IN_WORK --> CANCELLED_BY_ADMIN: Ticket → REJECTED or CANCELLED
+    WAITING_FOR_CONFIRMATION --> CANCELLED_BY_ADMIN: Ticket → REJECTED or CANCELLED
+
+    EXECUTION_CONFIRMED_BY_USER --> [*]
+    EXECUTION_CONFIRMED_BY_ADMIN --> [*]
+    CANCELLED_BY_USER --> [*]
+    CANCELLED_BY_ADMIN --> [*]
 ```
 
 ---
 
-## 18. Предпочтительные backend-операции
+## 3.5. Отклонение заявки Admin
+
+Admin может отклонить заявку, пока пара находится в состоянии:
+
+```text
+TicketUser.CREATED
+Ticket.CREATED
+```
+
+В одной транзакции:
+
+```text
+TicketUser.CREATED → CANCELLED_BY_ADMIN
+Ticket.CREATED     → REJECTED
+```
+
+Комментарий обязателен, потому что `Ticket.REJECTED` требует обоснования.
+
+Actor обеих history records:
+
+```text
+реальный Admin, выполнивший отклонение.
+```
+
+---
+
+## 3.6. Снятие TicketUser User или superuser Client
+
+`CANCELLED_BY_USER` — terminal status TicketUser.
+
+Минимально согласованное правило:
+
+```text
+TicketUser.CREATED
+    → CANCELLED_BY_USER
+```
+
+Такое действие может выполнить:
+
+```text
+автор TicketUser;
+superuser того же Client.
+```
+
+Комментарий со стороны User необязателен.
+
+User и superuser Client не создают `TicketStatusRecord`.
+
+Точная coordinated-логика для связанной Ticket ещё должна быть закреплена отдельно.
+
+Открытые вопросы:
+
+```text
+- должна ли Ticket.CREATED перейти в CANCELLED;
+- нужно ли добавить переход Ticket.CREATED → CANCELLED;
+- какая запись должна появиться в Ticket history;
+- должен ли actor_employee_id этой записи быть равен 0;
+- может ли Ticket comment быть пустым;
+- допускается ли User cancellation после Ticket.ACCEPTED;
+- как исключить расхождение между TicketUser и Ticket
+  при конкурентных действиях User и Admin.
+```
+
+При реализации нельзя использовать захардкоренный технический комментарий вместо реальной причины снятия заявки.
+
+---
+
+# 4. Application services для связанной пары
+
+## 4.1. Создание TicketUser User
+
+Целевой use case:
+
+```text
+create_ticket_user(...)
+```
+
+В одной транзакции он:
+
+```text
+1. Создаёт TicketUser.CREATED
+   с actor_employee_id реального User.
+
+2. Создаёт Ticket.CREATED
+   с actor_employee_id = 0.
+
+3. Связывает Ticket.user_ticket_id
+   с TicketUser.ticket_id.
+
+4. Сохраняет снимок пользовательских полей в Ticket.
+```
+
+## 4.2. Принятие TicketUser Admin
+
+Целевой use case:
+
+```text
+accept_ticket_user(ticket_user_id, actor_admin_id)
+```
+
+В одной транзакции он:
+
+```text
+1. Проверяет права Admin.
+
+2. Загружает TicketUser.
+
+3. Проверяет:
+   TicketUser.current_status == CREATED.
+
+4. Загружает связанную Ticket по user_ticket_id.
+
+5. Проверяет:
+   Ticket.current_status == CREATED;
+   Ticket.client_id == TicketUser.client_id;
+   Ticket.user_ticket_id == TicketUser.ticket_id.
+
+6. Выполняет domain-переходы:
+   Ticket.CREATED → ACCEPTED;
+   TicketUser.CREATED → CONFIRMED_BY_ADMIN.
+
+7. Устанавливает Ticket.admin_id = actor_admin_id.
+
+8. Сохраняет обе aggregate.
+
+9. Commit общей транзакции.
+```
+
+`Ticket` и `TicketUser` не должны вызывать друг друга напрямую.
+
+Координация принадлежит application layer.
+
+## 4.3. Изменение Ticket с привязанной TicketUser
+
+Когда application use case меняет Ticket, он должен учитывать:
+
+```text
+Ticket.user_ticket_id != 0
+```
+
+Если связанная TicketUser существует и не terminal, application layer синхронизирует её статус по таблице соответствия.
+
+Это выполняется в той же Unit of Work транзакции.
+
+Для этого не нужен event bus, asynchronous processing или отдельная saga.
+
+---
+
+# 5. Изменения в существующем коде
+
+## 5.1. TicketStatusRecord
+
+Текущая валидация должна быть расширена так, чтобы:
+
+```text
+actor_employee_id > 0
+    для ручных workflow-событий.
+
+actor_employee_id = 0
+    только для явно системного события.
+```
+
+На данном этапе согласованный системный случай:
+
+```text
+автоматическое создание Ticket из TicketUser.
+```
+
+Persistence mapper должен поддерживать преобразование:
+
+```text
+0 в domain
+    ↔
+NULL в SQLite.
+```
+
+## 5.2. Ticket.admin_id
+
+Для Ticket, автоматически созданной из TicketUser:
+
+```text
+admin_id = 0 в domain
+admin_id = NULL в SQLite.
+```
+
+После принятия заявки Admin:
+
+```text
+admin_id = id Admin, принявшего Ticket.
+```
+
+## 5.3. Ticket.create
+
+Существующий `Ticket.create()` создаёт Ticket в состоянии `CREATED`.
+
+Это остаётся корректным.
+
+Для сценария:
+
+```text
+Admin создаёт Ticket для User
+```
+
+application service должна создать Ticket, затем сразу провести обычный переход:
+
+```text
+CREATED → ACCEPTED
+```
+
+в той же транзакции.
+
+## 5.4. TicketUser
+
+Новая модель TicketUser должна заменить старый ограниченный набор статусов пользовательской заявки.
+
+Потребуются:
+
+```text
+- новый enum статусов;
+- история TicketUserStatusRecord;
+- terminal-state правила;
+- repository;
+- mapper;
+- schema;
+- application use cases;
+- интеграция с Ticket application services.
+```
+
+---
+
+# 6. Предпочтительные backend-операции
 
 UI и API не должны передавать произвольный:
 
 ```text
-change_status(ticket_id, new_status, payload)
+change_status
 ```
 
-Нужны предметные use cases:
+Нужны осмысленные use cases.
+
+## Ticket
 
 ```text
 accept
@@ -1381,12 +1872,20 @@ return_to_deferred
 defer
 cancel
 
-update_ticket_text
-update_description
-add_comment
-change_ticket_department
-
 handle_client_disabled
 ```
 
-Одна UI-кнопка может вызывать orchestration из нескольких действий, но каждая новая status record должна отражать отдельный фактический workflow-шаг.
+## TicketUser
+
+```text
+create_ticket_user
+accept_ticket_user
+reject_ticket_user
+
+confirm_execution_by_user
+confirm_execution_by_superuser
+
+cancel_ticket_user
+```
+
+Одна UI-команда может координировать изменение двух aggregate, но каждая history record должна отражать отдельный фактический workflow-шаг.

@@ -29,7 +29,7 @@ class TicketStatusRecord:
 
     status_id: int = 0
 
-    actor_employee_id: int
+    actor_employee_id: int=0
     status: TicketStatus
 
     date_created: datetime = field(
@@ -79,6 +79,7 @@ class TicketStatusRecord:
     def is_new(self) -> bool:
         return self.status_id == 0
 
+
     def has_executor(self) -> bool:
         return self.executor_id > 0
 
@@ -100,9 +101,30 @@ class TicketStatusRecord:
                 "Status record ID cannot be negative"
             )
 
-        if self.actor_employee_id <= 0:
+        if self.actor_employee_id < 0:
             raise ItemValidationError(
-                "Actor employee ID must be positive"
+                "Actor employee ID cannot be negative"
+            )
+
+        user_driven_statuses = {
+            TicketStatus.CREATED_FROM_TICKET_USER,
+            TicketStatus.CANCELLED_BY_USER,
+        }
+
+        if (
+                self.actor_employee_id == 0
+                and self.status not in user_driven_statuses
+        ):
+            raise ItemValidationError(
+                "Actor employee ID can be 0 only for user-driven ticket statuses"
+            )
+
+        if (
+                self.actor_employee_id > 0
+                and self.status in user_driven_statuses
+        ):
+            raise ItemValidationError(
+                f"Status {self.status.value} must have actor_employee_id = 0"
             )
 
         if self.executor_id < 0:

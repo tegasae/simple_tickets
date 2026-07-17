@@ -185,11 +185,23 @@ class TicketReviewService:
             ticket: Ticket,
             record: TicketStatusRecord,
     ) -> None:
+        TicketReviewService._ensure_actor_positive(
+            record.actor_employee_id
+        )
+
         if ticket.current_status() != TicketStatus.READY_FOR_REVIEW:
             raise DomainOperationError(
                 "Ticket must be in READY_FOR_REVIEW status"
             )
+
         ticket.append_status(record)
+
+    @staticmethod
+    def _ensure_actor_positive(actor_employee_id: int) -> None:
+        if actor_employee_id <= 0:
+            raise DomainOperationError(
+                "Actor employee id must be positive"
+            )
 
     @staticmethod
     def _current_executor_or_raise(ticket: Ticket) -> int:
@@ -201,4 +213,3 @@ class TicketReviewService:
             )
 
         return executor_id
-

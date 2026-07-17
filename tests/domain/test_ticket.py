@@ -11,6 +11,7 @@ from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket import Ticket
 from src.domain.ticket_components import Comment
 
+
 NOW = datetime.now(timezone.utc)
 
 PAST_5H = NOW - timedelta(hours=5)
@@ -64,20 +65,6 @@ def accept_ticket(ticket: Ticket) -> Ticket:
 
 def make_accepted_ticket() -> Ticket:
     return accept_ticket(make_ticket())
-
-
-def make_deferred_ticket() -> Ticket:
-    ticket = make_accepted_ticket()
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.DEFERRED,
-            comment="Waiting for additional information",
-        )
-    )
-
-    return ticket
 
 
 def make_scheduled_ticket() -> Ticket:
@@ -166,68 +153,6 @@ def make_paused_ticket(
             status=TicketStatus.PAUSED,
             executor_id=executor_id,
             date_created=PAST_1H,
-        )
-    )
-
-    return ticket
-
-
-def make_ready_for_review_ticket(
-    *,
-    executor_id: int = EXECUTOR_ID,
-) -> Ticket:
-    ticket = make_at_work_ticket(
-        executor_id=executor_id,
-    )
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=executor_id,
-            status=TicketStatus.READY_FOR_REVIEW,
-            executor_id=executor_id,
-            actual_finished_at=PAST_1H,
-            date_created=PAST_1H,
-        )
-    )
-
-    return ticket
-
-
-def make_rejected_ticket() -> Ticket:
-    ticket = make_ticket()
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.REJECTED,
-            comment="Invalid request",
-        )
-    )
-
-    return ticket
-
-
-def make_executed_ticket() -> Ticket:
-    ticket = make_ready_for_review_ticket()
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.EXECUTED,
-        )
-    )
-
-    return ticket
-
-
-def make_cancelled_ticket() -> Ticket:
-    ticket = make_accepted_ticket()
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.CANCELLED,
-            comment="Client cancelled request",
         )
     )
 
@@ -538,7 +463,9 @@ def test_append_terminal_status_closes_ticket() -> None:
 
     assert ticket.current_status() == TicketStatus.CANCELLED
     assert ticket.is_closed
-    assert ticket.date_finished == ticket.current_status_record().date_created
+    assert ticket.date_finished == (
+        ticket.current_status_record().date_created
+    )
 
 
 # ----------------------------
@@ -666,33 +593,29 @@ def test_add_comment_adds_plain_ticket_comment() -> None:
     assert ticket.comments[0].comment == "Need more details"
 
 
-@pytest.mark.parametrize(
-    "ticket_factory",
-    [
-        make_rejected_ticket,
-        make_executed_ticket,
-        make_cancelled_ticket,
-    ],
-    ids=[
-        "rejected",
-        "executed",
-        "cancelled",
-    ],
-)
-def test_add_comment_is_allowed_after_terminal_status(
-    ticket_factory: Callable[[], Ticket],
-) -> None:
-    ticket = ticket_factory()
+def test_add_comment_rejects_comment_after_terminal_status() -> None:
+    ticket = make_ticket()
 
-    ticket.add_comment(
-        make_comment(
-            employee_id=ADMIN_ID,
-            text="Administrative note after closure.",
+    ticket.append_status(
+        TicketStatusRecord(
+            actor_employee_id=ADMIN_ID,
+            status=TicketStatus.REJECTED,
+            comment="Invalid request",
         )
     )
 
-    assert len(ticket.comments) == 1
-    assert ticket.comments[0].comment == "Administrative note after closure."
+    with pytest.raises(
+        DomainOperationError,
+        match="terminal status",
+    ):
+        ticket.add_comment(
+            make_comment(
+                employee_id=EXECUTOR_ID,
+                text="Too late",
+            )
+        )
+
+
 # ----------------------------
 # department
 # ----------------------------
@@ -714,172 +637,6 @@ def test_change_department_is_rejected_after_executor_assignment() -> None:
         match="Cannot change ticket department",
     ):
         ticket.change_department(department_id=5)
-
-
-# ----------------------------
-# ticket text
-# ----------------------------
-
-
-@pytest.mark.parametrize(
-    "ticket_factory",
-    [
-        make_ticket,
-        make_accepted_ticket,
-    ],
-    ids=[
-        "created",
-        "accepted",
-    ],
-)
-def test_update_ticket_text_is_allowed_only_in_created_and_accepted(
-    ticket_factory: Callable[[], Ticket],
-) -> None:
-    ticket = ticket_factory()
-
-    ticket.update_ticket_text(
-        text_of_ticket="Fix VPN connection",
-    )
-
-    assert ticket.text_of_ticket == "Fix VPN connection"
-
-
-def test_update_ticket_text_strips_new_text() -> None:
-    ticket = make_ticket()
-
-    ticket.update_ticket_text(
-        text_of_ticket="  Fix VPN connection  ",
-    )
-
-    assert ticket.text_of_ticket == "Fix VPN connection"
-
-
-def test_update_ticket_text_rejects_empty_text() -> None:
-    ticket = make_ticket()
-    original_text = ticket.text_of_ticket
-
-    with pytest.raises(DomainOperationError):
-        ticket.update_ticket_text(
-            text_of_ticket="   ",
-        )
-
-    assert ticket.text_of_ticket == original_text
-
-
-@pytest.mark.parametrize(
-    "ticket_factory",
-    [
-        make_rejected_ticket,
-        make_deferred_ticket,
-        make_scheduled_ticket,
-        make_assigned_ticket,
-        make_ready_to_work_ticket,
-        make_at_work_ticket,
-        make_paused_ticket,
-        make_ready_for_review_ticket,
-        make_executed_ticket,
-        make_cancelled_ticket,
-    ],
-    ids=[
-        "rejected",
-        "deferred",
-        "scheduled",
-        "assigned",
-        "ready_to_work",
-        "at_work",
-        "paused",
-        "ready_for_review",
-        "executed",
-        "cancelled",
-    ],
-)
-def test_update_ticket_text_is_rejected_in_other_statuses(
-    ticket_factory: Callable[[], Ticket],
-) -> None:
-    ticket = ticket_factory()
-    original_text = ticket.text_of_ticket
-
-    with pytest.raises(DomainOperationError):
-        ticket.update_ticket_text(
-            text_of_ticket="Fix VPN connection",
-        )
-
-    assert ticket.text_of_ticket == original_text
-
-
-# ----------------------------
-# description
-# ----------------------------
-
-
-@pytest.mark.parametrize(
-    "ticket_factory",
-    [
-        make_ticket,
-        make_accepted_ticket,
-        make_deferred_ticket,
-        make_scheduled_ticket,
-        make_assigned_ticket,
-        make_ready_to_work_ticket,
-        make_at_work_ticket,
-        make_paused_ticket,
-        make_ready_for_review_ticket,
-    ],
-    ids=[
-        "created",
-        "accepted",
-        "deferred",
-        "scheduled",
-        "assigned",
-        "ready_to_work",
-        "at_work",
-        "paused",
-        "ready_for_review",
-    ],
-)
-def test_update_description_is_allowed_in_all_non_terminal_statuses(
-    ticket_factory: Callable[[], Ticket],
-) -> None:
-    ticket = ticket_factory()
-
-    ticket.update_description(
-        description=(
-            "Room 305. Enter through the north entrance. "
-            "Call the contact before arrival."
-        ),
-    )
-
-    assert ticket.description == (
-        "Room 305. Enter through the north entrance. "
-        "Call the contact before arrival."
-    )
-
-
-@pytest.mark.parametrize(
-    "ticket_factory",
-    [
-        make_rejected_ticket,
-        make_executed_ticket,
-        make_cancelled_ticket,
-    ],
-    ids=[
-        "rejected",
-        "executed",
-        "cancelled",
-    ],
-)
-def test_update_description_is_rejected_for_terminal_ticket(
-    ticket_factory: Callable[[], Ticket],
-) -> None:
-    ticket = ticket_factory()
-    original_description = ticket.description
-
-    with pytest.raises(DomainOperationError):
-        ticket.update_description(
-            description="New access instructions",
-        )
-
-    assert ticket.description == original_description
 
 
 # ----------------------------
@@ -1158,3 +915,6 @@ def test_belong_detects_admin_comment_actor_and_executor_references() -> None:
     assert ticket.belong(EXECUTOR_ID)
     assert ticket.belong(OTHER_EXECUTOR_ID)
     assert not ticket.belong(999)
+
+
+

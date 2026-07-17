@@ -1,42 +1,72 @@
+# tests/domain/services/test_ticket_management_service.py
+
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from src.domain.exceptions import DomainOperationError, ItemValidationError
-from src.domain.services.ticket_execution_service import TicketExecutionService
-from src.domain.services.ticket_management_service import TicketManagementService
+from src.domain.exceptions import (
+    DomainOperationError,
+    ItemValidationError,
+)
+from src.domain.services.ticket_management_service import (
+    TicketManagementService,
+)
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket import Ticket
-from tests.domain.test_ticket import PAST_2H, PAST_1H
 
-MANAGER_ID = 10
+
+NOW = datetime.now(timezone.utc)
+
+PAST_2H = NOW - timedelta(hours=2)
+PAST_1H = NOW - timedelta(hours=1)
+
+FUTURE_1H = NOW + timedelta(hours=1)
+FUTURE_2H = NOW + timedelta(hours=2)
+
+ADMIN_ID = 10
 EXECUTOR_ID = 20
+OTHER_EXECUTOR_ID = 30
 
 
-def future_start() -> datetime:
-    return datetime.now(timezone.utc) + timedelta(hours=1)
+# ----------------------------
+# Helpers
+# ----------------------------
 
 
-def future_finish() -> datetime:
-    return datetime.now(timezone.utc) + timedelta(hours=2)
-
-
-def make_created_ticket() -> Ticket:
+def make_ticket() -> Ticket:
     return Ticket.create(
         ticket_id=1,
         client_id=100,
-        admin_id=MANAGER_ID,
+        admin_id=ADMIN_ID,
         text_of_ticket="Fix internet connection",
     )
 
 
-def make_accepted_ticket() -> Ticket:
-    ticket = make_created_ticket()
+def accept_ticket(ticket: Ticket) -> Ticket:
+    ticket.append_status(
+        TicketStatusRecord(
+            actor_employee_id=ADMIN_ID,
+            status=TicketStatus.ACCEPTED,
+        )
+    )
+    return ticket
 
-    TicketManagementService.accept(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
+
+def make_accepted_ticket() -> Ticket:
+    return accept_ticket(make_ticket())
+
+
+def make_deferred_ticket() -> Ticket:
+    ticket = make_accepted_ticket()
+
+    ticket.append_status(
+        TicketStatusRecord(
+            actor_employee_id=ADMIN_ID,
+            status=TicketStatus.DEFERRED,
+            comment="Waiting for customer information",
+        )
     )
 
     return ticket
@@ -45,581 +75,781 @@ def make_accepted_ticket() -> Ticket:
 def make_scheduled_ticket() -> Ticket:
     ticket = make_accepted_ticket()
 
-    TicketManagementService.schedule(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        planned_start_at=future_start(),
-        planned_finish_at=future_finish(),
-    )
-
-    return ticket
-
-
-def make_assigned_ticket(*, executor_id: int = EXECUTOR_ID) -> Ticket:
-    ticket = make_accepted_ticket()
-
-    TicketManagementService.assign(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        executor_id=executor_id,
-    )
-
-    return ticket
-
-
-
-
-def make_ready_to_work_ticket(*, executor_id: int = EXECUTOR_ID) -> Ticket:
-    ticket = make_accepted_ticket()
-
-    TicketManagementService.ready_to_work(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        executor_id=executor_id,
-        planned_start_at=future_start(),
-        planned_finish_at=future_finish(),
-    )
-
-    return ticket
-
-
-def make_at_work_ticket() -> Ticket:
-    ticket = make_assigned_ticket()
-
-    TicketExecutionService.take_to_work(
-        ticket=ticket,
-        actor_employee_id=EXECUTOR_ID,
-    )
-
-    return ticket
-
-
-def make_ready_for_review_ticket() -> Ticket:
-    ticket = make_ready_to_work_ticket()
-
     ticket.append_status(
         TicketStatusRecord(
-            actor_employee_id=EXECUTOR_ID,
-            status=TicketStatus.READY_FOR_REVIEW,
-            executor_id=EXECUTOR_ID,
-            actual_started_at=PAST_2H,
-            actual_finished_at=PAST_1H,
-            comment="Work registered later",
+            actor_employee_id=ADMIN_ID,
+            status=TicketStatus.SCHEDULED,
+            planned_start_at=FUTURE_1H,
         )
     )
 
     return ticket
 
+
+def make_assigned_ticket(
+    *,
+    executor_id: int = EXECUTOR_ID,
+) -> Ticket:
+    ticket = make_accepted_ticket()
+
+    ticket.append_status(
+        TicketStatusRecord(
+            actor_employee_id=ADMIN_ID,
+            status=TicketStatus.ASSIGNED,
+            executor_id=executor_id,
+        )
+    )
+
+    return ticket
+
+
+def make_ready_to_work_ticket(
+    *,
+    executor_id: int = EXECUTOR_ID,
+) -> Ticket:
+    ticket = make_assigned_ticket(
+        executor_id=executor_id,
+    )
+
+    ticket.append_status(
+        TicketStatusRecord(
+            actor_employee_id=ADMIN_ID,
+            status=TicketStatus.READY_TO_WORK,
+            executor_id=executor_id,
+            planned_start_at=FUTURE_1H,
+        )
+    )
+
+    return ticket
+
+
+def make_at_work_ticket(
+    *,
+    executor_id: int = EXECUTOR_ID,
+) -> Ticket:
+    ticket = make_assigned_ticket(
+        executor_id=executor_id,
+    )
+
+    ticket.append_status(
+        TicketStatusRecord(
+            actor_employee_id=executor_id,
+            status=TicketStatus.AT_WORK,
+            executor_id=executor_id,
+            actual_started_at=PAST_2H,
+            date_created=PAST_2H,
+        )
+    )
+
+    return ticket
+
+
 def make_paused_ticket(
     *,
     executor_id: int = EXECUTOR_ID,
 ) -> Ticket:
-    ticket = make_at_work_ticket()
+    ticket = make_at_work_ticket(
+        executor_id=executor_id,
+    )
 
     ticket.append_status(
         TicketStatusRecord(
             actor_employee_id=executor_id,
             status=TicketStatus.PAUSED,
             executor_id=executor_id,
-            comment="Work paused",
+            date_created=PAST_1H,
         )
     )
 
     return ticket
 
-def test_accept_created_ticket() -> None:
-    ticket = make_created_ticket()
 
-    record = TicketManagementService.accept(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        comment="accepted",
+def make_ready_for_review_ticket(
+    *,
+    executor_id: int = EXECUTOR_ID,
+) -> Ticket:
+    ticket = make_at_work_ticket(
+        executor_id=executor_id,
     )
 
-    assert record.status == TicketStatus.ACCEPTED
-    assert record.actor_employee_id == MANAGER_ID
-    assert record.comment == "accepted"
-
-    assert ticket.current_status() == TicketStatus.ACCEPTED
-    assert ticket.current_executor_id() == 0
-    assert not ticket.is_closed
-
-
-def test_accept_deferred_ticket() -> None:
-    ticket = make_accepted_ticket()
-
-    TicketManagementService.defer(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        comment="waiting for client data",
-    )
-
-    record = TicketManagementService.accept(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        comment="data received",
-    )
-
-    assert record.status == TicketStatus.ACCEPTED
-    assert ticket.current_status() == TicketStatus.ACCEPTED
-
-
-def test_accept_rejects_already_accepted_ticket() -> None:
-    ticket = make_accepted_ticket()
-
-    with pytest.raises(DomainOperationError):
-        TicketManagementService.accept(
-            ticket=ticket,
-            actor_employee_id=MANAGER_ID,
+    ticket.append_status(
+        TicketStatusRecord(
+            actor_employee_id=executor_id,
+            status=TicketStatus.READY_FOR_REVIEW,
+            executor_id=executor_id,
+            actual_finished_at=PAST_1H,
+            date_created=PAST_1H,
         )
-
-    assert ticket.current_status() == TicketStatus.ACCEPTED
-
-
-def test_reject_created_ticket() -> None:
-    ticket = make_created_ticket()
-
-    record = TicketManagementService.reject(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        comment="invalid request",
     )
 
-    assert record.status == TicketStatus.REJECTED
-    assert record.actor_employee_id == MANAGER_ID
-    assert record.comment == "invalid request"
-
-    assert ticket.current_status() == TicketStatus.REJECTED
-    assert ticket.is_closed
-    assert ticket.date_finished == record.date_created
+    return ticket
 
 
-def test_reject_requires_comment() -> None:
-    ticket = make_created_ticket()
+def make_rejected_ticket() -> Ticket:
+    ticket = make_ticket()
 
-    with pytest.raises(ItemValidationError):
-        TicketManagementService.reject(
-            ticket=ticket,
-            actor_employee_id=MANAGER_ID,
-            comment="",
+    ticket.append_status(
+        TicketStatusRecord(
+            actor_employee_id=ADMIN_ID,
+            status=TicketStatus.REJECTED,
+            comment="Invalid request",
         )
+    )
 
-    assert ticket.current_status() == TicketStatus.CREATED
+    return ticket
 
 
-def test_reject_rejects_accepted_ticket() -> None:
-    ticket = make_accepted_ticket()
+def make_executed_ticket() -> Ticket:
+    ticket = make_ready_for_review_ticket()
 
-    with pytest.raises(DomainOperationError):
-        TicketManagementService.reject(
-            ticket=ticket,
-            actor_employee_id=MANAGER_ID,
-            comment="too late",
+    ticket.append_status(
+        TicketStatusRecord(
+            actor_employee_id=ADMIN_ID,
+            status=TicketStatus.EXECUTED,
         )
-
-    assert ticket.current_status() == TicketStatus.ACCEPTED
-
-
-def test_defer_accepted_ticket() -> None:
-    ticket = make_accepted_ticket()
-
-    record = TicketManagementService.defer(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        comment="waiting for client data",
     )
 
-    assert record.status == TicketStatus.DEFERRED
-    assert record.actor_employee_id == MANAGER_ID
-    assert record.comment == "waiting for client data"
-
-    assert ticket.current_status() == TicketStatus.DEFERRED
-    assert ticket.current_executor_id() == 0
+    return ticket
 
 
-def test_defer_requires_comment() -> None:
+def make_cancelled_ticket() -> Ticket:
     ticket = make_accepted_ticket()
 
-    with pytest.raises(ItemValidationError):
-        TicketManagementService.defer(
-            ticket=ticket,
-            actor_employee_id=MANAGER_ID,
-            comment="",
+    ticket.append_status(
+        TicketStatusRecord(
+            actor_employee_id=ADMIN_ID,
+            status=TicketStatus.CANCELLED,
+            comment="Customer cancelled request",
         )
-
-    assert ticket.current_status() == TicketStatus.ACCEPTED
-
-
-def test_defer_at_work_ticket() -> None:
-    ticket = make_at_work_ticket()
-
-    record = TicketManagementService.defer(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        comment="need client approval",
     )
 
-    assert record.status == TicketStatus.DEFERRED
-    assert ticket.current_status() == TicketStatus.DEFERRED
-    assert ticket.current_executor_id() == 0
+    return ticket
 
 
-def test_schedule_accepted_ticket() -> None:
-    ticket = make_accepted_ticket()
+# ----------------------------
+# accept()
+# ----------------------------
 
-    planned_start_at = future_start()
-    planned_finish_at = future_finish()
-
-    record = TicketManagementService.schedule(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        planned_start_at=planned_start_at,
-        planned_finish_at=planned_finish_at,
-        comment="scheduled",
-    )
-
-    assert record.status == TicketStatus.SCHEDULED
-    assert record.actor_employee_id == MANAGER_ID
-    assert record.executor_id == 0
-    assert record.planned_start_at == planned_start_at
-    assert record.planned_finish_at == planned_finish_at
-    assert record.comment == "scheduled"
-
-    assert ticket.current_status() == TicketStatus.SCHEDULED
-    assert ticket.current_executor_id() == 0
-
-
-def test_schedule_scheduled_ticket_again() -> None:
-    ticket = make_scheduled_ticket()
-
-    planned_start_at = future_start() + timedelta(days=1)
-    planned_finish_at = future_finish() + timedelta(days=1)
-
-    record = TicketManagementService.schedule(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        planned_start_at=planned_start_at,
-        planned_finish_at=planned_finish_at,
-        comment="rescheduled",
-    )
-
-    assert record.status == TicketStatus.SCHEDULED
-    assert record.planned_start_at == planned_start_at
-    assert record.planned_finish_at == planned_finish_at
-
-    assert ticket.current_status() == TicketStatus.SCHEDULED
-    assert ticket.current_executor_id() == 0
-
-
-def test_schedule_from_assigned_removes_executor() -> None:
-    ticket = make_assigned_ticket()
-
-    record = TicketManagementService.schedule(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        planned_start_at=future_start(),
-    )
-
-    assert record.status == TicketStatus.SCHEDULED
-    assert record.executor_id == 0
-
-    assert ticket.current_status() == TicketStatus.SCHEDULED
-    assert ticket.current_executor_id() == 0
-
-
-def test_assign_accepted_ticket() -> None:
-    ticket = make_accepted_ticket()
-
-    record = TicketManagementService.assign(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        executor_id=EXECUTOR_ID,
-        comment="assigned to technician",
-    )
-
-    assert record.status == TicketStatus.ASSIGNED
-    assert record.actor_employee_id == MANAGER_ID
-    assert record.executor_id == EXECUTOR_ID
-    assert record.planned_start_at is None
-    assert record.planned_finish_at is None
-    assert record.comment == "assigned to technician"
-
-    assert ticket.current_status() == TicketStatus.ASSIGNED
-    assert ticket.current_executor_id() == EXECUTOR_ID
-
-
-def test_assign_assigned_ticket_again_reassigns_executor() -> None:
-    ticket = make_assigned_ticket()
-
-    record = TicketManagementService.assign(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        executor_id=30,
-        comment="reassigned",
-    )
-
-    assert record.status == TicketStatus.ASSIGNED
-    assert record.executor_id == 30
-
-    assert ticket.current_status() == TicketStatus.ASSIGNED
-    assert ticket.current_executor_id() == 30
-
-
-def test_assign_from_ready_to_work_removes_planned_time() -> None:
-    ticket = make_ready_to_work_ticket()
-
-    record = TicketManagementService.assign(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        executor_id=30,
-    )
-
-    assert record.status == TicketStatus.ASSIGNED
-    assert record.executor_id == 30
-    assert record.planned_start_at is None
-    assert record.planned_finish_at is None
-
-    assert ticket.current_status() == TicketStatus.ASSIGNED
-    assert ticket.current_executor_id() == 30
-
-
-def test_assign_requires_executor() -> None:
-    ticket = make_accepted_ticket()
-
-    with pytest.raises(ItemValidationError):
-        TicketManagementService.assign(
-            ticket=ticket,
-            actor_employee_id=MANAGER_ID,
-            executor_id=0,
-        )
-
-    assert ticket.current_status() == TicketStatus.ACCEPTED
-
-
-def test_ready_to_work_from_accepted_ticket() -> None:
-    ticket = make_accepted_ticket()
-
-    planned_start_at = future_start()
-    planned_finish_at = future_finish()
-
-    record = TicketManagementService.ready_to_work(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        executor_id=EXECUTOR_ID,
-        planned_start_at=planned_start_at,
-        planned_finish_at=planned_finish_at,
-        comment="ready",
-    )
-
-    assert record.status == TicketStatus.READY_TO_WORK
-    assert record.actor_employee_id == MANAGER_ID
-    assert record.executor_id == EXECUTOR_ID
-    assert record.planned_start_at == planned_start_at
-    assert record.planned_finish_at == planned_finish_at
-    assert record.comment == "ready"
-
-    assert ticket.current_status() == TicketStatus.READY_TO_WORK
-    assert ticket.current_executor_id() == EXECUTOR_ID
-
-
-def test_ready_to_work_from_scheduled_adds_executor() -> None:
-    ticket = make_scheduled_ticket()
-
-    planned_start_at = future_start()
-
-    record = TicketManagementService.ready_to_work(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        executor_id=EXECUTOR_ID,
-        planned_start_at=planned_start_at,
-    )
-
-    assert record.status == TicketStatus.READY_TO_WORK
-    assert record.executor_id == EXECUTOR_ID
-    assert record.planned_start_at == planned_start_at
-
-    assert ticket.current_status() == TicketStatus.READY_TO_WORK
-    assert ticket.current_executor_id() == EXECUTOR_ID
-
-
-def test_ready_to_work_from_assigned_adds_planned_time() -> None:
-    ticket = make_assigned_ticket()
-
-    planned_start_at = future_start()
-
-    record = TicketManagementService.ready_to_work(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        executor_id=EXECUTOR_ID,
-        planned_start_at=planned_start_at,
-    )
-
-    assert record.status == TicketStatus.READY_TO_WORK
-    assert record.executor_id == EXECUTOR_ID
-    assert record.planned_start_at == planned_start_at
-
-    assert ticket.current_status() == TicketStatus.READY_TO_WORK
-    assert ticket.current_executor_id() == EXECUTOR_ID
-
-
-def test_ready_to_work_again_changes_executor_and_planned_time() -> None:
-    ticket = make_ready_to_work_ticket()
-
-    planned_start_at = future_start() + timedelta(days=1)
-
-    record = TicketManagementService.ready_to_work(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        executor_id=30,
-        planned_start_at=planned_start_at,
-        comment="changed executor and date",
-    )
-
-    assert record.status == TicketStatus.READY_TO_WORK
-    assert record.executor_id == 30
-    assert record.planned_start_at == planned_start_at
-
-    assert ticket.current_status() == TicketStatus.READY_TO_WORK
-    assert ticket.current_executor_id() == 30
-
-
-def test_ready_to_work_requires_executor() -> None:
-    ticket = make_accepted_ticket()
-
-    with pytest.raises(ItemValidationError):
-        TicketManagementService.ready_to_work(
-            ticket=ticket,
-            actor_employee_id=MANAGER_ID,
-            executor_id=0,
-            planned_start_at=future_start(),
-        )
-
-    assert ticket.current_status() == TicketStatus.ACCEPTED
-
-
-def test_cancel_accepted_ticket() -> None:
-    ticket = make_accepted_ticket()
-
-    record = TicketManagementService.cancel(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        comment="client cancelled",
-    )
-
-    assert record.status == TicketStatus.CANCELLED
-    assert record.actor_employee_id == MANAGER_ID
-    assert record.comment == "client cancelled"
-
-    assert ticket.current_status() == TicketStatus.CANCELLED
-    assert ticket.is_closed
-    assert ticket.date_finished == record.date_created
-
-
-def test_cancel_requires_comment() -> None:
-    ticket = make_accepted_ticket()
-
-    with pytest.raises(ItemValidationError):
-        TicketManagementService.cancel(
-            ticket=ticket,
-            actor_employee_id=MANAGER_ID,
-            comment="",
-        )
-
-    assert ticket.current_status() == TicketStatus.ACCEPTED
-
-
-def test_cancel_rejects_created_ticket() -> None:
-    ticket = make_created_ticket()
-
-    with pytest.raises(DomainOperationError):
-        TicketManagementService.cancel(
-            ticket=ticket,
-            actor_employee_id=MANAGER_ID,
-            comment="cannot cancel created ticket",
-        )
-
-    assert ticket.current_status() == TicketStatus.CREATED
-
-
-def test_cancel_at_work_ticket() -> None:
-    ticket = make_at_work_ticket()
-
-    record = TicketManagementService.cancel(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        comment="client cancelled during work",
-    )
-
-    assert record.status == TicketStatus.CANCELLED
-    assert ticket.current_status() == TicketStatus.CANCELLED
-    assert ticket.is_closed
-
-
-def test_management_operation_rejects_terminal_ticket() -> None:
-    ticket = make_accepted_ticket()
-
-    TicketManagementService.cancel(
-        ticket=ticket,
-        actor_employee_id=MANAGER_ID,
-        comment="client cancelled",
-    )
-
-    with pytest.raises(DomainOperationError):
-        TicketManagementService.schedule(
-            ticket=ticket,
-            actor_employee_id=MANAGER_ID,
-            planned_start_at=future_start(),
-        )
-
-    assert ticket.current_status() == TicketStatus.CANCELLED
-
-def test_handle_client_disabled_rejects_created_ticket() -> None:
-    ticket = make_created_ticket()
-
-    changed = TicketManagementService.handle_client_disabled(
-        ticket=ticket,
-        actor_employee_id=10,
-        comment="Client disabled"
-    )
-
-    assert changed
-    assert ticket.current_status() == TicketStatus.REJECTED
-    assert ticket.current_status_record().comment == "Client disabled"
-
-def test_handle_client_disabled_defers_accepted_ticket() -> None:
-    ticket = make_accepted_ticket()
-
-    changed = TicketManagementService.handle_client_disabled(
-        ticket=ticket,
-        actor_employee_id=10,
-        comment="1"
-    )
-
-    assert changed
-    assert ticket.current_status() == TicketStatus.DEFERRED
 
 @pytest.mark.parametrize(
     "ticket_factory",
     [
-        make_at_work_ticket,
-        make_paused_ticket,
-        make_ready_for_review_ticket,
-        make_ready_for_review_ticket,
+        make_ticket,
+        make_deferred_ticket,
+    ],
+    ids=[
+        "created",
+        "deferred",
     ],
 )
-def test_handle_client_disabled_does_not_change_in_progress_ticket(
-    ticket_factory,
+def test_accept_creates_accepted_record_from_allowed_statuses(
+    ticket_factory: Callable[[], Ticket],
 ) -> None:
     ticket = ticket_factory()
 
-    original_status = ticket.current_status()
-    original_count = len(ticket.statuses)
+    record = TicketManagementService.accept(
+        ticket=ticket,
+        actor_employee_id=ADMIN_ID,
+        comment="Accepted for processing",
+    )
+
+    assert record is ticket.current_status_record()
+    assert ticket.current_status() == TicketStatus.ACCEPTED
+    assert record.actor_employee_id == ADMIN_ID
+    assert record.comment == "Accepted for processing"
+    assert record.executor_id == 0
+
+
+# ----------------------------
+# reject()
+# ----------------------------
+
+
+def test_reject_creates_rejected_terminal_record() -> None:
+    ticket = make_ticket()
+
+    record = TicketManagementService.reject(
+        ticket=ticket,
+        actor_employee_id=ADMIN_ID,
+        comment="Request is outside our responsibility",
+    )
+
+    assert record is ticket.current_status_record()
+    assert ticket.current_status() == TicketStatus.REJECTED
+    assert ticket.is_terminal()
+    assert ticket.is_closed
+    assert record.actor_employee_id == ADMIN_ID
+    assert record.comment == "Request is outside our responsibility"
+    assert record.executor_id == 0
+
+
+def test_reject_requires_non_empty_reason() -> None:
+    ticket = make_ticket()
+    status_count_before = len(ticket.statuses)
+
+    with pytest.raises(
+        ItemValidationError,
+        match="REJECTED requires comment",
+    ):
+        TicketManagementService.reject(
+            ticket=ticket,
+            actor_employee_id=ADMIN_ID,
+            comment="   ",
+        )
+
+    assert len(ticket.statuses) == status_count_before
+    assert ticket.current_status() == TicketStatus.CREATED
+
+
+# ----------------------------
+# defer()
+# ----------------------------
+
+
+@pytest.mark.parametrize(
+    "ticket_factory",
+    [
+        make_accepted_ticket,
+        make_scheduled_ticket,
+        make_assigned_ticket,
+        make_ready_to_work_ticket,
+        make_at_work_ticket,
+        make_paused_ticket,
+        make_ready_for_review_ticket,
+    ],
+    ids=[
+        "accepted",
+        "scheduled",
+        "assigned",
+        "ready_to_work",
+        "at_work",
+        "paused",
+        "ready_for_review",
+    ],
+)
+def test_defer_creates_deferred_record_from_allowed_statuses(
+    ticket_factory: Callable[[], Ticket],
+) -> None:
+    ticket = ticket_factory()
+
+    record = TicketManagementService.defer(
+        ticket=ticket,
+        actor_employee_id=ADMIN_ID,
+        comment="Waiting for access approval",
+    )
+
+    assert record is ticket.current_status_record()
+    assert ticket.current_status() == TicketStatus.DEFERRED
+    assert record.actor_employee_id == ADMIN_ID
+    assert record.comment == "Waiting for access approval"
+    assert record.executor_id == 0
+    assert record.planned_start_at is None
+    assert record.actual_started_at is None
+
+
+def test_defer_requires_non_empty_reason() -> None:
+    ticket = make_accepted_ticket()
+    status_count_before = len(ticket.statuses)
+
+    with pytest.raises(
+        ItemValidationError,
+        match="DEFERRED requires comment",
+    ):
+        TicketManagementService.defer(
+            ticket=ticket,
+            actor_employee_id=ADMIN_ID,
+            comment="",
+        )
+
+    assert len(ticket.statuses) == status_count_before
+    assert ticket.current_status() == TicketStatus.ACCEPTED
+
+
+# ----------------------------
+# schedule()
+# ----------------------------
+
+
+@pytest.mark.parametrize(
+    "ticket_factory",
+    [
+        make_accepted_ticket,
+        make_deferred_ticket,
+        make_scheduled_ticket,
+        make_assigned_ticket,
+        make_ready_to_work_ticket,
+        make_at_work_ticket,
+        make_paused_ticket,
+        make_ready_for_review_ticket,
+    ],
+    ids=[
+        "accepted",
+        "deferred",
+        "scheduled",
+        "assigned",
+        "ready_to_work",
+        "at_work",
+        "paused",
+        "ready_for_review",
+    ],
+)
+def test_schedule_creates_scheduled_record_from_allowed_statuses(
+    ticket_factory: Callable[[], Ticket],
+) -> None:
+    ticket = ticket_factory()
+
+    record = TicketManagementService.schedule(
+        ticket=ticket,
+        actor_employee_id=ADMIN_ID,
+        planned_start_at=FUTURE_1H,
+        planned_finish_at=FUTURE_2H,
+        comment="Scheduled for tomorrow",
+    )
+
+    assert record is ticket.current_status_record()
+    assert ticket.current_status() == TicketStatus.SCHEDULED
+    assert record.actor_employee_id == ADMIN_ID
+    assert record.executor_id == 0
+    assert record.planned_start_at == FUTURE_1H
+    assert record.planned_finish_at == FUTURE_2H
+    assert record.comment == "Scheduled for tomorrow"
+
+
+def test_schedule_rejects_finish_before_start() -> None:
+    ticket = make_accepted_ticket()
+    status_count_before = len(ticket.statuses)
+
+    with pytest.raises(
+        ItemValidationError,
+        match="Planned finish cannot be before planned start",
+    ):
+        TicketManagementService.schedule(
+            ticket=ticket,
+            actor_employee_id=ADMIN_ID,
+            planned_start_at=FUTURE_2H,
+            planned_finish_at=FUTURE_1H,
+        )
+
+    assert len(ticket.statuses) == status_count_before
+    assert ticket.current_status() == TicketStatus.ACCEPTED
+
+
+# ----------------------------
+# assign()
+# ----------------------------
+
+
+@pytest.mark.parametrize(
+    "ticket_factory",
+    [
+        make_accepted_ticket,
+        make_deferred_ticket,
+        make_scheduled_ticket,
+        make_assigned_ticket,
+        make_ready_to_work_ticket,
+        make_at_work_ticket,
+        make_paused_ticket,
+        make_ready_for_review_ticket,
+    ],
+    ids=[
+        "accepted",
+        "deferred",
+        "scheduled",
+        "assigned",
+        "ready_to_work",
+        "at_work",
+        "paused",
+        "ready_for_review",
+    ],
+)
+def test_assign_creates_assigned_record_from_allowed_statuses(
+    ticket_factory: Callable[[], Ticket],
+) -> None:
+    ticket = ticket_factory()
+
+    record = TicketManagementService.assign(
+        ticket=ticket,
+        actor_employee_id=ADMIN_ID,
+        executor_id=OTHER_EXECUTOR_ID,
+        comment="Assigned to field engineer",
+    )
+
+    assert record is ticket.current_status_record()
+    assert ticket.current_status() == TicketStatus.ASSIGNED
+    assert ticket.current_executor_id() == OTHER_EXECUTOR_ID
+    assert record.actor_employee_id == ADMIN_ID
+    assert record.executor_id == OTHER_EXECUTOR_ID
+    assert record.comment == "Assigned to field engineer"
+    assert record.planned_start_at is None
+
+
+def test_assign_requires_positive_executor_id() -> None:
+    ticket = make_accepted_ticket()
+    status_count_before = len(ticket.statuses)
+
+    with pytest.raises(
+        ItemValidationError,
+        match="Status assigned requires executor",
+    ):
+        TicketManagementService.assign(
+            ticket=ticket,
+            actor_employee_id=ADMIN_ID,
+            executor_id=0,
+        )
+
+    assert len(ticket.statuses) == status_count_before
+    assert ticket.current_status() == TicketStatus.ACCEPTED
+
+
+# ----------------------------
+# ready_to_work()
+# ----------------------------
+
+
+@pytest.mark.parametrize(
+    "ticket_factory",
+    [
+        make_accepted_ticket,
+        make_deferred_ticket,
+        make_scheduled_ticket,
+        make_assigned_ticket,
+        make_ready_to_work_ticket,
+        make_at_work_ticket,
+        make_paused_ticket,
+        make_ready_for_review_ticket,
+    ],
+    ids=[
+        "accepted",
+        "deferred",
+        "scheduled",
+        "assigned",
+        "ready_to_work",
+        "at_work",
+        "paused",
+        "ready_for_review",
+    ],
+)
+def test_ready_to_work_creates_record_from_allowed_statuses(
+    ticket_factory: Callable[[], Ticket],
+) -> None:
+    ticket = ticket_factory()
+
+    record = TicketManagementService.ready_to_work(
+        ticket=ticket,
+        actor_employee_id=ADMIN_ID,
+        executor_id=OTHER_EXECUTOR_ID,
+        planned_start_at=FUTURE_1H,
+        planned_finish_at=FUTURE_2H,
+        comment="Engineer and time slot confirmed",
+    )
+
+    assert record is ticket.current_status_record()
+    assert ticket.current_status() == TicketStatus.READY_TO_WORK
+    assert ticket.current_executor_id() == OTHER_EXECUTOR_ID
+    assert record.actor_employee_id == ADMIN_ID
+    assert record.executor_id == OTHER_EXECUTOR_ID
+    assert record.planned_start_at == FUTURE_1H
+    assert record.planned_finish_at == FUTURE_2H
+    assert record.comment == "Engineer and time slot confirmed"
+
+
+def test_ready_to_work_requires_positive_executor_id() -> None:
+    ticket = make_accepted_ticket()
+    status_count_before = len(ticket.statuses)
+
+    with pytest.raises(
+        ItemValidationError,
+        match="Status ready_to_work requires executor",
+    ):
+        TicketManagementService.ready_to_work(
+            ticket=ticket,
+            actor_employee_id=ADMIN_ID,
+            executor_id=0,
+            planned_start_at=FUTURE_1H,
+        )
+
+    assert len(ticket.statuses) == status_count_before
+    assert ticket.current_status() == TicketStatus.ACCEPTED
+
+
+# ----------------------------
+# cancel()
+# ----------------------------
+
+
+@pytest.mark.parametrize(
+    "ticket_factory",
+    [
+        make_accepted_ticket,
+        make_deferred_ticket,
+        make_scheduled_ticket,
+        make_assigned_ticket,
+        make_ready_to_work_ticket,
+        make_at_work_ticket,
+        make_paused_ticket,
+        make_ready_for_review_ticket,
+    ],
+    ids=[
+        "accepted",
+        "deferred",
+        "scheduled",
+        "assigned",
+        "ready_to_work",
+        "at_work",
+        "paused",
+        "ready_for_review",
+    ],
+)
+def test_cancel_creates_cancelled_terminal_record_from_allowed_statuses(
+    ticket_factory: Callable[[], Ticket],
+) -> None:
+    ticket = ticket_factory()
+
+    record = TicketManagementService.cancel(
+        ticket=ticket,
+        actor_employee_id=ADMIN_ID,
+        comment="Customer cancelled the request",
+    )
+
+    assert record is ticket.current_status_record()
+    assert ticket.current_status() == TicketStatus.CANCELLED
+    assert ticket.is_terminal()
+    assert ticket.is_closed
+    assert record.actor_employee_id == ADMIN_ID
+    assert record.comment == "Customer cancelled the request"
+    assert record.executor_id == 0
+
+
+def test_cancel_requires_non_empty_reason() -> None:
+    ticket = make_accepted_ticket()
+    status_count_before = len(ticket.statuses)
+
+    with pytest.raises(
+        ItemValidationError,
+        match="CANCELLED requires comment",
+    ):
+        TicketManagementService.cancel(
+            ticket=ticket,
+            actor_employee_id=ADMIN_ID,
+            comment="",
+        )
+
+    assert len(ticket.statuses) == status_count_before
+    assert ticket.current_status() == TicketStatus.ACCEPTED
+
+
+# ----------------------------
+# Invalid workflow transitions
+# ----------------------------
+
+
+@pytest.mark.parametrize(
+    ("operation_name", "operation"),
+    [
+        (
+            "defer",
+            lambda ticket: TicketManagementService.defer(
+                ticket=ticket,
+                actor_employee_id=ADMIN_ID,
+                comment="Reason",
+            ),
+        ),
+        (
+            "schedule",
+            lambda ticket: TicketManagementService.schedule(
+                ticket=ticket,
+                actor_employee_id=ADMIN_ID,
+                planned_start_at=FUTURE_1H,
+            ),
+        ),
+        (
+            "assign",
+            lambda ticket: TicketManagementService.assign(
+                ticket=ticket,
+                actor_employee_id=ADMIN_ID,
+                executor_id=EXECUTOR_ID,
+            ),
+        ),
+        (
+            "ready_to_work",
+            lambda ticket: TicketManagementService.ready_to_work(
+                ticket=ticket,
+                actor_employee_id=ADMIN_ID,
+                executor_id=EXECUTOR_ID,
+                planned_start_at=FUTURE_1H,
+            ),
+        ),
+        (
+            "cancel",
+            lambda ticket: TicketManagementService.cancel(
+                ticket=ticket,
+                actor_employee_id=ADMIN_ID,
+                comment="Reason",
+            ),
+        ),
+    ],
+)
+def test_management_operations_reject_invalid_transition_from_created(
+    operation_name: str,
+    operation: Callable[[Ticket], object],
+) -> None:
+    ticket = make_ticket()
+    status_count_before = len(ticket.statuses)
+
+    with pytest.raises(
+        DomainOperationError,
+        match="transition is not allowed",
+    ):
+        operation(ticket)
+
+    assert len(ticket.statuses) == status_count_before
+    assert ticket.current_status() == TicketStatus.CREATED
+
+
+
+
+def test_reject_rejects_invalid_transition_from_accepted() -> None:
+    ticket = make_accepted_ticket()
+    status_count_before = len(ticket.statuses)
+
+    with pytest.raises(
+        DomainOperationError,
+        match="transition is not allowed",
+    ):
+        TicketManagementService.reject(
+            ticket=ticket,
+            actor_employee_id=ADMIN_ID,
+            comment="Reason",
+        )
+
+    assert len(ticket.statuses) == status_count_before
+    assert ticket.current_status() == TicketStatus.ACCEPTED
+
+
+# ----------------------------
+# handle_client_disabled()
+# ----------------------------
+
+
+def test_handle_client_disabled_rejects_created_ticket() -> None:
+    ticket = make_ticket()
 
     changed = TicketManagementService.handle_client_disabled(
         ticket=ticket,
-        actor_employee_id=10,
+        actor_employee_id=ADMIN_ID,
+        comment="Client account was disabled",
     )
 
-    assert not changed
-    assert ticket.current_status() == original_status
-    assert len(ticket.statuses) == original_count
+    record = ticket.current_status_record()
+
+    assert changed is True
+    assert ticket.current_status() == TicketStatus.REJECTED
+    assert ticket.is_terminal()
+    assert record.actor_employee_id == ADMIN_ID
+    assert record.comment == "Client account was disabled"
+
+
+@pytest.mark.parametrize(
+    "ticket_factory",
+    [
+        make_accepted_ticket,
+        make_scheduled_ticket,
+        make_assigned_ticket,
+        make_ready_to_work_ticket,
+    ],
+    ids=[
+        "accepted",
+        "scheduled",
+        "assigned",
+        "ready_to_work",
+    ],
+)
+def test_handle_client_disabled_defers_required_statuses(
+    ticket_factory: Callable[[], Ticket],
+) -> None:
+    ticket = ticket_factory()
+
+    changed = TicketManagementService.handle_client_disabled(
+        ticket=ticket,
+        actor_employee_id=ADMIN_ID,
+        comment="Client account was disabled",
+    )
+
+    record = ticket.current_status_record()
+
+    assert changed is True
+    assert ticket.current_status() == TicketStatus.DEFERRED
+    assert record.actor_employee_id == ADMIN_ID
+    assert record.comment == "Client account was disabled"
+    assert record.executor_id == 0
+
+
+@pytest.mark.parametrize(
+    "ticket_factory",
+    [
+        make_deferred_ticket,
+        make_at_work_ticket,
+        make_paused_ticket,
+        make_ready_for_review_ticket,
+        make_rejected_ticket,
+        make_executed_ticket,
+        make_cancelled_ticket,
+    ],
+    ids=[
+        "deferred",
+        "at_work",
+        "paused",
+        "ready_for_review",
+        "rejected",
+        "executed",
+        "cancelled",
+    ],
+)
+def test_handle_client_disabled_keeps_other_statuses_unchanged(
+    ticket_factory: Callable[[], Ticket],
+) -> None:
+    ticket = ticket_factory()
+    status_before = ticket.current_status()
+    status_count_before = len(ticket.statuses)
+
+    changed = TicketManagementService.handle_client_disabled(
+        ticket=ticket,
+        actor_employee_id=ADMIN_ID,
+        comment="",
+    )
+
+    assert changed is False
+    assert ticket.current_status() == status_before
+    assert len(ticket.statuses) == status_count_before
+
+
+@pytest.mark.parametrize(
+    "ticket_factory",
+    [
+        make_ticket,
+        make_accepted_ticket,
+    ],
+    ids=[
+        "created",
+        "accepted",
+    ],
+)
+def test_handle_client_disabled_requires_reason_when_ticket_changes(
+    ticket_factory: Callable[[], Ticket],
+) -> None:
+    ticket = ticket_factory()
+    current_status_before = ticket.current_status()
+    status_count_before = len(ticket.statuses)
+
+    with pytest.raises(
+        ItemValidationError,
+        match="requires comment",
+    ):
+        TicketManagementService.handle_client_disabled(
+            ticket=ticket,
+            actor_employee_id=ADMIN_ID,
+            comment="   ",
+        )
+
+    assert ticket.current_status() == current_status_before
+    assert len(ticket.statuses) == status_count_before

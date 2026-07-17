@@ -203,6 +203,10 @@ class TicketExecutionService:
             ),
             operation="record completed work for review",
         )
+        if actor_employee_id <= 0:
+            raise DomainOperationError(
+                "Actor employee id must be positive"
+            )
 
         if executor_id <= 0:
             raise DomainOperationError(

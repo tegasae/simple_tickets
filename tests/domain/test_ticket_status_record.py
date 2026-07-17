@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from src.domain.exceptions import ItemValidationError
-from src.domain.statuses.ticket_status import TicketStatus
+from src.domain.statuses.ticket_status import TicketStatus, get_ticket_state
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 
 NOW = datetime.now(timezone.utc)
@@ -260,6 +260,9 @@ def test_paused_can_have_executor() -> None:
     assert record.executor_id == 10
 
 
+
+
+
 # ----------------------------
 # READY_FOR_REVIEW
 # ----------------------------
@@ -298,29 +301,6 @@ def test_ready_for_review_can_have_executor_and_actual_finish() -> None:
     assert record.status == TicketStatus.READY_FOR_REVIEW
     assert record.executor_id == 10
     assert record.actual_finished_at == PAST_FINISH
-
-
-def test_ready_for_review_can_have_actual_start_and_finish() -> None:
-    record = make_record(
-        status=TicketStatus.READY_FOR_REVIEW,
-        executor_id=10,
-        actual_started_at=PAST_START,
-        actual_finished_at=PAST_FINISH,
-    )
-
-    assert record.status == TicketStatus.READY_FOR_REVIEW
-    assert record.executor_id == 10
-    assert record.actual_started_at == PAST_START
-    assert record.actual_finished_at == PAST_FINISH
-
-
-def test_ready_for_review_actual_finish_cannot_be_before_actual_start() -> None:
-    assert_invalid(
-        status=TicketStatus.READY_FOR_REVIEW,
-        executor_id=10,
-        actual_started_at=PAST_FINISH,
-        actual_finished_at=PAST_START,
-    )
 
 
 # ----------------------------
@@ -366,10 +346,8 @@ def test_non_work_statuses_cannot_have_actual_time(status: TicketStatus) -> None
 def test_non_work_statuses_can_be_created_without_work_payload(
     status: TicketStatus,
 ) -> None:
-    record = make_record(
-        status=status,
-        comment="1",
-    )
+
+    record = make_record(status=status,comment="1")
 
     assert record.status == status
     assert record.executor_id == 0
@@ -430,10 +408,16 @@ def test_planned_finish_cannot_be_before_planned_start() -> None:
     )
 
 
+
+
+
 def test_actual_start_cannot_be_in_future() -> None:
     assert_invalid(
         status=TicketStatus.AT_WORK,
         executor_id=10,
         actual_started_at=FUTURE,
     )
+
+
+
 

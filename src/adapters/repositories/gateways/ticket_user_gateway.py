@@ -5,7 +5,8 @@ class TicketUserGateway:
         client_id,
         user_id,
         user_ticket_contact_user_id AS contact_user_id,
-        text_of_ticket AS description,
+        text_of_ticket,
+        description,
         date_created,
         version,
         date_closed,
@@ -19,7 +20,8 @@ class TicketUserGateway:
     client_id,
         user_id,
         user_ticket_contact_user_id AS contact_user_id,
-        text_of_ticket AS description,
+        text_of_ticket, 
+        description,
         date_created,
         version,
         date_closed,
@@ -34,6 +36,7 @@ class TicketUserGateway:
         user_id,
         user_ticket_contact_user_id,
         text_of_ticket,
+        description,
         date_created,
         version,
         is_closed
@@ -43,6 +46,7 @@ class TicketUserGateway:
         :client_id,
         :user_id,
         :contact_user_id,
+        :text_of_ticket,
         :description,
         :date_created,
         :version,
@@ -55,7 +59,8 @@ class TicketUserGateway:
     SET
         version = :version + 1,
         is_closed = :is_closed,
-        date_closed = :date_closed
+        date_closed = :date_closed,
+        description = :description
     WHERE user_ticket_id = :ticket_id
     AND version = :version
     """
