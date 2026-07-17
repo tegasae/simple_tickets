@@ -1,6 +1,5 @@
 # src/domain/ticket.py
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timezone
@@ -12,7 +11,14 @@ from src.domain.statuses.ticket_status import (
     get_ticket_state,
 )
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-from src.domain.ticket_components import Comment
+
+@dataclass(kw_only=True)
+class Comment:
+    comment_id:int=0
+    employee_id: int
+    comment: str
+    date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
 
 
 @dataclass(kw_only=True)

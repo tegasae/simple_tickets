@@ -28,7 +28,7 @@ class Comment:
 
 
 @dataclass(kw_only=True)
-class ExecutorAssignment:
+class ExecutorAssignment1:
     """
     Executor assignment uses an admin id in your model.
     Naming it explicitly reduces confusion between 'employee' and 'admin'.
@@ -38,8 +38,8 @@ class ExecutorAssignment:
     date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @classmethod
-    def empty_executor(cls) -> ExecutorAssignment:
-        return ExecutorAssignment(admin_id=0)
+    def empty_executor(cls) -> ExecutorAssignment1:
+        return ExecutorAssignment1(admin_id=0)
 
 @dataclass
 class CommentThread:
@@ -55,12 +55,12 @@ class ExecutorAssignments:
     Stores executor assignments over time.
     In your model executor is an admin id, so the VO is ExecutorAssignment(admin_id=...).
     """
-    assignments: list[ExecutorAssignment] = field(default_factory=list)
+    assignments: list[ExecutorAssignment1] = field(default_factory=list)
 
-    def add(self, assignment: ExecutorAssignment) -> None:
+    def add(self, assignment: ExecutorAssignment1) -> None:
         self.assignments.append(assignment)
 
-    def current(self) -> ExecutorAssignment:
+    def current(self) -> ExecutorAssignment1:
         try:
             return self.assignments[-1]
         except IndexError:

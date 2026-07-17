@@ -106,12 +106,14 @@ class TicketStatusRecord:
                 "Actor employee ID cannot be negative"
             )
 
-        if (
-                self.actor_employee_id == 0
-                and self.status not in {
+        user_driven_statuses = {
             TicketStatus.CREATED_FROM_TICKET_USER,
             TicketStatus.CANCELLED_BY_USER,
         }
+
+        if (
+                self.actor_employee_id == 0
+                and self.status not in user_driven_statuses
         ):
             raise ItemValidationError(
                 "Actor employee ID can be 0 only for user-driven ticket statuses"
@@ -119,13 +121,10 @@ class TicketStatusRecord:
 
         if (
                 self.actor_employee_id > 0
-                and self.status in {
-            TicketStatus.CREATED_FROM_TICKET_USER,
-            TicketStatus.CANCELLED_BY_USER,
-        }
+                and self.status in user_driven_statuses
         ):
             raise ItemValidationError(
-                f"Status {self.status.value} must not have admin actor"
+                f"Status {self.status.value} must have actor_employee_id = 0"
             )
 
         if self.executor_id < 0:
