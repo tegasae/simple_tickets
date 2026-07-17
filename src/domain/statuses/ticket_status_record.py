@@ -101,9 +101,31 @@ class TicketStatusRecord:
                 "Status record ID cannot be negative"
             )
 
-        if self.actor_employee_id <= 0:
+        if self.actor_employee_id < 0:
             raise ItemValidationError(
-                "Actor employee ID must be positive"
+                "Actor employee ID cannot be negative"
+            )
+
+        if (
+                self.actor_employee_id == 0
+                and self.status not in {
+            TicketStatus.CREATED_FROM_TICKET_USER,
+            TicketStatus.CANCELLED_BY_USER,
+        }
+        ):
+            raise ItemValidationError(
+                "Actor employee ID can be 0 only for user-driven ticket statuses"
+            )
+
+        if (
+                self.actor_employee_id > 0
+                and self.status in {
+            TicketStatus.CREATED_FROM_TICKET_USER,
+            TicketStatus.CANCELLED_BY_USER,
+        }
+        ):
+            raise ItemValidationError(
+                f"Status {self.status.value} must not have admin actor"
             )
 
         if self.executor_id < 0:

@@ -88,10 +88,10 @@ CREATED_FROM_TICKET_USER_STATE: Final = TicketState(
     status=TicketStatus.CREATED_FROM_TICKET_USER,
     allowed_next=frozenset({
         TicketStatus.ACCEPTED,
+        TicketStatus.REJECTED,
         TicketStatus.CANCELLED_BY_USER,
     }),
 )
-
 
 REJECTED_STATE: Final = TicketState(
     status=TicketStatus.REJECTED,
