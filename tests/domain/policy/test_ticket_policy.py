@@ -3,7 +3,7 @@ import pytest
 from src.domain.client import Client
 from src.domain.employee import Admin, User
 from src.domain.exceptions import DomainOperationError
-from src.domain.policy.ticket import TicketPolicy
+from src.domain.policies.ticket import TicketPolicy
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
 

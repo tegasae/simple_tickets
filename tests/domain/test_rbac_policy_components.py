@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 
 from src.domain.exceptions import DomainOperationError
-from src.domain.policy.ticket import TicketPolicy
-from src.domain.policy.ticket_user_ticket import TicketUserTicketPolicy
+from src.domain.policies.ticket import TicketPolicy
+from src.domain.policies.ticket_user_ticket import TicketUserTicketPolicy
 from src.domain.rbac.permissions import AdminPermission, UserPermission
 from src.domain.rbac.role import Authorizer, RoleManager
 from src.domain.rbac.role_new import AdminRole, Role, RoleStore, UserRole

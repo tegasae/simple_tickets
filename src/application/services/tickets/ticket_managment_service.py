@@ -6,7 +6,7 @@ from src.application.assemblers.assembler import TicketAssembler
 from src.application.dto.ticket_dto import TicketDTO, TicketResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.exceptions import DomainOperationError
-from src.domain.policy.ticket import TicketPolicy
+from src.domain.policies.ticket import TicketPolicy
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.ticket_management_service import (
     TicketManagementService as TicketManagementDomainService,

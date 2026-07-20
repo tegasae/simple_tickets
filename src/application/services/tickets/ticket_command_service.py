@@ -9,7 +9,7 @@ from src.application.dto.ticket_dto import (
 )
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.exceptions import DomainOperationError
-from src.domain.policy.ticket import TicketPolicy
+from src.domain.policies.ticket import TicketPolicy
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.ticket import Ticket
 from src.domain.ticket_components import Comment

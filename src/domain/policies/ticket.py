@@ -10,7 +10,7 @@ from src.domain.ticket_user import TicketUser
 
 class TicketPolicy:
     """
-    Domain policy для проверок связей между агрегатами.
+    Domain policies для проверок связей между агрегатами.
 
     Здесь нет:
     - RBAC;

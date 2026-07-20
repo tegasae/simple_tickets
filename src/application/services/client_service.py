@@ -5,8 +5,8 @@ from src.application.assemblers.assembler import ClientAssembler
 from src.application.dto.client_dto import ClientDTO, ClientResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.client import Client
-from src.domain.policy.client import ClientPolicy
-from src.domain.policy.ticket import TicketPolicy
+from src.domain.policies.client import ClientPolicy
+from src.domain.policies.ticket import TicketPolicy
 
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.ticket_management_service import TicketManagementService

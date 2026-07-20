@@ -1,8 +1,8 @@
 from abc import abstractmethod, ABC
 
 from src.domain.exceptions import DomainError
-from src.domain.policy.admin import AdminPolicy
-from src.domain.policy.user import UserPolicy
+from src.domain.policies.admin import AdminPolicy
+from src.domain.policies.user import UserPolicy
 from src.services.uow.uow import UnitOfWork
 from src.web.auth.exceptions import InvalidCredentialsError
 from src.web.auth.models import LoginRequest, UserAuth

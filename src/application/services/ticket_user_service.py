@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from src.domain.client import Client
 from src.domain.employee import Admin, User
 from src.domain.exceptions import DomainOperationError
-from src.domain.policy.ticket import TicketPolicy
+from src.domain.policies.ticket import TicketPolicy
 from src.domain.services.ticket_management_service import TicketManagementService
 from src.domain.services.ticket_user_sync_service import TicketUserSyncService
 from src.domain.ticket import Ticket
