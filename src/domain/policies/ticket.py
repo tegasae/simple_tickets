@@ -4,6 +4,7 @@
 from src.domain.client import Client
 from src.domain.employee import Admin, User
 from src.domain.exceptions import DomainOperationError
+from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
 
@@ -207,7 +208,7 @@ class TicketPolicy:
         После ACCEPTED aggregate Ticket назначит admin_id
         из actor_employee_id записи ACCEPTED.
         """
-        if ticket.admin_id != 0:
+        if ticket.current_status() == TicketStatus.CREATED_FROM_TICKET_USER and ticket.admin_id != 0:
             raise DomainOperationError(
                 f"Ticket {ticket.ticket_id} already has admin "
                 f"{ticket.admin_id}"

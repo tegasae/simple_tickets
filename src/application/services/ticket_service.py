@@ -53,20 +53,24 @@ class TicketApplicationService:
     # --------------------------------
 
     def create_ticket(
-        self,
-        *,
-        ticket_dto: TicketDTO,
+            self,
+            *,
+            ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         """
-        Admin создаёт обычную внутреннюю Ticket.
+        Admin создаёт внутреннюю Ticket.
 
-        Этот метод не создаёт TicketUser.
+        Если ticket_dto.user_id == 0:
+            создаётся только внутренняя Ticket.
 
-        Если нужна пользовательская заявка, созданная пользователем,
-        используй TicketUserApplicationService.create_from_user(...).
+        Если ticket_dto.user_id != 0:
+            создаётся TicketUser в статусе CREATED,
+            затем создаётся связанная Ticket в статусе CREATED.
 
-        Если Admin создаёт заявку для User с пользовательским отображением,
-        это лучше оформить отдельным use case.
+        ticket_dto.user_ticket_id в этом use case запрещён:
+            create_ticket сам создаёт TicketUser, если нужен пользовательский слой.
+
+        ID для новых сущностей генерирует repository.
         """
         with self.uow:
             self._require_operation_admin(
@@ -75,18 +79,55 @@ class TicketApplicationService:
 
             if ticket_dto.user_ticket_id != 0:
                 raise DomainOperationError(
-                    "create_ticket cannot create Ticket linked to existing "
-                    "TicketUser. Use TicketUserApplicationService instead."
+                    "create_ticket cannot link Ticket to existing TicketUser. "
+                    "This use case creates TicketUser itself when user_id is set.",
                 )
 
-            effective_admin_id = self._effective_admin_id_for_create(
-                ticket_dto=ticket_dto,
-            )
+            effective_admin_id = ticket_dto.admin_id or ticket_dto.actor_admin_id
 
             self._validate_create_references(
                 ticket_dto=ticket_dto,
                 effective_admin_id=effective_admin_id,
             )
+
+            description = self._dto_attr(
+                ticket_dto,
+                "description",
+                default="",
+            )
+            department_id = self._dto_attr(
+                ticket_dto,
+                "department_id",
+                default=0,
+            )
+
+            saved_ticket_user: TicketUser | None = None
+            user_ticket_id = 0
+
+            if ticket_dto.user_id != 0:
+                ticket_user = TicketUser.create(
+                    ticket_id=0,
+                    client_id=ticket_dto.client_id,
+                    user_id=ticket_dto.user_id,
+                    contact_user_id=ticket_dto.contact_user_id,
+                    text_of_ticket=ticket_dto.text_of_ticket,
+                    description=description,
+                    urgency_level=ticket_dto.urgency_level,
+                    comment=ticket_dto.comment,
+                )
+
+                saved_ticket_user = self.uow.user_tickets.save(ticket_user)
+
+                if saved_ticket_user is None:
+                    saved_ticket_user = ticket_user
+
+                if saved_ticket_user.ticket_id == 0:
+                    raise DomainOperationError(
+                        "TicketUser repository must assign ticket_id before "
+                        "creating linked Ticket",
+                    )
+
+                user_ticket_id = saved_ticket_user.ticket_id
 
             ticket = Ticket.create(
                 ticket_id=ticket_dto.ticket_id,
@@ -95,30 +136,29 @@ class TicketApplicationService:
                 text_of_ticket=ticket_dto.text_of_ticket,
                 user_id=ticket_dto.user_id,
                 contact_user_id=ticket_dto.contact_user_id,
-                department_id=self._dto_attr(
-                    ticket_dto,
-                    "department_id",
-                    default=0,
-                ),
+                department_id=department_id,
                 is_remote=ticket_dto.is_remote,
-                description=self._dto_attr(
-                    ticket_dto,
-                    "description",
-                    default="",
-                ),
+                description=description,
                 urgency_level=ticket_dto.urgency_level,
+                user_ticket_id=user_ticket_id,
+                comment=ticket_dto.comment,
             )
 
-            return self._save_commit_and_to_dto(ticket)
+            if saved_ticket_user is not None:
+                TicketPolicy.ensure_ticket_matches_ticket_user(
+                    ticket=ticket,
+                    ticket_user=saved_ticket_user,
+                )
 
+            return self._save_commit_and_to_dto(ticket)
     # --------------------------------
     # Management status operations
     # --------------------------------
 
     def accept(
-        self,
-        *,
-        ticket_dto: TicketDTO,
+            self,
+            *,
+            ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         with self.uow:
             self._require_operation_admin(
@@ -127,10 +167,8 @@ class TicketApplicationService:
 
             ticket = self._get_ticket(ticket_dto.ticket_id)
 
-            if ticket.user_ticket_id != 0:
-                TicketPolicy.ensure_ticket_has_no_admin_yet(
-                    ticket=ticket,
-                )
+
+            TicketPolicy.ensure_ticket_has_no_admin_yet(ticket=ticket)
 
             TicketManagementService.accept(
                 ticket=ticket,
@@ -896,15 +934,7 @@ class TicketApplicationService:
             department_id=department_id,
         )
 
-    def _effective_admin_id_for_create(
-        self,
-        *,
-        ticket_dto: TicketDTO,
-    ) -> int:
-        if ticket_dto.admin_id != 0:
-            return ticket_dto.admin_id
 
-        return ticket_dto.actor_admin_id
 
     def _ensure_department_valid(
         self,
