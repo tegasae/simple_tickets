@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from src.application.dto.ticket_dto import TicketUserDTO
+from src.application.assemblers.assembler import TicketUserAssembler
+from src.application.dto.ticket_dto import TicketUserDTO, TicketUserResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.client import Client
 from src.domain.employee import User
@@ -61,7 +62,7 @@ class TicketUserApplicationService:
         self,
         *,
         ticket_user_dto: TicketUserDTO
-    ) -> TicketUserApplicationResult:
+    ) -> TicketUserResponseDTO:
         """
         User создаёт пользовательскую заявку.
 
@@ -163,22 +164,16 @@ class TicketUserApplicationService:
 
             saved_ticket = self._uow.tickets.save(ticket)
 
-            if saved_ticket is None:
-                saved_ticket = ticket
 
             self._uow.commit()
+            return TicketUserAssembler.to_dto(ticket_user)
 
-            return TicketUserApplicationResult(
-                ticket=saved_ticket,
-                ticket_user=saved_ticket_user,
-                ticket_user_changed=True,
-            )
 
     def cancel_by_user(
         self,
         *,
         ticket_user_dto:TicketUserDTO
-    ) -> TicketUserApplicationResult:
+    ) -> TicketUserResponseDTO:
         """
         User снимает свою заявку до принятия Admin.
 
@@ -238,20 +233,14 @@ class TicketUserApplicationService:
 
             self._uow.tickets.save(ticket)
             self._uow.commit()
-
-            return TicketUserApplicationResult(
-                ticket=ticket,
-                ticket_user=ticket_user,
-                ticket_user_changed=ticket_user_changed,
-            )
-
+            return TicketUserAssembler.to_dto(ticket_user)
 
 
     def confirm_execution_by_user(
         self,
         *,
         ticket_user_dto:TicketUserDTO
-    ) -> TicketUserApplicationResult:
+    ) -> TicketUserResponseDTO:
         """
         User подтверждает выполнение заявки.
 
@@ -311,11 +300,7 @@ class TicketUserApplicationService:
             self._uow.tickets.save(ticket)
             self._uow.commit()
 
-            return TicketUserApplicationResult(
-                ticket=ticket,
-                ticket_user=ticket_user,
-                ticket_user_changed=True,
-            )
+            return TicketUserAssembler.to_dto(ticket_user)
 
 
 

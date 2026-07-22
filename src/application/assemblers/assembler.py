@@ -126,7 +126,11 @@ class TicketUserAssembler:
             user_id=ticket_user.user_id,
             statuses=statuses,
             comments=comments,
-            is_closed=ticket_user.is_closed
+            is_closed=ticket_user.is_closed,
+            current_status=ticket_user.current_status(),
+            client_id=ticket_user.client_id,
+            text_of_ticket=ticket_user.text_of_ticket,
+            urgency_level=ticket_user.urgency_level
         )
 
 
