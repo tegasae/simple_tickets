@@ -251,6 +251,9 @@ class TicketUser:
         """
         User создаёт TicketUser.
 
+        Новая TicketUser всегда создаётся с ticket_id = 0.
+        Repository назначит настоящий ID при сохранении.
+
         Initial state:
             TicketUser.CREATED
 
@@ -266,11 +269,8 @@ class TicketUser:
         """
         cls._validate_create_args(
             ticket_id=ticket_id,
-            client_id=client_id,
             user_id=user_id,
-            contact_user_id=contact_user_id,
             text_of_ticket=text_of_ticket,
-            urgency_level=urgency_level,
         )
 
         now = date_created or datetime.now(timezone.utc)
@@ -280,8 +280,8 @@ class TicketUser:
             client_id=client_id,
             user_id=user_id,
             contact_user_id=contact_user_id,
-            text_of_ticket=text_of_ticket.strip(),
-            description=description.strip(),
+            text_of_ticket=text_of_ticket,
+            description=description,
             urgency_level=urgency_level,
             date_created=now,
             statuses=[
@@ -320,26 +320,21 @@ class TicketUser:
         date_created: datetime | None = None,
     ) -> Self:
         """
-        Admin создаёт внутреннюю Ticket для конкретного User.
+        Admin создаёт TicketUser для конкретного User.
 
-        В этом случае TicketUser создаётся сразу как подтверждённая Admin.
+        Новая TicketUser всегда создаётся с ticket_id = 0.
+        Repository назначит настоящий ID при сохранении.
 
         Initial state:
             TicketUser.CONFIRMED_BY_ADMIN
 
         actor_employee_id:
             actor_admin_id
-
-        Здесь нет промежуточного CREATED,
-        потому что User сам заявку не создавал.
         """
         cls._validate_create_args(
             ticket_id=ticket_id,
-            client_id=client_id,
             user_id=user_id,
-            contact_user_id=contact_user_id,
             text_of_ticket=text_of_ticket,
-            urgency_level=urgency_level,
         )
 
         if actor_admin_id <= 0:
@@ -354,8 +349,8 @@ class TicketUser:
             client_id=client_id,
             user_id=user_id,
             contact_user_id=contact_user_id,
-            text_of_ticket=text_of_ticket.strip(),
-            description=description.strip(),
+            text_of_ticket=text_of_ticket,
+            description=description,
             urgency_level=urgency_level,
             date_created=now,
             statuses=[
@@ -389,6 +384,9 @@ class TicketUser:
         """
         Восстанавливает TicketUser из БД.
 
+        Repository обязан передать persisted entity:
+            ticket_id > 0
+
         Repository обязан передать полную историю статусов
         в стабильном порядке:
 
@@ -397,6 +395,11 @@ class TicketUser:
         is_closed и date_finished являются derived state.
         Они будут пересчитаны в __post_init__.
         """
+        if ticket_id <= 0:
+            raise DomainOperationError(
+                "Cannot rehydrate TicketUser with non-positive ticket_id",
+            )
+
         if not statuses:
             raise DomainOperationError(
                 "Cannot rehydrate TicketUser without status history",
@@ -433,6 +436,9 @@ class TicketUser:
     # ----------------------------
     # Queries
     # ----------------------------
+
+    def is_new(self) -> bool:
+        return self.ticket_id == 0
 
     def current_status(self) -> TicketUserStatus:
         if not self.statuses:
@@ -617,9 +623,9 @@ class TicketUser:
             )
 
     def _validate_identity(self) -> None:
-        if self.ticket_id <= 0:
+        if self.ticket_id < 0:
             raise DomainOperationError(
-                "TicketUser ticket_id must be positive",
+                "TicketUser ticket_id cannot be negative",
             )
 
         if self.client_id <= 0:
@@ -701,35 +707,17 @@ class TicketUser:
     def _validate_create_args(
         *,
         ticket_id: int,
-        client_id: int,
         user_id: int,
-        contact_user_id: int,
         text_of_ticket: str,
-        urgency_level: int,
     ) -> None:
-        if ticket_id <= 0:
+        if ticket_id != 0:
             raise ItemValidationError(
-                "TicketUser ticket_id must be positive",
-            )
-
-        if client_id <= 0:
-            raise ItemValidationError(
-                "TicketUser client_id must be positive",
+                "New TicketUser ticket_id must be 0",
             )
 
         if user_id <= 0:
             raise ItemValidationError(
                 "TicketUser user_id must be positive",
-            )
-
-        if contact_user_id < 0:
-            raise ItemValidationError(
-                "TicketUser contact_user_id cannot be negative",
-            )
-
-        if urgency_level < 0:
-            raise ItemValidationError(
-                "TicketUser urgency_level cannot be negative",
             )
 
         if not isinstance(text_of_ticket, str):

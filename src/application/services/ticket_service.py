@@ -76,6 +76,10 @@ class TicketApplicationService:
             self._require_operation_admin(
                 actor_admin_id=ticket_dto.actor_admin_id,
             )
+            if ticket_dto.ticket_id != 0:
+                raise DomainOperationError(
+                    "create_ticket requires ticket_id = 0",
+                )
 
             if ticket_dto.user_ticket_id != 0:
                 raise DomainOperationError(

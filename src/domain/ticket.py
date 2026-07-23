@@ -1,6 +1,5 @@
 # src/domain/ticket.py
 
-
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timezone
 from typing import Self
@@ -12,13 +11,15 @@ from src.domain.statuses.ticket_status import (
 )
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 
+
 @dataclass(kw_only=True)
 class Comment:
-    comment_id:int=0
+    comment_id: int = 0
     employee_id: int
     comment: str
-    date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-
+    date_created: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc),
+    )
 
 
 @dataclass(kw_only=True)
@@ -97,6 +98,9 @@ class Ticket:
 
         Этот factory используется для Ticket, созданной Admin.
 
+        Новая Ticket всегда создаётся с ticket_id = 0.
+        Repository назначит настоящий ID при сохранении.
+
         Initial state:
             Ticket.CREATED
 
@@ -107,33 +111,15 @@ class Ticket:
             Ticket, созданная из TicketUser, создаётся не здесь,
             а через create_from_ticket_user(...).
         """
-        if ticket_id <= 0:
-            raise ItemValidationError("Ticket id must be positive.")
-
-        if client_id <= 0:
-            raise ItemValidationError("Client id must be positive.")
+        if ticket_id != 0:
+            raise ItemValidationError(
+                "New Ticket ticket_id must be 0.",
+            )
 
         if admin_id <= 0:
-            raise ItemValidationError("Admin id must be positive.")
-
-        if user_id < 0:
-            raise ItemValidationError("User id cannot be negative.")
-
-        if contact_user_id < 0:
-            raise ItemValidationError("Contact user id cannot be negative.")
-
-        if user_ticket_id < 0:
-            raise ItemValidationError("User ticket id cannot be negative.")
-
-        if department_id < 0:
-            raise ItemValidationError("Department id cannot be negative.")
-
-        if urgency_level < 0:
-            raise ItemValidationError("Urgency level cannot be negative.")
-
-        text = text_of_ticket.strip()
-        if not text:
-            raise ItemValidationError("Text of ticket must not be empty.")
+            raise ItemValidationError(
+                "Admin id must be positive.",
+            )
 
         now = date_created or datetime.now(UTC)
 
@@ -141,7 +127,7 @@ class Ticket:
             ticket_id=ticket_id,
             client_id=client_id,
             admin_id=admin_id,
-            text_of_ticket=text,
+            text_of_ticket=text_of_ticket,
             user_id=user_id,
             contact_user_id=contact_user_id,
             is_remote=is_remote,
@@ -195,6 +181,9 @@ class Ticket:
             User creates TicketUser
                 -> application service creates linked Ticket
 
+        Новая Ticket всегда создаётся с ticket_id = 0.
+        Repository назначит настоящий ID при сохранении.
+
         Important:
             Ticket не создаёт TicketUser.
             TicketUser не создаёт Ticket.
@@ -212,30 +201,20 @@ class Ticket:
             конкретный User хранится в истории TicketUser;
             внутренняя Ticket не связывает status history с User.
         """
-        if ticket_id <= 0:
-            raise ItemValidationError("Ticket id must be positive.")
-
-        if client_id <= 0:
-            raise ItemValidationError("Client id must be positive.")
+        if ticket_id != 0:
+            raise ItemValidationError(
+                "New Ticket ticket_id must be 0.",
+            )
 
         if user_id <= 0:
-            raise ItemValidationError("User id must be positive.")
-
-        if contact_user_id < 0:
-            raise ItemValidationError("Contact user id cannot be negative.")
+            raise ItemValidationError(
+                "User id must be positive.",
+            )
 
         if user_ticket_id <= 0:
-            raise ItemValidationError("User ticket id must be positive.")
-
-        if department_id < 0:
-            raise ItemValidationError("Department id cannot be negative.")
-
-        if urgency_level < 0:
-            raise ItemValidationError("Urgency level cannot be negative.")
-
-        text = text_of_ticket.strip()
-        if not text:
-            raise ItemValidationError("Text of ticket must not be empty.")
+            raise ItemValidationError(
+                "User ticket id must be positive.",
+            )
 
         now = date_created or datetime.now(UTC)
 
@@ -258,7 +237,7 @@ class Ticket:
             admin_id=0,
             user_id=user_id,
             contact_user_id=contact_user_id,
-            text_of_ticket=text,
+            text_of_ticket=text_of_ticket,
             statuses=[created_status],
             comments=[],
             date_created=now,
@@ -269,7 +248,7 @@ class Ticket:
             version=0,
             urgency_level=urgency_level,
             user_ticket_id=user_ticket_id,
-            description=description.strip(),
+            description=description,
         )
 
     @classmethod
@@ -297,6 +276,9 @@ class Ticket:
         """
         Восстанавливает Ticket из БД.
 
+        Repository обязан передать persisted entity:
+            ticket_id > 0
+
         Repository обязан передать полную историю статусов
         в стабильном порядке:
 
@@ -305,6 +287,11 @@ class Ticket:
         is_closed и date_finished являются derived state.
         Они будут пересчитаны в __post_init__.
         """
+        if ticket_id <= 0:
+            raise DomainOperationError(
+                "Cannot rehydrate Ticket with non-positive ticket_id",
+            )
+
         if not statuses:
             raise DomainOperationError(
                 "Cannot rehydrate Ticket without status history",
@@ -334,9 +321,9 @@ class Ticket:
         self.text_of_ticket = self.text_of_ticket.strip()
         self.description = self.description.strip()
 
-        if self.ticket_id <= 0:
+        if self.ticket_id < 0:
             raise DomainOperationError(
-                "Ticket ticket_id must be positive",
+                "Ticket ticket_id cannot be negative",
             )
 
         if self.client_id <= 0:
@@ -389,6 +376,9 @@ class Ticket:
     # ----------------------------
     # Queries
     # ----------------------------
+
+    def is_new(self) -> bool:
+        return self.ticket_id == 0
 
     def current_status(self) -> TicketStatus:
         if not self.statuses:

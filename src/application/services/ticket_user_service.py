@@ -166,9 +166,9 @@ class TicketUserApplicationService:
             return TicketUserAssembler.to_dto(saved_ticket_user)
 
     def cancel_by_user(
-        self,
-        *,
-        ticket_user_dto: TicketUserDTO,
+            self,
+            *,
+            ticket_user_dto: TicketUserDTO,
     ) -> TicketUserResponseDTO:
         """
         User снимает свою заявку до принятия Admin.
@@ -204,16 +204,9 @@ class TicketUserApplicationService:
                 ticket_user=ticket_user,
             )
 
-            user = self._require_user_operation_for_ticket_user(
+            self._require_user_operation_for_ticket_user(
                 actor_user_id=ticket_user_dto.actor_user_id,
                 ticket_user=ticket_user,
-            )
-
-            client = self._get_ticket_user_client(ticket_user)
-
-            TicketPolicy.ensure_user_belongs_to_client(
-                user=user,
-                client=client,
             )
 
             TicketManagementService.cancel_by_user(
@@ -237,9 +230,9 @@ class TicketUserApplicationService:
             return TicketUserAssembler.to_dto(ticket_user)
 
     def confirm_execution_by_user(
-        self,
-        *,
-        ticket_user_dto: TicketUserDTO,
+            self,
+            *,
+            ticket_user_dto: TicketUserDTO,
     ) -> TicketUserResponseDTO:
         """
         User подтверждает выполнение заявки.
@@ -277,16 +270,9 @@ class TicketUserApplicationService:
                 ticket_user=ticket_user,
             )
 
-            user = self._require_user_operation_for_ticket_user(
+            self._require_user_operation_for_ticket_user(
                 actor_user_id=ticket_user_dto.actor_user_id,
                 ticket_user=ticket_user,
-            )
-
-            client = self._get_ticket_user_client(ticket_user)
-
-            TicketPolicy.ensure_user_belongs_to_client(
-                user=user,
-                client=client,
             )
 
             ticket_user.confirm_execution_by_user(
@@ -453,10 +439,10 @@ class TicketUserApplicationService:
         return user
 
     def _require_user_operation_for_ticket_user(
-        self,
-        *,
-        actor_user_id: int,
-        ticket_user: TicketUser,
+            self,
+            *,
+            actor_user_id: int,
+            ticket_user: TicketUser,
     ) -> User:
         if actor_user_id == ticket_user.user_id:
             user = self._require_user_operation(
@@ -475,7 +461,6 @@ class TicketUserApplicationService:
         )
 
         return user
-
     # --------------------------------
     # Permission helpers: views
     # --------------------------------

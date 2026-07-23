@@ -14,7 +14,7 @@ from src.domain.ticket import Ticket
 from src.domain.uow.unit_of_work import UnitOfWork
 
 
-class TicketReviewApplicationService:
+class TicketReviewApplicationService1:
     """
     Application service for Ticket review actions.
 
