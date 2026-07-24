@@ -474,6 +474,7 @@ INSERT INTO clients VALUES(21,122,'string','dqeded','11@11.wdqedqe','',1,8,'2026
 INSERT INTO clients VALUES(23,122,'string','','','',1,1,'2026-06-04T15:03:32.844573');
 INSERT INTO clients VALUES(24,122,'string','','','',1,4,'2026-06-04T15:03:55.825620');
 INSERT INTO clients VALUES(25,160,'string-клиент','','','',1,1,'2026-06-08T17:40:31.506929');
+INSERT INTO clients VALUES(26,122,'string','','','',1,0,'2026-07-24T17:24:59.165230');
 CREATE TABLE roles (
 	role_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	name TEXT,
@@ -718,18 +719,18 @@ CREATE TABLE user_tickets (
 	date_created TEXT,
 	version INTEGER, 
 	date_closed TEXT, -- дата завершения или снятия заявки 
-	is_closed INTEGER,
+	is_closed INTEGER, description TEXT, urgency_level INTEGER DEFAULT (0) NOT NULL,
 	CONSTRAINT user_tickets_users_FK FOREIGN KEY (user_id) REFERENCES employees(employee_id) on delete restrict,
 	CONSTRAINT user_tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
 	CONSTRAINT user_tickets_user_ticket_contact_user_FK FOREIGN KEY (user_ticket_contact_user_id) REFERENCES employees(employee_id) on delete restrict
 );
-INSERT INTO user_tickets VALUES(1,1,10,NULL,'Printer does not work','2026-03-16T11:29:27.225216+00:00',0,NULL,0);
-INSERT INTO user_tickets VALUES(2,1,10,NULL,'Printer does not work','2026-03-16T11:29:39.226955+00:00',0,NULL,0);
-INSERT INTO user_tickets VALUES(3,4,67,67,'Printer problem 20260515155022','2026-05-15T12:50:22.700987+00:00',0,NULL,0);
-INSERT INTO user_tickets VALUES(4,4,67,67,'Printer problem 20260515155041','2026-05-15T12:50:41.392686+00:00',1,NULL,0);
-INSERT INTO user_tickets VALUES(5,4,67,67,'Printer problem 20260515155311','2026-05-15T12:53:13.470707+00:00',0,NULL,0);
-INSERT INTO user_tickets VALUES(6,4,67,67,'Printer problem 20260515155810','2026-05-15T12:58:13.522030+00:00',0,NULL,0);
-INSERT INTO user_tickets VALUES(7,4,67,67,'Printer problem 20260515160016','2026-05-15T13:00:16.095893+00:00',1,'2026-05-15T13:00:16.107648+00:00',1);
+INSERT INTO user_tickets VALUES(1,1,10,NULL,'Printer does not work','2026-03-16T11:29:27.225216+00:00',0,NULL,0,NULL,0);
+INSERT INTO user_tickets VALUES(2,1,10,NULL,'Printer does not work','2026-03-16T11:29:39.226955+00:00',0,NULL,0,NULL,0);
+INSERT INTO user_tickets VALUES(3,4,67,67,'Printer problem 20260515155022','2026-05-15T12:50:22.700987+00:00',0,NULL,0,NULL,0);
+INSERT INTO user_tickets VALUES(4,4,67,67,'Printer problem 20260515155041','2026-05-15T12:50:41.392686+00:00',1,NULL,0,NULL,0);
+INSERT INTO user_tickets VALUES(5,4,67,67,'Printer problem 20260515155311','2026-05-15T12:53:13.470707+00:00',0,NULL,0,NULL,0);
+INSERT INTO user_tickets VALUES(6,4,67,67,'Printer problem 20260515155810','2026-05-15T12:58:13.522030+00:00',0,NULL,0,NULL,0);
+INSERT INTO user_tickets VALUES(7,4,67,67,'Printer problem 20260515160016','2026-05-15T13:00:16.095893+00:00',1,'2026-05-15T13:00:16.107648+00:00',1,NULL,0);
 CREATE TABLE ticket_comments (
     ticket_comment_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -747,44 +748,10 @@ CREATE TABLE ticket_comments (
         REFERENCES employees(employee_id)
         ON DELETE RESTRICT
 );
-CREATE TABLE ticket_status_records (
-    status_id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-    ticket_id INTEGER NOT NULL,
-
-    actor_employee_id INTEGER NOT NULL,
-
-    status TEXT NOT NULL,
-    date_created TEXT NOT NULL,
-
-    executor_id INTEGER NULL,
-
-    planned_start_at TEXT NULL,
-    planned_finish_at TEXT NULL,
-
-    actual_started_at TEXT NULL,
-    actual_finished_at TEXT NULL,
-
-    comment TEXT NOT NULL DEFAULT '',
-
-    FOREIGN KEY (ticket_id)
-        REFERENCES tickets(ticket_id)
-        ON DELETE CASCADE,
-
-    FOREIGN KEY (actor_employee_id)
-        REFERENCES employees(employee_id)
-        ON DELETE RESTRICT,
-
-    FOREIGN KEY (executor_id)
-        REFERENCES admins(employee_id)
-        ON DELETE RESTRICT
-);
 CREATE TABLE tickets (
     ticket_id INTEGER PRIMARY KEY AUTOINCREMENT,
-
     client_id INTEGER NOT NULL,
-    admin_id INTEGER NOT NULL,
-
+    admin_id INTEGER,
     user_id INTEGER NULL,
     contact_user_id INTEGER NULL,
     user_ticket_id INTEGER NULL,
@@ -827,11 +794,36 @@ CREATE TABLE tickets (
         REFERENCES departments(department_id)
         ON DELETE RESTRICT
 );
+CREATE TABLE ticket_status_records (
+    status_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id INTEGER NOT NULL,
+    actor_employee_id INTEGER NULL,
+    status TEXT NOT NULL,
+    date_created TEXT NOT NULL,
+    executor_id INTEGER NULL,
+    planned_start_at TEXT NULL,
+    planned_finish_at TEXT NULL,
+    actual_started_at TEXT NULL,
+    actual_finished_at TEXT NULL,
+    comment TEXT NOT NULL DEFAULT '',
+
+    FOREIGN KEY (ticket_id)
+        REFERENCES tickets(ticket_id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (actor_employee_id)
+        REFERENCES employees(employee_id)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (executor_id)
+        REFERENCES admins(employee_id)
+        ON DELETE RESTRICT
+);
 DELETE FROM sqlite_sequence;
 INSERT INTO sqlite_sequence VALUES('employees',172);
 INSERT INTO sqlite_sequence VALUES('accounts',493);
 INSERT INTO sqlite_sequence VALUES('roles',66);
-INSERT INTO sqlite_sequence VALUES('clients',25);
+INSERT INTO sqlite_sequence VALUES('clients',26);
 INSERT INTO sqlite_sequence VALUES('user_tickets',7);
 INSERT INTO sqlite_sequence VALUES('user_tickets_status_record',16);
 INSERT INTO sqlite_sequence VALUES('user_tickets_comment',2);
@@ -840,25 +832,8 @@ CREATE UNIQUE INDEX accounts_login_IDX ON accounts (login);
 CREATE UNIQUE INDEX accounts_employee_uq ON accounts(employee_id);
 CREATE UNIQUE INDEX idx_departments_name
 ON departments(name);
-CREATE INDEX idx_tickets_client_id
-    ON tickets(client_id);
-CREATE INDEX idx_tickets_department_id
-    ON tickets(department_id);
-CREATE INDEX idx_tickets_user_ticket_id
-    ON tickets(user_ticket_id);
-CREATE INDEX idx_ticket_status_records_history
-    ON ticket_status_records(
-        ticket_id,
-        date_created,
-        status_id
-    );
-CREATE INDEX idx_ticket_status_records_executor
-    ON ticket_status_records(executor_id)
-    WHERE executor_id IS NOT NULL;
-CREATE INDEX idx_ticket_comments_history
-    ON ticket_comments(
-        ticket_id,
-        date_created,
-        ticket_comment_id
-    );
+CREATE INDEX idx_ticket_comments_ticket_id
+ON ticket_comments(ticket_id, ticket_comment_id);
+CREATE INDEX idx_ticket_comments_employee_id
+ON ticket_comments(employee_id);
 COMMIT;
