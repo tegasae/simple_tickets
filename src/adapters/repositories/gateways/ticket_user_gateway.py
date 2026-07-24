@@ -10,7 +10,8 @@ class TicketUserGateway:
         date_created,
         version,
         date_closed,
-        is_closed
+        is_closed,
+        urgency_level
     FROM user_tickets
     WHERE user_ticket_id = :ticket_id
     """
@@ -25,7 +26,8 @@ class TicketUserGateway:
         date_created,
         version,
         date_closed,
-        is_closed
+        is_closed,
+        urgency_level
     FROM user_tickets
     """
 
@@ -39,7 +41,8 @@ class TicketUserGateway:
         description,
         date_created,
         version,
-        is_closed
+        is_closed,
+        urgency_level
     )
     VALUES
     (
@@ -50,7 +53,8 @@ class TicketUserGateway:
         :description,
         :date_created,
         :version,
-        :is_closed
+        :is_closed,
+        :urgency_level
     )
     """
 
@@ -60,7 +64,8 @@ class TicketUserGateway:
         version = :version + 1,
         is_closed = :is_closed,
         date_closed = :date_closed,
-        description = :description
+        description = :description,
+        urgency_level=:urgency_level
     WHERE user_ticket_id = :ticket_id
     AND version = :version
     """

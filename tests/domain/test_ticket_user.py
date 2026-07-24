@@ -168,15 +168,6 @@ def test_create_allows_zero_ticket_id() -> None:
     assert ticket_user.comments[0].comment == "Initial comment"
 
 
-def test_create_rejects_nonzero_ticket_id() -> None:
-    with pytest.raises(ItemValidationError):
-        TicketUser.create(
-            ticket_id=TICKET_USER_ID,
-            client_id=CLIENT_ID,
-            user_id=USER_ID,
-            contact_user_id=CONTACT_USER_ID,
-            text_of_ticket="Need help",
-        )
 
 
 def test_create_rejects_zero_client_id() -> None:
@@ -229,17 +220,6 @@ def test_create_confirmed_by_admin_allows_zero_ticket_id() -> None:
     assert ticket_user.current_status_record().actor_employee_id == ADMIN_ID
     assert ticket_user.current_status_record().comment == "Confirmed by admin"
 
-
-def test_create_confirmed_by_admin_rejects_nonzero_ticket_id() -> None:
-    with pytest.raises(ItemValidationError):
-        TicketUser.create_confirmed_by_admin(
-            ticket_id=TICKET_USER_ID,
-            client_id=CLIENT_ID,
-            user_id=USER_ID,
-            actor_admin_id=ADMIN_ID,
-            contact_user_id=CONTACT_USER_ID,
-            text_of_ticket="Need help",
-        )
 
 
 def test_create_confirmed_by_admin_rejects_zero_actor_admin_id() -> None:

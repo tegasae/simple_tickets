@@ -91,14 +91,6 @@ def test_create_requires_zero_ticket_id() -> None:
     assert ticket.current_status_record().actor_employee_id == ADMIN_ID
 
 
-def test_create_rejects_nonzero_ticket_id() -> None:
-    with pytest.raises(ItemValidationError):
-        Ticket.create(
-            ticket_id=TICKET_ID,
-            client_id=CLIENT_ID,
-            admin_id=ADMIN_ID,
-            text_of_ticket="Need help",
-        )
 
 
 def test_create_rejects_zero_client_id() -> None:

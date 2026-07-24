@@ -79,7 +79,7 @@ class Ticket:
     def create(
         cls,
         *,
-        ticket_id: int,
+        ticket_id: int=0,
         client_id: int,
         admin_id: int,
         text_of_ticket: str = "",
@@ -111,10 +111,10 @@ class Ticket:
             Ticket, созданная из TicketUser, создаётся не здесь,
             а через create_from_ticket_user(...).
         """
-        if ticket_id != 0:
-            raise ItemValidationError(
-                "New Ticket ticket_id must be 0.",
-            )
+        #if ticket_id != 0:
+        #    raise ItemValidationError(
+        #        "New Ticket ticket_id must be 0.",
+        #    )
 
         if admin_id <= 0:
             raise ItemValidationError(

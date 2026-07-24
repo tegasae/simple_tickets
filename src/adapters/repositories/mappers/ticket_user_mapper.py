@@ -21,6 +21,7 @@ class TicketUserMapper:
         "version",
         "date_closed",
         "is_closed",
+        "urgency_level"
     ]
 
     VARS_STATUS = [
@@ -51,7 +52,8 @@ class TicketUserMapper:
             is_closed=bool(row["is_closed"]),
             version=row["version"],
             comments=comments,
-            statuses=statuses
+            statuses=statuses,
+            urgency_level=row["urgency_level"]
         )
 
     @staticmethod
@@ -66,6 +68,7 @@ class TicketUserMapper:
             "date_created": ticket.date_created.isoformat(),
             "version": ticket.version,
             "is_closed": int(ticket.is_closed),
+            "urgency_level":ticket.urgency_level,
             "date_closed": (
                 ticket.date_finished.isoformat()
                 if ticket.date_finished

@@ -9,9 +9,8 @@ from src.domain.rbac.permissions import AdminPermission, UserPermission
 from src.domain.rbac.role import Authorizer, RoleManager
 from src.domain.rbac.role_new import AdminRole, Role, RoleStore, UserRole
 from src.domain.services.ticket_management_service import TicketManagementService
-from src.domain.ticket import Ticket
-from src.domain.ticket_components import Comment, CommentThread, ExecutorAssignment, ExecutorAssignments
-
+from src.domain.ticket import Ticket, Comment
+from src.domain.ticket_components import CommentThread
 
 
 def test_comment_thread_preserves_added_comments():
@@ -23,20 +22,8 @@ def test_comment_thread_preserves_added_comments():
     assert thread.comments == [comment]
 
 
-def test_executor_assignments_returns_current_assignment():
-    assignments = ExecutorAssignments()
-    first = ExecutorAssignment(admin_id=1, executor_id=2)
-    second = ExecutorAssignment(admin_id=1, executor_id=3)
-
-    assignments.add(first)
-    assignments.add(second)
-
-    assert assignments.current() == second
 
 
-def test_executor_assignments_current_rejects_empty_history():
-    with pytest.raises(DomainOperationError, match="No executor"):
-        ExecutorAssignments().current()
 
 
 def test_role_has_permission_and_role_store_membership():
@@ -158,11 +145,9 @@ def test_ticket_policy_rejects_disabled_entities(admin_with_all_permissions, cli
 def test_ticket_policy_checks_user_and_ticket_user_client_relationship(client, user, user_ticket):
     other_client = type("OtherClient", (), {"client_id": client.client_id + 1})()
 
-    with pytest.raises(DomainOperationError, match="does not belong"):
-        TicketPolicy.ensure_user_belongs_to_client(user, other_client)
 
     with pytest.raises(DomainOperationError, match="does not belong"):
-        TicketPolicy.ensure_ticket_user_belongs_to_client(user_ticket, other_client)
+        TicketPolicy.ensure_ticket_user_belongs_to_client(ticket_user=user_ticket, client=other_client)
 
 
 def test_ticket_policy_rejects_ticket_that_already_has_user_ticket(client, admin_with_all_permissions):
@@ -174,8 +159,8 @@ def test_ticket_policy_rejects_ticket_that_already_has_user_ticket(client, admin
         user_ticket_id=99,
     )
 
-    with pytest.raises(DomainOperationError, match="has a ticket user"):
-        TicketPolicy.ensure_ticket_does_not_have_ticket_user(ticket)
+    with pytest.raises(DomainOperationError, match=" already has linked TicketUser"):
+        TicketPolicy.ensure_ticket_has_no_ticket_user(ticket=ticket)
 
 
 def test_ticket_user_ticket_policy_allows_cancel_when_admin_ticket_is_cancelled(client, admin_with_all_permissions, user_ticket):

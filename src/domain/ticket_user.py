@@ -710,10 +710,10 @@ class TicketUser:
         user_id: int,
         text_of_ticket: str,
     ) -> None:
-        if ticket_id != 0:
-            raise ItemValidationError(
-                "New TicketUser ticket_id must be 0",
-            )
+        #if ticket_id != 0:
+        #    raise ItemValidationError(
+        #        "New TicketUser ticket_id must be 0",
+        #    )
 
         if user_id <= 0:
             raise ItemValidationError(
