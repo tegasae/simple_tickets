@@ -103,6 +103,7 @@ async def get_current_user(
 
 
 async def get_employee_id_from_request(request: Request) -> int:
+
     return request.state.employee.employee_id
 
 
