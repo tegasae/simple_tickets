@@ -85,7 +85,7 @@ class TicketResponseDTO:
 
 @dataclass(kw_only=True, frozen=True)
 class TicketUserDTO:
-        ticket_id: int
+        #ticket_id: int
         ticket_user_id: int
         client_id: int
         actor_user_id: int
