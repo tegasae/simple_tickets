@@ -7,7 +7,7 @@ from src.application.dto.ticket_dto import TicketDTO, TicketResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.employee import Admin
 from src.domain.exceptions import DomainOperationError
-from src.domain.policy.ticket import TicketPolicy
+from src.domain.policies.ticket import TicketPolicy
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.ticket_execution_service import (
     TicketExecutionService as TicketExecutionDomainService,

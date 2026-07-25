@@ -1,144 +1,152 @@
 # src/web/models/tickets.py
 
+from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TicketCreateRequest(BaseModel):
-    """
-    Request body for creating admin ticket.
+    client_id: int = Field(gt=0)
 
-    actor_admin_id/admin_id are NOT here.
-    They come from JWT / request context.
-    """
+    text_of_ticket: str = Field(min_length=1)
+    description: str = ""
 
-    model_config = ConfigDict(extra="forbid")
+    user_id: int = Field(default=0, ge=0)
+    contact_user_id: int = Field(default=0, ge=0)
 
-    client_id: int
-
-    text_of_ticket: str = ""
-
-    user_id: int = 0
-    contact_user_id: int = 0
-    user_ticket_id: int = 0
-
-    executor_id: int = 0
+    department_id: int = Field(default=0, ge=0)
 
     is_remote: bool = False
-    urgency_level: int = 0
+    urgency_level: int = Field(default=0, ge=0)
 
     comment: str = ""
 
 
-class TicketDeferRequest(BaseModel):
-    """
-    Optional body for deferring ticket.
+class TicketCommentRequest(BaseModel):
+    comment: str = ""
 
-    If your domain does not need comment here,
-    you can remove comment field.
-    """
 
-    model_config = ConfigDict(extra="forbid")
+class TicketRequiredCommentRequest(BaseModel):
+    comment: str = Field(min_length=1)
 
-    client_id: int
+
+class TicketAcceptRequest(TicketCommentRequest):
+    pass
+
+
+class TicketRejectRequest(TicketRequiredCommentRequest):
+    pass
+
+
+class TicketDeferRequest(TicketRequiredCommentRequest):
+    pass
+
+
+class TicketScheduleRequest(BaseModel):
+    planned_start_at: datetime
+    planned_finish_at: datetime | None = None
+    comment: str = ""
+
+
+class TicketAssignExecutorRequest(BaseModel):
+    executor_id: int = Field(gt=0)
+    comment: str = ""
+
+
+class TicketReadyToWorkRequest(BaseModel):
+    executor_id: int = Field(gt=0)
+    planned_start_at: datetime
+    planned_finish_at: datetime | None = None
     comment: str = ""
 
 
 class TicketStartWorkRequest(BaseModel):
-    """
-    Request body for moving ticket to AT_WORK.
-    """
+    comment: str = ""
 
-    model_config = ConfigDict(extra="forbid")
 
-    client_id: int
-    executor_id: int
+class TicketPauseWorkRequest(BaseModel):
+    comment: str = ""
+
+
+class TicketResumeWorkRequest(BaseModel):
+    comment: str = ""
+
+
+class TicketSubmitForReviewRequest(BaseModel):
+    comment: str = ""
+
+
+class TicketRecordCompletedWorkForReviewRequest(BaseModel):
+    executor_id: int = Field(gt=0)
+    actual_started_at: datetime
+    actual_finished_at: datetime
+    comment: str = ""
 
 
 class TicketExecuteRequest(BaseModel):
-    """
-    Request body for executing ticket.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    client_id: int
-    comment: str
+    comment: str = ""
 
 
-class TicketCancelRequest(BaseModel):
-    """
-    Request body for cancelling ticket.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    client_id: int
-    comment: str
+class TicketConfirmExecutionRequest(BaseModel):
+    comment: str = ""
 
 
-class TicketCommentRequest(BaseModel):
-    """
-    Request body for adding comment.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-    comment: str
+class TicketReturnToWorkRequest(BaseModel):
+    comment: str = ""
 
 
-class TicketAssignExecutorRequest(BaseModel):
-    """
-    Request body for assigning executor.
-    """
+class TicketReturnToAssignedRequest(BaseModel):
+    executor_id: int = Field(gt=0)
+    comment: str = ""
 
-    model_config = ConfigDict(extra="forbid")
 
-    client_id: int
-    executor_id: int
+class TicketReturnToScheduledRequest(BaseModel):
+    planned_start_at: datetime
+    planned_finish_at: datetime | None = None
+    comment: str = ""
+
+
+class TicketReturnToReadyToWorkRequest(BaseModel):
+    executor_id: int = Field(gt=0)
+    planned_start_at: datetime
+    planned_finish_at: datetime | None = None
+    comment: str = ""
+
+
+class TicketReturnToDeferredRequest(TicketRequiredCommentRequest):
+    pass
+
+
+class TicketCancelRequest(TicketRequiredCommentRequest):
+    pass
 
 
 class TicketResponse(BaseModel):
-    """
-    Web response model.
-
-    It can be created from TicketResponseDTO dataclass using:
-
-        TicketResponse.model_validate(dto)
-
-    because from_attributes=True.
-
-    Some fields are optional/defaulted intentionally:
-    your TicketResponseDTO may contain description instead of text_of_ticket,
-    or may not expose all history fields yet.
-    """
-
     model_config = ConfigDict(from_attributes=True)
 
-    ticket_id: int = 0
-    client_id: int = 0
+    ticket_id: int
 
-    admin_id: int = 0
-    user_id: int = 0
-    contact_user_id: int = 0
-    executor_id: int = 0
-    user_ticket_id: int = 0
+    client_id: int
+    admin_id: int
 
-    text_of_ticket: str = ""
-    description: str = ""
+    user_id: int
+    contact_user_id: int
+    user_ticket_id: int
 
-    statuses: list
-    is_closed: bool = False
+    department_id: int
 
-    is_remote: bool = False
-    urgency_level: int = 0
+    text_of_ticket: str
+    description: str
 
-    comments: list
+    date_created: str
+    date_finished: str | None
 
-    date_created: str = ""
-    date_finished: str = ""
+    is_remote: bool
+    urgency_level: int
 
-    version: int = 0
+    version: int
+    is_closed: bool
 
-
-
-    
+    statuses: list[dict[str, Any]]
+    comments: list[dict[str, Any]]

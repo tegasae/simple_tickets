@@ -85,30 +85,47 @@ class TicketResponseDTO:
 
 @dataclass(kw_only=True, frozen=True)
 class TicketUserDTO:
-    ticket_id: int
-    client_id: int
-    user_id: int
+        ticket_id: int
+        ticket_user_id: int
+        client_id: int
+        actor_user_id: int
+        text_of_ticket: str
+        contact_user_id: int = 0
+        department_id: int = 0
+        is_remote: bool = False
+        description: str = ""
+        urgency_level: int = 0
+        comment: str = ""
+        status: StatusTicketOfClient = StatusTicketOfClient.CREATED
 
-    contact_user_id: int = 0
-    description: str = ""
 
-    status: StatusTicketOfClient = StatusTicketOfClient.CREATED
-    comment: str = ""
 
 
 @dataclass(kw_only=True, frozen=True)
 class TicketUserResponseDTO:
+    """
+    DTO пользовательской заявки.
+
+    Это не внутренняя Ticket.
+    ticket_id здесь — id агрегата TicketUser.
+    Связь с внутренней Ticket хранится на стороне Ticket.user_ticket_id.
+    """
+
     ticket_id: int
-
-    date_created: str
-    date_finished: str | None
-
-    description: str
-    is_closed: bool
+    client_id: int
 
     user_id: int
     contact_user_id: int
 
+    text_of_ticket: str
+    description: str
+    urgency_level: int
+
+    current_status: str
+    is_closed: bool
+
+    date_created: str
+    date_finished: str | None
+
     statuses: list[dict[str, object]] = field(default_factory=list)
     comments: list[dict[str, object]] = field(default_factory=list)
-

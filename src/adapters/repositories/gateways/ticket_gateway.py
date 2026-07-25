@@ -105,6 +105,7 @@ class TicketGateway:
         text_of_ticket = :text_of_ticket,
         description = :description,
         is_remote = :is_remote,
+        admin_id=:admin_id,
         urgency_level = :urgency_level,
         version = version + 1
     WHERE ticket_id = :ticket_id

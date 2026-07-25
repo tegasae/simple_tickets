@@ -5,7 +5,7 @@ from src.domain.ticket_user import TicketUser
 
 class TicketUserTicketPolicy:
     """
-    Domain policy for ticket and ticket_user.
+    Domain policies for ticket and ticket_user.
     """
     """
      Можно ли снять заявку

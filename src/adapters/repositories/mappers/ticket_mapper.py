@@ -98,7 +98,7 @@ class TicketMapper:
         return Ticket.rehydrate(
             ticket_id=row["ticket_id"],
             client_id=row["client_id"],
-            admin_id=row["admin_id"],
+            admin_id=row["admin_id"] or 0,
             text_of_ticket=row["text_of_ticket"] or "",
             user_id=row["user_id"] or 0,
             contact_user_id=row["contact_user_id"] or 0,
@@ -142,7 +142,7 @@ class TicketMapper:
 
         return TicketStatusRecord(
             status_id=row["status_id"],
-            actor_employee_id=row["actor_employee_id"],
+            actor_employee_id=row["actor_employee_id"] or 0,
             status=TicketStatus(row["status"]),
             date_created=date_created,
             executor_id=row["executor_id"] or 0,
@@ -166,7 +166,7 @@ class TicketMapper:
         return {
             "ticket_id": ticket.ticket_id,
             "client_id": ticket.client_id,
-            "admin_id": ticket.admin_id,
+            "admin_id": ticket.admin_id or None,
             "user_id": ticket.user_id or None,
             "contact_user_id": ticket.contact_user_id or None,
             "user_ticket_id": ticket.user_ticket_id or None,
@@ -202,7 +202,7 @@ class TicketMapper:
     ) -> dict:
         return {
             "ticket_id": ticket_id,
-            "actor_employee_id": record.actor_employee_id,
+            "actor_employee_id": record.actor_employee_id or None,
             "status": record.status.value,
             "date_created": _datetime_to_db(
                 record.date_created

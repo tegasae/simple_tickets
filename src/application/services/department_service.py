@@ -4,7 +4,7 @@ from src.application.dto.department_dto import DepartmentDTO, DepartmentResponse
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.department import Department
 from src.domain.exceptions import DomainOperationError
-from src.domain.policy.department import DepartmentPolicy
+from src.domain.policies.department import DepartmentPolicy
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.uow.unit_of_work import UnitOfWork
 

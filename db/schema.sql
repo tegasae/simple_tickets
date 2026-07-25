@@ -108,7 +108,7 @@ CREATE TABLE user_tickets (
 	date_created TEXT,
 	version INTEGER, 
 	date_closed TEXT, -- дата завершения или снятия заявки 
-	is_closed INTEGER,
+	is_closed INTEGER, description TEXT,
 	CONSTRAINT user_tickets_users_FK FOREIGN KEY (user_id) REFERENCES employees(employee_id) on delete restrict,
 	CONSTRAINT user_tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
 	CONSTRAINT user_tickets_user_ticket_contact_user_FK FOREIGN KEY (user_ticket_contact_user_id) REFERENCES employees(employee_id) on delete restrict
@@ -134,44 +134,14 @@ CREATE TABLE ticket_comments (
         REFERENCES employees(employee_id)
         ON DELETE RESTRICT
 );
-CREATE TABLE ticket_status_records (
-    status_id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-    ticket_id INTEGER NOT NULL,
-
-    actor_employee_id INTEGER NOT NULL,
-
-    status TEXT NOT NULL,
-    date_created TEXT NOT NULL,
-
-    executor_id INTEGER NULL,
-
-    planned_start_at TEXT NULL,
-    planned_finish_at TEXT NULL,
-
-    actual_started_at TEXT NULL,
-    actual_finished_at TEXT NULL,
-
-    comment TEXT NOT NULL DEFAULT '',
-
-    FOREIGN KEY (ticket_id)
-        REFERENCES tickets(ticket_id)
-        ON DELETE CASCADE,
-
-    FOREIGN KEY (actor_employee_id)
-        REFERENCES employees(employee_id)
-        ON DELETE RESTRICT,
-
-    FOREIGN KEY (executor_id)
-        REFERENCES admins(employee_id)
-        ON DELETE RESTRICT
-);
+CREATE INDEX idx_ticket_comments_ticket_id
+ON ticket_comments(ticket_id, ticket_comment_id);
+CREATE INDEX idx_ticket_comments_employee_id
+ON ticket_comments(employee_id);
 CREATE TABLE tickets (
     ticket_id INTEGER PRIMARY KEY AUTOINCREMENT,
-
     client_id INTEGER NOT NULL,
-    admin_id INTEGER NOT NULL,
-
+    admin_id INTEGER,
     user_id INTEGER NULL,
     contact_user_id INTEGER NULL,
     user_ticket_id INTEGER NULL,
@@ -214,23 +184,28 @@ CREATE TABLE tickets (
         REFERENCES departments(department_id)
         ON DELETE RESTRICT
 );
-CREATE INDEX idx_tickets_department_id
-    ON tickets(department_id);
-CREATE INDEX idx_ticket_status_records_executor
-    ON ticket_status_records(executor_id)
-    WHERE executor_id IS NOT NULL;
-CREATE UNIQUE INDEX uq_tickets_user_ticket_id
-ON tickets(user_ticket_id)
-WHERE user_ticket_id IS NOT NULL;
-CREATE INDEX idx_ticket_status_records_ticket_id
-ON ticket_status_records(ticket_id, status_id);
-CREATE INDEX idx_ticket_comments_ticket_id
-ON ticket_comments(ticket_id, ticket_comment_id);
-CREATE INDEX idx_tickets_client_ticket_id
-ON tickets(client_id, ticket_id);
-CREATE INDEX idx_tickets_admin_id
-ON tickets(admin_id);
-CREATE INDEX idx_ticket_status_records_actor_employee_id
-ON ticket_status_records(actor_employee_id);
-CREATE INDEX idx_ticket_comments_employee_id
-ON ticket_comments(employee_id);
+CREATE TABLE ticket_status_records (
+    status_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id INTEGER NOT NULL,
+    actor_employee_id INTEGER NULL,
+    status TEXT NOT NULL,
+    date_created TEXT NOT NULL,
+    executor_id INTEGER NULL,
+    planned_start_at TEXT NULL,
+    planned_finish_at TEXT NULL,
+    actual_started_at TEXT NULL,
+    actual_finished_at TEXT NULL,
+    comment TEXT NOT NULL DEFAULT '',
+
+    FOREIGN KEY (ticket_id)
+        REFERENCES tickets(ticket_id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (actor_employee_id)
+        REFERENCES employees(employee_id)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (executor_id)
+        REFERENCES admins(employee_id)
+        ON DELETE RESTRICT
+);

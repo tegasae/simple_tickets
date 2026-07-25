@@ -76,24 +76,38 @@ CREATE TABLE users (
 );
 
 CREATE TABLE user_tickets (
-    user_ticket_id INTEGER PRIMARY KEY,
+    user_ticket_id INTEGER PRIMARY KEY AUTOINCREMENT,
+
     client_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
+    user_ticket_contact_user_id INTEGER NULL,
+
     text_of_ticket TEXT NOT NULL,
+    description TEXT NULL,
+
     date_created TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+
+    is_closed INTEGER NOT NULL DEFAULT 0,
+    date_closed TEXT NULL,
+
     FOREIGN KEY (client_id)
         REFERENCES clients(client_id)
         ON DELETE RESTRICT,
+
     FOREIGN KEY (user_id)
+        REFERENCES users(employee_id)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (user_ticket_contact_user_id)
         REFERENCES users(employee_id)
         ON DELETE RESTRICT
 );
-
 CREATE TABLE tickets (
     ticket_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
     client_id INTEGER NOT NULL,
-    admin_id INTEGER NOT NULL,
+    admin_id INTEGER NULL,
 
     user_id INTEGER NULL,
     contact_user_id INTEGER NULL,
@@ -152,7 +166,7 @@ CREATE TABLE ticket_status_records (
 
     ticket_id INTEGER NOT NULL,
 
-    actor_employee_id INTEGER NOT NULL,
+    actor_employee_id INTEGER NULL,
     status TEXT NOT NULL,
     date_created TEXT NOT NULL,
 
@@ -299,6 +313,21 @@ def repo(
 ) -> TicketRepositorySQLite:
     return TicketRepositorySQLite(ticket_sqlite_connection)
 
+
+
+def make_ticket_from_ticket_user() -> Ticket:
+    return Ticket.create_from_ticket_user(
+        ticket_id=0,
+        client_id=100,
+        user_id=40,
+        contact_user_id=40,
+        user_ticket_id=500,
+        text_of_ticket="The network is unavailable",
+        description="Created from user ticket",
+        department_id=1,
+        urgency_level=2,
+        is_remote=False,
+    )
 
 def make_ticket(
     *,
@@ -821,3 +850,150 @@ def test_uow_delete_commits_cascade_for_ticket_children(
     assert status_count == 0
     assert comment_count == 0
 
+def test_save_and_get_ticket_created_from_ticket_user_maps_zero_admin_and_actor(
+    repo: TicketRepositorySQLite,
+    ticket_sqlite_connection: Connection,
+) -> None:
+    ticket = make_ticket_from_ticket_user()
+
+    saved = repo.save(ticket)
+    loaded = repo.get(saved.ticket_id)
+
+    assert saved.ticket_id > 0
+    assert loaded.ticket_id == saved.ticket_id
+
+    assert loaded.admin_id == 0
+    assert loaded.client_id == 100
+    assert loaded.user_id == 40
+    assert loaded.contact_user_id == 40
+    assert loaded.user_ticket_id == 500
+
+    assert loaded.current_status() == TicketStatus.CREATED_FROM_TICKET_USER
+    assert loaded.current_status_record().actor_employee_id == 0
+
+    ticket_row = ticket_sqlite_connection.connect.execute(
+        """
+        SELECT admin_id
+        FROM tickets
+        WHERE ticket_id = ?
+        """,
+        (saved.ticket_id,),
+    ).fetchone()
+
+    status_row = ticket_sqlite_connection.connect.execute(
+        """
+        SELECT actor_employee_id
+        FROM ticket_status_records
+        WHERE ticket_id = ?
+        ORDER BY status_id
+        """,
+        (saved.ticket_id,),
+    ).fetchone()
+
+    assert ticket_row == (None,)
+    assert status_row == (None,)
+
+
+def test_save_existing_ticket_from_ticket_user_sets_admin_after_accept(
+    repo: TicketRepositorySQLite,
+    ticket_sqlite_connection: Connection,
+) -> None:
+    saved = repo.save(make_ticket_from_ticket_user())
+
+    ticket = repo.get(saved.ticket_id)
+
+    assert ticket.admin_id == 0
+    assert ticket.current_status() == TicketStatus.CREATED_FROM_TICKET_USER
+
+    ticket.append_status(
+        TicketStatusRecord(
+            actor_employee_id=10,
+            status=TicketStatus.ACCEPTED,
+        )
+    )
+
+
+
+    assert ticket.admin_id == 10
+
+    updated = repo.save(ticket)
+    loaded = repo.get(updated.ticket_id)
+
+    assert loaded.admin_id == 10
+    assert loaded.current_status() == TicketStatus.ACCEPTED
+
+    assert [
+        record.actor_employee_id
+        for record in loaded.statuses
+    ] == [
+        0,
+        10,
+    ]
+
+    ticket_row = ticket_sqlite_connection.connect.execute(
+        """
+        SELECT admin_id
+        FROM tickets
+        WHERE ticket_id = ?
+        """,
+        (saved.ticket_id,),
+    ).fetchone()
+
+    status_rows = ticket_sqlite_connection.connect.execute(
+        """
+        SELECT actor_employee_id
+        FROM ticket_status_records
+        WHERE ticket_id = ?
+        ORDER BY status_id
+        """,
+        (saved.ticket_id,),
+    ).fetchall()
+
+    assert ticket_row == (10,)
+    assert status_rows == [
+        (None,),
+        (10,),
+    ]
+
+    def test_save_ticket_created_from_ticket_user_cancelled_by_user_keeps_actor_null(
+            repo: TicketRepositorySQLite,
+            ticket_sqlite_connection: Connection,
+    ) -> None:
+        ticket = make_ticket_from_ticket_user()
+
+        ticket.append_status(
+            TicketStatusRecord(
+                actor_employee_id=0,
+                status=TicketStatus.CANCELLED_BY_USER,
+            )
+        )
+
+        saved = repo.save(ticket)
+        loaded = repo.get(saved.ticket_id)
+
+        assert loaded.admin_id == 0
+        assert loaded.current_status() == TicketStatus.CANCELLED_BY_USER
+        assert loaded.is_closed is True
+
+        assert [
+                   record.actor_employee_id
+                   for record in loaded.statuses
+               ] == [
+                   0,
+                   0,
+               ]
+
+        status_rows = ticket_sqlite_connection.connect.execute(
+            """
+            SELECT actor_employee_id
+            FROM ticket_status_records
+            WHERE ticket_id = ?
+            ORDER BY status_id
+            """,
+            (saved.ticket_id,),
+        ).fetchall()
+
+        assert status_rows == [
+            (None,),
+            (None,),
+        ]

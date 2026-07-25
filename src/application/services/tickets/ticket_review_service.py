@@ -5,7 +5,7 @@ from src.application.dto.ticket_dto import TicketDTO, TicketResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.employee import Admin
 from src.domain.exceptions import DomainOperationError
-from src.domain.policy.ticket import TicketPolicy
+from src.domain.policies.ticket import TicketPolicy
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.ticket_review_service import (
     TicketReviewService as TicketReviewDomainService,
@@ -14,7 +14,7 @@ from src.domain.ticket import Ticket
 from src.domain.uow.unit_of_work import UnitOfWork
 
 
-class TicketReviewApplicationService:
+class TicketReviewApplicationService1:
     """
     Application service for Ticket review actions.
 

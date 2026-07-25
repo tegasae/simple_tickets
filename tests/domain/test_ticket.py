@@ -1,920 +1,447 @@
 # tests/domain/test_ticket.py
 
-from collections.abc import Callable
+from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from src.domain.exceptions import DomainOperationError
+from src.domain.exceptions import DomainOperationError, ItemValidationError
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-from src.domain.ticket import Ticket
-from src.domain.ticket_components import Comment
+from src.domain.ticket import Comment, Ticket
 
 
-NOW = datetime.now(timezone.utc)
+CLIENT_ID = 10
+ADMIN_ID = 101
+OTHER_ADMIN_ID = 102
+USER_ID = 201
+CONTACT_USER_ID = 202
+EXECUTOR_ID = 301
 
-PAST_5H = NOW - timedelta(hours=5)
-PAST_4H = NOW - timedelta(hours=4)
-PAST_3H = NOW - timedelta(hours=3)
-PAST_2H = NOW - timedelta(hours=2)
-PAST_1H = NOW - timedelta(hours=1)
+TICKET_ID = 1001
+TICKET_USER_ID = 5001
 
-FUTURE_1H = NOW + timedelta(hours=1)
-FUTURE_2H = NOW + timedelta(hours=2)
-
-ADMIN_ID = 10
-EXECUTOR_ID = 20
-OTHER_EXECUTOR_ID = 30
+BASE_TIME = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
 
 
-# ----------------------------
-# Fixtures / helpers
-# ----------------------------
+def minutes_after(minutes: int) -> datetime:
+    return BASE_TIME + timedelta(minutes=minutes)
 
 
-def make_ticket() -> Ticket:
+def make_status_record(
+    status: TicketStatus,
+    *,
+    actor_employee_id: int = ADMIN_ID,
+    executor_id: int = 0,
+    planned_start_at: datetime | None = None,
+    planned_finish_at: datetime | None = None,
+    actual_started_at: datetime | None = None,
+    actual_finished_at: datetime | None = None,
+    comment: str = "",
+    date_created: datetime = BASE_TIME,
+) -> TicketStatusRecord:
+    return TicketStatusRecord(
+        actor_employee_id=actor_employee_id,
+        status=status,
+        date_created=date_created,
+        executor_id=executor_id,
+        planned_start_at=planned_start_at,
+        planned_finish_at=planned_finish_at,
+        actual_started_at=actual_started_at,
+        actual_finished_at=actual_finished_at,
+        comment=comment,
+    )
+
+
+def make_created_ticket() -> Ticket:
     return Ticket.create(
-        ticket_id=1,
-        client_id=100,
+        ticket_id=0,
+        client_id=CLIENT_ID,
         admin_id=ADMIN_ID,
-        text_of_ticket="Fix internet connection",
+        text_of_ticket="Need help",
+        date_created=BASE_TIME,
     )
 
 
-def make_comment(
-    *,
-    employee_id: int = ADMIN_ID,
-    text: str = "Some comment",
-) -> Comment:
-    return Comment(
-        employee_id=employee_id,
-        comment=text,
+def make_ticket_from_user() -> Ticket:
+    return Ticket.create_from_ticket_user(
+        ticket_id=0,
+        client_id=CLIENT_ID,
+        user_id=USER_ID,
+        contact_user_id=CONTACT_USER_ID,
+        user_ticket_id=TICKET_USER_ID,
+        text_of_ticket="Need help",
+        date_created=BASE_TIME,
     )
 
 
-def accept_ticket(ticket: Ticket) -> Ticket:
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.ACCEPTED,
-        )
-    )
-    return ticket
-
-
-def make_accepted_ticket() -> Ticket:
-    return accept_ticket(make_ticket())
-
-
-def make_scheduled_ticket() -> Ticket:
-    ticket = make_accepted_ticket()
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.SCHEDULED,
-            planned_start_at=FUTURE_1H,
-        )
+def test_create_requires_zero_ticket_id() -> None:
+    ticket = Ticket.create(
+        ticket_id=0,
+        client_id=CLIENT_ID,
+        admin_id=ADMIN_ID,
+        text_of_ticket="Need help",
+        date_created=BASE_TIME,
     )
 
-    return ticket
-
-
-def make_assigned_ticket(
-    *,
-    executor_id: int = EXECUTOR_ID,
-) -> Ticket:
-    ticket = make_accepted_ticket()
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.ASSIGNED,
-            executor_id=executor_id,
-        )
-    )
-
-    return ticket
-
-
-def make_ready_to_work_ticket(
-    *,
-    executor_id: int = EXECUTOR_ID,
-) -> Ticket:
-    ticket = make_assigned_ticket(
-        executor_id=executor_id,
-    )
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.READY_TO_WORK,
-            executor_id=executor_id,
-            planned_start_at=FUTURE_1H,
-        )
-    )
-
-    return ticket
-
-
-def make_at_work_ticket(
-    *,
-    executor_id: int = EXECUTOR_ID,
-) -> Ticket:
-    ticket = make_assigned_ticket(
-        executor_id=executor_id,
-    )
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=executor_id,
-            status=TicketStatus.AT_WORK,
-            executor_id=executor_id,
-            actual_started_at=PAST_2H,
-            date_created=PAST_2H,
-        )
-    )
-
-    return ticket
-
-
-def make_paused_ticket(
-    *,
-    executor_id: int = EXECUTOR_ID,
-) -> Ticket:
-    ticket = make_at_work_ticket(
-        executor_id=executor_id,
-    )
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=executor_id,
-            status=TicketStatus.PAUSED,
-            executor_id=executor_id,
-            date_created=PAST_1H,
-        )
-    )
-
-    return ticket
-
-
-# ----------------------------
-# create()
-# ----------------------------
-
-
-def test_create_creates_ticket_with_created_status() -> None:
-    ticket = make_ticket()
-
-    assert ticket.ticket_id == 1
-    assert ticket.client_id == 100
-    assert ticket.admin_id == ADMIN_ID
-    assert ticket.text_of_ticket == "Fix internet connection"
-
-    assert len(ticket.statuses) == 1
+    assert ticket.ticket_id == 0
+    assert ticket.is_new() is True
     assert ticket.current_status() == TicketStatus.CREATED
     assert ticket.current_status_record().actor_employee_id == ADMIN_ID
 
-    assert not ticket.is_closed
-    assert ticket.date_finished is None
 
 
-def test_create_strips_ticket_text() -> None:
-    ticket = Ticket.create(
-        ticket_id=1,
-        client_id=100,
-        admin_id=ADMIN_ID,
-        text_of_ticket="  Fix router  ",
-    )
 
-    assert ticket.text_of_ticket == "Fix router"
-
-
-def test_create_rejects_empty_ticket_text() -> None:
+def test_create_rejects_zero_client_id() -> None:
     with pytest.raises(DomainOperationError):
         Ticket.create(
-            ticket_id=1,
-            client_id=100,
+            ticket_id=0,
+            client_id=0,
+            admin_id=ADMIN_ID,
+            text_of_ticket="Need help",
+        )
+
+
+def test_create_rejects_zero_admin_id() -> None:
+    with pytest.raises(ItemValidationError):
+        Ticket.create(
+            ticket_id=0,
+            client_id=CLIENT_ID,
+            admin_id=0,
+            text_of_ticket="Need help",
+        )
+
+
+def test_create_rejects_empty_text() -> None:
+    with pytest.raises(DomainOperationError):
+        Ticket.create(
+            ticket_id=0,
+            client_id=CLIENT_ID,
             admin_id=ADMIN_ID,
             text_of_ticket="   ",
         )
 
 
-def test_create_adds_initial_comment_if_not_empty() -> None:
+def test_create_adds_initial_comment() -> None:
     ticket = Ticket.create(
-        ticket_id=1,
-        client_id=100,
+        ticket_id=0,
+        client_id=CLIENT_ID,
         admin_id=ADMIN_ID,
-        text_of_ticket="Fix internet connection",
-        comment="  Created by phone  ",
+        text_of_ticket="Need help",
+        comment="  Initial comment  ",
+        date_created=BASE_TIME,
     )
 
     assert len(ticket.comments) == 1
     assert ticket.comments[0].employee_id == ADMIN_ID
-    assert ticket.comments[0].comment == "Created by phone"
+    assert ticket.comments[0].comment == "Initial comment"
 
 
-def test_create_does_not_add_empty_initial_comment() -> None:
-    ticket = Ticket.create(
-        ticket_id=1,
-        client_id=100,
-        admin_id=ADMIN_ID,
-        text_of_ticket="Fix internet connection",
-        comment="   ",
+def test_create_from_ticket_user_requires_zero_ticket_id() -> None:
+    ticket = Ticket.create_from_ticket_user(
+        ticket_id=0,
+        client_id=CLIENT_ID,
+        user_id=USER_ID,
+        contact_user_id=CONTACT_USER_ID,
+        user_ticket_id=TICKET_USER_ID,
+        text_of_ticket="Need help",
+        date_created=BASE_TIME,
     )
 
-    assert ticket.comments == []
+    assert ticket.ticket_id == 0
+    assert ticket.is_new() is True
+    assert ticket.admin_id == 0
+    assert ticket.user_id == USER_ID
+    assert ticket.contact_user_id == CONTACT_USER_ID
+    assert ticket.user_ticket_id == TICKET_USER_ID
+    assert ticket.current_status() == TicketStatus.CREATED_FROM_TICKET_USER
+    assert ticket.current_status_record().actor_employee_id == 0
 
 
-# ----------------------------
-# rehydrate()
-# ----------------------------
-
-
-def test_rehydrate_requires_status_history() -> None:
-    with pytest.raises(
-        DomainOperationError,
-        match="without status history",
-    ):
-        Ticket.rehydrate(
-            ticket_id=1,
-            client_id=100,
-            admin_id=ADMIN_ID,
-            text_of_ticket="Fix internet connection",
-            statuses=[],
-            date_created=NOW,
+def test_create_from_ticket_user_rejects_nonzero_ticket_id() -> None:
+    with pytest.raises(ItemValidationError):
+        Ticket.create_from_ticket_user(
+            ticket_id=TICKET_ID,
+            client_id=CLIENT_ID,
+            user_id=USER_ID,
+            contact_user_id=CONTACT_USER_ID,
+            user_ticket_id=TICKET_USER_ID,
+            text_of_ticket="Need help",
         )
 
 
-def test_rehydrate_restores_ticket_with_status_history() -> None:
-    statuses = [
-        TicketStatusRecord(
-            status_id=1,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.CREATED,
-            date_created=PAST_5H,
-        ),
-        TicketStatusRecord(
-            status_id=2,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.ACCEPTED,
-            date_created=PAST_4H,
-        ),
-    ]
+def test_create_from_ticket_user_rejects_zero_user_id() -> None:
+    with pytest.raises(ItemValidationError):
+        Ticket.create_from_ticket_user(
+            ticket_id=0,
+            client_id=CLIENT_ID,
+            user_id=0,
+            contact_user_id=CONTACT_USER_ID,
+            user_ticket_id=TICKET_USER_ID,
+            text_of_ticket="Need help",
+        )
 
+
+def test_create_from_ticket_user_rejects_zero_user_ticket_id() -> None:
+    with pytest.raises(ItemValidationError):
+        Ticket.create_from_ticket_user(
+            ticket_id=0,
+            client_id=CLIENT_ID,
+            user_id=USER_ID,
+            contact_user_id=CONTACT_USER_ID,
+            user_ticket_id=0,
+            text_of_ticket="Need help",
+        )
+
+
+def test_rehydrate_requires_positive_ticket_id() -> None:
+    with pytest.raises(DomainOperationError):
+        Ticket.rehydrate(
+            ticket_id=0,
+            client_id=CLIENT_ID,
+            admin_id=ADMIN_ID,
+            text_of_ticket="Need help",
+            statuses=[
+                make_status_record(TicketStatus.CREATED),
+            ],
+            date_created=BASE_TIME,
+        )
+
+
+def test_rehydrate_restores_persisted_ticket() -> None:
     ticket = Ticket.rehydrate(
-        ticket_id=1,
-        client_id=100,
+        ticket_id=TICKET_ID,
+        client_id=CLIENT_ID,
         admin_id=ADMIN_ID,
-        text_of_ticket="Fix internet connection",
-        statuses=statuses,
-        date_created=PAST_5H,
+        text_of_ticket="  Need help  ",
+        statuses=[
+            make_status_record(TicketStatus.CREATED),
+        ],
+        date_created=BASE_TIME,
         version=3,
     )
 
-    assert ticket.ticket_id == 1
-    assert ticket.current_status() == TicketStatus.ACCEPTED
+    assert ticket.ticket_id == TICKET_ID
+    assert ticket.is_new() is False
+    assert ticket.text_of_ticket == "Need help"
+    assert ticket.current_status() == TicketStatus.CREATED
     assert ticket.version == 3
-    assert not ticket.is_closed
-    assert ticket.date_finished is None
 
 
-def test_rehydrate_recomputes_terminal_state() -> None:
-    statuses = [
-        TicketStatusRecord(
-            status_id=1,
+def test_rehydrate_rejects_empty_status_history() -> None:
+    with pytest.raises(DomainOperationError):
+        Ticket.rehydrate(
+            ticket_id=TICKET_ID,
+            client_id=CLIENT_ID,
+            admin_id=ADMIN_ID,
+            text_of_ticket="Need help",
+            statuses=[],
+            date_created=BASE_TIME,
+        )
+
+
+def test_accept_created_ticket() -> None:
+    ticket = make_created_ticket()
+
+    ticket.append_status(
+        make_status_record(
+            TicketStatus.ACCEPTED,
             actor_employee_id=ADMIN_ID,
-            status=TicketStatus.CREATED,
-            date_created=PAST_5H,
+            date_created=minutes_after(1),
         ),
-        TicketStatusRecord(
-            status_id=2,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.REJECTED,
-            date_created=PAST_4H,
-            comment="Invalid request",
-        ),
-    ]
+    )
 
-    ticket = Ticket.rehydrate(
-        ticket_id=1,
-        client_id=100,
-        admin_id=ADMIN_ID,
-        text_of_ticket="Fix internet connection",
-        statuses=statuses,
-        date_created=PAST_5H,
+    assert ticket.current_status() == TicketStatus.ACCEPTED
+    assert ticket.admin_id == ADMIN_ID
+    assert ticket.is_closed is False
+
+
+def test_accept_ticket_created_from_user_sets_admin_id() -> None:
+    ticket = make_ticket_from_user()
+
+    assert ticket.admin_id == 0
+
+    ticket.append_status(
+        make_status_record(
+            TicketStatus.ACCEPTED,
+            actor_employee_id=ADMIN_ID,
+            date_created=minutes_after(1),
+        ),
+    )
+
+    assert ticket.current_status() == TicketStatus.ACCEPTED
+    assert ticket.admin_id == ADMIN_ID
+
+
+def test_invalid_transition_is_rejected() -> None:
+    ticket = make_created_ticket()
+
+    with pytest.raises(DomainOperationError):
+        ticket.append_status(
+            make_status_record(
+                TicketStatus.EXECUTED,
+                actor_employee_id=ADMIN_ID,
+                date_created=minutes_after(1),
+            ),
+        )
+
+
+def test_terminal_status_closes_ticket() -> None:
+    ticket = make_created_ticket()
+    finished_at = minutes_after(1)
+
+    ticket.append_status(
+        make_status_record(
+            TicketStatus.REJECTED,
+            actor_employee_id=ADMIN_ID,
+            comment="Rejected",
+            date_created=finished_at,
+        ),
     )
 
     assert ticket.current_status() == TicketStatus.REJECTED
-    assert ticket.is_closed
-    assert ticket.date_finished == PAST_4H
+    assert ticket.is_closed is True
+    assert ticket.date_finished == finished_at
 
 
-# ----------------------------
-# current status / executor
-# ----------------------------
-
-
-def test_current_status_returns_last_status() -> None:
-    ticket = make_ticket()
+def test_cannot_change_status_after_terminal_status() -> None:
+    ticket = make_created_ticket()
 
     ticket.append_status(
-        TicketStatusRecord(
+        make_status_record(
+            TicketStatus.REJECTED,
             actor_employee_id=ADMIN_ID,
-            status=TicketStatus.ACCEPTED,
-        )
+            comment="Rejected",
+            date_created=minutes_after(1),
+        ),
     )
 
-    assert ticket.current_status() == TicketStatus.ACCEPTED
-
-
-def test_current_executor_id_returns_executor_from_current_record() -> None:
-    ticket = make_assigned_ticket()
-
-    assert ticket.current_status() == TicketStatus.ASSIGNED
-    assert ticket.current_executor_id() == EXECUTOR_ID
-    assert ticket.has_executor()
-
-
-def test_current_executor_id_does_not_use_old_executor_from_history() -> None:
-    ticket = make_ready_to_work_ticket()
-
-    assert ticket.current_executor_id() == EXECUTOR_ID
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.SCHEDULED,
-            planned_start_at=FUTURE_2H,
-        )
-    )
-
-    assert ticket.current_status() == TicketStatus.SCHEDULED
-    assert ticket.current_executor_id() == 0
-    assert not ticket.has_executor()
-
-
-# ----------------------------
-# can_change_status()
-# ----------------------------
-
-
-def test_can_change_status_returns_true_for_valid_transition() -> None:
-    ticket = make_ticket()
-
-    assert ticket.can_change_status(TicketStatus.ACCEPTED)
-    assert ticket.can_change_status(TicketStatus.REJECTED)
-
-
-def test_can_change_status_returns_false_for_invalid_transition() -> None:
-    ticket = make_ticket()
-
-    assert not ticket.can_change_status(TicketStatus.AT_WORK)
-    assert not ticket.can_change_status(TicketStatus.CANCELLED)
-
-
-def test_can_change_status_returns_false_for_terminal_ticket() -> None:
-    ticket = make_ticket()
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.REJECTED,
-            comment="Invalid request",
-        )
-    )
-
-    assert not ticket.can_change_status(TicketStatus.ACCEPTED)
-
-
-# ----------------------------
-# append_status()
-# ----------------------------
-
-
-def test_append_status_allows_valid_transition() -> None:
-    ticket = make_ticket()
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.ACCEPTED,
-        )
-    )
-
-    assert len(ticket.statuses) == 2
-    assert ticket.current_status() == TicketStatus.ACCEPTED
-
-
-def test_append_status_rejects_invalid_transition() -> None:
-    ticket = make_ticket()
-
-    with pytest.raises(
-        DomainOperationError,
-        match="transition is not allowed",
-    ):
+    with pytest.raises(DomainOperationError):
         ticket.append_status(
-            TicketStatusRecord(
+            make_status_record(
+                TicketStatus.ACCEPTED,
                 actor_employee_id=ADMIN_ID,
-                status=TicketStatus.CANCELLED,
-                comment="Client cancelled",
-            )
-        )
-
-    assert ticket.current_status() == TicketStatus.CREATED
-
-
-def test_append_status_rejects_change_after_terminal_status() -> None:
-    ticket = make_ticket()
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.REJECTED,
-            comment="Invalid request",
-        )
-    )
-
-    assert ticket.is_terminal()
-
-    with pytest.raises(
-        DomainOperationError,
-        match="terminal status",
-    ):
-        ticket.append_status(
-            TicketStatusRecord(
-                actor_employee_id=ADMIN_ID,
-                status=TicketStatus.ACCEPTED,
-            )
+                date_created=minutes_after(2),
+            ),
         )
 
 
-def test_append_terminal_status_closes_ticket() -> None:
-    ticket = make_accepted_ticket()
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.CANCELLED,
-            comment="Client cancelled",
-        )
-    )
-
-    assert ticket.current_status() == TicketStatus.CANCELLED
-    assert ticket.is_closed
-    assert ticket.date_finished == (
-        ticket.current_status_record().date_created
-    )
-
-
-# ----------------------------
-# READY_FOR_REVIEW transitions
-# ----------------------------
-
-
-@pytest.mark.parametrize(
-    "ticket_factory",
-    [
-        make_scheduled_ticket,
-        make_assigned_ticket,
-        make_ready_to_work_ticket,
-    ],
-)
-def test_retroactive_work_can_be_registered_for_review(
-    ticket_factory: Callable[[], Ticket],
-) -> None:
-    ticket = ticket_factory()
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.READY_FOR_REVIEW,
-            executor_id=EXECUTOR_ID,
-            actual_started_at=PAST_2H,
-            actual_finished_at=PAST_1H,
-            comment="Work registered later",
-        )
-    )
-
-    record = ticket.current_status_record()
-
-    assert ticket.current_status() == TicketStatus.READY_FOR_REVIEW
-    assert record.executor_id == EXECUTOR_ID
-    assert record.actual_started_at == PAST_2H
-    assert record.actual_finished_at == PAST_1H
-
-
-@pytest.mark.parametrize(
-    "ticket_factory",
-    [
-        make_scheduled_ticket,
-        make_assigned_ticket,
-        make_ready_to_work_ticket,
-    ],
-)
-def test_retroactive_work_requires_actual_started_at(
-    ticket_factory: Callable[[], Ticket],
-) -> None:
-    ticket = ticket_factory()
-
-    with pytest.raises(
-        DomainOperationError,
-        match="Retrospective work registration requires",
-    ):
-        ticket.append_status(
-            TicketStatusRecord(
-                actor_employee_id=ADMIN_ID,
-                status=TicketStatus.READY_FOR_REVIEW,
-                executor_id=EXECUTOR_ID,
-                actual_finished_at=PAST_1H,
-            )
-        )
-
-    assert ticket.current_status() != TicketStatus.READY_FOR_REVIEW
-
-
-def test_at_work_to_review_is_allowed_without_actual_started_at() -> None:
-    ticket = make_at_work_ticket()
-
-    ticket.append_status(
-        TicketStatusRecord(
-            actor_employee_id=EXECUTOR_ID,
-            status=TicketStatus.READY_FOR_REVIEW,
-            executor_id=EXECUTOR_ID,
-            actual_finished_at=PAST_1H,
-        )
-    )
-
-    record = ticket.current_status_record()
-
-    assert ticket.current_status() == TicketStatus.READY_FOR_REVIEW
-    assert record.actual_started_at is None
-    assert record.actual_finished_at == PAST_1H
-
-
-def test_at_work_to_review_rejects_new_actual_started_at() -> None:
-    ticket = make_at_work_ticket()
-
-    with pytest.raises(
-        DomainOperationError,
-        match="must not provide actual_started_at",
-    ):
-        ticket.append_status(
-            TicketStatusRecord(
-                actor_employee_id=EXECUTOR_ID,
-                status=TicketStatus.READY_FOR_REVIEW,
-                executor_id=EXECUTOR_ID,
-                actual_started_at=PAST_2H,
-                actual_finished_at=PAST_1H,
-            )
-        )
-
-    assert ticket.current_status() == TicketStatus.AT_WORK
-
-
-# ----------------------------
-# comments
-# ----------------------------
-
-
-def test_add_comment_adds_plain_ticket_comment() -> None:
-    ticket = make_ticket()
+def test_add_comment() -> None:
+    ticket = make_created_ticket()
 
     ticket.add_comment(
-        make_comment(
-            employee_id=EXECUTOR_ID,
-            text="Need more details",
-        )
+        Comment(
+            employee_id=ADMIN_ID,
+            comment="  Useful comment  ",
+            date_created=minutes_after(1),
+        ),
     )
 
     assert len(ticket.comments) == 1
-    assert ticket.comments[0].employee_id == EXECUTOR_ID
-    assert ticket.comments[0].comment == "Need more details"
+    assert ticket.comments[0].employee_id == ADMIN_ID
+    assert ticket.comments[0].comment == "Useful comment"
 
 
-def test_add_comment_rejects_comment_after_terminal_status() -> None:
-    ticket = make_ticket()
+def test_add_comment_rejects_empty_comment() -> None:
+    ticket = make_created_ticket()
+
+    with pytest.raises(DomainOperationError):
+        ticket.add_comment(
+            Comment(
+                employee_id=ADMIN_ID,
+                comment="   ",
+            ),
+        )
+
+
+def test_add_comment_rejects_terminal_ticket() -> None:
+    ticket = make_created_ticket()
 
     ticket.append_status(
-        TicketStatusRecord(
+        make_status_record(
+            TicketStatus.REJECTED,
             actor_employee_id=ADMIN_ID,
-            status=TicketStatus.REJECTED,
-            comment="Invalid request",
-        )
+            comment="Rejected",
+            date_created=minutes_after(1),
+        ),
     )
 
-    with pytest.raises(
-        DomainOperationError,
-        match="terminal status",
-    ):
+    with pytest.raises(DomainOperationError):
         ticket.add_comment(
-            make_comment(
-                employee_id=EXECUTOR_ID,
-                text="Too late",
-            )
+            Comment(
+                employee_id=ADMIN_ID,
+                comment="Too late",
+            ),
         )
 
 
-# ----------------------------
-# department
-# ----------------------------
+def test_change_department() -> None:
+    ticket = make_created_ticket()
+
+    ticket.change_department(department_id=77)
+
+    assert ticket.department_id == 77
 
 
-def test_change_department_is_allowed_before_executor_assignment() -> None:
-    ticket = make_scheduled_ticket()
+def test_change_department_rejects_negative_id() -> None:
+    ticket = make_created_ticket()
 
-    ticket.change_department(department_id=5)
-
-    assert ticket.department_id == 5
-
-
-def test_change_department_is_rejected_after_executor_assignment() -> None:
-    ticket = make_assigned_ticket()
-
-    with pytest.raises(
-        DomainOperationError,
-        match="Cannot change ticket department",
-    ):
-        ticket.change_department(department_id=5)
+    with pytest.raises(DomainOperationError):
+        ticket.change_department(department_id=-1)
 
 
-# ----------------------------
-# new records
-# ----------------------------
+def test_belong_counts_admin_status_actor_executor_and_comment_author() -> None:
+    ticket = make_created_ticket()
 
-
-def test_new_statuses_returns_only_unsaved_statuses() -> None:
-    saved_status = TicketStatusRecord(
-        status_id=1,
-        actor_employee_id=ADMIN_ID,
-        status=TicketStatus.CREATED,
-        date_created=PAST_5H,
+    ticket.append_status(
+        make_status_record(
+            TicketStatus.ACCEPTED,
+            actor_employee_id=OTHER_ADMIN_ID,
+            date_created=minutes_after(1),
+        ),
     )
 
-    new_status = TicketStatusRecord(
-        actor_employee_id=ADMIN_ID,
-        status=TicketStatus.ACCEPTED,
+    ticket.append_status(
+        make_status_record(
+            TicketStatus.ASSIGNED,
+            actor_employee_id=OTHER_ADMIN_ID,
+            executor_id=EXECUTOR_ID,
+            date_created=minutes_after(2),
+        ),
     )
-
-    ticket = Ticket.rehydrate(
-        ticket_id=1,
-        client_id=100,
-        admin_id=ADMIN_ID,
-        text_of_ticket="Fix internet connection",
-        statuses=[saved_status, new_status],
-        date_created=PAST_5H,
-    )
-
-    assert ticket.new_statuses() == [new_status]
-
-
-def test_new_comments_returns_only_unsaved_comments() -> None:
-    saved_comment = Comment(
-        comment_id=1,
-        employee_id=ADMIN_ID,
-        comment="Saved comment",
-    )
-
-    new_comment = Comment(
-        employee_id=EXECUTOR_ID,
-        comment="New comment",
-    )
-
-    ticket = Ticket.rehydrate(
-        ticket_id=1,
-        client_id=100,
-        admin_id=ADMIN_ID,
-        text_of_ticket="Fix internet connection",
-        statuses=[
-            TicketStatusRecord(
-                status_id=1,
-                actor_employee_id=ADMIN_ID,
-                status=TicketStatus.CREATED,
-                date_created=PAST_5H,
-            )
-        ],
-        comments=[saved_comment, new_comment],
-        date_created=PAST_5H,
-    )
-
-    assert ticket.new_comments() == [new_comment]
-
-
-# ----------------------------
-# working_time()
-# ----------------------------
-
-
-def test_working_time_counts_at_work_until_next_status() -> None:
-    statuses = [
-        TicketStatusRecord(
-            status_id=1,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.CREATED,
-            date_created=PAST_5H,
-        ),
-        TicketStatusRecord(
-            status_id=2,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.ACCEPTED,
-            date_created=PAST_4H,
-        ),
-        TicketStatusRecord(
-            status_id=3,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.ASSIGNED,
-            executor_id=EXECUTOR_ID,
-            date_created=PAST_3H,
-        ),
-        TicketStatusRecord(
-            status_id=4,
-            actor_employee_id=EXECUTOR_ID,
-            status=TicketStatus.AT_WORK,
-            executor_id=EXECUTOR_ID,
-            actual_started_at=PAST_2H,
-            date_created=PAST_2H,
-        ),
-        TicketStatusRecord(
-            status_id=5,
-            actor_employee_id=EXECUTOR_ID,
-            status=TicketStatus.PAUSED,
-            executor_id=EXECUTOR_ID,
-            date_created=PAST_1H,
-        ),
-    ]
-
-    ticket = Ticket.rehydrate(
-        ticket_id=1,
-        client_id=100,
-        admin_id=ADMIN_ID,
-        text_of_ticket="Fix internet connection",
-        statuses=statuses,
-        date_created=PAST_5H,
-    )
-
-    assert ticket.working_time() == 3600
-
-
-def test_working_time_counts_retroactive_work_by_actual_times() -> None:
-    statuses = [
-        TicketStatusRecord(
-            status_id=1,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.CREATED,
-            date_created=PAST_5H,
-        ),
-        TicketStatusRecord(
-            status_id=2,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.ACCEPTED,
-            date_created=PAST_4H,
-        ),
-        TicketStatusRecord(
-            status_id=3,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.ASSIGNED,
-            executor_id=EXECUTOR_ID,
-            date_created=PAST_3H,
-        ),
-        TicketStatusRecord(
-            status_id=4,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.READY_FOR_REVIEW,
-            executor_id=EXECUTOR_ID,
-            actual_started_at=PAST_2H,
-            actual_finished_at=PAST_1H,
-            date_created=NOW,
-        ),
-    ]
-
-    ticket = Ticket.rehydrate(
-        ticket_id=1,
-        client_id=100,
-        admin_id=ADMIN_ID,
-        text_of_ticket="Fix internet connection",
-        statuses=statuses,
-        date_created=PAST_5H,
-    )
-
-    assert ticket.working_time() == 3600
-
-
-def test_working_time_counts_online_work_until_review() -> None:
-    statuses = [
-        TicketStatusRecord(
-            status_id=1,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.CREATED,
-            date_created=PAST_5H,
-        ),
-        TicketStatusRecord(
-            status_id=2,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.ACCEPTED,
-            date_created=PAST_4H,
-        ),
-        TicketStatusRecord(
-            status_id=3,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.ASSIGNED,
-            executor_id=EXECUTOR_ID,
-            date_created=PAST_3H,
-        ),
-        TicketStatusRecord(
-            status_id=4,
-            actor_employee_id=EXECUTOR_ID,
-            status=TicketStatus.AT_WORK,
-            executor_id=EXECUTOR_ID,
-            actual_started_at=PAST_2H,
-            date_created=PAST_2H,
-        ),
-        TicketStatusRecord(
-            status_id=5,
-            actor_employee_id=EXECUTOR_ID,
-            status=TicketStatus.READY_FOR_REVIEW,
-            executor_id=EXECUTOR_ID,
-            actual_finished_at=PAST_1H,
-            date_created=PAST_1H,
-        ),
-    ]
-
-    ticket = Ticket.rehydrate(
-        ticket_id=1,
-        client_id=100,
-        admin_id=ADMIN_ID,
-        text_of_ticket="Fix internet connection",
-        statuses=statuses,
-        date_created=PAST_5H,
-    )
-
-    assert ticket.working_time() == 3600
-
-
-def test_working_time_counts_current_at_work_until_now() -> None:
-    started_at = datetime.now(timezone.utc) - timedelta(seconds=10)
-
-    statuses = [
-        TicketStatusRecord(
-            status_id=1,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.CREATED,
-            date_created=PAST_5H,
-        ),
-        TicketStatusRecord(
-            status_id=2,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.ACCEPTED,
-            date_created=PAST_4H,
-        ),
-        TicketStatusRecord(
-            status_id=3,
-            actor_employee_id=ADMIN_ID,
-            status=TicketStatus.ASSIGNED,
-            executor_id=EXECUTOR_ID,
-            date_created=PAST_3H,
-        ),
-        TicketStatusRecord(
-            status_id=4,
-            actor_employee_id=EXECUTOR_ID,
-            status=TicketStatus.AT_WORK,
-            executor_id=EXECUTOR_ID,
-            actual_started_at=started_at,
-            date_created=started_at,
-        ),
-    ]
-
-    ticket = Ticket.rehydrate(
-        ticket_id=1,
-        client_id=100,
-        admin_id=ADMIN_ID,
-        text_of_ticket="Fix internet connection",
-        statuses=statuses,
-        date_created=PAST_5H,
-    )
-
-    assert ticket.working_time() >= 10
-
-
-# ----------------------------
-# belong()
-# ----------------------------
-
-
-def test_belong_detects_admin_comment_actor_and_executor_references() -> None:
-    ticket = make_assigned_ticket()
 
     ticket.add_comment(
-        make_comment(
-            employee_id=OTHER_EXECUTOR_ID,
-            text="Comment",
-        )
+        Comment(
+            employee_id=999,
+            comment="Comment",
+            date_created=minutes_after(3),
+        ),
     )
 
-    assert ticket.belong(ADMIN_ID)
-    assert ticket.belong(EXECUTOR_ID)
-    assert ticket.belong(OTHER_EXECUTOR_ID)
-    assert not ticket.belong(999)
+    assert ticket.belong(ADMIN_ID) is True
+    assert ticket.belong(OTHER_ADMIN_ID) is True
+    assert ticket.belong(EXECUTOR_ID) is True
+    assert ticket.belong(999) is True
 
 
+def test_belong_does_not_count_user_or_contact_user() -> None:
+    ticket = Ticket.create(
+        ticket_id=0,
+        client_id=CLIENT_ID,
+        admin_id=ADMIN_ID,
+        user_id=USER_ID,
+        contact_user_id=CONTACT_USER_ID,
+        text_of_ticket="Need help",
+        date_created=BASE_TIME,
+    )
 
+    assert ticket.belong(USER_ID) is False
+    assert ticket.belong(CONTACT_USER_ID) is False
+
+
+def test_belong_rejects_non_positive_employee_id() -> None:
+    ticket = make_created_ticket()
+
+    assert ticket.belong(0) is False
+    assert ticket.belong(-1) is False

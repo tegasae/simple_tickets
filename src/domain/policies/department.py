@@ -1,4 +1,4 @@
-# src/domain/policy/department.py
+# src/domain/policies/department.py
 
 from src.domain.department import Department
 from src.domain.employee import Admin
