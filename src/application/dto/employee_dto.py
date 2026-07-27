@@ -23,12 +23,6 @@ class AdminDTO(EmployeeDTO):
     department_id:int=0
 
 
-@dataclass(frozen=True, kw_only=True)
-class AdminMeResponseDTO:
-    employee_id: int
-    name: str = ""
-    email: str = ""
-    permissions: tuple[str, ...] = ()
 
 
 
@@ -53,7 +47,7 @@ class EmployeeResponseDTO:
     enabled_login: bool
     date_created: str
     roles: frozenset[int] = field(default_factory=frozenset)
-
+    permissions: frozenset[str] = field(default_factory=frozenset)
 
 @dataclass(kw_only=True,frozen=True)
 class AdminResponseDTO(EmployeeResponseDTO):
@@ -63,3 +57,10 @@ class AdminResponseDTO(EmployeeResponseDTO):
 @dataclass(kw_only=True,frozen=True)
 class UserResponseDTO(EmployeeResponseDTO):
     client_id: int
+
+
+@dataclass(kw_only=True,frozen=True)
+class PermissionsResponseDTO:
+    permissions:tuple[str,...]=field(default_factory=tuple)
+
+

@@ -1,10 +1,11 @@
 # src/application/assemblers/assembler.py
 from src.application.dto.department_dto import DepartmentResponseDTO
-from src.application.dto.employee_dto import AdminResponseDTO, UserResponseDTO
+from src.application.dto.employee_dto import AdminResponseDTO, UserResponseDTO, PermissionsResponseDTO
 from src.application.dto.ticket_dto import TicketResponseDTO, TicketUserResponseDTO
 from src.domain.client import Client
 from src.domain.department import Department
 from src.domain.employee import Admin, User
+from src.domain.rbac.permissions import AdminPermission
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
 from src.application.dto.client_dto import ClientResponseDTO
@@ -148,7 +149,9 @@ class AdminAssembler:
                                  enabled_login=admin.account.enabled,
                                  phone=str(admin.phone),
                                  roles=admin.role_ids(),
-                                 date_created=str(admin.date_created))
+                                 date_created=str(admin.date_created),
+
+                                 )
 
 class UserAssembler:
     @staticmethod
@@ -163,8 +166,16 @@ class UserAssembler:
                                  enabled_login=user.account.enabled,
                                  phone=str(user.phone),
                                  roles=user.role_ids(),
-                                 date_created=str(user.date_created))
+                                 date_created=str(user.date_created),
+                                 )
 
+
+
+class PermissionAssembler:
+    @staticmethod
+    def to_admin_dto(permissions:frozenset[AdminPermission])->PermissionsResponseDTO:
+        p = tuple(sorted(str(permission.value) for permission in permissions))
+        return PermissionsResponseDTO(permissions=p)
 
 
 
