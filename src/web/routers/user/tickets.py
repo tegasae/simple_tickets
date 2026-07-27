@@ -57,7 +57,7 @@ class UserTicketActionRequest(BaseModel):
         uow.tickets.get_by_user_ticket_id(ticket_user_id)
     """
 
-    ticket_id: int = Field(gt=0)
+    #ticket_id: int = Field(gt=0)
     comment: str = ""
 
 
@@ -139,7 +139,7 @@ def create_request_to_dto(
     actor_user_id: int,
 ) -> TicketUserDTO:
     return TicketUserDTO(
-        ticket_id=0,
+        #ticket_id=0,
         ticket_user_id=0,
         actor_user_id=actor_user_id,
         client_id=request.client_id,
@@ -159,7 +159,7 @@ def user_filter_to_dto(
     client_id: int,
 ) -> TicketUserDTO:
     return TicketUserDTO(
-        ticket_id=0,
+        #ticket_id=0,
         ticket_user_id=0,
         actor_user_id=actor_user_id,
         client_id=client_id,
@@ -179,7 +179,7 @@ def ticket_user_id_to_dto(
     ticket_user_id: int,
 ) -> TicketUserDTO:
     return TicketUserDTO(
-        ticket_id=0,
+        #ticket_id=0,
         ticket_user_id=ticket_user_id,
         actor_user_id=actor_user_id,
         client_id=0,
@@ -200,7 +200,7 @@ def action_request_to_dto(
     ticket_user_id: int,
 ) -> TicketUserDTO:
     return TicketUserDTO(
-        ticket_id=request.ticket_id,
+        #ticket_id=request.ticket_id,
         ticket_user_id=ticket_user_id,
         actor_user_id=actor_user_id,
         client_id=0,

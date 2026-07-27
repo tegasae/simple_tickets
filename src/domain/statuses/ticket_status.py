@@ -124,7 +124,7 @@ _TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
     TicketStatus.SCHEDULED: TicketState(
         status=TicketStatus.SCHEDULED,
         requires_planned_start=True,
-        allowed_next=frozenset({
+            allowed_next=frozenset({
             TicketStatus.SCHEDULED,
             TicketStatus.READY_TO_WORK,
             TicketStatus.ASSIGNED,

@@ -61,11 +61,17 @@ class TicketApplicationService:
         Admin создаёт внутреннюю Ticket.
 
         Если ticket_dto.user_id == 0:
-            создаётся только внутренняя Ticket.
+            создаётся только внутренняя Ticket в статусе CREATED.
 
         Если ticket_dto.user_id != 0:
             создаётся TicketUser в статусе CREATED,
             затем создаётся связанная Ticket в статусе CREATED.
+
+        Если admin имеет право принимать заявки:
+            Ticket.CREATED -> ACCEPTED
+
+            и, если есть TicketUser:
+                TicketUser.CREATED -> CONFIRMED_BY_ADMIN
 
         ticket_dto.user_ticket_id в этом use case запрещён:
             create_ticket сам создаёт TicketUser, если нужен пользовательский слой.
@@ -73,9 +79,12 @@ class TicketApplicationService:
         ID для новых сущностей генерирует repository.
         """
         with self.uow:
+            actor_admin_id = ticket_dto.actor_admin_id
+
             self._require_operation_admin(
-                actor_admin_id=ticket_dto.actor_admin_id,
+                actor_admin_id=actor_admin_id,
             )
+
             if ticket_dto.ticket_id != 0:
                 raise DomainOperationError(
                     "create_ticket requires ticket_id = 0",
@@ -87,11 +96,15 @@ class TicketApplicationService:
                     "This use case creates TicketUser itself when user_id is set.",
                 )
 
-            effective_admin_id = ticket_dto.admin_id or ticket_dto.actor_admin_id
+            effective_admin_id = ticket_dto.admin_id or actor_admin_id
 
             self._validate_create_references(
                 ticket_dto=ticket_dto,
                 effective_admin_id=effective_admin_id,
+            )
+
+            can_accept = self._can_accept_ticket(
+                actor_admin_id=actor_admin_id,
             )
 
             description = self._dto_attr(
@@ -105,7 +118,7 @@ class TicketApplicationService:
                 default=0,
             )
 
-            saved_ticket_user: TicketUser | None = None
+            ticket_user: TicketUser | None = None
             user_ticket_id = 0
 
             if ticket_dto.user_id != 0:
@@ -120,21 +133,24 @@ class TicketApplicationService:
                     comment=ticket_dto.comment,
                 )
 
-                saved_ticket_user = self.uow.user_tickets.save(ticket_user)
+                if can_accept:
+                    ticket_user.confirm_by_admin(
+                        actor_employee_id=actor_admin_id,
+                        comment=ticket_dto.comment,
+                    )
 
-                if saved_ticket_user is None:
-                    saved_ticket_user = ticket_user
+                ticket_user = self.uow.user_tickets.save(ticket_user)
 
-                if saved_ticket_user.ticket_id == 0:
+                if ticket_user.ticket_id == 0:
                     raise DomainOperationError(
                         "TicketUser repository must assign ticket_id before "
                         "creating linked Ticket",
                     )
 
-                user_ticket_id = saved_ticket_user.ticket_id
+                user_ticket_id = ticket_user.ticket_id
 
             ticket = Ticket.create(
-                ticket_id=ticket_dto.ticket_id,
+                ticket_id=0,
                 client_id=ticket_dto.client_id,
                 admin_id=effective_admin_id,
                 text_of_ticket=ticket_dto.text_of_ticket,
@@ -148,11 +164,149 @@ class TicketApplicationService:
                 comment=ticket_dto.comment,
             )
 
-            if saved_ticket_user is not None:
+            if ticket_user is not None:
                 TicketPolicy.ensure_ticket_matches_ticket_user(
                     ticket=ticket,
-                    ticket_user=saved_ticket_user,
+                    ticket_user=ticket_user,
                 )
+
+            if can_accept:
+                TicketManagementService.accept(
+                    ticket=ticket,
+                    actor_employee_id=actor_admin_id,
+                    comment=ticket_dto.comment,
+                )
+
+            return self._save_commit_and_to_dto(ticket)
+
+    def update_details(
+            self,
+            *,
+            ticket_dto: TicketDTO,
+    ) -> TicketResponseDTO:
+        """
+        Admin изменяет обычные дополнительные поля Ticket.
+
+        Меняет только:
+            description
+            contact_user_id
+            is_remote
+
+        Не меняет:
+            text_of_ticket
+            status
+            client_id
+            user_id
+            admin_id
+            user_ticket_id
+            department_id
+            urgency_level
+            executor_id
+            dates
+        """
+        with (self.uow):
+            actor_admin_id = ticket_dto.actor_admin_id
+
+            self._require_operation_admin(
+                actor_admin_id=actor_admin_id,
+            )
+
+            if ticket_dto.ticket_id <= 0:
+                raise DomainOperationError(
+                    "update_details requires ticket_id > 0",
+                )
+
+            ticket = self.uow.tickets.get(ticket_dto.ticket_id)
+
+            description = self._dto_attr(
+                ticket_dto,
+                "description",
+                default="",
+            )
+
+            ticket.update_details(
+                actor_employee_id=actor_admin_id,
+                description=description,
+                contact_user_id=ticket_dto.contact_user_id,
+                is_remote=ticket_dto.is_remote,
+            )
+
+            if ticket.user_ticket_id != 0:
+                ticket_user = self.uow.user_tickets.get(ticket.user_ticket_id)
+
+                TicketPolicy.ensure_ticket_matches_ticket_user(
+                    ticket=ticket,
+                    ticket_user=ticket_user,
+                )
+
+                ticket_user.update_details(
+                    actor_employee_id=actor_admin_id,
+                    description=ticket.description,
+                    contact_user_id=ticket.contact_user_id,
+                )
+
+                self.uow.user_tickets.save(ticket_user)
+
+            return self._save_commit_and_to_dto(ticket)
+
+    def change_department(
+            self,
+            *,
+            ticket_dto: TicketDTO,
+    ) -> TicketResponseDTO:
+        """
+        Admin меняет отдел / направление заявки.
+
+        Меняет:
+            department_id
+
+        Не меняет:
+            status
+            executor_id
+            text_of_ticket
+            description
+            contact_user_id
+            is_remote
+            urgency_level
+        """
+        with (self.uow):
+            actor_admin_id = ticket_dto.actor_admin_id
+
+            self._require_operation_admin(
+                actor_admin_id=actor_admin_id,
+            )
+
+            if ticket_dto.ticket_id <= 0:
+                raise DomainOperationError(
+                    "change_department requires ticket_id > 0",
+                )
+
+            if ticket_dto.department_id <= 0:
+                raise DomainOperationError(
+                    "change_department requires department_id > 0",
+                )
+
+            self._validate_department_exists(
+                department_id=ticket_dto.department_id,
+            )
+
+            ticket = self.uow.tickets.get(ticket_dto.ticket_id)
+
+            ticket.change_department(department_id=ticket_dto.department_id)
+
+
+            if ticket.user_ticket_id != 0:
+                ticket_user = self.uow.user_tickets.get(ticket.user_ticket_id)
+
+                TicketPolicy.ensure_ticket_matches_ticket_user(
+                    ticket=ticket,
+                    ticket_user=ticket_user,
+                )
+
+                ticket_user.department_id = ticket_dto.department_id
+
+
+                self.uow.user_tickets.save(ticket_user)
 
             return self._save_commit_and_to_dto(ticket)
     # --------------------------------
@@ -889,6 +1043,22 @@ class TicketApplicationService:
 
         TicketPolicy.ensure_admin_enabled(actor)
 
+    def _can_accept_ticket(
+            self,
+            *,
+            actor_admin_id: int,
+    ) -> bool:
+        try:
+            self.actor.require_actor_admin(
+                actor_admin_id=actor_admin_id,
+                permission=AdminPermission.TICKET_ACCEPTED
+            )
+        except PermissionError:
+            return False
+        return True
+
+
+
     def _require_view_admin(
         self,
         *,
@@ -1070,3 +1240,19 @@ class TicketApplicationService:
 
         return value
 
+    def _validate_department_exists(
+        self,
+        *,
+        department_id: int,
+    ) -> None:
+        if department_id <= 0:
+            raise DomainOperationError(
+            "department_id must be positive",
+            )
+
+        department = self.uow.departments.get(department_id)
+
+        if getattr(department, "enabled", True) is False:
+            raise DomainOperationError(
+                "Department is disabled",
+            )

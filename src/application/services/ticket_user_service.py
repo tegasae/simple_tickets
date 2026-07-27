@@ -84,10 +84,6 @@ class TicketUserApplicationService:
         ID для новых сущностей генерирует repository.
         Поэтому ticket_id и ticket_user_id должны быть 0.
         """
-        if ticket_user_dto.ticket_id != 0:
-            raise DomainOperationError(
-                "create_from_user requires ticket_id = 0",
-            )
 
         if ticket_user_dto.ticket_user_id != 0:
             raise DomainOperationError(
@@ -194,7 +190,7 @@ class TicketUserApplicationService:
             Это делает TicketManagementService.cancel_by_user().
         """
         with self._uow:
-            ticket = self._uow.tickets.get(ticket_user_dto.ticket_id)
+            ticket = self._uow.tickets.get_by_user_ticket_id(ticket_user_dto.ticket_user_id)
             ticket_user = self._uow.user_tickets.get(
                 ticket_user_dto.ticket_user_id,
             )
@@ -260,7 +256,7 @@ class TicketUserApplicationService:
             получится EXECUTION_CONFIRMED_BY_ADMIN.
         """
         with self._uow:
-            ticket = self._uow.tickets.get(ticket_user_dto.ticket_id)
+            ticket = self._uow.tickets.get_by_user_ticket_id(ticket_user_dto.ticket_user_id)
             ticket_user = self._uow.user_tickets.get(
                 ticket_user_dto.ticket_user_id,
             )

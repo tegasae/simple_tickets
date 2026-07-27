@@ -421,6 +421,33 @@ class TicketUser:
             version=version,
         )
 
+    def update_details(
+            self,
+            *,
+            actor_employee_id: int,
+            description: str = "",
+            contact_user_id: int = 0,
+    ) -> None:
+        if actor_employee_id <= 0:
+            raise DomainOperationError(
+                "actor_employee_id must be positive",
+            )
+
+        if self.is_closed:
+            raise DomainOperationError(
+                "Cannot update details of closed ticket user",
+            )
+
+        description = description.strip()
+
+        if contact_user_id < 0:
+            raise DomainOperationError(
+                "contact_user_id cannot be negative",
+            )
+
+        self.description = description
+        self.contact_user_id = contact_user_id
+
     def __post_init__(self) -> None:
         self.text_of_ticket = self.text_of_ticket.strip()
         self.description = self.description.strip()
