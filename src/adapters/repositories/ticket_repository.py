@@ -14,7 +14,7 @@ from src.adapters.repositories.gateways.ticket_gateway import (
 )
 from src.adapters.repositories.mappers.ticket_mapper import TicketMapper
 from src.domain.exceptions import ItemNotFoundError
-from src.domain.repositories.ticket_repository import TicketRepository
+from src.domain.repositories.ticket_repository import TicketRepository, TicketSearchCriteria
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket import Ticket
 from src.domain.ticket_components import Comment
@@ -319,3 +319,112 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             TicketGateway.EXISTS_BY_DEPARTMENT_ID,
             {"department_id": department_id},
         )
+
+    def search(
+            self,
+            criteria: TicketSearchCriteria,
+    ) -> list[Ticket]:
+        where: list[str] = []
+        params: dict[str, object] = {}
+
+        if criteria.client_id != 0:
+            where.append("t.client_id = :client_id")
+            params["client_id"] = criteria.client_id
+
+        if criteria.user_id != 0:
+            where.append("t.user_id = :user_id")
+            params["user_id"] = criteria.user_id
+
+        if criteria.admin_id != 0:
+            where.append("t.admin_id = :admin_id")
+            params["admin_id"] = criteria.admin_id
+
+        if criteria.department_id != 0:
+            where.append("t.department_id = :department_id")
+            params["department_id"] = criteria.department_id
+
+        if criteria.executor_id != 0:
+            where.append(
+                """
+                EXISTS (
+                    SELECT 1
+                    FROM ticket_status_records executor_sr
+                    WHERE executor_sr.ticket_id = t.ticket_id
+                      AND executor_sr.executor_id = :executor_id
+                )
+                """
+            )
+            params["executor_id"] = criteria.executor_id
+
+        if criteria.status:
+            where.append("current_status.status = :status")
+            params["status"] = criteria.status
+
+        if criteria.is_closed is not None:
+            where.append("t.is_closed = :is_closed")
+            params["is_closed"] = 1 if criteria.is_closed else 0
+
+        if criteria.date_from is not None:
+            where.append("t.date_created >= :date_from")
+            params["date_from"] = criteria.date_from
+
+        if criteria.date_to is not None:
+            where.append("t.date_created < :date_to")
+            params["date_to"] = criteria.date_to
+
+        if criteria.text:
+            where.append(
+                """
+                (
+                    lower(t.text_of_ticket) LIKE :text
+                    OR lower(t.description) LIKE :text
+                )
+                """
+            )
+            params["text"] = f"%{criteria.text.lower()}%"
+
+        where_sql = ""
+
+        if where:
+            where_sql = "WHERE " + " AND ".join(where)
+
+        params["limit"] = criteria.limit
+        params["offset"] = criteria.offset
+
+        sql = f"""
+            WITH latest_status_date AS (
+                SELECT
+                    ticket_id,
+                    MAX(date_created) AS max_date_created
+                FROM ticket_status_records
+                GROUP BY ticket_id
+            ),
+            current_status AS (
+                SELECT
+                    sr.ticket_id,
+                    sr.status
+                FROM ticket_status_records sr
+                JOIN latest_status_date latest
+                    ON latest.ticket_id = sr.ticket_id
+                   AND latest.max_date_created = sr.date_created
+            )
+            SELECT
+                t.ticket_id
+            FROM tickets t
+            LEFT JOIN current_status
+                ON current_status.ticket_id = t.ticket_id
+            {where_sql}
+            ORDER BY t.date_created DESC, t.ticket_id DESC
+            LIMIT :limit
+            OFFSET :offset
+        """
+
+        rows = self._get_many(
+            sql,
+            params,
+        )
+
+        return [
+            self.get(row["ticket_id"])
+            for row in rows
+        ]
