@@ -293,4 +293,3 @@ class AdminApplicationService:
             return [AdminAssembler.to_dto(admin) for admin in self.uow.admins.get_all()]
 
 
-

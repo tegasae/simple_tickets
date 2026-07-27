@@ -1,7 +1,29 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Iterator
 
 from src.domain.ticket import Ticket
+
+@dataclass(frozen=True, kw_only=True)
+class TicketSearchCriteria:
+        client_id: int = 0
+        user_id: int = 0
+        admin_id: int = 0
+        executor_id: int = 0
+        department_id: int = 0
+
+        status: str = ""
+        is_closed: bool | None = None
+
+        date_from: datetime | None = None
+        date_to: datetime | None = None
+
+        text: str = ""
+
+        limit: int = 100
+        offset: int = 0
+
 
 
 class TicketRepository(ABC):
@@ -94,4 +116,11 @@ class TicketRepository(ABC):
         """
         Returns True when at least one Ticket belongs to department_id.
         """
+        raise NotImplementedError
+
+    @abstractmethod
+    def search(
+            self,
+            criteria: TicketSearchCriteria,
+    ) -> list[Ticket]:
         raise NotImplementedError

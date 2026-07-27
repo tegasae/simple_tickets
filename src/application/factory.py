@@ -1,7 +1,8 @@
 # src/application/services/service_factory.py
 from src.application.services.department_service import DepartmentApplicationService
 from src.application.services.role_admin_service import AdminRoleService, UserRoleService
-from src.domain.department import Department
+from src.application.services.ticket_search_service import TicketSearchService
+
 from src.services.uow.uow import UnitOfWork
 
 from src.application.services.admin_service import AdminApplicationService
@@ -27,6 +28,9 @@ class ApplicationServiceFactory:
     def ticket_service(self) -> TicketApplicationService:
         return TicketApplicationService(self.uow)
 
+    def ticket_search_service(self)->TicketSearchService:
+        return TicketSearchService(uow=self.uow)
+
     def ticket_user_service(self) -> TicketUserApplicationService:
         return TicketUserApplicationService(self.uow)
 
@@ -38,3 +42,4 @@ class ApplicationServiceFactory:
 
     def department_service(self) -> DepartmentApplicationService:
         return DepartmentApplicationService(self.uow)
+

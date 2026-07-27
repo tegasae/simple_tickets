@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, Query, status
 
 from src.application.dto.ticket_dto import TicketDTO
+from src.application.dto.ticket_search_dto import TicketSearchDTO
 from src.web.dependencies.auth import (
     get_current_admin,
     get_employee_id_from_request,
@@ -14,6 +17,7 @@ from src.web.models.tickets import (
     TicketAcceptRequest,
     TicketAssignExecutorRequest,
     TicketCancelRequest,
+    TicketChangeDepartmentRequest,
     TicketCommentRequest,
     TicketConfirmExecutionRequest,
     TicketCreateRequest,
@@ -32,6 +36,7 @@ from src.web.models.tickets import (
     TicketScheduleRequest,
     TicketStartWorkRequest,
     TicketSubmitForReviewRequest,
+    TicketUpdateDetailsRequest,
     TicketResponse,
 )
 
@@ -84,6 +89,39 @@ def to_ticket_responses(response_dtos) -> list[TicketResponse]:
 # Request -> Application DTO mappers
 # ---------------------------------------------------------------------
 
+def ticket_search_query_to_dto(
+    *,
+    actor_admin_id: int,
+    client_id: int,
+    user_id: int,
+    admin_id: int,
+    executor_id: int,
+    department_id: int,
+    ticket_status: str,
+    is_closed: bool | None,
+    date_from: datetime | None,
+    date_to: datetime | None,
+    text: str,
+    limit: int,
+    offset: int,
+) -> TicketSearchDTO:
+    return TicketSearchDTO(
+        actor_admin_id=actor_admin_id,
+        client_id=client_id,
+        user_id=user_id,
+        admin_id=admin_id,
+        executor_id=executor_id,
+        department_id=department_id,
+        status=ticket_status,
+        is_closed=is_closed,
+        date_from=date_from,
+        date_to=date_to,
+        text=text,
+        limit=limit,
+        offset=offset,
+    )
+
+
 def ticket_create_request_to_dto(
     *,
     request: TicketCreateRequest,
@@ -115,6 +153,36 @@ def ticket_id_to_dto(
         actor_admin_id=actor_admin_id,
         admin_id=actor_admin_id,
         ticket_id=ticket_id,
+    )
+
+
+def ticket_update_details_request_to_dto(
+    *,
+    request: TicketUpdateDetailsRequest,
+    actor_admin_id: int,
+    ticket_id: int,
+) -> TicketDTO:
+    return TicketDTO(
+        ticket_id=ticket_id,
+        actor_admin_id=actor_admin_id,
+        admin_id=actor_admin_id,
+        description=request.description,
+        contact_user_id=request.contact_user_id,
+        is_remote=request.is_remote,
+    )
+
+
+def ticket_change_department_request_to_dto(
+    *,
+    request: TicketChangeDepartmentRequest,
+    actor_admin_id: int,
+    ticket_id: int,
+) -> TicketDTO:
+    return TicketDTO(
+        ticket_id=ticket_id,
+        actor_admin_id=actor_admin_id,
+        admin_id=actor_admin_id,
+        department_id=request.department_id,
     )
 
 
@@ -419,7 +487,9 @@ def create_ticket(
         actor_admin_id=actor_admin_id,
     )
 
-    response_dto = asf.ticket_service().create_ticket(ticket_dto=dto)
+    response_dto = asf.ticket_service().create_ticket(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -428,7 +498,53 @@ def create_ticket(
     "/",
     response_model=list[TicketResponse],
     status_code=status.HTTP_200_OK,
+    summary="Search tickets",
+)
+def search_tickets(
+    client_id: int = 0,
+    user_id: int = 0,
+    admin_id: int = 0,
+    executor_id: int = 0,
+    department_id: int = 0,
+    ticket_status: str = Query("", alias="status"),
+    is_closed: bool | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    text: str = "",
+    limit: int = 100,
+    offset: int = 0,
+    asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
+):
+    dto = ticket_search_query_to_dto(
+        actor_admin_id=actor_admin_id,
+        client_id=client_id,
+        user_id=user_id,
+        admin_id=admin_id,
+        executor_id=executor_id,
+        department_id=department_id,
+        ticket_status=ticket_status,
+        is_closed=is_closed,
+        date_from=date_from,
+        date_to=date_to,
+        text=text,
+        limit=limit,
+        offset=offset,
+    )
+
+    response_dtos = asf.ticket_search_service().search(
+        search_dto=dto,
+    )
+
+    return to_ticket_responses(response_dtos)
+
+
+@router.get(
+    "/all",
+    response_model=list[TicketResponse],
+    status_code=status.HTTP_200_OK,
     summary="Get all tickets",
+    description="Legacy endpoint. Prefer GET /admin/tickets with filters.",
 )
 def get_all_tickets(
     asf=Depends(get_application_service_factory),
@@ -439,7 +555,9 @@ def get_all_tickets(
         admin_id=actor_admin_id,
     )
 
-    response_dtos = asf.ticket_service().get_all(ticket_dto=dto)
+    response_dtos = asf.ticket_service().get_all(
+        ticket_dto=dto,
+    )
 
     return to_ticket_responses(response_dtos)
 
@@ -460,7 +578,59 @@ def get_ticket(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().get_by_id(ticket_dto=dto)
+    response_dto = asf.ticket_service().get_by_id(
+        ticket_dto=dto,
+    )
+
+    return to_ticket_response(response_dto)
+
+
+@router.patch(
+    "/{ticket_id}/details",
+    response_model=TicketResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update ticket details",
+)
+def update_ticket_details(
+    ticket_id: int,
+    ticket_request: TicketUpdateDetailsRequest,
+    asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
+):
+    dto = ticket_update_details_request_to_dto(
+        request=ticket_request,
+        actor_admin_id=actor_admin_id,
+        ticket_id=ticket_id,
+    )
+
+    response_dto = asf.ticket_service().update_details(
+        ticket_dto=dto,
+    )
+
+    return to_ticket_response(response_dto)
+
+
+@router.patch(
+    "/{ticket_id}/department",
+    response_model=TicketResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Change ticket department",
+)
+def change_ticket_department(
+    ticket_id: int,
+    ticket_request: TicketChangeDepartmentRequest,
+    asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
+):
+    dto = ticket_change_department_request_to_dto(
+        request=ticket_request,
+        actor_admin_id=actor_admin_id,
+        ticket_id=ticket_id,
+    )
+
+    response_dto = asf.ticket_service().change_department(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -483,7 +653,9 @@ def accept_ticket(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().accept(ticket_dto=dto)
+    response_dto = asf.ticket_service().accept(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -506,7 +678,9 @@ def reject_ticket(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().reject(ticket_dto=dto)
+    response_dto = asf.ticket_service().reject(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -529,7 +703,9 @@ def defer_ticket(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().defer(ticket_dto=dto)
+    response_dto = asf.ticket_service().defer(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -552,7 +728,9 @@ def schedule_ticket(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().schedule(ticket_dto=dto)
+    response_dto = asf.ticket_service().schedule(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -575,7 +753,9 @@ def assign_executor(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().assign_executor(ticket_dto=dto)
+    response_dto = asf.ticket_service().assign_executor(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -598,7 +778,9 @@ def ready_to_work(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().ready_to_work(ticket_dto=dto)
+    response_dto = asf.ticket_service().ready_to_work(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -621,7 +803,9 @@ def start_work(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().at_work(ticket_dto=dto)
+    response_dto = asf.ticket_service().at_work(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -644,7 +828,9 @@ def pause_work(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().pause_work(ticket_dto=dto)
+    response_dto = asf.ticket_service().pause_work(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -667,7 +853,9 @@ def resume_work(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().resume_work(ticket_dto=dto)
+    response_dto = asf.ticket_service().resume_work(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -690,7 +878,9 @@ def submit_for_review(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().submit_for_review(ticket_dto=dto)
+    response_dto = asf.ticket_service().submit_for_review(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -738,7 +928,9 @@ def confirm_execution(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().confirm_execution(ticket_dto=dto)
+    response_dto = asf.ticket_service().confirm_execution(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -762,7 +954,9 @@ def execute_ticket(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().execute(ticket_dto=dto)
+    response_dto = asf.ticket_service().execute(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -785,7 +979,9 @@ def return_to_work(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().return_to_work(ticket_dto=dto)
+    response_dto = asf.ticket_service().return_to_work(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -808,7 +1004,9 @@ def return_to_assigned(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().return_to_assigned(ticket_dto=dto)
+    response_dto = asf.ticket_service().return_to_assigned(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -831,7 +1029,9 @@ def return_to_scheduled(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().return_to_scheduled(ticket_dto=dto)
+    response_dto = asf.ticket_service().return_to_scheduled(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -879,7 +1079,9 @@ def return_to_deferred(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().return_to_deferred(ticket_dto=dto)
+    response_dto = asf.ticket_service().return_to_deferred(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -902,7 +1104,9 @@ def cancel_ticket(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().cancel(ticket_dto=dto)
+    response_dto = asf.ticket_service().cancel(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -925,7 +1129,9 @@ def add_comment(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().add_comment(ticket_dto=dto)
+    response_dto = asf.ticket_service().add_comment(
+        ticket_dto=dto,
+    )
 
     return to_ticket_response(response_dto)
 
@@ -945,6 +1151,8 @@ def delete_ticket(
         ticket_id=ticket_id,
     )
 
-    asf.ticket_service().delete(ticket_dto=dto)
+    asf.ticket_service().delete(
+        ticket_dto=dto,
+    )
 
     return None

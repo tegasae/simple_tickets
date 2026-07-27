@@ -43,6 +43,15 @@ class TicketDeferRequest(TicketRequiredCommentRequest):
     pass
 
 
+class TicketChangeDepartmentRequest(BaseModel):
+    department_id:int
+
+
+class TicketUpdateDetailsRequest(BaseModel):
+    description:str=""
+    contact_user_id: int = Field(default=0, ge=0)
+    is_remote: bool = False
+
 class TicketScheduleRequest(BaseModel):
     planned_start_at: datetime
     planned_finish_at: datetime | None = None

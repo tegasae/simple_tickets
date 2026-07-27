@@ -23,6 +23,13 @@ class AdminDTO(EmployeeDTO):
     department_id:int=0
 
 
+@dataclass(frozen=True, kw_only=True)
+class AdminMeResponseDTO:
+    employee_id: int
+    name: str = ""
+    email: str = ""
+    permissions: tuple[str, ...] = ()
+
 
 
 
