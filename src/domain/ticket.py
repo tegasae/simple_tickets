@@ -68,6 +68,7 @@ class Ticket:
     is_remote: bool = False
 
     is_closed: bool = False
+
     date_finished: datetime | None = None
 
     version: int = 0
@@ -401,6 +402,8 @@ class Ticket:
             )
 
         self._recompute_closed_state()
+
+
 
     # ----------------------------
     # Queries
