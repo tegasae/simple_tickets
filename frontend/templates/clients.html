@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/onec.css">
+</head>
+<body>
+<div class="app-shell">
+    <header class="top-panel">
+        <div class="top-title">Клиенты</div>
+        <div class="top-meta">
+            Backend: {{ backend_base_url }}
+            <button id="btnLogout" class="cmd-button small">Выйти</button>
+        </div>
+    </header>
+
+    <main class="workspace">
+        <section class="command-panel">
+            <button id="btnAddClient" class="cmd-button primary">Добавить</button>
+            <button id="btnRefresh" class="cmd-button">Обновить</button>
+            <button id="btnOpenSelected" class="cmd-button">Открыть</button>
+            <button id="btnDeleteSelected" class="cmd-button danger">Удалить</button>
+
+            <div class="separator"></div>
+
+            <label class="search-box">
+                Поиск:
+                <input id="searchInput" type="text" autocomplete="off">
+            </label>
+        </section>
+
+        <section class="list-panel">
+            <table class="onec-table">
+                <thead>
+                <tr>
+                    <th class="col-id">Код</th>
+                    <th>Наименование</th>
+                    <th>Email</th>
+                    <th>Телефон</th>
+                    <th>Адрес</th>
+                    <th class="col-enabled">Активен</th>
+                    <th class="col-date">Создан</th>
+                    <th class="col-id">Автор</th>
+                </tr>
+                </thead>
+                <tbody id="clientsTableBody"></tbody>
+            </table>
+        </section>
+
+        <footer class="status-bar">
+            <span id="statusText">Готово</span>
+        </footer>
+    </main>
+</div>
+
+<div id="clientDialogBackdrop" class="dialog-backdrop hidden">
+    <div class="dialog-window">
+        <div class="dialog-title-bar">
+            <span id="clientDialogTitle">Клиент</span>
+            <button id="btnCloseDialog" class="dialog-close-button" type="button">×</button>
+        </div>
+
+        <div class="dialog-body">
+            <input id="clientId" type="hidden">
+            <input id="clientOriginalEnabled" type="hidden">
+
+            <div class="tabs">
+                <button class="tab active" type="button">Основное</button>
+            </div>
+
+            <div class="form-grid">
+                <label class="wide">
+                    Наименование
+                    <input id="clientName" type="text" autocomplete="off">
+                    <span id="clientNameHint" class="field-hint hidden">
+                        По текущему API наименование изменяется только при создании.
+                    </span>
+                </label>
+
+                <label>
+                    Email
+                    <input id="clientEmail" type="email" autocomplete="off">
+                </label>
+
+                <label>
+                    Телефон
+                    <input id="clientPhone" type="text" autocomplete="off">
+                </label>
+
+                <label class="wide">
+                    Адрес
+                    <input id="clientAddress" type="text" autocomplete="off">
+                </label>
+
+                <label class="checkbox-row">
+                    <input id="clientEnabled" type="checkbox">
+                    Активен
+                </label>
+            </div>
+        </div>
+
+        <div class="dialog-command-panel">
+            <button id="btnSaveClient" class="cmd-button primary">Записать</button>
+            <button id="btnSaveAndCloseClient" class="cmd-button">Записать и закрыть</button>
+            <button id="btnCancelDialog" class="cmd-button">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/clients.js"></script>
+</body>
+</html>

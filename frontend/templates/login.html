@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/onec.css">
+</head>
+<body class="login-body">
+<div class="login-window">
+    <div class="dialog-title-bar">
+        <span>Simple Tickets — вход администратора</span>
+    </div>
+
+    <form id="loginForm" class="login-form" autocomplete="on">
+        <div class="login-logo">1С-стиль</div>
+
+        <label>
+            Логин
+            <input id="username" name="username" type="text" autocomplete="username" autofocus required>
+        </label>
+
+        <label>
+            Пароль
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+        </label>
+
+        <div id="loginError" class="form-error hidden"></div>
+
+        <div class="dialog-command-panel login-buttons">
+            <button class="cmd-button primary" type="submit">Войти</button>
+        </div>
+    </form>
+</div>
+
+<script src="/static/js/login.js"></script>
+</body>
+</html>
