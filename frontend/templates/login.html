@@ -4,35 +4,45 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title }}</title>
-    <link rel="stylesheet" href="/static/css/onec.css">
+    <link rel="stylesheet" href="/static/css/app.css">
 </head>
-<body class="login-body">
-<div class="login-window">
-    <div class="dialog-title-bar">
-        <span>Simple Tickets — вход администратора</span>
-    </div>
+<body class="theme-onec login-page">
+    <main class="login-shell">
+        <section class="login-card panel">
+            <div class="login-brand">
+                <div class="brand-mark">ST</div>
+                <div>
+                    <h1>Simple Tickets</h1>
+                    <p>Административный вход</p>
+                </div>
+            </div>
 
-    <form id="loginForm" class="login-form" autocomplete="on">
-        <div class="login-logo">1С-стиль</div>
+            <form id="loginForm" class="form-stack">
+                <label>
+                    <span>Логин</span>
+                    <input id="username" name="username" type="text" autocomplete="username" required autofocus>
+                </label>
 
-        <label>
-            Логин
-            <input id="username" name="username" type="text" autocomplete="username" autofocus required>
-        </label>
+                <label>
+                    <span>Пароль</span>
+                    <input id="password" name="password" type="password" autocomplete="current-password" required>
+                </label>
 
-        <label>
-            Пароль
-            <input id="password" name="password" type="password" autocomplete="current-password" required>
-        </label>
+                <label>
+                    <span>Интерфейс</span>
+                    <select id="themeSelect">
+                        <option value="onec">1С 8.3</option>
+                        <option value="classic">Классический web</option>
+                        <option value="futuristic">Футуристический</option>
+                    </select>
+                </label>
 
-        <div id="loginError" class="form-error hidden"></div>
+                <button class="primary full" type="submit">Войти</button>
+                <div id="loginStatus" class="status-line"></div>
+            </form>
+        </section>
+    </main>
 
-        <div class="dialog-command-panel login-buttons">
-            <button class="cmd-button primary" type="submit">Войти</button>
-        </div>
-    </form>
-</div>
-
-<script src="/static/js/login.js"></script>
+    <script src="/static/js/login.js"></script>
 </body>
 </html>

@@ -17,17 +17,7 @@ class ClientRepositorySQLite(BaseRepository, ClientRepository):
 
 
 
-    VARS = [
-        "client_id",
-        "name",
-        "address",
-        "email",
-        "phone",
-        "admin_id",
-        "enabled",
-        "version",
-        "date_created",
-    ]
+
 
     # -------------------------
     # Reads
@@ -37,7 +27,7 @@ class ClientRepositorySQLite(BaseRepository, ClientRepository):
 
         row = self._get_one(
             ClientGateway.SELECT_BY_ID,
-            var=self.VARS,
+            var=ClientMapper.VARS,
             params={"client_id": client_id},
         )
 
@@ -50,7 +40,7 @@ class ClientRepositorySQLite(BaseRepository, ClientRepository):
 
         rows = self._get_many(
             ClientGateway.SELECT_BASE,
-            var=self.VARS,
+            var=ClientMapper.VARS,
         )
 
         return [ClientMapper.row_to_client(r) for r in rows]

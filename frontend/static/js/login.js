@@ -1,58 +1,75 @@
+const LOGIN_API = "/frontend-api/login";
+const SETTINGS_KEY = "simpleTickets.ui.settings";
+
+function loadSettings() {
+    try {
+        return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
+    } catch (_) {
+        return {};
+    }
+}
+
+function saveSettings(settings) {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function applyTheme(theme) {
+    const normalized = ["onec", "classic", "futuristic"].includes(theme) ? theme : "onec";
+    document.body.classList.remove("theme-onec", "theme-classic", "theme-futuristic");
+    document.body.classList.add(`theme-${normalized}`);
+    document.getElementById("themeSelect").value = normalized;
+}
+
+async function requestJson(url, options = {}) {
+    const response = await fetch(url, {
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        ...options,
+    });
+
+    if (!response.ok) {
+        let detail = await response.text();
+        try {
+            const data = JSON.parse(detail);
+            detail = data.detail ? JSON.stringify(data.detail) : JSON.stringify(data);
+        } catch (_) {}
+        throw new Error(detail || `HTTP ${response.status}`);
+    }
+
+    if (response.status === 204) {
+        return null;
+    }
+
+    return response.json();
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-    const form = document.getElementById("loginForm");
-    const errorBox = document.getElementById("loginError");
+    const settings = loadSettings();
+    applyTheme(settings.theme || "onec");
 
-    form.addEventListener("submit", async (event) => {
+    const themeSelect = document.getElementById("themeSelect");
+    themeSelect.addEventListener("change", () => {
+        const next = themeSelect.value;
+        const updated = { ...loadSettings(), theme: next };
+        saveSettings(updated);
+        applyTheme(next);
+    });
+
+    document.getElementById("loginForm").addEventListener("submit", async (event) => {
         event.preventDefault();
-
-        errorBox.classList.add("hidden");
-        errorBox.textContent = "";
-
-        const username = document.getElementById("username").value.trim();
-        const password = document.getElementById("password").value;
+        const status = document.getElementById("loginStatus");
+        status.textContent = "Вход...";
 
         try {
-            const response = await fetch("/frontend-api/login", {
+            await requestJson(LOGIN_API, {
                 method: "POST",
-                credentials: "same-origin",
-                headers: {
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                },
                 body: JSON.stringify({
-                    username,
-                    password,
+                    username: document.getElementById("username").value.trim(),
+                    password: document.getElementById("password").value,
                 }),
             });
-
-            if (!response.ok) {
-                const detail = await readErrorDetail(response);
-                throw new Error(detail);
-            }
-
             window.location.href = "/clients";
         } catch (error) {
-            errorBox.textContent = `Ошибка входа: ${error.message}`;
-            errorBox.classList.remove("hidden");
+            status.textContent = `Ошибка входа: ${error.message}`;
         }
     });
 });
-
-
-async function readErrorDetail(response) {
-    try {
-        const data = await response.json();
-
-        if (typeof data.detail === "string") {
-            return data.detail;
-        }
-
-        if (data.detail) {
-            return JSON.stringify(data.detail);
-        }
-
-        return JSON.stringify(data);
-    } catch (_error) {
-        return await response.text();
-    }
-}

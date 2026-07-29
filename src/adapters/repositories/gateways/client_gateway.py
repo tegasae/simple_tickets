@@ -5,9 +5,9 @@ class ClientGateway:
 
     INSERT = """
     INSERT INTO clients
-    (admin_id, name, address, email, phone, enabled, version, date_created)
+    (admin_id, name, address, email, phone, description, enabled, version, date_created)
     VALUES
-    (:admin_id, :name, :address, :email, :phone, :enabled, :version, :date_created)
+    (:admin_id, :name, :address, :email, :phone, :description, :enabled, :version, :date_created)
     """
 
     UPDATE = """
@@ -16,6 +16,7 @@ class ClientGateway:
         address = :address,
         email = :email,
         phone = :phone,
+        description=:description,
         enabled = :enabled,
         version = version + 1
     WHERE client_id = :client_id
@@ -34,6 +35,7 @@ class ClientGateway:
         address,
         email,
         phone,
+        description,
         admin_id,
         enabled,
         version,

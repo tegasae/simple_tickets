@@ -26,6 +26,7 @@ class ClientAssembler:
             email=str(client.email),
             address=str(client.address),
             phone=str(client.phone),
+            description=str(client.description),
             enabled=client.enabled,
             created_by_admin=client.created_by_admin_id,
             date_created=str(client.date_created)

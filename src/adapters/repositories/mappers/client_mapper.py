@@ -4,7 +4,18 @@ from src.domain.client import Client
 
 
 class ClientMapper:
-
+    VARS = [
+        "client_id",
+        "name",
+        "address",
+        "email",
+        "phone",
+        "description",
+        "admin_id",
+        "enabled",
+        "version",
+        "date_created",
+    ]
     @staticmethod
     def row_to_client(row: dict) -> Client:
 
@@ -14,6 +25,7 @@ class ClientMapper:
             email=row["email"],
             address=row["address"],
             phone=row["phone"],
+            description=row["description"],
             created_by_admin_id=row["admin_id"],
             enabled=bool(row["enabled"]),
         )
@@ -39,6 +51,7 @@ class ClientMapper:
             "address": str(client.address) if client.address else None,
             "email": str(client.email) if client.email else None,
             "phone": str(client.phone) if client.phone else None,
+            "description":str(client.description) if client.description else None,
             "admin_id": client.created_by_admin_id,
             "enabled": int(client.enabled),
             "version": client.version,

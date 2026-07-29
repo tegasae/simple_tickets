@@ -7,13 +7,14 @@ class ClientCreateRequest(BaseModel):
     email: str = ""
     address: str = ""
     phone: str = ""
-
+    description:str=""
 
 class ClientUpdateContactRequest(BaseModel):
+    name:str=""
     email: str = ""
     address: str = ""
     phone: str = ""
-
+    description:str=""
 
 
 class ClientResponse(BaseModel):
@@ -23,11 +24,12 @@ class ClientResponse(BaseModel):
     email: str =""
     address: str =""
     phone: str =""
+    description:str=""
     enabled: bool
     date_created: str
     created_by_admin: int
 
-    @field_validator("email", "address", "phone", mode="before")
+    @field_validator("email", "address", "phone", "description",mode="before")
     @classmethod
     def none_to_empty_string(cls, value):
         return "" if value is None else value

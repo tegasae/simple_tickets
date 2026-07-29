@@ -18,29 +18,24 @@ class BackendApiError(Exception):
 
 
 class BackendClient:
-    """Thin async client for the Simple Tickets backend API."""
+    """Thin async proxy-client for the Simple Tickets backend API."""
 
     def __init__(self) -> None:
-        self._base_url = settings.backend_base_url
+        self._base_url = settings.backend_base_url.rstrip("/")
         self._timeout = settings.request_timeout_seconds
 
     async def login_admin(self, *, username: str, password: str) -> dict[str, Any]:
         return await self._request(
             method="POST",
             path="/auth/admin/login",
-            form={
-                "username": username,
-                "password": password,
-            },
+            form={"username": username, "password": password},
         )
 
     async def refresh_admin(self, *, refresh_token: str) -> dict[str, Any]:
         return await self._request(
             method="POST",
             path="/auth/admin/refresh",
-            json={
-                "refresh_token": refresh_token,
-            },
+            json={"refresh_token": refresh_token},
         )
 
     async def logout_admin(self, *, access_token: str | None = None) -> dict[str, Any] | None:
@@ -63,14 +58,7 @@ class BackendClient:
             path="/admin/clients/",
             access_token=access_token,
         )
-
-        if not isinstance(result, list):
-            raise BackendApiError(
-                status_code=502,
-                detail="Backend returned non-list response for clients",
-            )
-
-        return result
+        return _expect_list(result, "clients")
 
     async def get_client(self, *, access_token: str, client_id: int) -> dict[str, Any]:
         return await self._request(
@@ -79,12 +67,7 @@ class BackendClient:
             access_token=access_token,
         )
 
-    async def create_client(
-        self,
-        *,
-        access_token: str,
-        payload: dict[str, Any],
-    ) -> dict[str, Any]:
+    async def create_client(self, *, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
         return await self._request(
             method="POST",
             path="/admin/clients/",
@@ -106,40 +89,128 @@ class BackendClient:
             json=payload,
         )
 
-    async def enable_client(
-        self,
-        *,
-        access_token: str,
-        client_id: int,
-    ) -> dict[str, Any]:
+    async def enable_client(self, *, access_token: str, client_id: int) -> dict[str, Any]:
         return await self._request(
             method="PATCH",
             path=f"/admin/clients/{client_id}/enable",
             access_token=access_token,
         )
 
-    async def disable_client(
-        self,
-        *,
-        access_token: str,
-        client_id: int,
-    ) -> dict[str, Any]:
+    async def disable_client(self, *, access_token: str, client_id: int) -> dict[str, Any]:
         return await self._request(
             method="PATCH",
             path=f"/admin/clients/{client_id}/disable",
             access_token=access_token,
         )
 
-    async def delete_client(
-        self,
-        *,
-        access_token: str,
-        client_id: int,
-    ) -> None:
+    async def delete_client(self, *, access_token: str, client_id: int) -> None:
         await self._request(
             method="DELETE",
             path=f"/admin/clients/{client_id}",
             access_token=access_token,
+        )
+
+    async def get_users(
+        self,
+        *,
+        access_token: str,
+        client_id: int = 0,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {}
+        if client_id > 0:
+            params["client_id"] = client_id
+
+        result = await self._request(
+            method="GET",
+            path="/admin/users/",
+            access_token=access_token,
+            params=params,
+        )
+        return _expect_list(result, "users")
+
+    async def get_user(self, *, access_token: str, employee_id: int) -> dict[str, Any]:
+        return await self._request(
+            method="GET",
+            path=f"/admin/users/{employee_id}",
+            access_token=access_token,
+        )
+
+    async def create_user(self, *, access_token: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._request(
+            method="POST",
+            path="/admin/users/",
+            access_token=access_token,
+            json=payload,
+        )
+
+    async def update_user(
+        self,
+        *,
+        access_token: str,
+        employee_id: int,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return await self._request(
+            method="PUT",
+            path=f"/admin/users/{employee_id}",
+            access_token=access_token,
+            json=payload,
+        )
+
+    async def enable_user(self, *, access_token: str, employee_id: int) -> dict[str, Any]:
+        return await self._request(
+            method="PATCH",
+            path=f"/admin/users/{employee_id}/enable",
+            access_token=access_token,
+        )
+
+    async def disable_user(self, *, access_token: str, employee_id: int) -> dict[str, Any]:
+        return await self._request(
+            method="PATCH",
+            path=f"/admin/users/{employee_id}/disable",
+            access_token=access_token,
+        )
+
+    async def delete_user(self, *, access_token: str, employee_id: int) -> None:
+        await self._request(
+            method="DELETE",
+            path=f"/admin/users/{employee_id}",
+            access_token=access_token,
+        )
+
+    async def attach_user_account(
+        self,
+        *,
+        access_token: str,
+        employee_id: int,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return await self._request(
+            method="POST",
+            path=f"/admin/users/{employee_id}/account",
+            access_token=access_token,
+            json=payload,
+        )
+
+    async def detach_user_account(self, *, access_token: str, employee_id: int) -> dict[str, Any]:
+        return await self._request(
+            method="DELETE",
+            path=f"/admin/users/{employee_id}/account",
+            access_token=access_token,
+        )
+
+    async def change_user_password(
+        self,
+        *,
+        access_token: str,
+        employee_id: int,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return await self._request(
+            method="PATCH",
+            path=f"/admin/users/{employee_id}/password",
+            access_token=access_token,
+            json=payload,
         )
 
     async def _request(
@@ -150,6 +221,7 @@ class BackendClient:
         access_token: str | None = None,
         json: dict[str, Any] | None = None,
         form: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
     ) -> Any:
         headers: dict[str, str] = {}
 
@@ -166,6 +238,7 @@ class BackendClient:
                     headers=headers,
                     json=json,
                     data=form,
+                    params=params,
                 )
             except httpx.RequestError as exc:
                 raise BackendApiError(
@@ -174,8 +247,7 @@ class BackendClient:
                 ) from exc
 
         if response.status_code == 204:
-            if 200 <= response.status_code < 300:
-                return None
+            return None
 
         if not 200 <= response.status_code < 300:
             raise BackendApiError(
@@ -193,6 +265,15 @@ class BackendClient:
                 status_code=502,
                 detail="Backend returned invalid JSON",
             ) from exc
+
+
+def _expect_list(result: Any, name: str) -> list[dict[str, Any]]:
+    if not isinstance(result, list):
+        raise BackendApiError(
+            status_code=502,
+            detail=f"Backend returned non-list response for {name}",
+        )
+    return result
 
 
 def _response_detail(response: httpx.Response) -> Any:

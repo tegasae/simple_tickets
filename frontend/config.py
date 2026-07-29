@@ -1,44 +1,25 @@
 from __future__ import annotations
 
-import os
-from dataclasses import dataclass
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-@dataclass(frozen=True, kw_only=True)
-class Settings:
-    """Runtime settings for the standalone frontend service."""
+class Settings(BaseSettings):
+    """Frontend service settings."""
 
-    backend_base_url: str = os.getenv(
-        "BACKEND_BASE_URL",
-        "http://127.0.0.1:8000",
-    ).rstrip("/")
-
-    request_timeout_seconds: float = float(
-        os.getenv("BACKEND_REQUEST_TIMEOUT_SECONDS", "10"),
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
 
-    secure_cookies: bool = os.getenv(
-        "FRONTEND_SECURE_COOKIES",
-        "false",
-    ).lower() in {"1", "true", "yes", "on"}
+    backend_base_url: str = "http://127.0.0.1:8000"
+    request_timeout_seconds: float = 20.0
 
-    access_cookie_name: str = os.getenv(
-        "FRONTEND_ACCESS_COOKIE_NAME",
-        "simple_tickets_admin_access_token",
-    )
-
-    refresh_cookie_name: str = os.getenv(
-        "FRONTEND_REFRESH_COOKIE_NAME",
-        "simple_tickets_admin_refresh_token",
-    )
-
-    access_cookie_max_age_seconds: int = int(
-        os.getenv("FRONTEND_ACCESS_COOKIE_MAX_AGE_SECONDS", "3600"),
-    )
-
-    refresh_cookie_max_age_seconds: int = int(
-        os.getenv("FRONTEND_REFRESH_COOKIE_MAX_AGE_SECONDS", "1209600"),
-    )
+    access_cookie_name: str = "simple_tickets_admin_access"
+    refresh_cookie_name: str = "simple_tickets_admin_refresh"
+    access_cookie_max_age_seconds: int = 60 * 60
+    refresh_cookie_max_age_seconds: int = 60 * 60 * 24 * 30
+    secure_cookies: bool = False
 
 
 settings = Settings()

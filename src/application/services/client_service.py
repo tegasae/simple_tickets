@@ -67,6 +67,7 @@ class ClientApplicationService:
                 email=dto_client.email,
                 address=dto_client.address,
                 phone=dto_client.phone,
+                description=dto_client.description,
                 created_by_admin_id=actor.employee_id
             )
 
@@ -86,9 +87,11 @@ class ClientApplicationService:
             )
             client = self.uow.clients.get(dto_client.client_id)
             client.update_contact_info(
+                name=dto_client.name,
                 email=dto_client.email,
                 address=dto_client.address,
                 phone=dto_client.phone,
+                description=dto_client.description
             )
 
             return self._save_and_to_dto(client)
