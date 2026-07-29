@@ -19,7 +19,7 @@ CREATE TABLE employees (
 	date_created TEXT,
 	address TEXT,
 	enabled INTEGER DEFAULT (1),
-	version INTEGER,
+	version INTEGER DEFAULT 0,
 	is_admin INTEGER);
 INSERT INTO employees VALUES(1,'John','Smith','john.smith@company.com','','2026-03-05T11:04:11',NULL,0,7,1);
 INSERT INTO employees VALUES(2,'John','Smith','john.smith@company.com','','2026-03-05T11:23:24',NULL,0,7,1);
@@ -192,8 +192,9 @@ INSERT INTO employees VALUES(170,'string','','','','2026-06-09T17:28:30',NULL,1,
 INSERT INTO employees VALUES(171,'new2','','','','2026-06-09T17:29:33',NULL,1,9,1);
 INSERT INTO employees VALUES(172,'n2','','','','2026-06-09T17:38:04',NULL,0,9,0);
 INSERT INTO employees VALUES(173,'name','11','','','2026-07-29T15:13:46',NULL,1,1,0);
-INSERT INTO employees VALUES(174,'Пользователь','','','','2026-07-29T15:19:45',NULL,1,1,0);
-INSERT INTO employees VALUES(175,'Пользователь1','','','','2026-07-29T15:20:23',NULL,1,0,0);
+INSERT INTO employees VALUES(174,'Пользователь','','','','2026-07-29T15:19:45',NULL,0,13,0);
+INSERT INTO employees VALUES(175,'Пользователь1','','','','2026-07-29T15:20:23',NULL,1,8,0);
+INSERT INTO employees VALUES(176,'jhuilgbgb','','','','2026-07-29T15:39:18',NULL,1,1,0);
 CREATE TABLE admins (
     employee_id INTEGER NOT NULL PRIMARY KEY,
     job_title TEXT, 
@@ -380,6 +381,7 @@ INSERT INTO users VALUES(172,4);
 INSERT INTO users VALUES(173,19);
 INSERT INTO users VALUES(174,7);
 INSERT INTO users VALUES(175,7);
+INSERT INTO users VALUES(176,13);
 CREATE TABLE accounts (
 	account_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	employee_id INTEGER,
@@ -454,7 +456,8 @@ INSERT INTO accounts VALUES(477,169,'login-admin1','d85fb61a933e0b8a45f88c898885
 INSERT INTO accounts VALUES(483,170,'htyhyrujujuj','ff7bd97b1a7789ddd2775122fd6817f3173672da9f802ceec57f284325bf589f',1,'2026-06-09T17:28:30');
 INSERT INTO accounts VALUES(485,172,'erfertgrtg','ff7bd97b1a7789ddd2775122fd6817f3173672da9f802ceec57f284325bf589f',0,'2026-06-09T17:38:04');
 INSERT INTO accounts VALUES(505,173,'login111111','4d064ebb8c9df20d2a71d3222f730c90823e333476805f0bcbd05c40d1f58e07',1,'2026-07-29T15:14:23');
-INSERT INTO accounts VALUES(506,174,'аккаунт','9fa0fc85458256170f9918256a64cf3895826ef26bb05cccf9edb45eaaece4f8',1,'2026-07-29T15:20:49');
+INSERT INTO accounts VALUES(506,174,'аккаунт','9fa0fc85458256170f9918256a64cf3895826ef26bb05cccf9edb45eaaece4f8',0,'2026-07-29T15:20:49');
+INSERT INTO accounts VALUES(507,176,'логин123','9fa0fc85458256170f9918256a64cf3895826ef26bb05cccf9edb45eaaece4f8',1,'2026-07-29T15:39:45');
 CREATE TABLE clients (
 	client_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	admin_id INTEGER,
@@ -462,30 +465,30 @@ CREATE TABLE clients (
 	address TEXT,
 	email TEXT,
 	phone TEXT,
-	enabled INTEGER, version_old INTEGER,
-	date_created TEXT, description TEXT DEFAULT (''), version INTEGER DEFAULT (0),
+	enabled INTEGER, version INTEGER DEFAULT 0,
+	date_created TEXT, description TEXT DEFAULT (''),
 	CONSTRAINT clients_admins_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict
 );
-INSERT INTO clients VALUES(1,1,'name',NULL,NULL,NULL,NULL,NULL,NULL,'',NULL);
-INSERT INTO clients VALUES(4,66,'ACME Corporation','','','',0,2,'2026-03-07T12:36:47.340385','',2);
-INSERT INTO clients VALUES(5,68,'ACME Corporation','','','',1,0,'2026-03-07T12:50:39.051346','',0);
-INSERT INTO clients VALUES(6,122,'string','','','',1,1,'2026-05-19T13:37:57.791729','',1);
-INSERT INTO clients VALUES(7,122,'string1','','','',1,4,'2026-05-25T15:32:53.042860','gegbrtgbertgbr',4);
-INSERT INTO clients VALUES(8,122,'string1','','','',1,2,'2026-05-25T15:36:48.340639','',2);
-INSERT INTO clients VALUES(9,122,'string','','','',1,1,'2026-05-25T15:45:07.015557','',1);
-INSERT INTO clients VALUES(11,122,'string','efrwghetghetget','','',1,1,'2026-05-25T15:51:05.464638','',1);
-INSERT INTO clients VALUES(12,122,'string','efrwghetghetget','','',1,1,'2026-05-25T16:02:53.736079','',1);
-INSERT INTO clients VALUES(13,122,'string','efrwghetghet111get','','',1,1,'2026-05-25T16:03:00.852692','',1);
-INSERT INTO clients VALUES(14,122,'str111ing','efrwghetghet111get','','',1,1,'2026-05-25T16:03:22.691814','',1);
-INSERT INTO clients VALUES(17,122,'string','','','',1,6,'2026-05-27T16:09:12.272193','',6);
-INSERT INTO clients VALUES(19,122,'string','','111@1111.ru','',1,5,'2026-06-01T14:25:43.721135','',5);
-INSERT INTO clients VALUES(21,122,'string','dqeded','11@11.wdqedqe','',1,8,'2026-06-03T17:07:21.677730','',8);
-INSERT INTO clients VALUES(23,122,'string','','','',1,1,'2026-06-04T15:03:32.844573','',1);
-INSERT INTO clients VALUES(24,122,'string','','','',1,4,'2026-06-04T15:03:55.825620','',4);
-INSERT INTO clients VALUES(25,160,'string-клиент','','','',1,1,'2026-06-08T17:40:31.506929','',1);
-INSERT INTO clients VALUES(26,122,'string','','','',1,0,'2026-07-24T17:24:59.165230','',0);
-INSERT INTO clients VALUES(27,122,'111111','','','',1,0,'2026-07-28T18:41:38.775933','',0);
-INSERT INTO clients VALUES(29,122,'string','','','',1,0,'2026-07-29T13:41:22.767296','description',0);
+INSERT INTO clients VALUES(1,1,'name',NULL,NULL,NULL,NULL,NULL,NULL,'');
+INSERT INTO clients VALUES(4,66,'ACME Corporation','','','',0,2,'2026-03-07T12:36:47.340385','');
+INSERT INTO clients VALUES(5,68,'ACME Corporation','','','',1,0,'2026-03-07T12:50:39.051346','');
+INSERT INTO clients VALUES(6,122,'string','','','',1,1,'2026-05-19T13:37:57.791729','');
+INSERT INTO clients VALUES(7,122,'string111111111','','','',1,17,'2026-05-25T15:32:53.042860','gegbrtgbertgbr');
+INSERT INTO clients VALUES(8,122,'string1','','','',0,4,'2026-05-25T15:36:48.340639','');
+INSERT INTO clients VALUES(9,122,'string','','','',1,1,'2026-05-25T15:45:07.015557','');
+INSERT INTO clients VALUES(11,122,'string','efrwghetghetget','','',0,2,'2026-05-25T15:51:05.464638','');
+INSERT INTO clients VALUES(12,122,'string','efrwghetghetget','','',1,1,'2026-05-25T16:02:53.736079','');
+INSERT INTO clients VALUES(13,122,'string','efrwghetghet111get1','','',1,2,'2026-05-25T16:03:00.852692','1111');
+INSERT INTO clients VALUES(14,122,'str111ing','efrwghetghet111get','','',1,1,'2026-05-25T16:03:22.691814','');
+INSERT INTO clients VALUES(17,122,'string','','','',1,6,'2026-05-27T16:09:12.272193','');
+INSERT INTO clients VALUES(19,122,'string','','111@1111.ru','',1,5,'2026-06-01T14:25:43.721135','');
+INSERT INTO clients VALUES(21,122,'string','dqeded','11@11.wdqedqe','',1,8,'2026-06-03T17:07:21.677730','');
+INSERT INTO clients VALUES(23,122,'string','','','',1,1,'2026-06-04T15:03:32.844573','');
+INSERT INTO clients VALUES(24,122,'string','','','',1,4,'2026-06-04T15:03:55.825620','');
+INSERT INTO clients VALUES(25,160,'string-клиент','','','',1,1,'2026-06-08T17:40:31.506929','');
+INSERT INTO clients VALUES(26,122,'string','','','',1,0,'2026-07-24T17:24:59.165230','');
+INSERT INTO clients VALUES(27,122,'111111','','','',1,0,'2026-07-28T18:41:38.775933','');
+INSERT INTO clients VALUES(29,122,'string','','','',1,0,'2026-07-29T13:41:22.767296','description');
 CREATE TABLE roles (
 	role_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	name TEXT,
@@ -494,7 +497,7 @@ CREATE TABLE roles (
 	is_system_role INTEGER,
 	date_created TEXT,
 	is_admin INTEGER DEFAULT (1), 
-	version INTEGER);
+	version INTEGER DEFAULT 0);
 INSERT INTO roles VALUES(5,'Super Admin','client.operation, client.view, admin.operation, admin.view, user.operation, user.view, ticket.operation, ticket.view, role.assign, role.revoke','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
 INSERT INTO roles VALUES(7,'Super Admin','admin.view,role.assign,audit.view,admin.update,role.revoke,create.user,ticket.create,create.admin','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
 INSERT INTO roles VALUES(60,'Super Admin','client.operation, client.view, admin.operation, admin.view, user.operation, user.view, ticket.operation, ticket.view, role.assign, role.revoke','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
@@ -732,7 +735,7 @@ CREATE TABLE user_tickets (
 	user_ticket_contact_user_id INTEGER DEFAULT NULL, -- контактное лицо по заявке, может не быть
 	text_of_ticket TEXT, -- текст заявки 
 	date_created TEXT,
-	version INTEGER, 
+	version INTEGER DEFAULT 0,
 	date_closed TEXT, -- дата завершения или снятия заявки 
 	is_closed INTEGER, description TEXT, urgency_level INTEGER DEFAULT (0) NOT NULL,
 	CONSTRAINT user_tickets_users_FK FOREIGN KEY (user_id) REFERENCES employees(employee_id) on delete restrict,
@@ -785,7 +788,7 @@ CREATE TABLE tickets (
 
     urgency_level INTEGER NOT NULL DEFAULT 0,
 
-    version INTEGER NOT NULL DEFAULT 0,
+    version INTEGER DEFAULT 0,
 
     FOREIGN KEY (client_id)
         REFERENCES clients(client_id)
@@ -865,8 +868,8 @@ INSERT INTO ticket_status_records VALUES(20,4,122,'rejected','2026-07-28T15:47:0
 INSERT INTO ticket_status_records VALUES(21,5,122,'rejected','2026-07-28T15:47:05.393069+00:00',NULL,NULL,NULL,NULL,NULL,'Client disabled');
 INSERT INTO ticket_status_records VALUES(22,6,122,'deferred','2026-07-28T15:47:05.393233+00:00',NULL,NULL,NULL,NULL,NULL,'Client disabled');
 DELETE FROM sqlite_sequence;
-INSERT INTO sqlite_sequence VALUES('employees',175);
-INSERT INTO sqlite_sequence VALUES('accounts',506);
+INSERT INTO sqlite_sequence VALUES('employees',176);
+INSERT INTO sqlite_sequence VALUES('accounts',519);
 INSERT INTO sqlite_sequence VALUES('roles',67);
 INSERT INTO sqlite_sequence VALUES('clients',29);
 INSERT INTO sqlite_sequence VALUES('user_tickets',8);
