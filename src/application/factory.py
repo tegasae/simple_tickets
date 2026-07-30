@@ -43,3 +43,8 @@ class ApplicationServiceFactory:
     def department_service(self) -> DepartmentApplicationService:
         return DepartmentApplicationService(self.uow)
 
+    def admin_role_service(self) -> AdminRoleService:
+        return AdminRoleService(self.uow)
+
+    def user_role_service(self) -> UserRoleService:
+        return UserRoleService(self.uow)
