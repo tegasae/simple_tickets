@@ -1,11 +1,15 @@
 # src/application/assemblers/assembler.py
+from typing import TypeVar
+
 from src.application.dto.department_dto import DepartmentResponseDTO
 from src.application.dto.employee_dto import AdminResponseDTO, UserResponseDTO, PermissionsResponseDTO
+from src.application.dto.roles_dto import RoleResponseDTO
 from src.application.dto.ticket_dto import TicketResponseDTO, TicketUserResponseDTO
 from src.domain.client import Client
 from src.domain.department import Department
 from src.domain.employee import Admin, User
-from src.domain.rbac.permissions import AdminPermission
+from src.domain.rbac.permissions import AdminPermission, PermissionBase
+from src.domain.rbac.role_new import Role
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
 from src.application.dto.client_dto import ClientResponseDTO
@@ -189,4 +193,22 @@ class DepartmentAssembler:
             name=str(department.name),
             enabled=department.enabled,
             date_created=department.date_created,
+        )
+
+
+
+
+
+T = TypeVar("T", bound=PermissionBase)
+
+
+class RoleAssembler:
+    @staticmethod
+    def to_dto(role: Role[T]) -> RoleResponseDTO[T]:
+        return RoleResponseDTO[T](
+            role_id=role.role_id,
+            name=role.name,
+            permissions=role.permissions,
+            description=role.description,
+            is_system_role=role.is_system_role,
         )

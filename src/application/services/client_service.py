@@ -6,7 +6,7 @@ from src.application.dto.client_dto import ClientDTO, ClientResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.client import Client
 from src.domain.policies.client import ClientPolicy
-from src.domain.policies.ticket import TicketPolicy
+
 
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.ticket_management_service import TicketManagementService
@@ -28,21 +28,6 @@ class ClientApplicationService:
     def _save_and_to_dto(self, client: Client) -> ClientResponseDTO:
         saved_client = self.uow.clients.save(client)
         return ClientAssembler.to_dto(saved_client)
-
-
-    def _validate_references(self, client_dto: ClientDTO):
-        """
-        Validates referenced entities and returns the effective admin_id.
-        """
-
-        actor_admin=self.uow.admins.get(admin_id=client_dto.actor_admin_id)
-        TicketPolicy.ensure_admin_enabled(actor_admin)
-        if client_dto.admin_id:
-            admin = self.uow.admins.get(client_dto.admin_id)
-            TicketPolicy.ensure_admin_enabled(admin)
-        if client_dto.client_id:
-            client = self.uow.clients.get(client_dto.client_id)
-            TicketPolicy.ensure_client_enabled(client)
 
 
 

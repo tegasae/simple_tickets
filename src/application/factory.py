@@ -1,6 +1,6 @@
 # src/application/services/service_factory.py
 from src.application.services.department_service import DepartmentApplicationService
-from src.application.services.role_admin_service import AdminRoleService, UserRoleService
+from src.application.services.role_service import AdminRoleService, UserRoleService
 from src.application.services.ticket_search_service import TicketSearchService
 
 from src.services.uow.uow import UnitOfWork

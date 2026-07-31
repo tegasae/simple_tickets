@@ -2,7 +2,7 @@
 import sqlite3
 
 
-from src.application.services.role_admin_service import RoleServiceFactory
+from src.application.services.role_service import RoleServiceFactory
 from src.domain.rbac.permissions import UserPermission, AdminPermission
 from src.services.uow.uowsqlite import SQLiteUnitOfWork
 from utils.db.connect import Connection
