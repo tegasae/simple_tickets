@@ -170,10 +170,10 @@ class AdminApplicationService:
     def revoke_role(self, *, admin_dto: AdminDTO) -> AdminResponseDTO:
         with self.uow:
             actor=self.actor.require_actor_admin(actor_admin_id=admin_dto.actor_admin_id,
-                                           permission=AdminPermission.ROLE_REVOKE)
+                                           permission=AdminPermission.ROLE_ASSIGN)
             admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
             self.role_manager.revoke_roles(actor=actor, target=admin, role_ids=frozenset(admin_dto.roles),
-                                           required_permission=AdminPermission.ROLE_REVOKE)
+                                           required_permission=AdminPermission.ROLE_ASSIGN)
 
             return self._save_and_to_dto(admin)
 

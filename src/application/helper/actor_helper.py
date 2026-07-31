@@ -1,7 +1,7 @@
 from src.domain.employee import Admin, User
 from src.domain.rbac.permissions import AdminPermission, UserPermission
 from src.domain.rbac.role import Authorizer
-from src.services.uow.uow import UnitOfWork
+from src.domain.uow.unit_of_work import UnitOfWork
 
 
 class EmployeeActorHelper:
