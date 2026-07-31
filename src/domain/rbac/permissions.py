@@ -22,7 +22,9 @@ class AdminPermission(PermissionBase):
     TICKET_VIEW = "ticket.view"
     TICKET_ACCEPTED = "ticket.accepted"
     ROLE_ASSIGN="role.assign"
-    ROLE_REVOKE="role.revoke"
+    #ROLE_REVOKE="role.revoke"
+    ROLE_USER_ASSIGN = "role_user.assign"
+
 
 class UserPermission(PermissionBase):
     TICKET_OPERATION = "ticket.operation"
