@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 
 from src.adapters.repositories.exceptions import OptimisticLockError
-from src.domain.exceptions import ItemValidationError, DomainOperationError, ItemAlreadyExistsError
+from src.domain.exceptions import ItemValidationError, DomainOperationError, ItemAlreadyExistsError, ItemNotFoundError
 from src.web.auth.exceptions import TokenError, TokenNotFoundError, TokenExpiredError, UserNotValidError, \
     InvalidCredentialsError
 from src.web.execeptions.exception_handlers import ExceptionHandlerRegistry
@@ -56,7 +56,8 @@ def create_app() -> FastAPI:
             ValueError: 400,
             ItemAlreadyExistsError: 400,
             DomainOperationError:400,
-            OptimisticLockError:500
+            OptimisticLockError:500,
+            ItemNotFoundError: 404
         }
     )
     registry.add_all_handlers_from_module(

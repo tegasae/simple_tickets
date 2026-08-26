@@ -7,9 +7,7 @@ import pytest
 
 from src.adapters.uow.sqlite_unit_of_work import SQLiteUnitOfWork
 from src.application.dto.ticket_dto import TicketDTO
-from src.application.services.tickets.ticket_review_service import (
-    TicketReviewApplicationService,
-)
+
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.ticket_execution_service import (
@@ -200,21 +198,6 @@ def ticket_review_uow(
     )
 
 
-@pytest.fixture
-def ticket_review_service(
-    ticket_review_uow: SQLiteUnitOfWork,
-) -> tuple[
-    TicketReviewApplicationService,
-    AllowTicketOperationActor,
-]:
-    service = TicketReviewApplicationService(
-        uow=ticket_review_uow,
-    )
-
-    actor = AllowTicketOperationActor()
-    service.actor = actor  # type: ignore[assignment]
-
-    return service, actor
 
 
 def create_ready_for_review_ticket(

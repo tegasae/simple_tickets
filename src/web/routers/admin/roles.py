@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
 
+from src.application.dto.roles_dto import RoleDTO, RoleResponseDTO
 from src.domain.rbac.permissions import AdminPermission, UserPermission
-from src.domain.rbac.role_new import Role
-
-from src.web.dependencies.auth import get_current_admin
+from src.web.dependencies.auth import (
+    get_current_admin,
+    get_employee_id_from_request,
+)
 from src.web.dependencies.services import get_application_service_factory
 from src.web.models.roles import (
     AdminRoleCreateRequest,
@@ -47,79 +49,123 @@ handlers = {
 # ---------------------------------------------------------------------
 
 def to_admin_role_response(
-    role: Role[AdminPermission],
+    response_dto: RoleResponseDTO[AdminPermission],
 ) -> AdminRoleResponse:
     return AdminRoleResponse(
-        role_id=role.role_id,
-        name=role.name,
+        role_id=response_dto.role_id,
+        name=response_dto.name,
         permissions=sorted(
-            role.permissions,
+            response_dto.permissions,
             key=lambda permission: permission.value,
         ),
-        description=role.description,
-        is_system_role=role.is_system_role,
+        description=response_dto.description,
+        is_system_role=response_dto.is_system_role,
     )
 
 
 def to_admin_role_responses(
-    roles,
+    response_dtos: list[RoleResponseDTO[AdminPermission]],
 ) -> list[AdminRoleResponse]:
     return [
-        to_admin_role_response(role)
-        for role in roles
+        to_admin_role_response(response_dto)
+        for response_dto in response_dtos
     ]
 
 
 def to_user_role_response(
-    role: Role[UserPermission],
+    response_dto: RoleResponseDTO[UserPermission],
 ) -> UserRoleResponse:
     return UserRoleResponse(
-        role_id=role.role_id,
-        name=role.name,
+        role_id=response_dto.role_id,
+        name=response_dto.name,
         permissions=sorted(
-            role.permissions,
+            response_dto.permissions,
             key=lambda permission: permission.value,
         ),
-        description=role.description,
-        is_system_role=role.is_system_role,
+        description=response_dto.description,
+        is_system_role=response_dto.is_system_role,
     )
 
 
 def to_user_role_responses(
-    roles,
+    response_dtos: list[RoleResponseDTO[UserPermission]],
 ) -> list[UserRoleResponse]:
     return [
-        to_user_role_response(role)
-        for role in roles
+        to_user_role_response(response_dto)
+        for response_dto in response_dtos
     ]
 
 
 # ---------------------------------------------------------------------
-# Request -> Application mappers
+# Request -> Application DTO mappers
 # ---------------------------------------------------------------------
 
-def admin_role_create_request_to_kwargs(
+def admin_role_create_request_to_dto(
     *,
     request: AdminRoleCreateRequest,
-) -> dict:
-    return {
-        "name": request.name,
-        "permissions": request.permissions,
-        "description": request.description,
-        "is_system_role": request.is_system_role,
-    }
+    actor_admin_id: int,
+) -> RoleDTO[AdminPermission]:
+    return RoleDTO[AdminPermission](
+        actor_admin_id=actor_admin_id,
+        name=request.name,
+        permissions=frozenset(request.permissions),
+        description=request.description,
+        is_system_role=request.is_system_role,
+    )
 
 
-def user_role_create_request_to_kwargs(
+def admin_role_id_to_dto(
+    *,
+    role_id: int,
+    actor_admin_id: int,
+) -> RoleDTO[AdminPermission]:
+    return RoleDTO[AdminPermission](
+        actor_admin_id=actor_admin_id,
+        role_id=role_id,
+    )
+
+
+def admin_roles_list_to_dto(
+    *,
+    actor_admin_id: int,
+) -> RoleDTO[AdminPermission]:
+    return RoleDTO[AdminPermission](
+        actor_admin_id=actor_admin_id,
+    )
+
+
+def user_role_create_request_to_dto(
     *,
     request: UserRoleCreateRequest,
-) -> dict:
-    return {
-        "name": request.name,
-        "permissions": request.permissions,
-        "description": request.description,
-        "is_system_role": request.is_system_role,
-    }
+    actor_admin_id: int,
+) -> RoleDTO[UserPermission]:
+    return RoleDTO[UserPermission](
+        actor_admin_id=actor_admin_id,
+        name=request.name,
+        permissions=frozenset(request.permissions),
+        description=request.description,
+        is_system_role=request.is_system_role,
+    )
+
+
+def user_role_id_to_dto(
+    *,
+    role_id: int,
+    actor_admin_id: int,
+) -> RoleDTO[UserPermission]:
+    return RoleDTO[UserPermission](
+        actor_admin_id=actor_admin_id,
+        role_id=role_id,
+    )
+
+
+def user_roles_list_to_dto(
+    *,
+    actor_admin_id: int,
+) -> RoleDTO[UserPermission]:
+    return RoleDTO[UserPermission](
+        actor_admin_id=actor_admin_id,
+    )
 
 
 # ---------------------------------------------------------------------
@@ -159,16 +205,18 @@ def get_user_permissions():
 def create_admin_role(
     role_request: AdminRoleCreateRequest,
     asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    kwargs = admin_role_create_request_to_kwargs(
+    role_dto = admin_role_create_request_to_dto(
         request=role_request,
+        actor_admin_id=actor_admin_id,
     )
 
-    role = asf.admin_role_service().create_role(
-        **kwargs,
+    response_dto = asf.admin_role_service().create_role(
+        role_dto=role_dto,
     )
 
-    return to_admin_role_response(role)
+    return to_admin_role_response(response_dto)
 
 
 @router.get(
@@ -179,10 +227,17 @@ def create_admin_role(
 )
 def get_all_admin_roles(
     asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    roles = asf.admin_role_service().get_all_roles()
+    role_dto = admin_roles_list_to_dto(
+        actor_admin_id=actor_admin_id,
+    )
 
-    return to_admin_role_responses(roles)
+    response_dtos = asf.admin_role_service().get_all_roles(
+        role_dto=role_dto,
+    )
+
+    return to_admin_role_responses(response_dtos)
 
 
 @router.get(
@@ -194,12 +249,18 @@ def get_all_admin_roles(
 def get_admin_role(
     role_id: int,
     asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    role = asf.admin_role_service().get_role(
+    role_dto = admin_role_id_to_dto(
         role_id=role_id,
+        actor_admin_id=actor_admin_id,
     )
 
-    return to_admin_role_response(role)
+    response_dto = asf.admin_role_service().get_role(
+        role_dto=role_dto,
+    )
+
+    return to_admin_role_response(response_dto)
 
 
 @router.delete(
@@ -210,9 +271,15 @@ def get_admin_role(
 def delete_admin_role(
     role_id: int,
     asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    asf.admin_role_service().delete_role(
+    role_dto = admin_role_id_to_dto(
         role_id=role_id,
+        actor_admin_id=actor_admin_id,
+    )
+
+    asf.admin_role_service().delete_role(
+        role_dto=role_dto,
     )
 
     return None
@@ -231,16 +298,18 @@ def delete_admin_role(
 def create_user_role(
     role_request: UserRoleCreateRequest,
     asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    kwargs = user_role_create_request_to_kwargs(
+    role_dto = user_role_create_request_to_dto(
         request=role_request,
+        actor_admin_id=actor_admin_id,
     )
 
-    role = asf.user_role_service().create_role(
-        **kwargs,
+    response_dto = asf.user_role_service().create_role(
+        role_dto=role_dto,
     )
 
-    return to_user_role_response(role)
+    return to_user_role_response(response_dto)
 
 
 @router.get(
@@ -251,10 +320,17 @@ def create_user_role(
 )
 def get_all_user_roles(
     asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    roles = asf.user_role_service().get_all_roles()
+    role_dto = user_roles_list_to_dto(
+        actor_admin_id=actor_admin_id,
+    )
 
-    return to_user_role_responses(roles)
+    response_dtos = asf.user_role_service().get_all_roles(
+        role_dto=role_dto,
+    )
+
+    return to_user_role_responses(response_dtos)
 
 
 @router.get(
@@ -266,12 +342,18 @@ def get_all_user_roles(
 def get_user_role(
     role_id: int,
     asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    role = asf.user_role_service().get_role(
+    role_dto = user_role_id_to_dto(
         role_id=role_id,
+        actor_admin_id=actor_admin_id,
     )
 
-    return to_user_role_response(role)
+    response_dto = asf.user_role_service().get_role(
+        role_dto=role_dto,
+    )
+
+    return to_user_role_response(response_dto)
 
 
 @router.delete(
@@ -282,9 +364,15 @@ def get_user_role(
 def delete_user_role(
     role_id: int,
     asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    asf.user_role_service().delete_role(
+    role_dto = user_role_id_to_dto(
         role_id=role_id,
+        actor_admin_id=actor_admin_id,
+    )
+
+    asf.user_role_service().delete_role(
+        role_dto=role_dto,
     )
 
     return None
