@@ -221,6 +221,7 @@ CREATE TABLE clients (
 	phone TEXT,
 	enabled INTEGER, version INTEGER,
 	date_created TEXT,
+	description TEXT,
 	CONSTRAINT clients_admins_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict
 );
 CREATE TABLE roles (
