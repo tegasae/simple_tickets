@@ -59,6 +59,7 @@ CREATE TABLE clients (
 	email TEXT,
 	phone TEXT,
 	enabled INTEGER, version INTEGER DEFAULT 0,
+	description TEXT,
 	date_created TEXT, description TEXT DEFAULT (''),
 	CONSTRAINT clients_admins_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict
 );

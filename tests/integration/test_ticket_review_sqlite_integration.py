@@ -7,7 +7,6 @@ import pytest
 
 from src.adapters.uow.sqlite_unit_of_work import SQLiteUnitOfWork
 from src.application.dto.ticket_dto import TicketDTO
-
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.ticket_execution_service import (
@@ -196,7 +195,6 @@ def ticket_review_uow(
     return SQLiteUnitOfWork(
         connection=ticket_command_connection,
     )
-
 
 
 
