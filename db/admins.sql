@@ -508,6 +508,7 @@ INSERT INTO roles VALUES(64,'Super Admin','audit.view,role.assign,admin.view','F
 INSERT INTO roles VALUES(65,'Ticket Creator','ticket.view.own,ticket.create','Can create and view own tickets',0,'2026-03-23T12:22:34+00:00',0,0);
 INSERT INTO roles VALUES(66,'Super Admin','audit.view,role.assign,admin.view','Full system access',1,'2026-03-23T12:22:49+00:00',1,0);
 INSERT INTO roles VALUES(67,'Can accepted','ticket.accepted','ticket.accepted',0,NULL,1,NULL);
+INSERT INTO roles VALUES(68,'string','client.operation','fwfwrfrweferf',0,'2026-07-30T11:49:45+00:00',1,0);
 CREATE TABLE admins_roles (
   employee_id INTEGER NOT NULL,
   role_id INTEGER NOT NULL,
@@ -699,27 +700,27 @@ CREATE TABLE user_tickets_status_record (
 	employee_id INTEGER,
 	user_ticket_id INTEGER,
 	status TEXT,
-	date_created TEXT,
+	date_created TEXT, comment TEXT,
 	CONSTRAINT tickets_status_record_tickets_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict,
 	CONSTRAINT tickets_status_record_employees_FK FOREIGN KEY (employee_id) REFERENCES employees(employee_id) on delete restrict
 );
-INSERT INTO user_tickets_status_record VALUES(1,10,1,'created','2026-03-16T11:29:27.225254+00:00');
-INSERT INTO user_tickets_status_record VALUES(2,10,1,'created','2026-03-16T11:29:27.225262+00:00');
-INSERT INTO user_tickets_status_record VALUES(3,10,1,'confirmed','2026-03-16T11:29:27.226731+00:00');
-INSERT INTO user_tickets_status_record VALUES(4,1,1,'at_work','2026-03-16T11:29:27.227832+00:00');
-INSERT INTO user_tickets_status_record VALUES(5,1,1,'executed','2026-03-16T11:29:27.227974+00:00');
-INSERT INTO user_tickets_status_record VALUES(6,10,2,'created','2026-03-16T11:29:39.226973+00:00');
-INSERT INTO user_tickets_status_record VALUES(7,10,2,'created','2026-03-16T11:29:39.226981+00:00');
-INSERT INTO user_tickets_status_record VALUES(8,10,2,'confirmed','2026-03-16T11:29:39.227934+00:00');
-INSERT INTO user_tickets_status_record VALUES(9,1,2,'at_work','2026-03-16T11:29:39.228344+00:00');
-INSERT INTO user_tickets_status_record VALUES(10,1,2,'executed','2026-03-16T11:29:39.228457+00:00');
-INSERT INTO user_tickets_status_record VALUES(11,67,3,'created','2026-05-15T12:50:22.700974+00:00');
-INSERT INTO user_tickets_status_record VALUES(12,67,4,'created','2026-05-15T12:50:41.392675+00:00');
-INSERT INTO user_tickets_status_record VALUES(13,67,5,'created','2026-05-15T12:53:13.470686+00:00');
-INSERT INTO user_tickets_status_record VALUES(14,67,6,'created','2026-05-15T12:58:13.522010+00:00');
-INSERT INTO user_tickets_status_record VALUES(15,67,7,'created','2026-05-15T13:00:16.095883+00:00');
-INSERT INTO user_tickets_status_record VALUES(16,67,7,'canceled_by_client','2026-05-15T13:00:16.107644+00:00');
-INSERT INTO user_tickets_status_record VALUES(17,67,8,'created','2026-07-27T15:54:34.153703+00:00');
+INSERT INTO user_tickets_status_record VALUES(1,10,1,'created','2026-03-16T11:29:27.225254+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(2,10,1,'created','2026-03-16T11:29:27.225262+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(3,10,1,'confirmed','2026-03-16T11:29:27.226731+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(4,1,1,'at_work','2026-03-16T11:29:27.227832+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(5,1,1,'executed','2026-03-16T11:29:27.227974+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(6,10,2,'created','2026-03-16T11:29:39.226973+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(7,10,2,'created','2026-03-16T11:29:39.226981+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(8,10,2,'confirmed','2026-03-16T11:29:39.227934+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(9,1,2,'at_work','2026-03-16T11:29:39.228344+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(10,1,2,'executed','2026-03-16T11:29:39.228457+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(11,67,3,'created','2026-05-15T12:50:22.700974+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(12,67,4,'created','2026-05-15T12:50:41.392675+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(13,67,5,'created','2026-05-15T12:53:13.470686+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(14,67,6,'created','2026-05-15T12:58:13.522010+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(15,67,7,'created','2026-05-15T13:00:16.095883+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(16,67,7,'canceled_by_client','2026-05-15T13:00:16.107644+00:00',NULL);
+INSERT INTO user_tickets_status_record VALUES(17,67,8,'created','2026-07-27T15:54:34.153703+00:00',NULL);
 CREATE TABLE user_tickets_executor_assignments (
 	user_executor_assignment_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	user_ticket_id INTEGER,
@@ -870,7 +871,7 @@ INSERT INTO ticket_status_records VALUES(22,6,122,'deferred','2026-07-28T15:47:0
 DELETE FROM sqlite_sequence;
 INSERT INTO sqlite_sequence VALUES('employees',176);
 INSERT INTO sqlite_sequence VALUES('accounts',519);
-INSERT INTO sqlite_sequence VALUES('roles',67);
+INSERT INTO sqlite_sequence VALUES('roles',68);
 INSERT INTO sqlite_sequence VALUES('clients',29);
 INSERT INTO sqlite_sequence VALUES('user_tickets',8);
 INSERT INTO sqlite_sequence VALUES('user_tickets_status_record',17);
