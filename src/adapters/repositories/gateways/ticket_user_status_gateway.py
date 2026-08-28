@@ -4,7 +4,8 @@ class TicketUserStatusGateway:
         user_ticket_status_record_id AS status_id,
         employee_id,
         status,
-        date_created
+        date_created,
+        comment
     FROM user_tickets_status_record
     WHERE user_ticket_id = :ticket_id
     ORDER BY user_ticket_status_record_id
@@ -16,6 +17,7 @@ class TicketUserStatusGateway:
         employee_id,
         user_ticket_id,
         status,
+        comment
         date_created
     )
     VALUES
@@ -23,6 +25,7 @@ class TicketUserStatusGateway:
         :employee_id,
         :ticket_id,
         :status,
+        :comment,
         :date_created
     )
     """

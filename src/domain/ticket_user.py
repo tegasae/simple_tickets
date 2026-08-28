@@ -1,6 +1,6 @@
 # src/domain/ticket_user.py
 
-from __future__ import annotations
+
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -26,8 +26,8 @@ class TicketUserStatus(StrEnum):
     @classmethod
     def can_transition(
         cls,
-        from_status: TicketUserStatus,
-        to_status: TicketUserStatus,
+        from_status: Self,
+        to_status: Self,
     ) -> bool:
         from_status = cls(from_status)
         to_status = cls(to_status)
@@ -37,7 +37,7 @@ class TicketUserStatus(StrEnum):
     @classmethod
     def is_terminal(
         cls,
-        status: TicketUserStatus,
+        status: Self,
     ) -> bool:
         return cls(status) in TERMINAL_TICKET_USER_STATUSES
 
@@ -103,7 +103,7 @@ def _validate_ticket_user_transitions() -> None:
 _validate_ticket_user_transitions()
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class StatusRecordTicketUser:
     """
     Неизменяемый факт изменения статуса TicketUser.

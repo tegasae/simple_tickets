@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from src.adapters.repositories.mappers.auxiliary import datetime_to_db
 from src.domain.ticket_user import (
     TicketUser,
     StatusRecordTicketUser,
@@ -28,6 +29,7 @@ class TicketUserMapper:
         "status_id",
         "employee_id",
         "status",
+        "comment",
         "date_created",
     ]
 
@@ -75,6 +77,38 @@ class TicketUserMapper:
                 else None
             ),
         }
+
+    @staticmethod
+    def comment_params(
+        *,
+        ticket_id: int,
+        comment: Comment,
+    ) -> dict:
+        return {
+            "ticket_id": ticket_id,
+            "employee_id": comment.employee_id,
+            "comment": comment.comment,
+            "date_created": datetime_to_db(
+                comment.date_created
+            ),
+        }
+
+    @staticmethod
+    def status_record_params(
+            *,
+            ticket_id: int,
+            record: StatusRecordTicketUser,
+    ) -> dict:
+        return {
+            "ticket_id": ticket_id,
+            "actor_employee_id": record.actor_employee_id or None,
+            "status": record.status.value,
+            "date_created": datetime_to_db(
+                record.date_created
+            ),
+            "comment": record.comment,
+        }
+
 
     @staticmethod
     def row_to_status(row):
