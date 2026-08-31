@@ -1,14 +1,14 @@
 # src/domain/statuses/ticket_status_record.py
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
+from typing import Self
 
-from src.domain.exceptions import ItemValidationError
+from src.domain.exceptions import ItemValidationError, DomainOperationError
 from src.domain.statuses.ticket_status import (
-    TicketStatus,
-    get_ticket_state,
+
+    get_ticket_state, TicketStatus,
 )
 
 
@@ -76,9 +76,80 @@ class TicketStatusRecord:
         self._validate_actual_times()
         self._validate_status_payload()
 
+    @classmethod
+    def create_new(cls,actor_employee_id:int):
+        return TicketStatusRecord(actor_employee_id=actor_employee_id,status=TicketStatus.CREATED,date_created=datetime.now(UTC))
+
+    @classmethod
+    def create_from_ticket_user(cls):
+        return TicketStatusRecord(status_id=0,
+            actor_employee_id=0,
+            status=TicketStatus.CREATED_FROM_TICKET_USER,
+            date_created=datetime.now(UTC),
+            executor_id=0,
+            planned_start_at=None,
+            planned_finish_at=None,
+            actual_started_at=None,
+            actual_finished_at=None,
+            comment="")
+
+    def validate_review_transition(self,record: Self):
+
+        """
+                Проверяет два разных способа попасть в READY_FOR_REVIEW.
+
+                Онлайн-workflow:
+                    AT_WORK -> READY_FOR_REVIEW
+
+                    actual_started_at не передаётся:
+                    начало уже отражено status record AT_WORK.
+
+                Ретроспективная регистрация:
+                    SCHEDULED / ASSIGNED / READY_TO_WORK
+                    -> READY_FOR_REVIEW
+
+                    actual_started_at обязателен.
+                """
+        if record.status != TicketStatus.READY_FOR_REVIEW:
+            return
+
+
+
+        if self.status == TicketStatus.AT_WORK:
+            if record.actual_started_at is not None:
+                raise DomainOperationError(
+                    "AT_WORK -> READY_FOR_REVIEW must not provide "
+                    "actual_started_at",
+                )
+            return
+
+        if self.status in {
+            TicketStatus.SCHEDULED,
+            TicketStatus.ASSIGNED,
+            TicketStatus.READY_TO_WORK,
+        }:
+            if record.actual_started_at is None:
+                raise DomainOperationError(
+                    "Retrospective work registration requires "
+                    "actual_started_at",
+                )
+            return
+        raise DomainOperationError(
+            "READY_FOR_REVIEW can be reached only from "
+            "AT_WORK, SCHEDULED, ASSIGNED, or READY_TO_WORK",
+        )
+
+    def online_work(self)->bool:
+        return self.status==TicketStatus.AT_WORK
+
+    def offline_work(self)->bool:
+        return self.status == TicketStatus.READY_FOR_REVIEW
+
     def is_new(self) -> bool:
         return self.status_id == 0
 
+    def is_terminal(self):
+        return get_ticket_state(self.status).terminal
 
     def has_executor(self) -> bool:
         return self.executor_id > 0
@@ -94,6 +165,12 @@ class TicketStatusRecord:
 
     def has_actual_finished(self) -> bool:
         return self.actual_finished_at is not None
+
+    def can_update_text(self)->bool:
+        state = get_ticket_state(
+            self.status,
+        )
+        return state.allows_ticket_text_update
 
     def _validate_identity(self) -> None:
         if self.status_id < 0:
@@ -131,6 +208,13 @@ class TicketStatusRecord:
             raise ItemValidationError(
                 "Executor ID cannot be negative"
             )
+
+    def created_from_ticket_user_to_accepted(self,record:Self)->bool:
+        if self.status == TicketStatus.CREATED_FROM_TICKET_USER and record.status == TicketStatus.ACCEPTED:
+            return True
+        else:
+            return False
+
 
     def _validate_time_ranges(self) -> None:
         if (
@@ -173,40 +257,28 @@ class TicketStatusRecord:
     def _validate_status_payload(self) -> None:
         state = get_ticket_state(self.status)
 
-        if self.status == TicketStatus.DEFERRED and not self.comment:
+        if state.requires_comment and not self.comment:
             raise ItemValidationError(
-                "DEFERRED requires comment"
+                f"Status {self.status.value} requires comment"
             )
-        if self.status == TicketStatus.REJECTED and not self.comment:
+
+        if state.requires_executor and self.executor_id <= 0:
             raise ItemValidationError(
-                "REJECTED requires comment"
+                f"Status {self.status.value} requires executor"
             )
-        if self.status == TicketStatus.CANCELLED and not self.comment:
+
+        if not state.requires_executor and self.executor_id != 0:
             raise ItemValidationError(
-                "CANCELLED requires comment"
+                f"Status {self.status.value} cannot have executor"
             )
-        self._validate_executor_payload(
-            requires_executor=state.requires_executor,
-        )
+
+
         self._validate_planned_payload(
             requires_planned_start=state.requires_planned_start,
         )
         self._validate_actual_payload()
 
-    def _validate_executor_payload(
-        self,
-        *,
-        requires_executor: bool,
-    ) -> None:
-        if requires_executor and self.executor_id <= 0:
-            raise ItemValidationError(
-                f"Status {self.status.value} requires executor"
-            )
 
-        if not requires_executor and self.executor_id != 0:
-            raise ItemValidationError(
-                f"Status {self.status.value} cannot have executor"
-            )
 
     def _validate_planned_payload(
         self,

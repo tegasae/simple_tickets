@@ -58,7 +58,7 @@ class TicketState:
     """
 
     status: TicketStatus
-
+    first_status:bool=False
     terminal: bool = False
     requires_executor: bool = False
     requires_planned_start: bool = False
@@ -66,6 +66,7 @@ class TicketState:
     locks_department_change: bool = False
     allows_ticket_text_update: bool = False
     allowed_next: frozenset[TicketStatus] = frozenset()
+    requires_comment:bool=False
 
     def allows_transition_to(
         self,
@@ -77,6 +78,7 @@ class TicketState:
 _TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
     TicketStatus.CREATED: TicketState(
         status=TicketStatus.CREATED,
+        first_status=True,
         allows_ticket_text_update=True,
         allowed_next=frozenset({
             TicketStatus.ACCEPTED,
@@ -86,6 +88,7 @@ _TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
 
     TicketStatus.CREATED_FROM_TICKET_USER: TicketState(
         status=TicketStatus.CREATED_FROM_TICKET_USER,
+        first_status=True,
         allowed_next=frozenset({
             TicketStatus.ACCEPTED,
             TicketStatus.REJECTED,
@@ -96,6 +99,7 @@ _TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
     TicketStatus.REJECTED: TicketState(
         status=TicketStatus.REJECTED,
         terminal=True,
+        requires_comment=True
     ),
 
     TicketStatus.ACCEPTED: TicketState(
@@ -112,6 +116,7 @@ _TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
 
     TicketStatus.DEFERRED: TicketState(
         status=TicketStatus.DEFERRED,
+        requires_comment=True,
         allowed_next=frozenset({
             TicketStatus.ACCEPTED,
             TicketStatus.SCHEDULED,
@@ -222,6 +227,7 @@ _TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
 
     TicketStatus.CANCELLED: TicketState(
         status=TicketStatus.CANCELLED,
+        requires_comment=True,
         terminal=True,
     ),
 

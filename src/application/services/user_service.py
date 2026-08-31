@@ -38,15 +38,6 @@ class UserApplicationService:
     # Helpers
     # --------------------------------
 
-    def _validate_references(self, user_dto: UserDTO):
-        actor_admin = self.uow.admins.get(admin_id=user_dto.actor_admin_id)
-        TicketPolicy.ensure_admin_enabled(actor_admin)
-        if user_dto.client_id:
-            client = self.uow.clients.get(client_id=user_dto.client_id)
-            TicketPolicy.ensure_client_enabled(client)
-        if user_dto.employee_id:
-            admin = self.uow.admins.get(admin_id=user_dto.employee_id)
-            TicketPolicy.ensure_admin_enabled(admin)
 
 
     def _save_and_to_dto(self, user: User) -> UserResponseDTO:
@@ -135,11 +126,12 @@ class UserApplicationService:
 
     def detach_account(self, *, user_dto: UserDTO) -> UserResponseDTO:
         with self.uow:
-            self._validate_references(user_dto=user_dto)
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.USER_OPERATION,
             )
+            client = self.uow.clients.get(client_id=user_dto.client_id)
+            TicketPolicy.ensure_client_enabled(client)
             user = self.uow.users.get(user_id=user_dto.employee_id)
             user.remove_account()
 

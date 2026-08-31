@@ -64,6 +64,8 @@ class TicketRepository(ABC):
     ) -> Ticket:
         raise NotImplementedError
 
+
+
     # ----------------------------
     # Persistence
     # ----------------------------
