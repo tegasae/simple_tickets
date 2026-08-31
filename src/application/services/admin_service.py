@@ -1,6 +1,6 @@
 # src/application/services/admin_service.py
-from src.application.assemblers.assembler import AdminAssembler
-from src.application.dto.employee_dto import AdminDTO, AdminResponseDTO
+from src.application.assemblers.assembler import AdminAssembler, PermissionAssembler
+from src.application.dto.employee_dto import AdminDTO, AdminResponseDTO, PermissionsResponseDTO
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.application.helper.employee_helper import EmployeeHelper
 from src.domain.employee import Admin
@@ -170,15 +170,20 @@ class AdminApplicationService:
     def revoke_role(self, *, admin_dto: AdminDTO) -> AdminResponseDTO:
         with self.uow:
             actor=self.actor.require_actor_admin(actor_admin_id=admin_dto.actor_admin_id,
-                                           permission=AdminPermission.ROLE_REVOKE)
+                                           permission=AdminPermission.ROLE_ASSIGN)
             admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
             self.role_manager.revoke_roles(actor=actor, target=admin, role_ids=frozenset(admin_dto.roles),
-                                           required_permission=AdminPermission.ROLE_REVOKE)
+                                           required_permission=AdminPermission.ROLE_ASSIGN)
 
             return self._save_and_to_dto(admin)
 
-
-
+    def get_permissions(self,*, admin_dto:AdminDTO)->PermissionsResponseDTO:
+        with self.uow:
+            self.actor.require_actor_admin(actor_admin_id=admin_dto.actor_admin_id,
+                                           permission=AdminPermission.ADMIN_OPERATION)
+            admin = self.uow.admins.get(admin_id=admin_dto.employee_id)
+            p=self.role_manager.auth.permissions_of(subject=admin)
+            return PermissionAssembler.to_admin_dto(permissions=frozenset(p))
     # --------------------------------
     # Enable / disable
     # --------------------------------
@@ -291,6 +296,5 @@ class AdminApplicationService:
                                            permission=AdminPermission.ADMIN_VIEW)
 
             return [AdminAssembler.to_dto(admin) for admin in self.uow.admins.get_all()]
-
 
 

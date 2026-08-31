@@ -22,7 +22,6 @@ def prepare_actor_and_client(uow):
                     AdminPermission.USER_OPERATION,
                     AdminPermission.USER_OPERATION,
                     AdminPermission.ROLE_ASSIGN,
-                    AdminPermission.ROLE_REVOKE,
                 }
             ),
         )

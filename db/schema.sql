@@ -15,7 +15,7 @@ CREATE TABLE employees (
 	date_created TEXT,
 	address TEXT,
 	enabled INTEGER DEFAULT (1),
-	version INTEGER,
+	version INTEGER DEFAULT 0,
 	is_admin INTEGER);
 CREATE TABLE admins (
     employee_id INTEGER NOT NULL PRIMARY KEY,
@@ -46,8 +46,8 @@ CREATE TABLE clients (
 	address TEXT,
 	email TEXT,
 	phone TEXT,
-	enabled INTEGER, version INTEGER,
-	date_created TEXT,
+	enabled INTEGER, version INTEGER DEFAULT 0,
+	date_created TEXT, description TEXT DEFAULT (''),
 	CONSTRAINT clients_admins_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict
 );
 CREATE TABLE roles (
@@ -58,7 +58,7 @@ CREATE TABLE roles (
 	is_system_role INTEGER,
 	date_created TEXT,
 	is_admin INTEGER DEFAULT (1), 
-	version INTEGER);
+	version INTEGER DEFAULT 0);
 CREATE TABLE admins_roles (
   employee_id INTEGER NOT NULL,
   role_id INTEGER NOT NULL,
@@ -87,7 +87,7 @@ CREATE TABLE user_tickets_status_record (
 	employee_id INTEGER,
 	user_ticket_id INTEGER,
 	status TEXT,
-	date_created TEXT,
+	date_created TEXT, comment TEXT,
 	CONSTRAINT tickets_status_record_tickets_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict,
 	CONSTRAINT tickets_status_record_employees_FK FOREIGN KEY (employee_id) REFERENCES employees(employee_id) on delete restrict
 );
@@ -106,17 +106,13 @@ CREATE TABLE user_tickets (
 	user_ticket_contact_user_id INTEGER DEFAULT NULL, -- контактное лицо по заявке, может не быть
 	text_of_ticket TEXT, -- текст заявки 
 	date_created TEXT,
-	version INTEGER, 
+	version INTEGER DEFAULT 0,
 	date_closed TEXT, -- дата завершения или снятия заявки 
-	is_closed INTEGER, description TEXT,
+	is_closed INTEGER, description TEXT, urgency_level INTEGER DEFAULT (0) NOT NULL,
 	CONSTRAINT user_tickets_users_FK FOREIGN KEY (user_id) REFERENCES employees(employee_id) on delete restrict,
 	CONSTRAINT user_tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
 	CONSTRAINT user_tickets_user_ticket_contact_user_FK FOREIGN KEY (user_ticket_contact_user_id) REFERENCES employees(employee_id) on delete restrict
 );
-CREATE UNIQUE INDEX accounts_login_IDX ON accounts (login);
-CREATE UNIQUE INDEX accounts_employee_uq ON accounts(employee_id);
-CREATE UNIQUE INDEX idx_departments_name
-ON departments(name);
 CREATE TABLE ticket_comments (
     ticket_comment_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -134,10 +130,6 @@ CREATE TABLE ticket_comments (
         REFERENCES employees(employee_id)
         ON DELETE RESTRICT
 );
-CREATE INDEX idx_ticket_comments_ticket_id
-ON ticket_comments(ticket_id, ticket_comment_id);
-CREATE INDEX idx_ticket_comments_employee_id
-ON ticket_comments(employee_id);
 CREATE TABLE tickets (
     ticket_id INTEGER PRIMARY KEY AUTOINCREMENT,
     client_id INTEGER NOT NULL,
@@ -158,7 +150,7 @@ CREATE TABLE tickets (
 
     urgency_level INTEGER NOT NULL DEFAULT 0,
 
-    version INTEGER NOT NULL DEFAULT 0,
+    version INTEGER DEFAULT 0,
 
     FOREIGN KEY (client_id)
         REFERENCES clients(client_id)
@@ -209,3 +201,11 @@ CREATE TABLE ticket_status_records (
         REFERENCES admins(employee_id)
         ON DELETE RESTRICT
 );
+CREATE UNIQUE INDEX accounts_login_IDX ON accounts (login);
+CREATE UNIQUE INDEX accounts_employee_uq ON accounts(employee_id);
+CREATE UNIQUE INDEX idx_departments_name
+ON departments(name);
+CREATE INDEX idx_ticket_comments_ticket_id
+ON ticket_comments(ticket_id, ticket_comment_id);
+CREATE INDEX idx_ticket_comments_employee_id
+ON ticket_comments(employee_id);

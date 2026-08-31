@@ -294,20 +294,6 @@ class TicketApplicationService:
 
             ticket.change_department(department_id=ticket_dto.department_id)
 
-
-            if ticket.user_ticket_id != 0:
-                ticket_user = self.uow.user_tickets.get(ticket.user_ticket_id)
-
-                TicketPolicy.ensure_ticket_matches_ticket_user(
-                    ticket=ticket,
-                    ticket_user=ticket_user,
-                )
-
-                ticket_user.department_id = ticket_dto.department_id
-
-
-                self.uow.user_tickets.save(ticket_user)
-
             return self._save_commit_and_to_dto(ticket)
     # --------------------------------
     # Management status operations

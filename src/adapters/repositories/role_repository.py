@@ -100,4 +100,5 @@ class RoleRepositorySQLite(BaseRepository,RoleRepository[P], Generic[P]):
             ["one"],
             {"role_id": role_id},
         )
-        return bool(row)
+
+        return row is not None

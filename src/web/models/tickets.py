@@ -43,6 +43,15 @@ class TicketDeferRequest(TicketRequiredCommentRequest):
     pass
 
 
+class TicketChangeDepartmentRequest(BaseModel):
+    department_id:int
+
+
+class TicketUpdateDetailsRequest(BaseModel):
+    description:str=""
+    contact_user_id: int = Field(default=0, ge=0)
+    is_remote: bool = False
+
 class TicketScheduleRequest(BaseModel):
     planned_start_at: datetime
     planned_finish_at: datetime | None = None
@@ -139,14 +148,14 @@ class TicketResponse(BaseModel):
     text_of_ticket: str
     description: str
 
-    date_created: str
-    date_finished: str | None
+    date_created: datetime
+    date_finished: datetime | None
 
     is_remote: bool
     urgency_level: int
 
     version: int
     is_closed: bool
-
+    time_spent:int
     statuses: list[dict[str, Any]]
     comments: list[dict[str, Any]]

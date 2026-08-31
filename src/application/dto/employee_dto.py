@@ -27,6 +27,7 @@ class AdminDTO(EmployeeDTO):
 
 
 
+
 @dataclass(kw_only=True)
 class UserDTO(EmployeeDTO):
     client_id: int =0
@@ -46,7 +47,7 @@ class EmployeeResponseDTO:
     enabled_login: bool
     date_created: str
     roles: frozenset[int] = field(default_factory=frozenset)
-
+    permissions: frozenset[str] = field(default_factory=frozenset)
 
 @dataclass(kw_only=True,frozen=True)
 class AdminResponseDTO(EmployeeResponseDTO):
@@ -56,3 +57,10 @@ class AdminResponseDTO(EmployeeResponseDTO):
 @dataclass(kw_only=True,frozen=True)
 class UserResponseDTO(EmployeeResponseDTO):
     client_id: int
+
+
+@dataclass(kw_only=True,frozen=True)
+class PermissionsResponseDTO:
+    permissions:tuple[str,...]=field(default_factory=tuple)
+
+

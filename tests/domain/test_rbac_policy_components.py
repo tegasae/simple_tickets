@@ -111,7 +111,7 @@ def test_authorizer_requires_existing_permission(admin_with_all_permissions):
 
 def test_role_manager_grants_and_revokes_roles_after_permission_check(admin_with_all_permissions, other_admin):
     roles = {
-        1: Role(role_id=1, name="root", permissions=frozenset({AdminPermission.ROLE_ASSIGN, AdminPermission.ROLE_REVOKE})),
+        1: Role(role_id=1, name="root", permissions=frozenset({AdminPermission.ROLE_ASSIGN, AdminPermission.ROLE_ASSIGN})),
         2: Role(role_id=2, name="operator", permissions=frozenset({AdminPermission.TICKET_OPERATION})),
     }
 
@@ -121,10 +121,10 @@ def test_role_manager_grants_and_revokes_roles_after_permission_check(admin_with
 
     manager = RoleManager(Authorizer(Repo()), Repo())
 
-    manager.grant_role(admin_with_all_permissions, other_admin, 2, required_permission=AdminPermission.ROLE_REVOKE)
+    manager.grant_role(admin_with_all_permissions, other_admin, 2, required_permission=AdminPermission.ROLE_ASSIGN)
     assert 2 in other_admin.role_ids()
 
-    manager.revoke_role(admin_with_all_permissions, other_admin, 2, required_permission=AdminPermission.ROLE_REVOKE)
+    manager.revoke_role(admin_with_all_permissions, other_admin, 2, required_permission=AdminPermission.ROLE_ASSIGN)
     assert 2 not in other_admin.role_ids()
 
 

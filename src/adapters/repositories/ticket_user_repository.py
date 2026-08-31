@@ -34,6 +34,7 @@ class TicketUserRepositorySQLite(BaseRepository, TicketUserRepository):
                 status_id=r["status_id"],
                 actor_employee_id=r["employee_id"],
                 status=StatusTicketOfClient(r["status"]),
+                comment=r["comment"],
                 date_created=datetime.fromisoformat(r["date_created"])
             )
             statuses.append(s)
@@ -57,12 +58,40 @@ class TicketUserRepositorySQLite(BaseRepository, TicketUserRepository):
             comments.append(c)
         return comments
 
-    def _load_ticket_user(self,row:dict)->TicketUser:
-        statuses=self._load_statuses(ticket_user_id=row["ticket_id"])
-        comments=self._load_comments(ticket_user_id=row["ticket_id"])
-        ticket_user = TicketUserMapper.row_to_ticket(row, statuses,comments)
+    #def _load_ticket_user(self,row:dict)->TicketUser:
+    #    statuses=self._load_statuses(ticket_user_id=row["ticket_id"])
+    #    comments=self._load_comments(ticket_user_id=row["ticket_id"])
+    #    ticket_user = TicketUserMapper.row_to_ticket(row, statuses,comments)
+    #
+    #    return ticket_user
 
-        return ticket_user
+
+
+
+
+    def _append_new_comments(self, ticket_user: TicketUser) -> None:
+        for comment in ticket_user.new_comments():
+            result = self._exec(
+                TicketUserCommentGateway.INSERT,
+                TicketUserMapper.comment_params(
+                    ticket_id=ticket_user.ticket_id,
+                    comment=comment,
+                ),
+            )
+
+            comment.comment_id = result.last_row_id
+
+    def _append_new_statuses(self, ticket_user: TicketUser) -> None:
+        for record in ticket_user.new_statuses():
+            result = self._exec(
+                TicketUserStatusGateway.INSERT,
+                TicketUserMapper.status_record_params(
+                    ticket_id=ticket_user.ticket_id,
+                    record=record,
+                ),
+            )
+
+            record.status_id = result.last_row_id
 
 
     # -------------------------

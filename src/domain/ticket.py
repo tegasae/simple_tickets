@@ -5,10 +5,8 @@ from datetime import UTC, datetime, timezone
 from typing import Self
 
 from src.domain.exceptions import DomainOperationError, ItemValidationError
-from src.domain.statuses.ticket_status import (
-    TicketStatus,
-    get_ticket_state,
-)
+from src.domain.statuses.ticket_status import get_ticket_state1
+
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 
 
@@ -68,6 +66,7 @@ class Ticket:
     is_remote: bool = False
 
     is_closed: bool = False
+
     date_finished: datetime | None = None
 
     version: int = 0
@@ -137,11 +136,7 @@ class Ticket:
             description=description,
             date_created=now,
             statuses=[
-                TicketStatusRecord(
-                    actor_employee_id=admin_id,
-                    status=TicketStatus.CREATED,
-                    date_created=now,
-                ),
+                TicketStatusRecord.create_new(actor_employee_id=admin_id)
             ],
         )
 
@@ -218,18 +213,6 @@ class Ticket:
 
         now = date_created or datetime.now(UTC)
 
-        created_status = TicketStatusRecord(
-            status_id=0,
-            actor_employee_id=0,
-            status=TicketStatus.CREATED_FROM_TICKET_USER,
-            date_created=now,
-            executor_id=0,
-            planned_start_at=None,
-            planned_finish_at=None,
-            actual_started_at=None,
-            actual_finished_at=None,
-            comment="",
-        )
 
         return cls(
             ticket_id=ticket_id,
@@ -238,7 +221,7 @@ class Ticket:
             user_id=user_id,
             contact_user_id=contact_user_id,
             text_of_ticket=text_of_ticket,
-            statuses=[created_status],
+            statuses=[TicketStatusRecord.create_from_ticket_user()],
             comments=[],
             date_created=now,
             department_id=department_id,
@@ -399,8 +382,10 @@ class Ticket:
             raise DomainOperationError(
                 "Ticket text_of_ticket cannot be empty",
             )
-
+        self._validate_status_history()
         self._recompute_closed_state()
+
+
 
     # ----------------------------
     # Queries
@@ -409,13 +394,6 @@ class Ticket:
     def is_new(self) -> bool:
         return self.ticket_id == 0
 
-    def current_status(self) -> TicketStatus:
-        if not self.statuses:
-            raise DomainOperationError(
-                "Ticket has no status history",
-            )
-
-        return self.statuses[-1].status
 
     def current_status_record(self) -> TicketStatusRecord:
         if not self.statuses:
@@ -446,29 +424,8 @@ class Ticket:
         return self.current_executor_id() > 0
 
     def is_terminal(self) -> bool:
-        return get_ticket_state(
-            self.current_status(),
-        ).terminal
+        return self.current_status_record().is_terminal()
 
-    def can_change_status(
-        self,
-        new_status: TicketStatus,
-    ) -> bool:
-        """
-        Проверяет допустимость перехода из текущего TicketState.
-
-        Метод не изменяет aggregate.
-        """
-        current_state = get_ticket_state(
-            self.current_status(),
-        )
-
-        if current_state.terminal:
-            return False
-
-        return current_state.allows_transition_to(
-            TicketStatus(new_status),
-        )
 
     def new_statuses(self) -> list[TicketStatusRecord]:
         """
@@ -505,25 +462,25 @@ class Ticket:
           для конкретного исходного статуса;
         - при принятии Ticket из TicketUser фиксируется admin_id.
         """
-        self._ensure_not_terminal()
+        #self._ensure_not_terminal()
+        status=record.status
+        new_state=get_ticket_state(record.status)
 
-        previous_status = self.current_status()
-
-        if not self.can_change_status(record.status):
+        previous_status = self.current_status_record().status
+        previous_state=get_ticket_state(previous_status)
+        previous_state.allows_transition_to(status)
+        if previous_state.allows_transition_to(status):
             raise DomainOperationError(
                 "Ticket status transition is not allowed: "
                 f"{previous_status.value} -> "
                 f"{record.status.value}",
             )
 
-        self._validate_review_transition(record)
+        self.current_status_record().validate_review_transition(record=record)
 
         self.statuses.append(record)
 
-        if (
-            previous_status == TicketStatus.CREATED_FROM_TICKET_USER
-            and record.status == TicketStatus.ACCEPTED
-        ):
+        if self.current_status_record().created_from_ticket_user_to_accepted(record=record):
             self.admin_id = record.actor_employee_id
 
         self._recompute_closed_state()
@@ -569,7 +526,7 @@ class Ticket:
             )
 
         current_state = get_ticket_state(
-            self.current_status(),
+            self.current_status_record().status,
         )
 
         if current_state.locks_department_change:
@@ -584,20 +541,15 @@ class Ticket:
         *,
         text_of_ticket: str,
     ) -> None:
-        state = get_ticket_state(
-            self.current_status_record().status,
-        )
-
+        if not self.current_status_record().can_update_text():
+            raise DomainOperationError(
+                "Ticket text cannot be changed in the current status.",
+            )
         text_of_ticket = text_of_ticket.strip()
 
         if not text_of_ticket:
             raise DomainOperationError(
                 "The text can't be empty",
-            )
-
-        if not state.allows_ticket_text_update:
-            raise DomainOperationError(
-                "Ticket text cannot be changed in the current status.",
             )
 
         self.text_of_ticket = text_of_ticket
@@ -625,60 +577,13 @@ class Ticket:
     # Internal workflow helpers
     # ----------------------------
 
-    def _validate_review_transition(
-        self,
-        record: TicketStatusRecord,
-    ) -> None:
-        """
-        Проверяет два разных способа попасть в READY_FOR_REVIEW.
 
-        Онлайн-workflow:
-            AT_WORK -> READY_FOR_REVIEW
-
-            actual_started_at не передаётся:
-            начало уже отражено status record AT_WORK.
-
-        Ретроспективная регистрация:
-            SCHEDULED / ASSIGNED / READY_TO_WORK
-            -> READY_FOR_REVIEW
-
-            actual_started_at обязателен.
-        """
-        if record.status != TicketStatus.READY_FOR_REVIEW:
-            return
-
-        previous_status = self.current_status()
-
-        if previous_status == TicketStatus.AT_WORK:
-            if record.actual_started_at is not None:
-                raise DomainOperationError(
-                    "AT_WORK -> READY_FOR_REVIEW must not provide "
-                    "actual_started_at",
-                )
-            return
-
-        if previous_status in {
-            TicketStatus.SCHEDULED,
-            TicketStatus.ASSIGNED,
-            TicketStatus.READY_TO_WORK,
-        }:
-            if record.actual_started_at is None:
-                raise DomainOperationError(
-                    "Retrospective work registration requires "
-                    "actual_started_at",
-                )
-            return
-
-        raise DomainOperationError(
-            "READY_FOR_REVIEW can be reached only from "
-            "AT_WORK, SCHEDULED, ASSIGNED, or READY_TO_WORK",
-        )
 
     def _ensure_not_terminal(self) -> None:
         if self.is_terminal():
             raise DomainOperationError(
                 f"The ticket {self.ticket_id} is in terminal status "
-                f"{self.current_status().value}",
+                f"{self.current_status_record().status.value}",
             )
 
     def _recompute_closed_state(self) -> None:
@@ -700,6 +605,29 @@ class Ticket:
             )
         else:
             self.date_finished = None
+
+    def _validate_status_history(self)->None:
+        if not self.statuses:
+            raise DomainOperationError(
+                "TicketUser must have status history",
+            )
+        state = get_ticket_state(self.statuses[0].status)
+
+
+        if not state.first_status:
+            raise DomainOperationError(
+                f"Ticket can't be in first status {self.statuses[0].status.value}",
+            )
+
+        for index in range(1, len(self.statuses)):
+            previous_status = self.statuses[index - 1].status
+            current_status = self.statuses[index].status
+            state=get_ticket_state(previous_status)
+            if not state.allows_transition_to(current_status):
+                raise DomainOperationError(
+                    "Invalid TicketUser status history: "
+                    f"{previous_status.value} -> {current_status.value}",
+                )
 
     # ----------------------------
     # Analytics
@@ -735,7 +663,7 @@ class Ticket:
                 else None
             )
 
-            if current_record.status == TicketStatus.AT_WORK:
+            if current_record.online_work():
                 finish_at = (
                     next_record.date_created
                     if next_record is not None
@@ -747,7 +675,7 @@ class Ticket:
                     finish_at,
                 )
 
-            elif current_record.status == TicketStatus.READY_FOR_REVIEW:
+            elif current_record.offline_work():
                 total_seconds += self._retrospective_work_seconds(
                     current_record,
                 )

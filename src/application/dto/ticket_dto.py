@@ -63,14 +63,15 @@ class TicketResponseDTO:
     text_of_ticket: str
     description: str
 
-    date_created: str
-    date_finished: str | None
+    date_created:datetime
+    date_finished: datetime | None
 
     is_remote: bool
     urgency_level: int
 
     version: int
     is_closed: bool
+    time_spent:int=0
 
     statuses: list[dict[str, object]] = field(default_factory=list)
     comments: list[dict[str, object]] = field(default_factory=list)

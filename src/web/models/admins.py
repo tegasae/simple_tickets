@@ -126,3 +126,13 @@ class AdminResponse(BaseModel):
         if value is None:
             return set()
         return value
+
+
+class PermissionsResponse(BaseModel):
+    """
+    Request body for password change.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    permissions:tuple[str,...]=Field(default_factory=tuple)

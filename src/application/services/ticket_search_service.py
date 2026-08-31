@@ -2,49 +2,29 @@
 from src.application.assemblers.assembler import TicketAssembler
 from src.application.dto.ticket_dto import TicketResponseDTO
 from src.application.dto.ticket_search_dto import TicketSearchDTO
+from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.exceptions import DomainOperationError
-from src.domain.repositories.ticket_repository import (
-    TicketRepository,
-    TicketSearchCriteria,
-)
+from src.domain.repositories.ticket_repository import TicketSearchCriteria
+from src.domain.uow.unit_of_work import UnitOfWork
 
 
-class AdminTicketSearchAccess:
-    """
-    Интерфейс/протокол проверки прав на просмотр заявок.
-
-    Реальную реализацию можно сделать через текущий Authorizer.
-    Здесь важно: TicketSearchService не знает о ролях и не знает о UoW.
-    """
-
-    def require_ticket_view(
-            self,
-            *,
-            actor_admin_id: int,
-    ) -> None:
-        raise NotImplementedError
 
 
 class TicketSearchService:
     def __init__(
             self,
             *,
-            tickets: TicketRepository,
-            access: AdminTicketSearchAccess,
-            assembler: TicketAssembler,
+            uow: UnitOfWork,
     ) -> None:
-        self._tickets = tickets
-        self._access = access
-        self._assembler = assembler
+        self.uow = uow
+        self.actor = EmployeeActorHelper(self.uow)
 
     def search(
             self,
             *,
             search_dto: TicketSearchDTO,
     ) -> list[TicketResponseDTO]:
-        self._access.require_ticket_view(
-            actor_admin_id=search_dto.actor_admin_id,
-        )
+
 
         self._validate(search_dto)
 
@@ -63,10 +43,10 @@ class TicketSearchService:
             offset=search_dto.offset,
         )
 
-        tickets = self._tickets.search(criteria)
+        tickets = self.uow.tickets.search(criteria)
 
         return [
-            self._assembler.to_response_dto(ticket)
+            TicketAssembler.to_dto(ticket)
             for ticket in tickets
         ]
 

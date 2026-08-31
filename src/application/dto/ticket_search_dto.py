@@ -24,3 +24,4 @@ class TicketSearchDTO:
 
     limit: int = 100
     offset: int = 0
+

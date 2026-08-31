@@ -1,35 +1,9 @@
-from datetime import datetime
 
+
+from src.adapters.repositories.mappers.auxiliary import dt_from_sqlite
 from src.domain.account import Account, NoAccount
 from src.domain.employee import User
 
-def _dt_to_sqlite_iso(dt: datetime) -> str:
-    return dt.isoformat(timespec="seconds")
-
-def _parse_dt(value) -> datetime:
-    """
-    Supports:
-      - int / float timestamps (seconds)
-      - ISO strings
-      - None -> now()
-    """
-    if value is None:
-        return datetime.now()
-
-    if isinstance(value, (int, float)):
-        # treat as unix seconds
-        try:
-            return datetime.fromtimestamp(value)
-        except (OverflowError, OSError, ValueError):
-            return datetime.now()
-
-    if isinstance(value, str):
-        try:
-            return datetime.fromisoformat(value)
-        except ValueError:
-            return datetime.now()
-
-    return datetime.now()
 
 
 
@@ -64,7 +38,7 @@ class UserMapper:
 
         user.enabled = bool(row["enabled"])
         user.version = int(row["version"] or 0)
-        user.date_created = _parse_dt(row.get("date_created"))
+        user.date_created = dt_from_sqlite(row.get("date_created"))
         user.account = UserMapper.row_to_account(row)
         return user
 
@@ -79,7 +53,7 @@ class UserMapper:
             "enabled": int(user.enabled),
             "version": int(user.version),
             # you said you prefer INTEGER for date_created:
-            "date_created":  _dt_to_sqlite_iso(user.date_created),
+            "date_created":  dt_from_sqlite(user.date_created),
             # required by EmployeeGateway.UPDATE
             "is_admin": 0,
         }
@@ -102,7 +76,7 @@ class UserMapper:
             "login": str(user.account.login),
             "password": user.account.password.value,  # hash string
             "enabled": int(user.account.enabled),
-            "date_created": _dt_to_sqlite_iso(user.account.date_created),
+            "date_created": dt_from_sqlite(user.account.date_created),
         }
 
     @staticmethod
@@ -117,5 +91,5 @@ class UserMapper:
             login=str(row.get("login") or ""),
             password_hash=str(row.get("password") or ""),
             enabled=bool(row.get("account_enabled", 1)),
-            date_created=_parse_dt(row.get("account_date_created")),
+            date_created=dt_from_sqlite(row.get("account_date_created")),
         )

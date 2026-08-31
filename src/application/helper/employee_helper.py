@@ -1,9 +1,7 @@
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.role import Authorizer, RoleManager
-from src.services.uow.uow import UnitOfWork
-
-
+from src.domain.uow.unit_of_work import UnitOfWork
 
 
 class EmployeeHelper:

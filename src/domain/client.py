@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Self
 
 from src.domain.exceptions import ItemValidationError
-from src.domain.value_objects import Email, Address, Phone, Name, Empty
+from src.domain.value_objects import Email, Address, Phone, Name, Empty, Description
 
 
 @dataclass
@@ -22,6 +22,7 @@ class Client:
         email: Client's email address (optional)
         address: Client's physical address (optional)
         phone: Client's phone number (optional)
+        description: Client's description (optional)
         created_by_admin_id: ID of admin who created this client
         enabled: Whether the client is active
         date_created: When the client record was created
@@ -32,6 +33,7 @@ class Client:
     email: Email | Empty = field(default_factory=Empty)
     address: Address | Empty = field(default_factory=Empty)
     phone: Phone |Empty = field(default_factory=Empty)
+    description: Description|Empty=field(default_factory=Empty)
     created_by_admin_id: int = 0
     enabled: bool = True
     date_created: datetime = field(default_factory=datetime.now)
@@ -46,6 +48,7 @@ class Client:
             email: str ="",
             address: str ="",
             phone: str ="",
+            description:str="",
             created_by_admin_id: int = 0,
             enabled: bool = True
     ) -> Self:
@@ -57,6 +60,7 @@ class Client:
             email: Client's email (optional)
             address: Client's address (optional)
             phone: Client's phone number (optional)
+            description: Client's description (optional)
             created_by_admin_id: ID of admin creating the client
             enabled: Whether client is active (defaults to True)
 
@@ -73,6 +77,7 @@ class Client:
                 email="john@example.com",
                 address="123 Main St",
                 phone="+1234567890",
+                description="Just text"
                 created_by_admin_id=1
             )
         """
@@ -90,7 +95,7 @@ class Client:
             email_obj = Email(email) if email else Empty()
             address_obj = Address(address) if address else Empty()
             phone_obj = Phone(phone) if phone else Empty()
-
+            description_obj=Description(description) if description else Empty()
             # Note: client_id is NOT set here - it should be assigned by repository
             # We raise an error to make this explicit
 
@@ -102,6 +107,7 @@ class Client:
                 email=email_obj,
                 address=address_obj,
                 phone=phone_obj,
+                description=description_obj,
                 created_by_admin_id=created_by_admin_id,
                 enabled=enabled
             )
@@ -127,21 +133,26 @@ class Client:
 
     def update_contact_info(
             self,
+            name: str="",
             email: str="",
             address: str="",
-            phone: str =""
+            phone: str ="",
+            description:str=""
     ) -> None:
         """Update client's contact information.
 
         Args:
+            name: New name if not empty
             email: New email (None to keep current)
             address: New address (None to keep current)
             phone: New phone (None to keep current)
-
+            description: New description
         Raises:
             DomainValidationError: If new values are invalid
         """
         try:
+            if name:
+                self.name=Name(name)
             if email is not None:
                 self.email = Email(email) if email else Empty()
 
@@ -149,7 +160,8 @@ class Client:
                 self.address = Address(address) if address else Empty()
             if phone is not None:
                 self.phone = Phone(phone) if phone else Empty()
-
+            if description is not None:
+                self.description = Description(description) if description else Empty()
 
         except ValueError as e:
             raise ItemValidationError(f"Invalid contact info: {e}") from e
@@ -165,6 +177,7 @@ class Client:
             "email": str(self.email) if self.email else "",
             "address": str(self.address) if self.address else "",
             "phone": str(self.phone) if self.phone else "",
+            "description": str(self.description) if self.description else ""
         }
 
     def __eq__(self, other: object) -> bool:

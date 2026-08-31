@@ -1,47 +1,16 @@
 # src/adapters/repositories/mappers/ticket_mapper.py
 
-from datetime import datetime, timezone
 
+
+from src.adapters.repositories.mappers.auxiliary import datetime_to_db, dt_from_sqlite
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket import Ticket
 from src.domain.ticket_components import Comment
 
 
-def _parse_datetime(value: str | datetime | None) -> datetime | None:
-    """
-    Converts SQLite TEXT datetime to timezone-aware datetime.
-
-    SQLite NULL / empty string becomes None.
-    Naive datetime from old data is interpreted as UTC.
-    """
-    if value is None or value == "":
-        return None
-
-    if isinstance(value, datetime):
-        dt = value
-    else:
-        dt = datetime.fromisoformat(value)
-
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-
-    return dt.astimezone(timezone.utc)
 
 
-def _datetime_to_db(value: datetime | None) -> str | None:
-    """
-    Converts domain datetime to SQLite TEXT.
-
-    All stored datetimes are normalized to UTC ISO-8601.
-    """
-    if value is None:
-        return None
-
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-
-    return value.astimezone(timezone.utc).isoformat()
 
 
 class TicketMapper:
@@ -88,7 +57,7 @@ class TicketMapper:
         statuses: list[TicketStatusRecord],
         comments: list[Comment],
     ) -> Ticket:
-        date_created = _parse_datetime(row["date_created"])
+        date_created = dt_from_sqlite(row["date_created"])
 
         if date_created is None:
             raise ValueError(
@@ -115,7 +84,7 @@ class TicketMapper:
 
     @staticmethod
     def row_to_comment(row: dict) -> Comment:
-        date_created = _parse_datetime(row["date_created"])
+        date_created = dt_from_sqlite(row["date_created"])
 
         if date_created is None:
             raise ValueError(
@@ -132,7 +101,7 @@ class TicketMapper:
 
     @staticmethod
     def row_to_status_record(row: dict) -> TicketStatusRecord:
-        date_created = _parse_datetime(row["date_created"])
+        date_created = dt_from_sqlite(row["date_created"])
 
         if date_created is None:
             raise ValueError(
@@ -146,16 +115,16 @@ class TicketMapper:
             status=TicketStatus(row["status"]),
             date_created=date_created,
             executor_id=row["executor_id"] or 0,
-            planned_start_at=_parse_datetime(
+            planned_start_at=dt_from_sqlite(
                 row["planned_start_at"]
             ),
-            planned_finish_at=_parse_datetime(
+            planned_finish_at=dt_from_sqlite(
                 row["planned_finish_at"]
             ),
-            actual_started_at=_parse_datetime(
+            actual_started_at=dt_from_sqlite(
                 row["actual_started_at"]
             ),
-            actual_finished_at=_parse_datetime(
+            actual_finished_at=dt_from_sqlite(
                 row["actual_finished_at"]
             ),
             comment=row["comment"] or "",
@@ -173,7 +142,7 @@ class TicketMapper:
             "department_id": ticket.department_id or None,
             "text_of_ticket": ticket.text_of_ticket,
             "description": ticket.description or None,
-            "date_created": _datetime_to_db(ticket.date_created),
+            "date_created": datetime_to_db(ticket.date_created),
             "is_remote": int(ticket.is_remote),
             "urgency_level": ticket.urgency_level,
             "version": ticket.version,
@@ -189,7 +158,7 @@ class TicketMapper:
             "ticket_id": ticket_id,
             "employee_id": comment.employee_id,
             "comment": comment.comment,
-            "date_created": _datetime_to_db(
+            "date_created": datetime_to_db(
                 comment.date_created
             ),
         }
@@ -204,7 +173,7 @@ class TicketMapper:
             "ticket_id": ticket_id,
             "actor_employee_id": record.actor_employee_id or None,
             "status": record.status.value,
-            "date_created": _datetime_to_db(
+            "date_created": datetime_to_db(
                 record.date_created
             ),
             "executor_id": (
@@ -212,16 +181,16 @@ class TicketMapper:
                 if record.executor_id != 0
                 else None
             ),
-            "planned_start_at": _datetime_to_db(
+            "planned_start_at": datetime_to_db(
                 record.planned_start_at
             ),
-            "planned_finish_at": _datetime_to_db(
+            "planned_finish_at": datetime_to_db(
                 record.planned_finish_at
             ),
-            "actual_started_at": _datetime_to_db(
+            "actual_started_at": datetime_to_db(
                 record.actual_started_at
             ),
-            "actual_finished_at": _datetime_to_db(
+            "actual_finished_at": datetime_to_db(
                 record.actual_finished_at
             ),
             "comment": record.comment,

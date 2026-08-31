@@ -205,6 +205,42 @@ class Name(ValueObject[str]):
 
 
 @dataclass(frozen=True, order=True)
+class Description(ValueObject[str]):
+    """Value object for validated description.
+
+    Attributes:
+        value: Name string
+        MIN_LENGTH: Minimum allowed description length
+        MAX_LENGTH: Maximum allowed description length
+    """
+    value: str
+    MIN_LENGTH: ClassVar[int] = 2
+    MAX_LENGTH: ClassVar[int] = 1000
+
+    def _validate(self) -> str:
+        """Validate description length and content.
+
+        Returns:
+            Normalized description
+
+        Raises:
+            ValueError: If description is invalid
+        """
+        new_value = self.value.strip()
+
+
+        if len(new_value) < self.MIN_LENGTH:
+            raise ValueError(f"Description must be at least {self.MIN_LENGTH} characters")
+
+        if len(new_value) > self.MAX_LENGTH:
+            raise ValueError(f"Description cannot exceed {self.MAX_LENGTH} characters")
+
+        return new_value
+
+
+
+
+@dataclass(frozen=True, order=True)
 class Login(ValueObject[str]):
     """Value object for user login/username.
 

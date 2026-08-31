@@ -4,6 +4,7 @@ from collections.abc import Generator
 
 from fastapi import Depends
 
+from src.adapters.uow.sqlite_unit_of_work import SQLiteUnitOfWork
 from src.application.factory import ApplicationServiceFactory
 from src.application.services.client_service import ClientApplicationService
 from src.application.services.ticket_user_service import TicketUserApplicationService
@@ -11,7 +12,7 @@ from src.application.services.ticket_service import TicketApplicationService
 from src.application.services.user_service import UserApplicationService
 from src.application.services.admin_service import AdminApplicationService
 
-from src.services.uow.uowsqlite import SQLiteUnitOfWork
+
 from utils.db.connect import Connection
 
 

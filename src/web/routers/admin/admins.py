@@ -14,7 +14,7 @@ from src.web.models.admins import (
     AdminCreateRequest,
     AdminResponse,
     AdminRolesRequest,
-    AdminUpdateRequest, AdminChangeDepartmentRequest,
+    AdminUpdateRequest, AdminChangeDepartmentRequest, PermissionsResponse,
 )
 
 
@@ -207,6 +207,29 @@ def get_all_admins(
     response_dtos = asf.admin_service().get_all(admin_dto=dto)
 
     return to_admin_responses(response_dtos)
+
+
+@router.get(
+    "/permissions",
+    response_model=PermissionsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get current admin permissions",
+    description="Get permissions of the current authenticated admin.",
+)
+def get_permissions(
+    asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
+):
+    dto = AdminDTO(
+        actor_admin_id=actor_admin_id,
+        employee_id=actor_admin_id,
+    )
+
+    response_dto = asf.admin_service().get_permissions(
+        admin_dto=dto,
+    )
+
+    return PermissionsResponse.model_validate(response_dto)
 
 
 @router.get(

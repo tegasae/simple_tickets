@@ -1,409 +1,505 @@
-import time
+from __future__ import annotations
 
-from fastapi import FastAPI, Request, Depends, HTTPException, status, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from pathlib import Path
+from typing import Any
+
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import httpx
-from typing import Optional, Any
+from pydantic import BaseModel, Field
 
-app = FastAPI(title="Admin Management Web App")
-
-# Mount static files and templates
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
-
-# Configuration
-API_BASE_URL = "http://127.0.0.1:8000"
-
-# Store tokens in memory (in production, use secure sessions)
-user_sessions = {}
+from .api_client import BackendApiError, BackendClient
+from .config import settings
 
 
-async def require_auth(request: Request) -> dict:
-    """Dependency that automatically redirects to login if not authenticated"""
-    token = request.cookies.get("access_token")
-    if not token or token not in user_sessions:
-        # Redirect to login if not authenticated
+BASE_DIR = Path(__file__).resolve().parent
+
+app = FastAPI(
+    title="Simple Tickets Frontend",
+    version="0.2.0",
+)
+
+app.mount(
+    "/static",
+    StaticFiles(directory=BASE_DIR / "static"),
+    name="static",
+)
+
+templates = Jinja2Templates(directory=BASE_DIR / "templates")
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+class ClientPayload(BaseModel):
+    name: str = ""
+    email: str = ""
+    address: str = ""
+    phone: str = ""
+    description: str = ""
+
+
+class ClientCreatePayload(ClientPayload):
+    name: str = Field(min_length=1)
+
+
+class ClientEnabledPayload(BaseModel):
+    enabled: bool
+
+
+class UserCreatePayload(BaseModel):
+    client_id: int = Field(gt=0)
+    first_name: str = Field(min_length=1)
+    last_name: str = ""
+    email: str = ""
+    phone: str = ""
+    login: str = ""
+    password: str = ""
+    enable: bool = True
+    enable_account: bool = True
+    roles: set[int] = Field(default_factory=set)
+
+
+class UserUpdatePayload(BaseModel):
+    first_name: str = ""
+    last_name: str = ""
+    email: str = ""
+    phone: str = ""
+
+
+class UserEnabledPayload(BaseModel):
+    enabled: bool
+
+
+class AttachAccountPayload(BaseModel):
+    login: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+    enable_account: bool = True
+
+
+class ChangePasswordPayload(BaseModel):
+    password: str = Field(min_length=1)
+
+
+# ---------------------------------------------------------------------------
+# Auth/cookie helpers.
+# ---------------------------------------------------------------------------
+
+
+def _get_access_token(request: Request) -> str:
+    return request.cookies.get(settings.access_cookie_name, "")
+
+
+def _get_refresh_token(request: Request) -> str:
+    return request.cookies.get(settings.refresh_cookie_name, "")
+
+
+def _require_access_token(request: Request) -> str:
+    access_token = _get_access_token(request)
+    if not access_token:
         raise HTTPException(
-            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
-            headers={"Location": "/login"}
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
         )
-    return user_sessions[token]
+    return access_token
 
 
-async def get_current_user_required(request: Request) -> dict:
-    """Dependency that returns the current user or redirects to login"""
-    token = request.cookies.get("access_token")
-
-    if not token or token not in user_sessions:
-        raise HTTPException(
-            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
-            headers={"Location": "/login"}
-        )
-
-    # Check if token needs refresh (you might want to decode and check expiration)
-    # For now, we'll assume all tokens might need refresh and try to refresh if API calls fail
-    return user_sessions[token]
+def _set_access_cookie(response: Response, access_token: str) -> None:
+    response.set_cookie(
+        key=settings.access_cookie_name,
+        value=access_token,
+        max_age=settings.access_cookie_max_age_seconds,
+        httponly=True,
+        secure=settings.secure_cookies,
+        samesite="lax",
+        path="/",
+    )
 
 
-async def refresh_access_token(refresh_token: str) -> Optional[dict]:
-    """Refresh the access token using refresh token"""
-    try:
-        response = await api_request(
-            "POST",
-            "/refresh",
-            json_data={"refresh_token": refresh_token}
-        )
-
-        if response.status_code == 200:
-            token_data = response.json()
-            return token_data
-        else:
-            return None
-    except Exception:
-        return None
+def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    response.set_cookie(
+        key=settings.refresh_cookie_name,
+        value=refresh_token,
+        max_age=settings.refresh_cookie_max_age_seconds,
+        httponly=True,
+        secure=settings.secure_cookies,
+        samesite="lax",
+        path="/",
+    )
 
 
-async def api_request_with_retry(
-        method: str,
-        endpoint: str,
-        token: Optional[str] = None,
-        form_data: Optional[dict] = None,
-        json_data: Optional[Any] = None,
-        params: Optional[dict] = None,
-        headers_data: Optional[dict] = None,
-        max_retries: int = 1
-):
-    """Enhanced API request that automatically refreshes token if expired"""
-
-    # First attempt
-    response = await api_request(method, endpoint, token, form_data, json_data, params, headers_data)
-
-    # If unauthorized and we have retries left, try to refresh token
-    if response.status_code == 401 and max_retries > 0 and token:
-        # Find the user session
-        user_session = None
-        for session_token, session_data in user_sessions.items():
-            if session_token == token:
-                user_session = session_data
-                break
-
-        if user_session and user_session.get("refresh_token"):
-            # Try to refresh the token
-            new_tokens = await refresh_access_token(user_session["refresh_token"])
-
-            if new_tokens:
-                # Update user session with new tokens
-                new_access_token = new_tokens["access_token"]
-                new_refresh_token = new_tokens.get("refresh_token", user_session["refresh_token"])
-
-                # Update session
-                user_sessions[new_access_token] = {
-                    **user_session,
-                    "access_token": new_access_token,
-                    "refresh_token": new_refresh_token
-                }
-
-                # Remove old token
-                if token in user_sessions:
-                    del user_sessions[token]
-
-                # Retry the request with new token
-                return await api_request(
-                    method, endpoint, new_access_token, form_data, json_data, params, headers_data
-                )
-
-    return response
+def _delete_auth_cookies(response: Response) -> None:
+    response.delete_cookie(key=settings.access_cookie_name, path="/")
+    response.delete_cookie(key=settings.refresh_cookie_name, path="/")
 
 
-async def api_request(method: str, endpoint: str, token: Optional[str] = None,
-                      form_data: Optional[dict] = None, json_data: Optional[Any] = None, params: Optional[dict] = None,
-                      headers_data: Optional[dict] = None):
-    """Helper function to make API requests to the backend"""
-    headers = {}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    if headers_data:
-        headers.update(headers_data)
-
-    arguments = {'headers': headers, 'params': params}
-
-    if json_data:
-        arguments['json'] = json_data
-    if form_data:
-        arguments['data'] = form_data
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.request(method, f"{API_BASE_URL}{endpoint}", **arguments)
-            return response
-        except httpx.ConnectError:
-            raise HTTPException(status_code=500, detail="Cannot connect to API server")
+def _extract_access_token(token_data: dict[str, Any]) -> str:
+    return _extract_token(token_data, ("access_token", "token", "access", "jwt"))
 
 
-# Routes
-@app.get("/", response_class=HTMLResponse)
-async def root(request: Request):
-    """Redirect to login page"""
+def _extract_refresh_token(token_data: dict[str, Any]) -> str:
+    return _extract_token(token_data, ("refresh_token", "refresh"))
+
+
+def _extract_token(token_data: dict[str, Any], keys: tuple[str, ...]) -> str:
+    for key in keys:
+        value = token_data.get(key)
+        if isinstance(value, str) and value:
+            return value
+
+    nested_data = token_data.get("data")
+    if isinstance(nested_data, dict):
+        for key in keys:
+            value = nested_data.get(key)
+            if isinstance(value, str) and value:
+                return value
+
+    return ""
+
+
+def _http_error_from_backend(exc: BackendApiError) -> HTTPException:
+    if exc.status_code == 502:
+        return HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=exc.detail)
+    return HTTPException(status_code=exc.status_code, detail=exc.detail)
+
+
+# ---------------------------------------------------------------------------
+# Pages.
+# ---------------------------------------------------------------------------
+
+
+@app.get("/", include_in_schema=False, response_model=None)
+def index(request: Request):
+    if _get_access_token(request):
+        return RedirectResponse(url="/clients")
     return RedirectResponse(url="/login")
 
 
-@app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    """Show login form"""
-    return templates.TemplateResponse("login.html", {"request": request})
+@app.get("/login", response_class=HTMLResponse, include_in_schema=False, response_model=None)
+def login_page(request: Request):
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "title": "Авторизация"},
+    )
 
 
-@app.post("/login")
-async def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    """Handle login form submission"""
-    form_data = {
-        "username": username,
-        "password": password,
-        "grant_type": "password"
-    }
-
-    response = await api_request("POST", "/token", form_data=form_data)
-
-    if response.status_code == 200:
-        token_data = response.json()
-        access_token = token_data["access_token"]
-        refresh_token = token_data.get("refresh_token")
-
-        # Store user session with both tokens
-        user_sessions[access_token] = {
-            "username": username,
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "login_time": time.time()  # Track when user logged in
-        }
-
-        # Redirect to dashboard with token in cookie
-        redirect_response = RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
-        redirect_response.set_cookie(key="access_token", value=access_token, httponly=True)
-
-        # Optionally store refresh token in a separate secure cookie
-        if refresh_token:
-            redirect_response.set_cookie(
-                key="refresh_token",
-                value=refresh_token,
-                httponly=True,
-                secure=True,  # Only send over HTTPS
-                max_age=30 * 24 * 60 * 60  # 30 days
-            )
-
-        return redirect_response
-    else:
-        return templates.TemplateResponse("login.html", {
-            "request": request,
-            "error": "Invalid username or password"
-        })
-
-
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request, current_user: dict = Depends(get_current_user_required)):
-    """Dashboard page - shows admin list"""
-
-    # Get admins list from API
-    response = await api_request("GET", "/admins/", current_user["access_token"])
-
-    if response.status_code == 200:
-        admins = response.json()
-    else:
-        admins = []
-
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "current_user": current_user,
-        "admins": admins
-    })
-
-
-@app.get("/admins", response_class=HTMLResponse)
-async def admins_list(request: Request, current_user: dict = Depends(get_current_user_required)):
-    """Admins management page"""
-
-    # Get admins list from API
-    response = await api_request("GET", "/admins/", current_user["access_token"])
-
-    if response.status_code == 200:
-        admins = response.json()
-    else:
-        admins = []
-
-    return templates.TemplateResponse("admins_list.html", {
-        "request": request,
-        "admins": admins,
-        "current_user": current_user
-    })
-
-
-@app.get("/admins/create", response_class=HTMLResponse)
-async def create_admin_page(request: Request, current_user: dict = Depends(get_current_user_required)):
-    """Show create admin form"""
-
-    return templates.TemplateResponse("create_admin.html", {"request": request})
-
-
-@app.post("/admins/create")
-async def create_admin(
-        request: Request,
-        name: str = Form(...),
-        email: str = Form(...),
-        password: str = Form(...),
-        enabled: bool = Form(True),
-        current_user: dict = Depends(get_current_user_required)
-):
-    """Handle create admin form submission"""
-
-    admin_data = {
-        "name": name,
-        "email": email,
-        "password": password,
-        "enabled": enabled
-    }
-
-    response = await api_request("POST", "/admins/", current_user["access_token"], json_data=admin_data,
-                                 headers_data={'Content-Type': 'application/json'})
-
-    if response.status_code == 201:
-        return RedirectResponse(url="/admins", status_code=status.HTTP_302_FOUND)
-    else:
-        return templates.TemplateResponse("create_admin.html", {
-            "request": request,
-            "error": f"Failed to create admin: {response.text}"
-        })
-
-
-@app.get("/admins/{admin_id}/edit", response_class=HTMLResponse)
-async def edit_admin_page(request: Request, admin_id: int, current_user: dict = Depends(get_current_user_required)):
-    """Show edit admin form"""
-
-    # Get admin data from API
-    response = await api_request("GET", f"/admins/{admin_id}", current_user["access_token"])
-
-    if response.status_code == 200:
-        admin = response.json()
-        return templates.TemplateResponse("edit_admin.html", {
-            "request": request,
-            "admin": admin
-        })
-    else:
-        return RedirectResponse(url="/admins")
-
-
-@app.post("/admins/{admin_id}/edit")
-async def edit_admin(
-        request: Request,
-        admin_id: int,
-        email: str = Form(None),
-        password: str = Form(None),
-        enabled: bool = Form(None),
-        current_user: dict = Depends(get_current_user_required)
-):
-    """Handle edit admin form submission"""
-
-    admin_data = {}
-    if email: admin_data["email"] = email
-    if password: admin_data["password"] = password
-    if enabled is not None:
-        admin_data["enabled"] = enabled
-    else:
-        admin_data["enabled"] = False
-    # json_data=json.dumps(admin_data)
-    response = await api_request("PUT", f"/admins/{admin_id}", current_user["access_token"],
-                                 json_data=admin_data, headers_data={'Content-Type': 'application/json'})
-
-    if response.status_code == 200:
-        return RedirectResponse(url="/admins", status_code=status.HTTP_302_FOUND)
-    else:
-        # Get admin data again for the form
-        admin_response = await api_request("GET", f"/admins/{admin_id}", current_user["access_token"])
-        admin = admin_response.json() if admin_response.status_code == 200 else {}
-
-        return templates.TemplateResponse("edit_admin.html", {
-            "request": request,
-            "admin": admin,
-            "error": f"Failed to update admin: {response.text}"
-        })
-
-
-@app.post("/admins/{admin_id}/delete")
-async def delete_admin(admin_id: int, current_user: dict = Depends(get_current_user_required)):
-    """Handle delete admin"""
-
-    response = await api_request("DELETE", f"/admins/{admin_id}", current_user["access_token"])
-
-    return RedirectResponse(url="/admins", status_code=status.HTTP_302_FOUND)
-
-
-@app.post("/admins/{admin_id}/toggle-status")
-async def toggle_admin_status(admin_id: int, current_user: dict = Depends(get_current_user_required)):
-    """Toggle admin status"""
-    if not current_user:
+@app.get("/clients", response_class=HTMLResponse, include_in_schema=False, response_model=None)
+def clients_page(request: Request):
+    if not _get_access_token(request):
         return RedirectResponse(url="/login")
 
-    response = await api_request("POST", f"/admins/{admin_id}/toggle-status", current_user["access_token"])
+    return templates.TemplateResponse(
+        "clients.html",
+        {
+            "request": request,
+            "title": "Клиенты",
+            "backend_base_url": settings.backend_base_url,
+        },
+    )
 
-    return RedirectResponse(url="/admins", status_code=status.HTTP_302_FOUND)
+
+# ---------------------------------------------------------------------------
+# Auth proxy.
+# ---------------------------------------------------------------------------
 
 
-@app.post("/logout")
-async def logout(request: Request):
-    """Handle logout - revoke both tokens"""
-    access_token = request.cookies.get("access_token")
-    refresh_token = request.cookies.get("refresh_token")
+@app.post("/frontend-api/login", response_model=None)
+async def login(payload: LoginRequest):
+    client = BackendClient()
 
-    if access_token and access_token in user_sessions:
-        # Call API logout with refresh token if available
-        session_refresh_token = user_sessions[access_token].get("refresh_token")
-        if session_refresh_token:
-            await api_request("POST", "/logout", json_data={"refresh_token": session_refresh_token})
+    try:
+        token_data = await client.login_admin(username=payload.username, password=payload.password)
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
 
-        # Remove session
-        del user_sessions[access_token]
+    access_token = _extract_access_token(token_data)
+    refresh_token = _extract_refresh_token(token_data)
 
-    # Also try to revoke the cookie refresh token
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Backend login response has no access token",
+        )
+
+    response = JSONResponse({"ok": True})
+    _set_access_cookie(response, access_token)
+
     if refresh_token:
-        await api_request("POST", "/logout", json_data={"refresh_token": refresh_token})
+        _set_refresh_cookie(response, refresh_token)
 
-    response = RedirectResponse(url="/login")
-    response.delete_cookie("access_token")
-    response.delete_cookie("refresh_token")
     return response
 
 
-async def validate_token(token: str) -> bool:
-    """Validate if the token is still valid"""
+@app.post("/frontend-api/logout", response_model=None)
+async def logout(request: Request):
+    access_token = _get_access_token(request)
+    client = BackendClient()
+
+    if access_token:
+        try:
+            await client.logout_admin(access_token=access_token)
+        except BackendApiError:
+            # Logout must clear local cookies even if backend is unavailable.
+            pass
+
+    response = JSONResponse({"ok": True})
+    _delete_auth_cookies(response)
+    return response
+
+
+@app.post("/frontend-api/refresh", response_model=None)
+async def refresh(request: Request):
+    refresh_token = _get_refresh_token(request)
+
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No refresh token")
+
+    client = BackendClient()
     try:
-        response = await api_request("GET", "/users/me", token)
-        return response.status_code == 200
-    except Exception:
-        return False
+        token_data = await client.refresh_admin(refresh_token=refresh_token)
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+    access_token = _extract_access_token(token_data)
+    new_refresh_token = _extract_refresh_token(token_data)
+
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Backend refresh response has no access token",
+        )
+
+    response = JSONResponse({"ok": True})
+    _set_access_cookie(response, access_token)
+
+    if new_refresh_token:
+        _set_refresh_cookie(response, new_refresh_token)
+
+    return response
 
 
-@app.get("/validate-session")
-async def validate_session(request: Request):
-    """Endpoint to validate and potentially refresh session"""
-    access_token = request.cookies.get("access_token")
-    refresh_token = request.cookies.get("refresh_token")
-
-    if access_token and access_token in user_sessions:
-        # Check if token is still valid
-        is_valid = await validate_token(access_token)
-
-        if is_valid:
-            return {"status": "valid"}
-        elif refresh_token:
-            # Try to refresh
-            new_tokens = await refresh_access_token(refresh_token)
-            if new_tokens:
-                return {"status": "refreshed", "new_token": new_tokens["access_token"]}
-
-    return {"status": "invalid"}
+@app.get("/frontend-api/permissions", response_model=None)
+async def get_permissions(access_token: str = Depends(_require_access_token)):
+    client = BackendClient()
+    try:
+        return await client.get_permissions(access_token=access_token)
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
 
 
-if __name__ == "__main__":
-    import uvicorn
+# ---------------------------------------------------------------------------
+# Clients proxy.
+# ---------------------------------------------------------------------------
 
-    uvicorn.run(app, host="127.0.0.1", port=8001)
+
+@app.get("/frontend-api/clients", response_model=None)
+async def get_clients(access_token: str = Depends(_require_access_token)):
+    client = BackendClient()
+    try:
+        return await client.get_clients(access_token=access_token)
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+
+@app.post("/frontend-api/clients", response_model=None)
+async def create_client(
+    payload: ClientCreatePayload,
+    access_token: str = Depends(_require_access_token),
+):
+    client = BackendClient()
+    try:
+        return await client.create_client(access_token=access_token, payload=payload.model_dump())
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+
+@app.get("/frontend-api/clients/{client_id}", response_model=None)
+async def get_client(
+    client_id: int,
+    access_token: str = Depends(_require_access_token),
+):
+    client = BackendClient()
+    try:
+        return await client.get_client(access_token=access_token, client_id=client_id)
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+
+@app.put("/frontend-api/clients/{client_id}/contact", response_model=None)
+async def update_client_contact(
+    client_id: int,
+    payload: ClientPayload,
+    access_token: str = Depends(_require_access_token),
+):
+    client = BackendClient()
+    try:
+        return await client.update_client_contact(
+            access_token=access_token,
+            client_id=client_id,
+            payload=payload.model_dump(),
+        )
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+
+@app.patch("/frontend-api/clients/{client_id}/enabled", response_model=None)
+async def set_client_enabled(
+    client_id: int,
+    payload: ClientEnabledPayload,
+    access_token: str = Depends(_require_access_token),
+):
+    client = BackendClient()
+    try:
+        if payload.enabled:
+            return await client.enable_client(access_token=access_token, client_id=client_id)
+        return await client.disable_client(access_token=access_token, client_id=client_id)
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+
+@app.delete("/frontend-api/clients/{client_id}", response_model=None)
+async def delete_client(
+    client_id: int,
+    access_token: str = Depends(_require_access_token),
+):
+    client = BackendClient()
+    try:
+        await client.delete_client(access_token=access_token, client_id=client_id)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+
+# ---------------------------------------------------------------------------
+# Users proxy.
+# ---------------------------------------------------------------------------
+
+
+@app.get("/frontend-api/users", response_model=None)
+async def get_users(
+    client_id: int = Query(default=0),
+    access_token: str = Depends(_require_access_token),
+):
+    client = BackendClient()
+    try:
+        return await client.get_users(access_token=access_token, client_id=client_id)
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+
+@app.post("/frontend-api/users", response_model=None)
+async def create_user(
+    payload: UserCreatePayload,
+    access_token: str = Depends(_require_access_token),
+):
+    client = BackendClient()
+    try:
+        return await client.create_user(access_token=access_token, payload=payload.model_dump())
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+
+@app.get("/frontend-api/users/{employee_id}", response_model=None)
+async def get_user(
+    employee_id: int,
+    access_token: str = Depends(_require_access_token),
+):
+    client = BackendClient()
+    try:
+        return await client.get_user(access_token=access_token, employee_id=employee_id)
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+
+@app.put("/frontend-api/users/{employee_id}", response_model=None)
+async def update_user(
+    employee_id: int,
+    payload: UserUpdatePayload,
+    access_token: str = Depends(_require_access_token),
+):
+    client = BackendClient()
+    try:
+        return await client.update_user(
+            access_token=access_token,
+            employee_id=employee_id,
+            payload=payload.model_dump(),
+        )
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+
+@app.patch("/frontend-api/users/{employee_id}/enabled", response_model=None)
+async def set_user_enabled(
+    employee_id: int,
+    payload: UserEnabledPayload,
+    access_token: str = Depends(_require_access_token),
+):
+    client = BackendClient()
+    try:
+        if payload.enabled:
+            return await client.enable_user(access_token=access_token, employee_id=employee_id)
+        return await client.disable_user(access_token=access_token, employee_id=employee_id)
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+
+@app.delete("/frontend-api/users/{employee_id}", response_model=None)
+async def delete_user(
+    employee_id: int,
+    access_token: str = Depends(_require_access_token),
+):
+    client = BackendClient()
+    try:
+        await client.delete_user(access_token=access_token, employee_id=employee_id)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+
+@app.post("/frontend-api/users/{employee_id}/account", response_model=None)
+async def attach_user_account(
+    employee_id: int,
+    payload: AttachAccountPayload,
+    access_token: str = Depends(_require_access_token),
+):
+    client = BackendClient()
+    try:
+        return await client.attach_user_account(
+            access_token=access_token,
+            employee_id=employee_id,
+            payload=payload.model_dump(),
+        )
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+
+@app.delete("/frontend-api/users/{employee_id}/account", response_model=None)
+async def detach_user_account(
+    employee_id: int,
+    access_token: str = Depends(_require_access_token),
+):
+    client = BackendClient()
+    try:
+        return await client.detach_user_account(access_token=access_token, employee_id=employee_id)
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc
+
+
+@app.patch("/frontend-api/users/{employee_id}/password", response_model=None)
+async def change_user_password(
+    employee_id: int,
+    payload: ChangePasswordPayload,
+    access_token: str = Depends(_require_access_token),
+):
+    client = BackendClient()
+    try:
+        return await client.change_user_password(
+            access_token=access_token,
+            employee_id=employee_id,
+            payload=payload.model_dump(),
+        )
+    except BackendApiError as exc:
+        raise _http_error_from_backend(exc) from exc

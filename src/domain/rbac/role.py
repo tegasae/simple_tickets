@@ -19,27 +19,27 @@ class RoleManager(Generic[P]):
     - mutates target.role_ids (because roles are stored in entities in this variant)
     """
     def __init__(self, authorizer: Authorizer[P], roles: RoleRepository[P]) -> None:
-        self._auth = authorizer
+        self.auth = authorizer
         self._roles = roles
 
     def grant_role(self, actor: HasRoleIds, target: HasRoleIds, role_id: int, *, required_permission: P) -> None:
-        self._auth.require(actor, required_permission)
+        self.auth.require(actor, required_permission)
         self._roles.get(role_id)  # validate exists
         target.grant_role(role_id)
 
     def revoke_role(self, actor: HasRoleIds, target: HasRoleIds, role_id: int, *, required_permission: P) -> None:
-        self._auth.require(actor, required_permission)
+        self.auth.require(actor, required_permission)
         self._roles.get(role_id)  # validate exists
         target.revoke_role(role_id)
 
     def grant_roles(self, actor: HasRoleIds, target: HasRoleIds, role_ids:frozenset[int], *, required_permission: P):
-        self._auth.require(actor, required_permission)
+        self.auth.require(actor, required_permission)
         for role_id in role_ids:
             self._roles.get(role_id)  # validate exists
             target.grant_role(role_id)
 
     def revoke_roles(self, actor: HasRoleIds, target: HasRoleIds, role_ids:frozenset[int], *, required_permission: P):
-        self._auth.require(actor, required_permission)
+        self.auth.require(actor, required_permission)
         for role_id in role_ids:
             self._roles.get(role_id)  # validate exists
             target.revoke_role(role_id)

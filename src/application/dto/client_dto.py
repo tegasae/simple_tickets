@@ -11,6 +11,7 @@ class ClientDTO:
     email: str = ""
     address: str = ""
     phone: str = ""
+    description:str=""
     enable: bool = True
 
     def __post_init__(self):
@@ -26,6 +27,7 @@ class ClientResponseDTO:
     email: str =""
     address: str =""
     phone: str=""
+    description:str=""
     enabled: bool
     date_created: str
     created_by_admin:int

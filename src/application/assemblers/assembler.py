@@ -1,10 +1,15 @@
 # src/application/assemblers/assembler.py
+from typing import TypeVar
+
 from src.application.dto.department_dto import DepartmentResponseDTO
-from src.application.dto.employee_dto import AdminResponseDTO, UserResponseDTO
+from src.application.dto.employee_dto import AdminResponseDTO, UserResponseDTO, PermissionsResponseDTO
+from src.application.dto.roles_dto import RoleResponseDTO
 from src.application.dto.ticket_dto import TicketResponseDTO, TicketUserResponseDTO
 from src.domain.client import Client
 from src.domain.department import Department
 from src.domain.employee import Admin, User
+from src.domain.rbac.permissions import AdminPermission, PermissionBase
+from src.domain.rbac.role_new import Role
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
 from src.application.dto.client_dto import ClientResponseDTO
@@ -25,6 +30,7 @@ class ClientAssembler:
             email=str(client.email),
             address=str(client.address),
             phone=str(client.phone),
+            description=str(client.description),
             enabled=client.enabled,
             created_by_admin=client.created_by_admin_id,
             date_created=str(client.date_created)
@@ -42,22 +48,22 @@ class TicketAssembler:
                 "executor_id": record.executor_id,
                 "date_created": str(record.date_created),
                 "planned_start_at": (
-                    str(record.planned_start_at)
+                    record.planned_start_at
                     if record.planned_start_at is not None
                     else None
                 ),
                 "planned_finish_at": (
-                    str(record.planned_finish_at)
+                    record.planned_finish_at
                     if record.planned_finish_at is not None
                     else None
                 ),
                 "actual_started_at": (
-                    str(record.actual_started_at)
+                    record.actual_started_at
                     if record.actual_started_at is not None
                     else None
                 ),
                 "actual_finished_at": (
-                    str(record.actual_finished_at)
+                    record.actual_finished_at
                     if record.actual_finished_at is not None
                     else None
                 ),
@@ -71,7 +77,7 @@ class TicketAssembler:
                 "id": comment.comment_id,
                 "actor_id": comment.employee_id,
                 "comment": comment.comment,
-                "date_created": str(comment.date_created),
+                "date_created": comment.date_created,
             }
             for comment in ticket.comments
         ]
@@ -86,9 +92,9 @@ class TicketAssembler:
             department_id=ticket.department_id,
             text_of_ticket=ticket.text_of_ticket,
             description=ticket.description,
-            date_created=str(ticket.date_created),
+            date_created=ticket.date_created,
             date_finished=(
-                str(ticket.date_finished)
+                ticket.date_finished
                 if ticket.date_finished is not None
                 else None
             ),
@@ -96,6 +102,7 @@ class TicketAssembler:
             urgency_level=ticket.urgency_level,
             version=ticket.version,
             is_closed=ticket.is_closed,
+            time_spent=ticket.working_time(),
             statuses=statuses,
             comments=comments,
         )
@@ -148,7 +155,9 @@ class AdminAssembler:
                                  enabled_login=admin.account.enabled,
                                  phone=str(admin.phone),
                                  roles=admin.role_ids(),
-                                 date_created=str(admin.date_created))
+                                 date_created=str(admin.date_created),
+
+                                 )
 
 class UserAssembler:
     @staticmethod
@@ -163,8 +172,16 @@ class UserAssembler:
                                  enabled_login=user.account.enabled,
                                  phone=str(user.phone),
                                  roles=user.role_ids(),
-                                 date_created=str(user.date_created))
+                                 date_created=str(user.date_created),
+                                 )
 
+
+
+class PermissionAssembler:
+    @staticmethod
+    def to_admin_dto(permissions:frozenset[AdminPermission])->PermissionsResponseDTO:
+        p = tuple(sorted(str(permission.value) for permission in permissions))
+        return PermissionsResponseDTO(permissions=p)
 
 
 
@@ -176,4 +193,22 @@ class DepartmentAssembler:
             name=str(department.name),
             enabled=department.enabled,
             date_created=department.date_created,
+        )
+
+
+
+
+
+T = TypeVar("T", bound=PermissionBase)
+
+
+class RoleAssembler:
+    @staticmethod
+    def to_dto(role: Role[T]) -> RoleResponseDTO[T]:
+        return RoleResponseDTO[T](
+            role_id=role.role_id,
+            name=role.name,
+            permissions=role.permissions,
+            description=role.description,
+            is_system_role=role.is_system_role,
         )

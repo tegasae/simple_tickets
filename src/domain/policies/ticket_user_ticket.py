@@ -1,5 +1,5 @@
 from src.domain.exceptions import DomainOperationError
-from src.domain.ticket import Ticket, TicketStatus
+from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
 
 

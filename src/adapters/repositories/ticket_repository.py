@@ -15,6 +15,7 @@ from src.adapters.repositories.gateways.ticket_gateway import (
 from src.adapters.repositories.mappers.ticket_mapper import TicketMapper
 from src.domain.exceptions import ItemNotFoundError
 from src.domain.repositories.ticket_repository import TicketRepository, TicketSearchCriteria
+
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket import Ticket
 from src.domain.ticket_components import Comment
@@ -345,14 +346,7 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
 
         if criteria.executor_id != 0:
             where.append(
-                """
-                EXISTS (
-                    SELECT 1
-                    FROM ticket_status_records executor_sr
-                    WHERE executor_sr.ticket_id = t.ticket_id
-                      AND executor_sr.executor_id = :executor_id
-                )
-                """
+                "current_executor.executor_id = :executor_id"
             )
             params["executor_id"] = criteria.executor_id
 
@@ -392,28 +386,31 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
         params["offset"] = criteria.offset
 
         sql = f"""
-            WITH latest_status_date AS (
-                SELECT
-                    ticket_id,
-                    MAX(date_created) AS max_date_created
-                FROM ticket_status_records
-                GROUP BY ticket_id
-            ),
-            current_status AS (
-                SELECT
-                    sr.ticket_id,
-                    sr.status
-                FROM ticket_status_records sr
-                JOIN latest_status_date latest
-                    ON latest.ticket_id = sr.ticket_id
-                   AND latest.max_date_created = sr.date_created
-            )
             SELECT
                 t.ticket_id
-            FROM tickets t
-            LEFT JOIN current_status
-                ON current_status.ticket_id = t.ticket_id
+            FROM tickets AS t
+
+            LEFT JOIN ticket_status_records AS current_status
+                ON current_status.status_id = (
+                    SELECT status_record.status_id
+                    FROM ticket_status_records AS status_record
+                    WHERE status_record.ticket_id = t.ticket_id
+                    ORDER BY status_record.status_id DESC
+                    LIMIT 1
+                )
+
+            LEFT JOIN ticket_status_records AS current_executor
+                ON current_executor.status_id = (
+                    SELECT executor_record.status_id
+                    FROM ticket_status_records AS executor_record
+                    WHERE executor_record.ticket_id = t.ticket_id
+                      AND executor_record.executor_id IS NOT NULL
+                    ORDER BY executor_record.status_id DESC
+                    LIMIT 1
+                )
+
             {where_sql}
+
             ORDER BY t.date_created DESC, t.ticket_id DESC
             LIMIT :limit
             OFFSET :offset
@@ -421,6 +418,7 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
 
         rows = self._get_many(
             sql,
+            ["ticket_id"],
             params,
         )
 

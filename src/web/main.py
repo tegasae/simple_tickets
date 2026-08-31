@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 
 from src.adapters.repositories.exceptions import OptimisticLockError
-from src.domain.exceptions import ItemValidationError, DomainOperationError, ItemAlreadyExistsError
+from src.domain.exceptions import ItemValidationError, DomainOperationError, ItemAlreadyExistsError, ItemNotFoundError
 from src.web.auth.exceptions import TokenError, TokenNotFoundError, TokenExpiredError, UserNotValidError, \
     InvalidCredentialsError
 from src.web.execeptions.exception_handlers import ExceptionHandlerRegistry
@@ -19,6 +19,8 @@ from src.web.routers.user.tickets import router as user_ticket_router
 
 from src.web.routers.admin.users import router as admin_users_router
 from src.web.routers.admin.tickets import router as admin_tickets_router
+from src.web.routers.admin.roles import router as admin_roles_router
+
 
 
 
@@ -34,6 +36,7 @@ def create_app() -> FastAPI:
     app1.include_router(admin_users_router)
     app1.include_router(admin_tickets_router)
     app1.include_router(admin_departments_router)
+    app1.include_router(admin_roles_router)
     registry = ExceptionHandlerRegistry(
         app1,
         log_error=True,
@@ -53,7 +56,8 @@ def create_app() -> FastAPI:
             ValueError: 400,
             ItemAlreadyExistsError: 400,
             DomainOperationError:400,
-            OptimisticLockError:500
+            OptimisticLockError:500,
+            ItemNotFoundError: 404
         }
     )
     registry.add_all_handlers_from_module(

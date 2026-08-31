@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="theme-onec app-page">
+    <header class="app-header">
+        <div class="brand-inline">
+            <div class="brand-mark small">ST</div>
+            <div>
+                <strong>Simple Tickets</strong>
+                <span>Клиенты и пользователи</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <label class="theme-picker">
+                <span>Интерфейс</span>
+                <select id="themeSelect">
+                    <option value="onec">1С 8.3</option>
+                    <option value="classic">Классический</option>
+                    <option value="futuristic">Футуристический</option>
+                </select>
+            </label>
+            <button id="btnLogout" class="secondary">Выйти</button>
+        </div>
+    </header>
+
+    <main class="workspace">
+        <section class="panel list-panel">
+            <div class="section-title-row">
+                <div>
+                    <h1>Клиенты</h1>
+                    <p>Список загружается целиком, фильтрация и пагинация выполняются в браузере.</p>
+                </div>
+                <div class="toolbar compact">
+                    <button id="btnAddClient" class="primary">Создать</button>
+                    <button id="btnRefresh" class="secondary">Обновить</button>
+                    <button id="btnOpenSelected" class="secondary">Открыть</button>
+                    <button id="btnDeleteSelected" class="danger">Удалить</button>
+                </div>
+            </div>
+
+            <div class="table-tools">
+                <label>
+                    <span>Активность</span>
+                    <select id="clientsEnabledFilter">
+                        <option value="all">Все</option>
+                        <option value="enabled">Активные</option>
+                        <option value="disabled">Неактивные</option>
+                    </select>
+                </label>
+                <label>
+                    <span>Строк на странице</span>
+                    <select id="clientsPageSize">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </label>
+                <button id="btnResetClientFilters" class="secondary">Сбросить фильтры</button>
+            </div>
+
+            <div class="table-wrap">
+                <table id="clientsTable" class="data-table">
+                    <thead>
+                        <tr>
+                            <th data-sort="client_id">ID</th>
+                            <th data-sort="name">Имя</th>
+                            <th data-sort="email">Email</th>
+                            <th data-sort="phone">Телефон</th>
+                            <th data-sort="address">Адрес</th>
+                            <th data-sort="description">Описание</th>
+                            <th data-sort="enabled">Активен</th>
+                            <th data-sort="date_created">Создан</th>
+                            <th data-sort="created_by_admin">Создал</th>
+                        </tr>
+                        <tr class="filter-row">
+                            <th><input data-filter="client_id" type="text"></th>
+                            <th><input data-filter="name" type="text"></th>
+                            <th><input data-filter="email" type="text"></th>
+                            <th><input data-filter="phone" type="text"></th>
+                            <th><input data-filter="address" type="text"></th>
+                            <th><input data-filter="description" type="text"></th>
+                            <th></th>
+                            <th><input data-filter="date_created" type="text"></th>
+                            <th><input data-filter="created_by_admin" type="text"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="clientsTableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="pager">
+                <button id="clientsPrevPage" class="secondary">Назад</button>
+                <span id="clientsPageInfo">—</span>
+                <button id="clientsNextPage" class="secondary">Вперёд</button>
+                <span id="clientsTotalInfo" class="muted"></span>
+            </div>
+
+            <div id="statusLine" class="status-line"></div>
+        </section>
+    </main>
+
+    <div id="clientDialogBackdrop" class="modal-backdrop hidden">
+        <section class="modal-card client-modal panel">
+            <div class="modal-header">
+                <div>
+                    <h2 id="clientDialogTitle">Клиент</h2>
+                    <p id="clientDialogSubtitle">Карточка клиента</p>
+                </div>
+                <button id="btnCloseDialog" class="icon-button" title="Закрыть">×</button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-button active" data-client-tab="main">Основное</button>
+                <button class="tab-button" data-client-tab="users">Пользователи</button>
+            </div>
+
+            <div id="clientTabMain" class="tab-panel active">
+                <form id="clientForm" class="form-grid client-form">
+                    <input id="clientId" type="hidden">
+                    <input id="clientOriginalEnabled" type="hidden">
+
+                    <label>
+                        <span>ID</span>
+                        <input id="clientIdReadonly" type="text" readonly>
+                    </label>
+                    <label>
+                        <span>Создан</span>
+                        <input id="clientDateCreated" type="text" readonly>
+                    </label>
+                    <label>
+                        <span>Создал</span>
+                        <input id="clientCreatedByAdmin" type="text" readonly>
+                    </label>
+                    <label class="checkbox-row">
+                        <input id="clientEnabled" type="checkbox">
+                        <span>Активен</span>
+                    </label>
+
+                    <label class="span-2">
+                        <span>Имя</span>
+                        <input id="clientName" type="text">
+                        <small>Для существующего клиента пустое имя не меняет имя на backend-е.</small>
+                    </label>
+                    <label>
+                        <span>Email</span>
+                        <input id="clientEmail" type="email">
+                    </label>
+                    <label>
+                        <span>Телефон</span>
+                        <input id="clientPhone" type="text">
+                    </label>
+                    <label class="span-2">
+                        <span>Адрес</span>
+                        <input id="clientAddress" type="text">
+                    </label>
+                    <label class="span-2">
+                        <span>Описание</span>
+                        <textarea id="clientDescription" rows="5"></textarea>
+                    </label>
+                </form>
+            </div>
+
+            <div id="clientTabUsers" class="tab-panel">
+                <div class="split-view">
+                    <div class="users-list-panel">
+                        <div class="toolbar compact">
+                            <button id="btnAddUser" class="primary">Создать пользователя</button>
+                            <button id="btnRefreshUsers" class="secondary">Обновить</button>
+                            <button id="btnResetUserFilters" class="secondary">Сбросить фильтры</button>
+                        </div>
+
+                        <div class="table-tools compact-tools">
+                            <label>
+                                <span>Активность</span>
+                                <select id="usersEnabledFilter">
+                                    <option value="all">Все</option>
+                                    <option value="enabled">Активные</option>
+                                    <option value="disabled">Неактивные</option>
+                                </select>
+                            </label>
+                            <label>
+                                <span>Строк</span>
+                                <select id="usersPageSize">
+                                    <option value="5">5</option>
+                                    <option value="10">10</option>
+                                    <option value="25">25</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <div class="table-wrap small-table-wrap">
+                            <table id="usersTable" class="data-table compact-table">
+                                <thead>
+                                    <tr>
+                                        <th data-user-sort="employee_id">ID</th>
+                                        <th data-user-sort="first_name">Имя</th>
+                                        <th data-user-sort="last_name">Фамилия</th>
+                                        <th data-user-sort="email">Email</th>
+                                        <th data-user-sort="phone">Телефон</th>
+                                        <th data-user-sort="login">Логин</th>
+                                        <th data-user-sort="enabled">Активен</th>
+                                    </tr>
+                                    <tr class="filter-row">
+                                        <th><input data-user-filter="employee_id" type="text"></th>
+                                        <th><input data-user-filter="first_name" type="text"></th>
+                                        <th><input data-user-filter="last_name" type="text"></th>
+                                        <th><input data-user-filter="email" type="text"></th>
+                                        <th><input data-user-filter="phone" type="text"></th>
+                                        <th><input data-user-filter="login" type="text"></th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody"></tbody>
+                            </table>
+                        </div>
+
+                        <div class="pager compact-pager">
+                            <button id="usersPrevPage" class="secondary">Назад</button>
+                            <span id="usersPageInfo">—</span>
+                            <button id="usersNextPage" class="secondary">Вперёд</button>
+                        </div>
+                    </div>
+
+                    <aside class="user-card-panel">
+                        <h3 id="userCardTitle">Пользователь</h3>
+                        <form id="userForm" class="form-stack dense">
+                            <input id="userEmployeeId" type="hidden">
+                            <input id="userClientId" type="hidden">
+                            <input id="userOriginalEnabled" type="hidden">
+
+                            <div class="form-grid two-cols">
+                                <label>
+                                    <span>ID</span>
+                                    <input id="userEmployeeIdReadonly" type="text" readonly>
+                                </label>
+                                <label class="checkbox-row">
+                                    <input id="userEnabled" type="checkbox">
+                                    <span>Активен</span>
+                                </label>
+                                <label>
+                                    <span>Имя</span>
+                                    <input id="userFirstName" type="text">
+                                </label>
+                                <label>
+                                    <span>Фамилия</span>
+                                    <input id="userLastName" type="text">
+                                </label>
+                                <label>
+                                    <span>Email</span>
+                                    <input id="userEmail" type="email">
+                                </label>
+                                <label>
+                                    <span>Телефон</span>
+                                    <input id="userPhone" type="text">
+                                </label>
+                            </div>
+                        </form>
+
+                        <div class="account-box">
+                            <h4>Аккаунт</h4>
+                            <div class="form-grid two-cols">
+                                <label>
+                                    <span>Логин</span>
+                                    <input id="userLogin" type="text">
+                                </label>
+                                <label class="checkbox-row">
+                                    <input id="userLoginEnabled" type="checkbox">
+                                    <span>Логин активен</span>
+                                </label>
+                                <label>
+                                    <span>Новый пароль</span>
+                                    <input id="userPassword" type="password" autocomplete="new-password">
+                                </label>
+                                <label>
+                                    <span>Повтор пароля</span>
+                                    <input id="userPasswordRepeat" type="password" autocomplete="new-password">
+                                </label>
+                            </div>
+                            <div class="toolbar compact account-actions">
+                                <button id="btnAttachAccount" class="secondary" type="button">Создать/привязать аккаунт</button>
+                                <button id="btnChangePassword" class="secondary" type="button">Сменить пароль</button>
+                                <button id="btnDetachAccount" class="danger" type="button">Отвязать аккаунт</button>
+                            </div>
+                            <small class="muted">Для нового пользователя логин и пароль можно указать сразу перед сохранением.</small>
+                        </div>
+
+                        <div class="toolbar compact user-card-actions">
+                            <button id="btnSaveUser" class="primary">Сохранить пользователя</button>
+                            <button id="btnDeleteUser" class="danger">Удалить пользователя</button>
+                            <button id="btnClearUserCard" class="secondary">Очистить</button>
+                        </div>
+                        <div id="userStatusLine" class="status-line"></div>
+                    </aside>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <span id="clientDialogStatus" class="status-line inline-status"></span>
+                <button id="btnCancelDialog" class="secondary">Закрыть</button>
+                <button id="btnSaveClient" class="primary">Сохранить</button>
+                <button id="btnSaveAndCloseClient" class="primary">Сохранить и закрыть</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="/static/js/clients.js"></script>
+</body>
+</html>
