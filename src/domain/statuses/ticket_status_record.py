@@ -151,8 +151,14 @@ class TicketStatusRecord:
     def is_terminal(self):
         return get_ticket_state(self.status).terminal
 
+    def can_change_department(self)->bool:
+        state=get_ticket_state(self.status)
+        return not state.locks_department_change
+
     def has_executor(self) -> bool:
         return self.executor_id > 0
+
+
 
     def has_planned_start(self) -> bool:
         return self.planned_start_at is not None
@@ -172,6 +178,15 @@ class TicketStatusRecord:
         )
         return state.allows_ticket_text_update
 
+    def can_move_to_next_record(self,record: Self)->bool:
+        state = get_ticket_state(self.status)
+        return state.allows_transition_to(record.status)
+
+
+    def is_first_status(self)->bool:
+        state=get_ticket_state(status=self.status)
+        return state.first_status
+
     def _validate_identity(self) -> None:
         if self.status_id < 0:
             raise ItemValidationError(
@@ -183,22 +198,19 @@ class TicketStatusRecord:
                 "Actor employee ID cannot be negative"
             )
 
-        user_driven_statuses = {
-            TicketStatus.CREATED_FROM_TICKET_USER,
-            TicketStatus.CANCELLED_BY_USER,
-        }
-
+        state=get_ticket_state(status=self.status)
         if (
                 self.actor_employee_id == 0
-                and self.status not in user_driven_statuses
-        ):
+                and
+                not state.first_status
+            ):
             raise ItemValidationError(
                 "Actor employee ID can be 0 only for user-driven ticket statuses"
             )
 
         if (
                 self.actor_employee_id > 0
-                and self.status in user_driven_statuses
+                and state.first_status
         ):
             raise ItemValidationError(
                 f"Status {self.status.value} must have actor_employee_id = 0"

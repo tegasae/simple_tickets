@@ -5,7 +5,6 @@ from datetime import UTC, datetime, timezone
 from typing import Self
 
 from src.domain.exceptions import DomainOperationError, ItemValidationError
-from src.domain.statuses.ticket_status import get_ticket_state1
 
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 
@@ -462,25 +461,22 @@ class Ticket:
           для конкретного исходного статуса;
         - при принятии Ticket из TicketUser фиксируется admin_id.
         """
-        #self._ensure_not_terminal()
-        status=record.status
-        new_state=get_ticket_state(record.status)
+        current_status_record = self.current_status_record()
 
-        previous_status = self.current_status_record().status
-        previous_state=get_ticket_state(previous_status)
-        previous_state.allows_transition_to(status)
-        if previous_state.allows_transition_to(status):
+
+
+        if not self.current_status_record().can_move_to_next_record(record):
             raise DomainOperationError(
                 "Ticket status transition is not allowed: "
-                f"{previous_status.value} -> "
+                f"{current_status_record.status.value} -> "
                 f"{record.status.value}",
             )
 
-        self.current_status_record().validate_review_transition(record=record)
-
+        current_status_record.can_move_to_next_record(record)
+        current_status_record.validate_review_transition(record=record)
         self.statuses.append(record)
 
-        if self.current_status_record().created_from_ticket_user_to_accepted(record=record):
+        if current_status_record.created_from_ticket_user_to_accepted(record=record):
             self.admin_id = record.actor_employee_id
 
         self._recompute_closed_state()
@@ -520,16 +516,19 @@ class Ticket:
         """
         self._ensure_not_terminal()
 
+
+        if self.current_status_record().is_terminal():
+            raise DomainOperationError(
+                f"The ticket {self.ticket_id} is in terminal status "
+                f"{self.current_status_record().status.value}",
+            )
+
         if department_id < 0:
             raise DomainOperationError(
                 "Ticket department_id cannot be negative",
             )
 
-        current_state = get_ticket_state(
-            self.current_status_record().status,
-        )
-
-        if current_state.locks_department_change:
+        if not self.current_status_record().can_change_department():
             raise DomainOperationError(
                 "Cannot change ticket department in current status",
             )
@@ -611,22 +610,21 @@ class Ticket:
             raise DomainOperationError(
                 "TicketUser must have status history",
             )
-        state = get_ticket_state(self.statuses[0].status)
+        #state = get_ticket_state(self.statuses[0].status)
+        current=self.current_status_record()
 
-
-        if not state.first_status:
+        if not current.is_first_status():
             raise DomainOperationError(
                 f"Ticket can't be in first status {self.statuses[0].status.value}",
             )
 
         for index in range(1, len(self.statuses)):
-            previous_status = self.statuses[index - 1].status
-            current_status = self.statuses[index].status
-            state=get_ticket_state(previous_status)
-            if not state.allows_transition_to(current_status):
+            previous_record = self.statuses[index - 1]
+            current_record = self.statuses[index]
+            if not  (previous_record.can_move_to_next_record(record=current_record)):
                 raise DomainOperationError(
                     "Invalid TicketUser status history: "
-                    f"{previous_status.value} -> {current_status.value}",
+                    f"{previous_record.status.value} -> {current_record.status.value}",
                 )
 
     # ----------------------------
