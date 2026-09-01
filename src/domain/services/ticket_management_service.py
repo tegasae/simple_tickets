@@ -1,18 +1,29 @@
-from datetime import UTC, datetime
+# src/domain/services/ticket_management_service.py
 
-from src.domain.exceptions import ItemValidationError
-from src.domain.statuses.ticket_status import TicketStatus
+from datetime import datetime
+
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket import Ticket
 
 
 class TicketManagementService:
     """
-    Управленческие действия над заявкой.
+    Управленческие workflow-действия над Ticket.
 
-    Здесь нет проверки RBAC, существования исполнителя,
-    department и enabled/disabled состояния сотрудников.
-    Это проверяют application services.
+    Здесь нет:
+    - RBAC;
+    - permissions;
+    - проверки существования Admin/Executor;
+    - проверки Department;
+    - enabled/disabled состояния сотрудников;
+    - знания о конкретных TicketStatus.
+
+    TicketStatusRecord:
+        создаёт корректную status-record для конкретного действия.
+
+    Ticket:
+        проверяет допустимость перехода и добавляет record
+        в status history.
     """
 
     @staticmethod
@@ -23,28 +34,13 @@ class TicketManagementService:
         comment: str = "",
         date_created: datetime | None = None,
     ) -> TicketStatusRecord:
-        if actor_employee_id <= 0:
-            raise ItemValidationError("Actor employee id must be positive.")
-
-        now = date_created or datetime.now(UTC)
-
-        record = TicketStatusRecord(
-            status_id=0,
+        record = TicketStatusRecord.create_accepted(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.ACCEPTED,
-            date_created=now,
-            executor_id=0,
-            planned_start_at=None,
-            planned_finish_at=None,
-            actual_started_at=None,
-            actual_finished_at=None,
             comment=comment,
+            date_created=date_created,
         )
 
-        TicketManagementService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+        ticket.append_status(record)
 
         return record
 
@@ -54,17 +50,15 @@ class TicketManagementService:
         ticket: Ticket,
         actor_employee_id: int,
         comment: str,
+        date_created: datetime | None = None,
     ) -> TicketStatusRecord:
-        record = TicketStatusRecord(
+        record = TicketStatusRecord.create_rejected(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.REJECTED,
             comment=comment,
+            date_created=date_created,
         )
 
-        TicketManagementService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+        ticket.append_status(record)
 
         return record
 
@@ -74,72 +68,17 @@ class TicketManagementService:
         ticket: Ticket,
         actor_employee_id: int,
         comment: str,
+        date_created: datetime | None = None,
     ) -> TicketStatusRecord:
-        record = TicketStatusRecord(
+        record = TicketStatusRecord.create_deferred(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.DEFERRED,
             comment=comment,
+            date_created=date_created,
         )
 
-        TicketManagementService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+        ticket.append_status(record)
 
         return record
-
-    @staticmethod
-    def handle_client_disabled(
-        *,
-        ticket: Ticket,
-        actor_employee_id: int,
-        comment: str,
-    ) -> bool:
-        """
-        Применяет workflow-политику после отключения Client.
-
-        CREATED / CREATED_FROM_TICKET_USER:
-            -> REJECTED
-
-        ACCEPTED / SCHEDULED / ASSIGNED / READY_TO_WORK:
-            -> DEFERRED
-
-        Остальные статусы:
-            без изменений.
-
-        Returns:
-            True, если Ticket изменилась;
-            False, если Ticket осталась без изменений.
-
-        Для REJECTED и DEFERRED comment обязателен.
-        """
-        current_status = ticket.current_status()
-
-        if current_status in {
-            TicketStatus.CREATED,
-            TicketStatus.CREATED_FROM_TICKET_USER,
-        }:
-            TicketManagementService.reject(
-                ticket=ticket,
-                actor_employee_id=actor_employee_id,
-                comment=comment,
-            )
-            return True
-
-        if current_status in {
-            TicketStatus.ACCEPTED,
-            TicketStatus.SCHEDULED,
-            TicketStatus.ASSIGNED,
-            TicketStatus.READY_TO_WORK,
-        }:
-            TicketManagementService.defer(
-                ticket=ticket,
-                actor_employee_id=actor_employee_id,
-                comment=comment,
-            )
-            return True
-
-        return False
 
     @staticmethod
     def schedule(
@@ -149,19 +88,17 @@ class TicketManagementService:
         planned_start_at: datetime,
         planned_finish_at: datetime | None = None,
         comment: str = "",
+        date_created: datetime | None = None,
     ) -> TicketStatusRecord:
-        record = TicketStatusRecord(
+        record = TicketStatusRecord.create_scheduled(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.SCHEDULED,
             planned_start_at=planned_start_at,
             planned_finish_at=planned_finish_at,
             comment=comment,
+            date_created=date_created,
         )
 
-        TicketManagementService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+        ticket.append_status(record)
 
         return record
 
@@ -172,18 +109,16 @@ class TicketManagementService:
         actor_employee_id: int,
         executor_id: int,
         comment: str = "",
+        date_created: datetime | None = None,
     ) -> TicketStatusRecord:
-        record = TicketStatusRecord(
+        record = TicketStatusRecord.create_assigned(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.ASSIGNED,
             executor_id=executor_id,
             comment=comment,
+            date_created=date_created,
         )
 
-        TicketManagementService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+        ticket.append_status(record)
 
         return record
 
@@ -196,20 +131,18 @@ class TicketManagementService:
         planned_start_at: datetime,
         planned_finish_at: datetime | None = None,
         comment: str = "",
+        date_created: datetime | None = None,
     ) -> TicketStatusRecord:
-        record = TicketStatusRecord(
+        record = TicketStatusRecord.create_ready_to_work(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.READY_TO_WORK,
             executor_id=executor_id,
             planned_start_at=planned_start_at,
             planned_finish_at=planned_finish_at,
             comment=comment,
+            date_created=date_created,
         )
 
-        TicketManagementService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+        ticket.append_status(record)
 
         return record
 
@@ -219,17 +152,15 @@ class TicketManagementService:
         ticket: Ticket,
         actor_employee_id: int,
         comment: str,
+        date_created: datetime | None = None,
     ) -> TicketStatusRecord:
-        record = TicketStatusRecord(
+        record = TicketStatusRecord.create_cancelled(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.CANCELLED,
             comment=comment,
+            date_created=date_created,
         )
 
-        TicketManagementService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+        ticket.append_status(record)
 
         return record
 
@@ -238,34 +169,64 @@ class TicketManagementService:
         *,
         ticket: Ticket,
         comment: str = "",
+        date_created: datetime | None = None,
     ) -> TicketStatusRecord:
         """
-        Снимает пользовательскую заявку до принятия Admin.
+        Отмена внутренней Ticket по событию из TicketUser workflow.
 
-        Разрешённый переход:
-            CREATED_FROM_TICKET_USER -> CANCELLED_BY_USER
-
-        actor_employee_id = 0 означает:
-            действие пришло из пользовательского workflow;
-            конкретный User хранится в TicketUser history.
+        Конкретный User хранится в TicketUser history.
+        Поэтому для внутренней Ticket actor_employee_id
+        формируется самой TicketStatusRecord.
         """
-        record = TicketStatusRecord(
-            actor_employee_id=0,
-            status=TicketStatus.CANCELLED_BY_USER,
+        record = TicketStatusRecord.create_cancelled_by_user(
             comment=comment,
+            date_created=date_created,
         )
 
-        TicketManagementService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+        ticket.append_status(record)
 
         return record
 
     @staticmethod
-    def _append_status(
+    def handle_client_disabled(
         *,
         ticket: Ticket,
-        record: TicketStatusRecord,
-    ) -> None:
-        ticket.append_status(record)
+        actor_employee_id: int,
+        comment: str,
+        date_created: datetime | None = None,
+    ) -> bool:
+        """
+        Применяет workflow-реакцию на отключение Client.
+
+        Текущая TicketStatusRecord определяет,
+        какая реакция предусмотрена для её состояния.
+
+        Returns:
+            True:
+                status history была изменена.
+
+            False:
+                для текущего состояния никакого перехода
+                при отключении Client не требуется.
+        """
+        current_record = ticket.current_status_record()
+
+        if current_record.should_reject_when_client_disabled():
+            TicketManagementService.reject(
+                ticket=ticket,
+                actor_employee_id=actor_employee_id,
+                comment=comment,
+                date_created=date_created,
+            )
+            return True
+
+        if current_record.should_defer_when_client_disabled():
+            TicketManagementService.defer(
+                ticket=ticket,
+                actor_employee_id=actor_employee_id,
+                comment=comment,
+                date_created=date_created,
+            )
+            return True
+
+        return False

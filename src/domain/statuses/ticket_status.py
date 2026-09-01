@@ -28,10 +28,13 @@ class TicketStatus(StrEnum):
 @dataclass(frozen=True, slots=True)
 class TicketState:
     """
-    Неизменяемое описание одного workflow-состояния.
+    Неизменяемое описание одного workflow-состояния Ticket.
 
     status:
-        Стабильный код для хранения, DTO и API.
+        Стабильный код состояния для хранения, DTO и API.
+
+    first_status:
+        Состояние может быть первым в истории Ticket.
 
     terminal:
         После такого состояния Ticket больше не изменяется.
@@ -42,9 +45,21 @@ class TicketState:
     requires_planned_start:
         В status-record должен быть planned_start_at.
 
+    allows_actual_start:
+        В status-record разрешён actual_started_at.
+
+    requires_actual_start:
+        В status-record обязателен actual_started_at.
+
+    allows_actual_finish:
+        В status-record разрешён actual_finished_at.
+
+    requires_actual_finish:
+        В status-record обязателен actual_finished_at.
+
     work_started:
-        Работа над заявкой уже началась или результат уже передан
-        на подтверждение.
+        Работа над заявкой уже началась либо её результат
+        уже передан на review.
 
     locks_department_change:
         Department заявки нельзя менять обычной операцией.
@@ -52,21 +67,37 @@ class TicketState:
     allows_ticket_text_update:
         Текст заявки можно менять обычной операцией.
 
+    requires_comment:
+        В status-record обязателен непустой comment.
+
     allowed_next:
-        Следующие статусы, допустимые по общему workflow-графу.
-        Это не RBAC и не описание того, кто вызывает use case.
+        Допустимые следующие состояния workflow.
+
+        Это не RBAC и не описание того, кто имеет право
+        выполнить переход.
     """
 
     status: TicketStatus
-    first_status:bool=False
+
+    first_status: bool = False
     terminal: bool = False
+
     requires_executor: bool = False
     requires_planned_start: bool = False
+    requires_comment: bool = False
+
+    allows_actual_start: bool = False
+    requires_actual_start: bool = False
+
+    allows_actual_finish: bool = False
+    requires_actual_finish: bool = False
+
     work_started: bool = False
+
     locks_department_change: bool = False
     allows_ticket_text_update: bool = False
+
     allowed_next: frozenset[TicketStatus] = frozenset()
-    requires_comment:bool=False
 
     def allows_transition_to(
         self,
@@ -99,7 +130,7 @@ _TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
     TicketStatus.REJECTED: TicketState(
         status=TicketStatus.REJECTED,
         terminal=True,
-        requires_comment=True
+        requires_comment=True,
     ),
 
     TicketStatus.ACCEPTED: TicketState(
@@ -129,7 +160,7 @@ _TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
     TicketStatus.SCHEDULED: TicketState(
         status=TicketStatus.SCHEDULED,
         requires_planned_start=True,
-            allowed_next=frozenset({
+        allowed_next=frozenset({
             TicketStatus.SCHEDULED,
             TicketStatus.READY_TO_WORK,
             TicketStatus.ASSIGNED,
@@ -176,8 +207,13 @@ _TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
     TicketStatus.AT_WORK: TicketState(
         status=TicketStatus.AT_WORK,
         requires_executor=True,
+
+        allows_actual_start=True,
+        requires_actual_start=True,
+
         work_started=True,
         locks_department_change=True,
+
         allowed_next=frozenset({
             TicketStatus.PAUSED,
             TicketStatus.READY_FOR_REVIEW,
@@ -207,8 +243,15 @@ _TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
     TicketStatus.READY_FOR_REVIEW: TicketState(
         status=TicketStatus.READY_FOR_REVIEW,
         requires_executor=True,
+
+        allows_actual_start=True,
+
+        allows_actual_finish=True,
+        requires_actual_finish=True,
+
         work_started=True,
         locks_department_change=True,
+
         allowed_next=frozenset({
             TicketStatus.EXECUTED,
             TicketStatus.AT_WORK,
@@ -227,8 +270,8 @@ _TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
 
     TicketStatus.CANCELLED: TicketState(
         status=TicketStatus.CANCELLED,
-        requires_comment=True,
         terminal=True,
+        requires_comment=True,
     ),
 
     TicketStatus.CANCELLED_BY_USER: TicketState(
@@ -243,17 +286,35 @@ def _validate_ticket_states() -> None:
 
     if missing_statuses:
         missing = ", ".join(
-            sorted(str(status) for status in missing_statuses),
+            sorted(str(status) for status in missing_statuses)
         )
         raise RuntimeError(
-            f"Missing TicketState definitions: {missing}",
+            f"Missing TicketState definitions: {missing}"
         )
 
     for status, state in _TICKET_STATES.items():
         if status != state.status:
             raise RuntimeError(
                 "TicketState key does not match state.status: "
-                f"{status.value} != {state.status.value}",
+                f"{status.value} != {state.status.value}"
+            )
+
+        if (
+            state.requires_actual_start
+            and not state.allows_actual_start
+        ):
+            raise RuntimeError(
+                f"TicketState {status.value}: "
+                "requires_actual_start requires allows_actual_start"
+            )
+
+        if (
+            state.requires_actual_finish
+            and not state.allows_actual_finish
+        ):
+            raise RuntimeError(
+                f"TicketState {status.value}: "
+                "requires_actual_finish requires allows_actual_finish"
             )
 
 
@@ -271,8 +332,10 @@ def is_ticket_status_transition_allowed(
     current_status: TicketStatus,
     new_status: TicketStatus,
 ) -> bool:
-    return get_ticket_state(current_status).allows_transition_to(
-        new_status,
+    return get_ticket_state(
+        current_status
+    ).allows_transition_to(
+        new_status
     )
 
 
@@ -287,9 +350,15 @@ def is_department_change_locked(
 ) -> bool:
     state = get_ticket_state(status)
 
-    return state.terminal or state.locks_department_change
+    return (
+        state.terminal
+        or state.locks_department_change
+    )
 
-def is_text_change_allow(status:TicketStatus)->bool:
-    state=get_ticket_state(status)
-    return state.allows_ticket_text_update
 
+def is_text_change_allowed(
+    status: TicketStatus,
+) -> bool:
+    return get_ticket_state(
+        status
+    ).allows_ticket_text_update

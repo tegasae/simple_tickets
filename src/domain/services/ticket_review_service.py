@@ -1,17 +1,26 @@
-from __future__ import annotations
+# src/domain/services/ticket_review_service.py
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from src.domain.exceptions import DomainOperationError
-from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-
 from src.domain.ticket import Ticket
 
 
 class TicketReviewService:
     """
-    Операции проверки результата заявки.
+    Domain service для проверки результата Ticket.
+
+    Здесь нет:
+    - RBAC;
+    - permissions;
+    - repository;
+    - знания о конкретных TicketStatus.
+
+    Review-операции допустимы только тогда,
+    когда текущая TicketStatusRecord допускает review результата.
+
+    Ticket проверяет итоговый workflow-переход.
     """
 
     @staticmethod
@@ -22,19 +31,18 @@ class TicketReviewService:
         comment: str = "",
     ) -> TicketStatusRecord:
         """
-        READY_FOR_REVIEW -> EXECUTED
+        Подтверждает результат выполнения Ticket.
         """
+        TicketReviewService._ensure_review_pending(
+            ticket=ticket,
+        )
 
-        record = TicketStatusRecord(
+        record = TicketStatusRecord.create_executed(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.EXECUTED,
             comment=comment,
         )
 
-        TicketReviewService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+        ticket.append_status(record)
 
         return record
 
@@ -46,27 +54,27 @@ class TicketReviewService:
         comment: str = "",
     ) -> TicketStatusRecord:
         """
-        READY_FOR_REVIEW -> AT_WORK
+        Возвращает Ticket в работу тому же executor.
 
-        Возвращает заявку тому же исполнителю.
+        Новая рабочая сессия начинается в момент возврата.
         """
-
-
-        executor_id = TicketReviewService._current_executor_or_raise(
-            ticket
+        TicketReviewService._ensure_review_pending(
+            ticket=ticket,
         )
 
-        record = TicketStatusRecord(
+        executor_id = (
+            TicketReviewService._current_executor_or_raise(
+                ticket=ticket,
+            )
+        )
+
+        record = TicketStatusRecord.create_at_work(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.AT_WORK,
             executor_id=executor_id,
-            actual_started_at=datetime.now(timezone.utc),
             comment=comment,
         )
-        TicketReviewService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+
+        ticket.append_status(record)
 
         return record
 
@@ -79,21 +87,21 @@ class TicketReviewService:
         comment: str = "",
     ) -> TicketStatusRecord:
         """
-        READY_FOR_REVIEW -> ASSIGNED
+        Возвращает Ticket в назначенное состояние.
 
-        Исполнитель может быть изменён.
+        Executor может быть изменён.
         """
+        TicketReviewService._ensure_review_pending(
+            ticket=ticket,
+        )
 
-        record = TicketStatusRecord(
+        record = TicketStatusRecord.create_assigned(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.ASSIGNED,
             executor_id=executor_id,
             comment=comment,
         )
-        TicketReviewService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+
+        ticket.append_status(record)
 
         return record
 
@@ -107,21 +115,20 @@ class TicketReviewService:
         comment: str = "",
     ) -> TicketStatusRecord:
         """
-        READY_FOR_REVIEW -> SCHEDULED
+        Возвращает Ticket к планированию.
         """
+        TicketReviewService._ensure_review_pending(
+            ticket=ticket,
+        )
 
-        record = TicketStatusRecord(
+        record = TicketStatusRecord.create_scheduled(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.SCHEDULED,
             planned_start_at=planned_start_at,
             planned_finish_at=planned_finish_at,
             comment=comment,
         )
 
-        TicketReviewService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+        ticket.append_status(record)
 
         return record
 
@@ -136,22 +143,21 @@ class TicketReviewService:
         comment: str = "",
     ) -> TicketStatusRecord:
         """
-        READY_FOR_REVIEW -> READY_TO_WORK
+        Возвращает Ticket в подготовленное к работе состояние.
         """
+        TicketReviewService._ensure_review_pending(
+            ticket=ticket,
+        )
 
-        record = TicketStatusRecord(
+        record = TicketStatusRecord.create_ready_to_work(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.READY_TO_WORK,
             executor_id=executor_id,
             planned_start_at=planned_start_at,
             planned_finish_at=planned_finish_at,
             comment=comment,
         )
 
-        TicketReviewService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+        ticket.append_status(record)
 
         return record
 
@@ -163,48 +169,36 @@ class TicketReviewService:
         comment: str,
     ) -> TicketStatusRecord:
         """
-        READY_FOR_REVIEW -> DEFERRED
+        Переводит Ticket с review в отложенное состояние.
         """
+        TicketReviewService._ensure_review_pending(
+            ticket=ticket,
+        )
 
-        record = TicketStatusRecord(
+        record = TicketStatusRecord.create_deferred(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.DEFERRED,
             comment=comment,
         )
 
-        TicketReviewService._append_status(
-            ticket=ticket,
-            record=record,
-        )
+        ticket.append_status(record)
 
         return record
 
     @staticmethod
-    def _append_status(
-            *,
-            ticket: Ticket,
-            record: TicketStatusRecord,
+    def _ensure_review_pending(
+        *,
+        ticket: Ticket,
     ) -> None:
-        TicketReviewService._ensure_actor_positive(
-            record.actor_employee_id
-        )
-
-        if ticket.current_status() != TicketStatus.READY_FOR_REVIEW:
+        if not ticket.current_status_record().can_review_result():
             raise DomainOperationError(
-                "Ticket must be in READY_FOR_REVIEW status"
-            )
-
-        ticket.append_status(record)
-
-    @staticmethod
-    def _ensure_actor_positive(actor_employee_id: int) -> None:
-        if actor_employee_id <= 0:
-            raise DomainOperationError(
-                "Actor employee id must be positive"
+                "Ticket result is not awaiting review"
             )
 
     @staticmethod
-    def _current_executor_or_raise(ticket: Ticket) -> int:
+    def _current_executor_or_raise(
+        *,
+        ticket: Ticket,
+    ) -> int:
         executor_id = ticket.current_executor_id()
 
         if executor_id <= 0:

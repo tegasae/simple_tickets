@@ -1,37 +1,40 @@
 # src/domain/policies/ticket.py
 
-
 from src.domain.client import Client
 from src.domain.employee import Admin, User
 from src.domain.exceptions import DomainOperationError
-from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
 
 
 class TicketPolicy:
     """
-    Domain policies для проверок связей между агрегатами.
+    Cross-aggregate domain policies для Ticket / TicketUser.
 
     Здесь нет:
     - RBAC;
-    - проверки permissions;
-    - загрузки из repository;
-    - сохранения в repository;
-    - проверки workflow-графа статусов.
+    - permissions;
+    - repository;
+    - persistence;
+    - workflow-графа;
+    - конкретных TicketStatus.
 
-    Здесь только cross-aggregate правила:
-    - Client enabled;
-    - Admin/User enabled;
-    - User принадлежит Client;
-    - Ticket принадлежит Client;
-    - TicketUser принадлежит Client;
-    - Ticket связан с TicketUser;
-    - Ticket и TicketUser согласованы по client_id/user_id/contact_user_id.
+    Здесь проверяются только отношения между aggregates:
+    - enabled-state Client/Admin/User;
+    - принадлежность User к Client;
+    - принадлежность Ticket/TicketUser к Client;
+    - связь Ticket <-> TicketUser;
+    - согласованность связанных aggregates.
     """
 
+    # ----------------------------
+    # Enabled state
+    # ----------------------------
+
     @staticmethod
-    def ensure_client_enabled(client: Client) -> None:
+    def ensure_client_enabled(
+        client: Client,
+    ) -> None:
         if not client.enabled:
             raise DomainOperationError(
                 f"Cannot create or manage ticket for disabled client "
@@ -39,7 +42,9 @@ class TicketPolicy:
             )
 
     @staticmethod
-    def ensure_admin_enabled(admin: Admin) -> None:
+    def ensure_admin_enabled(
+        admin: Admin,
+    ) -> None:
         if not admin.enabled:
             raise DomainOperationError(
                 f"Cannot manage ticket with disabled admin "
@@ -47,12 +52,18 @@ class TicketPolicy:
             )
 
     @staticmethod
-    def ensure_user_enabled(user: User) -> None:
+    def ensure_user_enabled(
+        user: User,
+    ) -> None:
         if not user.enabled:
             raise DomainOperationError(
                 f"Cannot manage ticket for disabled user "
                 f"{user.employee_id}"
             )
+
+    # ----------------------------
+    # Client relations
+    # ----------------------------
 
     @staticmethod
     def ensure_user_belongs_to_client(
@@ -102,16 +113,17 @@ class TicketPolicy:
                 f"client {client.client_id}"
             )
 
+    # ----------------------------
+    # Ticket <-> TicketUser
+    # ----------------------------
+
     @staticmethod
     def ensure_ticket_has_no_ticket_user(
         *,
         ticket: Ticket,
     ) -> None:
         """
-        Проверка для обычной внутренней Ticket.
-
-        Если Ticket создаётся напрямую Admin,
-        она не должна быть уже связана с TicketUser.
+        Ticket не должна быть связана с TicketUser.
         """
         if ticket.user_ticket_id != 0:
             raise DomainOperationError(
@@ -125,7 +137,7 @@ class TicketPolicy:
         ticket: Ticket,
     ) -> None:
         """
-        Проверка для Ticket, созданной из пользовательской TicketUser.
+        Ticket должна иметь связанную TicketUser.
         """
         if ticket.user_ticket_id == 0:
             raise DomainOperationError(
@@ -139,7 +151,7 @@ class TicketPolicy:
         ticket_user: TicketUser,
     ) -> None:
         """
-        Проверяет саму ссылку:
+        Проверяет прямую связь:
 
             Ticket.user_ticket_id == TicketUser.ticket_id
         """
@@ -161,8 +173,7 @@ class TicketPolicy:
         ticket_user: TicketUser,
     ) -> None:
         """
-        Проверяет, что Ticket и TicketUser действительно описывают
-        одну и ту же пользовательскую заявку.
+        Проверяет согласованность связанных Ticket и TicketUser.
 
         Проверяются:
         - user_ticket_id;
@@ -193,22 +204,26 @@ class TicketPolicy:
                 f"{ticket_user.ticket_id} have different contact users"
             )
 
+    # ----------------------------
+    # Admin relation
+    # ----------------------------
+
     @staticmethod
     def ensure_ticket_has_no_admin_yet(
         *,
         ticket: Ticket,
     ) -> None:
         """
-        Проверка перед принятием Ticket, созданной из TicketUser.
+        Проверка перед назначением первого Admin
+        связанной Ticket.
 
-        До ACCEPTED такая Ticket имеет:
+        Какой workflow допускает эту операцию,
+        определяет сам Ticket / TicketStatusRecord.
 
-            admin_id = 0
-
-        После ACCEPTED aggregate Ticket назначит admin_id
-        из actor_employee_id записи ACCEPTED.
+        Policy проверяет только cross-aggregate факт:
+        Admin ещё не должен быть зафиксирован.
         """
-        if ticket.current_status() == TicketStatus.CREATED_FROM_TICKET_USER and ticket.admin_id != 0:
+        if ticket.admin_id != 0:
             raise DomainOperationError(
                 f"Ticket {ticket.ticket_id} already has admin "
                 f"{ticket.admin_id}"
@@ -223,6 +238,10 @@ class TicketPolicy:
             raise DomainOperationError(
                 f"Ticket {ticket.ticket_id} has no assigned admin"
             )
+
+    # ----------------------------
+    # User relations
+    # ----------------------------
 
     @staticmethod
     def ensure_user_matches_ticket_user(
@@ -271,3 +290,5 @@ class TicketPolicy:
                 f"Contact user {contact_user.employee_id} does not match "
                 f"Ticket {ticket.ticket_id}"
             )
+
+

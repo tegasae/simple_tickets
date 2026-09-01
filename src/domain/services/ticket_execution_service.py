@@ -1,103 +1,121 @@
 # src/domain/services/ticket_execution_service.py
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from src.domain.exceptions import DomainOperationError
-from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket import Ticket
 
 
 class TicketExecutionService:
     """
-    Domain service для фиксации выполнения работы.
+    Domain service для выполнения работы по Ticket.
 
     Не отвечает за:
+    - RBAC;
     - permissions;
     - роли;
     - проверку enabled Admin;
-    - проверку department;
-    - поиск Ticket в repository.
+    - проверку Department;
+    - repository;
+    - конкретные TicketStatus.
 
-    Application service должен проверить право вызвать use case.
+    TicketStatusRecord:
+        - знает семантику текущего workflow-состояния;
+        - создаёт корректные status-records.
+
+    Ticket:
+        - проверяет допустимость workflow-перехода;
+        - добавляет status-record в историю.
+
+    TicketExecutionService:
+        - проверяет правила конкретных execution use cases;
+        - проверяет связь действия с текущим executor.
     """
+
     @staticmethod
     def take_to_work(
-
         *,
         ticket: Ticket,
         actor_employee_id: int,
         comment: str = "",
     ) -> TicketStatusRecord:
         """
-        Начинает обычную онлайн-работу.
+        Начинает обычную работу.
 
-        Допустимо только из:
-        - ASSIGNED;
-        - READY_TO_WORK.
+        Допустимо только из состояния,
+        из которого можно начать новую работу.
 
-        Начать работу может только current executor.
+        Выполнить действие может только current executor.
         """
-        TicketExecutionService._ensure_current_status(
-            ticket=ticket,
-            allowed_statuses=(
-                TicketStatus.ASSIGNED,
-                TicketStatus.READY_TO_WORK,
-            ),
-            operation="take ticket to work",
-        )
-        TicketExecutionService._ensure_current_executor(
-            ticket=ticket,
-            actor_employee_id=actor_employee_id,
+        current_record = ticket.current_status_record()
+
+        if not current_record.can_take_to_work():
+            raise DomainOperationError(
+                "Ticket cannot be taken to work "
+                "from the current state"
+            )
+
+        executor_id = (
+            TicketExecutionService
+            ._current_executor_for_actor_or_raise(
+                ticket=ticket,
+                actor_employee_id=actor_employee_id,
+            )
         )
 
-        record = TicketStatusRecord(
+        record = TicketStatusRecord.create_at_work(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.AT_WORK,
-            executor_id=ticket.current_executor_id(),
-            actual_started_at=datetime.now(timezone.utc),
+            executor_id=executor_id,
             comment=comment,
         )
 
         ticket.append_status(record)
+
         return record
 
     @staticmethod
     def pause_work(
-
         *,
         ticket: Ticket,
         actor_employee_id: int,
         comment: str = "",
     ) -> TicketStatusRecord:
         """
-        Временно приостанавливает текущую работу.
+        Приостанавливает текущую работу.
 
-        Допустимо только из AT_WORK.
         Исполнитель сохраняется.
+
+        Выполнить действие может только current executor.
         """
-        TicketExecutionService._ensure_current_status(
-            ticket=ticket,
-            allowed_statuses=(TicketStatus.AT_WORK,),
-            operation="pause ticket work",
-        )
-        TicketExecutionService._ensure_current_executor(
-            ticket=ticket,
-            actor_employee_id=actor_employee_id,
+        current_record = ticket.current_status_record()
+
+        if not current_record.can_pause_work():
+            raise DomainOperationError(
+                "Ticket work cannot be paused "
+                "from the current state"
+            )
+
+        executor_id = (
+            TicketExecutionService
+            ._current_executor_for_actor_or_raise(
+                ticket=ticket,
+                actor_employee_id=actor_employee_id,
+            )
         )
 
-        record = TicketStatusRecord(
+        record = TicketStatusRecord.create_paused(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.PAUSED,
-            executor_id=ticket.current_executor_id(),
+            executor_id=executor_id,
             comment=comment,
         )
 
         ticket.append_status(record)
+
         return record
+
     @staticmethod
     def resume_work(
-
         *,
         ticket: Ticket,
         actor_employee_id: int,
@@ -106,27 +124,34 @@ class TicketExecutionService:
         """
         Возобновляет ранее приостановленную работу.
 
-        Допустимо только из PAUSED.
+        Исполнитель сохраняется.
+
+        Выполнить действие может только current executor.
         """
-        TicketExecutionService._ensure_current_status(
-            ticket=ticket,
-            allowed_statuses=(TicketStatus.PAUSED,),
-            operation="resume ticket work",
-        )
-        TicketExecutionService._ensure_current_executor(
-            ticket=ticket,
-            actor_employee_id=actor_employee_id,
+        current_record = ticket.current_status_record()
+
+        if not current_record.can_resume_work():
+            raise DomainOperationError(
+                "Ticket work cannot be resumed "
+                "from the current state"
+            )
+
+        executor_id = (
+            TicketExecutionService
+            ._current_executor_for_actor_or_raise(
+                ticket=ticket,
+                actor_employee_id=actor_employee_id,
+            )
         )
 
-        record = TicketStatusRecord(
+        record = TicketStatusRecord.create_at_work(
             actor_employee_id=actor_employee_id,
-            status=TicketStatus.AT_WORK,
-            executor_id=ticket.current_executor_id(),
-            actual_started_at=datetime.now(timezone.utc),
+            executor_id=executor_id,
             comment=comment,
         )
 
         ticket.append_status(record)
+
         return record
 
     @staticmethod
@@ -137,38 +162,46 @@ class TicketExecutionService:
         comment: str = "",
     ) -> TicketStatusRecord:
         """
-        Завершает текущий интервал онлайн-работы
-        и отправляет Ticket на review.
+        Завершает текущий интервал обычной работы
+        и передаёт результат на review.
 
-        Допустимо только из AT_WORK.
+        actual_started_at в новой record отсутствует:
+        начало работы уже зафиксировано предыдущей
+        рабочей status-record.
 
-        actual_started_at здесь не передаётся:
-        начало работы уже отражено записью AT_WORK.
+        Выполнить действие может только current executor.
         """
-        TicketExecutionService._ensure_current_status(
-            ticket=ticket,
-            allowed_statuses=(TicketStatus.AT_WORK,),
-            operation="submit ticket for review",
-        )
-        TicketExecutionService._ensure_current_executor(
-            ticket=ticket,
-            actor_employee_id=actor_employee_id,
+        current_record = ticket.current_status_record()
+
+        if not current_record.can_submit_for_review():
+            raise DomainOperationError(
+                "Ticket cannot be submitted for review "
+                "from the current state"
+            )
+
+        executor_id = (
+            TicketExecutionService
+            ._current_executor_for_actor_or_raise(
+                ticket=ticket,
+                actor_employee_id=actor_employee_id,
+            )
         )
 
-        record = TicketStatusRecord(
-            actor_employee_id=actor_employee_id,
-            status=TicketStatus.READY_FOR_REVIEW,
-            executor_id=ticket.current_executor_id(),
-            actual_finished_at=datetime.now(timezone.utc),
-            comment=comment,
+        record = (
+            TicketStatusRecord
+            .create_ready_for_review_from_work(
+                actor_employee_id=actor_employee_id,
+                executor_id=executor_id,
+                comment=comment,
+            )
         )
 
         ticket.append_status(record)
+
         return record
 
     @staticmethod
     def record_completed_work_for_review(
-
         *,
         ticket: Ticket,
         actor_employee_id: int,
@@ -178,39 +211,27 @@ class TicketExecutionService:
         comment: str = "",
     ) -> TicketStatusRecord:
         """
-        Регистрирует завершённую работу задним числом.
+        Регистрирует завершённую работу ретроспективно.
 
-        Допустимо только из:
-        - SCHEDULED;
-        - ASSIGNED;
-        - READY_TO_WORK.
+        actor_employee_id:
+            сотрудник, который внёс событие.
 
-        Создаёт READY_FOR_REVIEW напрямую.
+        executor_id:
+            сотрудник, который фактически выполнил работу.
 
-        executor_id — сотрудник, который фактически выполнил работу.
-        actor_employee_id — сотрудник, который внёс запись в систему.
+        Если в текущем состоянии уже имеется executor,
+        фактический исполнитель должен совпадать с ним.
 
-        При наличии current executor фактический исполнитель обязан
-        совпадать с ним. Если работу выполнил другой сотрудник,
-        сначала должно быть отдельное бизнес-событие переназначения.
+        Если работу выполнил другой сотрудник,
+        сначала должно быть отдельное workflow-событие
+        переназначения.
         """
-        TicketExecutionService._ensure_current_status(
-            ticket=ticket,
-            allowed_statuses=(
-                TicketStatus.SCHEDULED,
-                TicketStatus.ASSIGNED,
-                TicketStatus.READY_TO_WORK,
-            ),
-            operation="record completed work for review",
-        )
-        if actor_employee_id <= 0:
-            raise DomainOperationError(
-                "Actor employee id must be positive"
-            )
+        current_record = ticket.current_status_record()
 
-        if executor_id <= 0:
+        if not current_record.can_record_completed_work_for_review():
             raise DomainOperationError(
-                "Completed work requires executor_id"
+                "Completed work cannot be recorded for review "
+                "from the current state"
             )
 
         if (
@@ -222,54 +243,44 @@ class TicketExecutionService:
                 "the current ticket executor"
             )
 
-        record = TicketStatusRecord(
-            actor_employee_id=actor_employee_id,
-            status=TicketStatus.READY_FOR_REVIEW,
-            executor_id=executor_id,
-            actual_started_at=actual_started_at,
-            actual_finished_at=actual_finished_at,
-            comment=comment,
+        record = (
+            TicketStatusRecord
+            .create_ready_for_review_retrospective(
+                actor_employee_id=actor_employee_id,
+                executor_id=executor_id,
+                actual_started_at=actual_started_at,
+                actual_finished_at=actual_finished_at,
+                comment=comment,
+            )
         )
 
         ticket.append_status(record)
+
         return record
 
     @staticmethod
-    def _ensure_current_status(
-        *,
-        ticket: Ticket,
-        allowed_statuses: tuple[TicketStatus, ...],
-        operation: str,
-    ) -> None:
-        current_status = ticket.current_status()
-
-        if current_status in allowed_statuses:
-            return
-
-        allowed = ", ".join(
-            str(status)
-            for status in allowed_statuses
-        )
-
-        raise DomainOperationError(
-            f"Cannot {operation} from {current_status.value}. "
-            f"Allowed statuses: {allowed}"
-        )
-
-    @staticmethod
-    def _ensure_current_executor(
+    def _current_executor_for_actor_or_raise(
         *,
         ticket: Ticket,
         actor_employee_id: int,
-    ) -> None:
-        current_executor_id = ticket.current_executor_id()
+    ) -> int:
+        """
+        Проверяет, что Ticket имеет current executor
+        и что именно этот executor выполняет действие.
 
-        if current_executor_id <= 0:
+        Возвращает executor_id, чтобы вызывающий код
+        не запрашивал его повторно.
+        """
+        executor_id = ticket.current_executor_id()
+
+        if executor_id <= 0:
             raise DomainOperationError(
                 "Ticket has no current executor"
             )
 
-        if current_executor_id != actor_employee_id:
+        if executor_id != actor_employee_id:
             raise DomainOperationError(
                 "Only current executor can perform this action"
             )
+
+        return executor_id
