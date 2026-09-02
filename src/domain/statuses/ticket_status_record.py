@@ -8,27 +8,29 @@ from src.domain.exceptions import (
     DomainOperationError,
     ItemValidationError,
 )
-from src.domain.statuses.ticket_status import (
-    TicketState,
-    TicketStatus,
-    get_ticket_state,
-)
+from src.domain.statuses.ticket_status import TicketState, TicketStatus
 
 
 @dataclass(kw_only=True)
 class TicketStatusRecord:
     """
-    Факт изменения workflow-состояния Ticket.
+    Один факт изменения workflow-состояния Ticket.
 
-    TicketStatusRecord знает:
-    - конкретный TicketStatus;
-    - свойства этого состояния через TicketState;
-    - допустимость перехода к следующей record;
-    - требования к payload конкретного состояния;
-    - context-dependent требования переходов.
+    TicketStatusRecord отвечает за:
+    - хранение данных workflow-события;
+    - нормализацию данных;
+    - проверку payload конкретного состояния;
+    - создание корректных status-records;
+    - проверку правил, зависящих от пары соседних records.
 
-    Ticket и domain services не должны знать детали
-    конкретных TicketStatus без необходимости.
+    TicketStatusRecord не отвечает за:
+    - RBAC;
+    - permissions;
+    - cross-aggregate rules;
+    - реакции на внешние события;
+    - orchestration use cases.
+
+    Свойства workflow-состояния находятся в TicketState.
     """
 
     status_id: int = 0
@@ -36,11 +38,6 @@ class TicketStatusRecord:
     actor_employee_id: int = 0
     status: TicketStatus
 
-    state: TicketState = field(
-        init=False,
-        repr=False,
-        compare=False,
-    )
 
     date_created: datetime = field(
         default_factory=lambda: datetime.now(UTC),
@@ -56,12 +53,16 @@ class TicketStatusRecord:
 
     comment: str = ""
 
+    @property
+    def state(self) -> TicketState:
+        return self.status.state
+
     def __post_init__(self) -> None:
         self.status = TicketStatus(self.status)
-        self.state = get_ticket_state(self.status)
+
 
         self.comment = self._normalize_comment(
-            self.comment
+            self.comment,
         )
 
         self.date_created = self._normalize_datetime(
@@ -90,12 +91,13 @@ class TicketStatusRecord:
         )
 
         self._validate_identity()
+        self._validate_record_time()
         self._validate_time_ranges()
         self._validate_actual_times()
         self._validate_status_payload()
 
     # ----------------------------
-    # Factories
+    # Creation factories
     # ----------------------------
 
     @classmethod
@@ -122,6 +124,10 @@ class TicketStatusRecord:
             status=TicketStatus.CREATED_FROM_TICKET_USER,
             date_created=date_created or datetime.now(UTC),
         )
+
+    # ----------------------------
+    # Management factories
+    # ----------------------------
 
     @classmethod
     def create_accepted(
@@ -260,13 +266,19 @@ class TicketStatusRecord:
 
     @classmethod
     def create_at_work(
-            cls,
-            *,
-            actor_employee_id: int,
-            executor_id: int,
-            comment: str = "",
-            date_created: datetime | None = None,
+        cls,
+        *,
+        actor_employee_id: int,
+        executor_id: int,
+        comment: str = "",
+        date_created: datetime | None = None,
     ) -> Self:
+        """
+        Начало нового интервала работы.
+
+        actual_started_at совпадает с временем создания
+        workflow-record.
+        """
         now = date_created or datetime.now(UTC)
 
         return cls(
@@ -280,35 +292,38 @@ class TicketStatusRecord:
 
     @classmethod
     def create_paused(
-            cls,
-            *,
-            actor_employee_id: int,
-            executor_id: int,
-            comment: str = "",
-            date_created: datetime | None = None,
+        cls,
+        *,
+        actor_employee_id: int,
+        executor_id: int,
+        comment: str = "",
+        date_created: datetime | None = None,
     ) -> Self:
         return cls(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.PAUSED,
             executor_id=executor_id,
-            date_created=date_created or datetime.now(UTC),
             comment=comment,
+            date_created=date_created or datetime.now(UTC),
         )
 
     @classmethod
     def create_ready_for_review_from_work(
-            cls,
-            *,
-            actor_employee_id: int,
-            executor_id: int,
-            comment: str = "",
-            date_created: datetime | None = None,
+        cls,
+        *,
+        actor_employee_id: int,
+        executor_id: int,
+        comment: str = "",
+        date_created: datetime | None = None,
     ) -> Self:
         """
-        Завершение обычной работы.
+        Завершает обычный интервал работы.
 
         actual_started_at здесь отсутствует:
-        начало находится в предыдущей AT_WORK record.
+        начало работы уже находится в предыдущей AT_WORK record.
+
+        actual_finished_at совпадает с временем создания
+        READY_FOR_REVIEW record.
         """
         now = date_created or datetime.now(UTC)
 
@@ -323,47 +338,53 @@ class TicketStatusRecord:
 
     @classmethod
     def create_ready_for_review_retrospective(
-            cls,
-            *,
-            actor_employee_id: int,
-            executor_id: int,
-            actual_started_at: datetime,
-            actual_finished_at: datetime,
-            comment: str = "",
-            date_created: datetime | None = None,
+        cls,
+        *,
+        actor_employee_id: int,
+        executor_id: int,
+        actual_started_at: datetime,
+        actual_finished_at: datetime,
+        comment: str = "",
+        date_created: datetime | None = None,
     ) -> Self:
         """
-        Ретроспективная регистрация завершённой работы.
+        Регистрирует уже завершённую работу ретроспективно.
 
-        Начало и окончание работы находятся
-        в одной READY_FOR_REVIEW record.
+        В одной READY_FOR_REVIEW record находятся:
+        - actual_started_at;
+        - actual_finished_at.
         """
         return cls(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.READY_FOR_REVIEW,
             executor_id=executor_id,
-            date_created=date_created or datetime.now(UTC),
             actual_started_at=actual_started_at,
             actual_finished_at=actual_finished_at,
             comment=comment,
+            date_created=date_created or datetime.now(UTC),
         )
+
+    # ----------------------------
+    # Review factories
+    # ----------------------------
 
     @classmethod
     def create_executed(
-            cls,
-            *,
-            actor_employee_id: int,
-            comment: str = "",
-            date_created: datetime | None = None,
+        cls,
+        *,
+        actor_employee_id: int,
+        comment: str = "",
+        date_created: datetime | None = None,
     ) -> Self:
         return cls(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.EXECUTED,
-            date_created=date_created or datetime.now(UTC),
             comment=comment,
+            date_created=date_created or datetime.now(UTC),
         )
+
     # ----------------------------
-    # Queries
+    # Basic queries
     # ----------------------------
 
     def is_new(self) -> bool:
@@ -393,84 +414,62 @@ class TicketStatusRecord:
     def has_actual_finished(self) -> bool:
         return self.actual_finished_at is not None
 
+    # ----------------------------
+    # State queries
+    # ----------------------------
+
     def can_change_department(self) -> bool:
-        return not self.state.locks_department_change
+        return (
+            not self.state.terminal
+            and not self.state.locks_department_change
+        )
 
     def can_update_text(self) -> bool:
         return self.state.allows_ticket_text_update
+
+    def can_take_to_work(self) -> bool:
+        return self.state.can_take_to_work
+
+    def can_pause_work(self) -> bool:
+        return self.state.can_pause_work
+
+    def can_resume_work(self) -> bool:
+        return self.state.can_resume_work
+
+    def can_submit_for_review(self) -> bool:
+        return self.state.can_submit_for_review
+
+    def can_record_completed_work_for_review(self) -> bool:
+        return self.state.can_record_completed_work
+
+    def can_review_result(self) -> bool:
+        return self.state.can_review_result
+
+    # ----------------------------
+    # Transition queries
+    # ----------------------------
 
     def can_move_to_next_record(
         self,
         record: Self,
     ) -> bool:
         return self.state.allows_transition_to(
-            record.status
+            record.status,
         )
 
     def created_from_ticket_user_to_accepted(
         self,
         record: Self,
     ) -> bool:
+        """
+        Этот переход имеет дополнительный aggregate-effect:
+        Ticket фиксирует первого admin_id из actor новой record.
+        """
         return (
             self.status == TicketStatus.CREATED_FROM_TICKET_USER
             and record.status == TicketStatus.ACCEPTED
         )
 
-    def should_reject_when_client_disabled(self) -> bool:
-        """
-        При отключении Client заявка в начальном состоянии
-        должна быть отклонена.
-        """
-        return self.status in {
-            TicketStatus.CREATED,
-            TicketStatus.CREATED_FROM_TICKET_USER,
-        }
-
-    def should_defer_when_client_disabled(self) -> bool:
-        """
-        При отключении Client принятая, запланированная
-        или назначенная заявка переводится в DEFERRED.
-        """
-        return self.status in {
-            TicketStatus.ACCEPTED,
-            TicketStatus.SCHEDULED,
-            TicketStatus.ASSIGNED,
-            TicketStatus.READY_TO_WORK,
-        }
-
-    # ----------------------------
-    # Execution queries
-    # ----------------------------
-
-    def can_take_to_work(self) -> bool:
-        return self.status in {
-            TicketStatus.ASSIGNED,
-            TicketStatus.READY_TO_WORK,
-        }
-
-    def can_pause_work(self) -> bool:
-        return self.status == TicketStatus.AT_WORK
-
-    def can_resume_work(self) -> bool:
-        return self.status == TicketStatus.PAUSED
-
-    def can_submit_for_review(self) -> bool:
-        return self.status == TicketStatus.AT_WORK
-
-    def can_record_completed_work_for_review(self) -> bool:
-        return self.status in {
-            TicketStatus.SCHEDULED,
-            TicketStatus.ASSIGNED,
-            TicketStatus.READY_TO_WORK,
-        }
-
-
-
-
-
-
-    def can_review_result(self) -> bool:
-        return self.status == TicketStatus.READY_FOR_REVIEW
     # ----------------------------
     # Transition validation
     # ----------------------------
@@ -479,6 +478,30 @@ class TicketStatusRecord:
         self,
         record: Self,
     ) -> None:
+        """
+        Проверяет context-dependent payload перехода
+        в READY_FOR_REVIEW.
+
+        Обычная работа:
+
+            AT_WORK -> READY_FOR_REVIEW
+
+        actual_started_at в новой record отсутствует,
+        потому что начало работы уже записано в AT_WORK.
+
+        Ретроспективная регистрация:
+
+            SCHEDULED
+            ASSIGNED
+            READY_TO_WORK
+                -> READY_FOR_REVIEW
+
+        отдельной AT_WORK record нет, поэтому
+        actual_started_at должен находиться в новой record.
+
+        Общая допустимость самого перехода проверяется отдельно
+        через can_move_to_next_record().
+        """
         if record.status != TicketStatus.READY_FOR_REVIEW:
             return
 
@@ -488,6 +511,7 @@ class TicketStatusRecord:
                     "AT_WORK -> READY_FOR_REVIEW "
                     "must not provide actual_started_at"
                 )
+
             return
 
         if self.status in {
@@ -500,6 +524,7 @@ class TicketStatusRecord:
                     "Retrospective work registration "
                     "requires actual_started_at"
                 )
+
             return
 
         raise DomainOperationError(
@@ -535,6 +560,12 @@ class TicketStatusRecord:
         self._validate_actual_payload()
 
     def _validate_actor_payload(self) -> None:
+        """
+        actor_employee_id = 0 используется только для событий,
+        пришедших из TicketUser workflow.
+
+        Все внутренние Admin workflow-события имеют actor > 0.
+        """
         user_driven_statuses = {
             TicketStatus.CREATED_FROM_TICKET_USER,
             TicketStatus.CANCELLED_BY_USER,
@@ -546,6 +577,7 @@ class TicketStatusRecord:
                     f"Status {self.status.value} "
                     "must have actor_employee_id = 0"
                 )
+
             return
 
         if self.actor_employee_id == 0:
@@ -561,6 +593,7 @@ class TicketStatusRecord:
                     f"Status {self.status.value} "
                     "requires executor"
                 )
+
             return
 
         if self.executor_id != 0:
@@ -580,12 +613,21 @@ class TicketStatusRecord:
             )
 
     def _validate_planned_payload(self) -> None:
+        """
+        planned_start_at обязателен только для состояний,
+        которые требуют планирования.
+
+        planned_finish_at в таких состояниях необязателен.
+
+        В остальных состояниях planned timestamps запрещены.
+        """
         if self.state.requires_planned_start:
             if self.planned_start_at is None:
                 raise ItemValidationError(
                     f"Status {self.status.value} "
                     "requires planned_start_at"
                 )
+
             return
 
         if (
@@ -598,6 +640,13 @@ class TicketStatusRecord:
             )
 
     def _validate_actual_payload(self) -> None:
+        """
+        Проверяет actual timestamps по TicketState.
+
+        Context-dependent требование actual_started_at
+        для READY_FOR_REVIEW проверяется отдельно
+        в validate_review_transition().
+        """
         if (
             self.state.requires_actual_start
             and self.actual_started_at is None
@@ -634,6 +683,15 @@ class TicketStatusRecord:
                 "cannot have actual_finished_at"
             )
 
+    def _validate_record_time(self) -> None:
+        """
+        Workflow-событие не может быть создано в будущем.
+        """
+        if self.date_created > datetime.now(UTC):
+            raise ItemValidationError(
+                "Status record creation time cannot be in the future"
+            )
+
     def _validate_time_ranges(self) -> None:
         if (
             self.planned_start_at is not None
@@ -654,22 +712,30 @@ class TicketStatusRecord:
             )
 
     def _validate_actual_times(self) -> None:
-        now = datetime.now(UTC)
+        """
+        Фактическое событие не может происходить позже
+        момента создания status-record.
 
+        Это особенно важно для ретроспективной регистрации:
+        actual_started_at / actual_finished_at описывают
+        уже произошедшую работу.
+        """
         if (
             self.actual_started_at is not None
-            and self.actual_started_at > now
+            and self.actual_started_at > self.date_created
         ):
             raise ItemValidationError(
-                "Actual start cannot be in the future"
+                "Actual start cannot be after "
+                "status record creation time"
             )
 
         if (
             self.actual_finished_at is not None
-            and self.actual_finished_at > now
+            and self.actual_finished_at > self.date_created
         ):
             raise ItemValidationError(
-                "Actual finish cannot be in the future"
+                "Actual finish cannot be after "
+                "status record creation time"
             )
 
     # ----------------------------

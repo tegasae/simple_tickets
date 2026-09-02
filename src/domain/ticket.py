@@ -684,6 +684,8 @@ class Ticket:
 
         return False
 
+    def is_in_work(self) -> bool:
+        return self.current_status_record().state.work_in_progress
     # ----------------------------
     # Helpers
     # ----------------------------

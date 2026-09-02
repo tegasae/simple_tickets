@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
 
 def datetime_to_db(value: datetime | None) -> str | None:
@@ -16,41 +16,71 @@ def datetime_to_db(value: datetime | None) -> str | None:
     return value.astimezone(timezone.utc).isoformat()
 
 
-def dt_from_sqlite(value: str | int |datetime| None) -> datetime:
+from datetime import datetime, timezone
+
+
+def dt_from_sqlite(
+    value: str | int | datetime | None,
+) -> datetime | None:
     """
-    You said date_created INTEGER. But some parts of your code used ISO strings.
-    This supports:
-      - ISO string
-      - unix timestamp int
-      - None
+    Converts SQLite datetime value to timezone-aware UTC datetime.
+
+    Supported values:
+    - None -> None
+    - datetime
+    - ISO-8601 string
+    - Unix timestamp as int
+
+    Invalid values raise an exception instead of silently
+    becoming datetime.now().
     """
-    dt = datetime.now()
+    if value is None:
+        return None
 
+    if isinstance(value, datetime):
+        dt = value
 
-    if isinstance(value, int):
-        # interpret as unix timestamp seconds
+    elif isinstance(value, int):
+        dt = datetime.fromtimestamp(
+            value,
+            tz=timezone.utc,
+        )
+
+    elif isinstance(value, str):
+        value = value.strip()
+
+        if not value:
+            return None
+
         try:
-            dt=datetime.fromtimestamp(value)
+            dt = datetime.fromisoformat(value)
         except ValueError:
-            dt=datetime.now()
-
-    if isinstance(value, str):
-        try:
-            dt=datetime.fromisoformat(value)
-        except ValueError:
-            # try int-like string
             try:
-                dt=datetime.fromtimestamp(int(value))
-            except ValueError:
-                dt=datetime.now()
-    if isinstance(value,datetime):
-        dt=value
+                timestamp = int(value)
+            except ValueError as exc:
+                raise ValueError(
+                    f"Invalid SQLite datetime value: {value!r}"
+                ) from exc
+
+            dt = datetime.fromtimestamp(
+                timestamp,
+                tz=timezone.utc,
+            )
+
+    else:
+        raise TypeError(
+            "SQLite datetime value must be "
+            "str, int, datetime or None"
+        )
 
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
+        return dt.replace(
+            tzinfo=timezone.utc,
+        )
 
-    return dt.astimezone(timezone.utc)
-
+    return dt.astimezone(
+        timezone.utc,
+    )
 
 
 def dt_to_sqlite_iso(dt: datetime) -> str:

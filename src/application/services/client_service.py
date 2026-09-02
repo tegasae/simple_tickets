@@ -9,7 +9,8 @@ from src.domain.policies.client import ClientPolicy
 
 
 from src.domain.rbac.permissions import AdminPermission
-from src.domain.services.ticket_management_service import TicketManagementService
+from src.domain.services.ticket_client_service import TicketClientService
+
 
 
 from src.domain.uow.unit_of_work import UnitOfWork
@@ -23,7 +24,7 @@ class ClientApplicationService:
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
         self.actor = EmployeeActorHelper(self.uow)
-        self.ticket_management = TicketManagementService()
+        self.ticket_client_service = TicketClientService()
 
     def _save_and_to_dto(self, client: Client) -> ClientResponseDTO:
         saved_client = self.uow.clients.save(client)
@@ -178,16 +179,17 @@ class ClientApplicationService:
             client_id: int,
             actor_admin_id: int,
     ) -> None:
-        for tickets_batch in self.uow.tickets.iter_active_by_client_id(
+        for ticket in self.uow.tickets.iter_by_client_id(
                 client_id=client_id,
                 batch_size=500,
         ):
-            for ticket in tickets_batch:
-                changed = self.ticket_management.handle_client_disabled(
-                    ticket=ticket,
-                    actor_employee_id=actor_admin_id,
-                    comment="Client disabled",
-                )
+            changed = self.ticket_client_service.handle_client_disabled(
+                ticket=ticket,
+                actor_employee_id=actor_admin_id,
+                comment="Client disabled",
+            )
 
+            if changed:
+                self.uow.tickets.save(ticket)
                 if changed:
                     self.uow.tickets.save(ticket)

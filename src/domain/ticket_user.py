@@ -50,6 +50,8 @@ class TicketUserStatus(StrEnum):
         return cls(status) in FIRST_TICKET_USER_STATUSES
 
 
+
+
 # Compatibility alias for older imports.
 # Do not use this name in new code.
 StatusTicketOfClient = TicketUserStatus
@@ -109,22 +111,30 @@ TICKET_USER_TRANSITIONS: Final[
 
 
 def _validate_ticket_user_transitions() -> None:
-    missing_statuses = (
-        set(TicketUserStatus)
-        - set(TICKET_USER_TRANSITIONS)
-    )
+    missing_statuses: list[TicketUserStatus] = [
+        status
+        for status in TicketUserStatus
+        if status not in TICKET_USER_TRANSITIONS
+    ]
 
     if missing_statuses:
-        missing = ", ".join(
-            sorted(
-                str(status)
-                for status in missing_statuses
-            )
-        )
+        missing_values = [
+            status.value
+            for status in missing_statuses
+        ]
+        missing_values.sort()
+
         raise RuntimeError(
             "Missing TicketUser transition definitions: "
-            f"{missing}"
+            + ", ".join(str(missing_values))
         )
+
+    for status in TERMINAL_TICKET_USER_STATUSES:
+        if TICKET_USER_TRANSITIONS[status]:
+            raise RuntimeError(
+                f"Terminal TicketUser status "
+                f"{status.value} cannot have transitions"
+            )
 
 
 _validate_ticket_user_transitions()
@@ -151,7 +161,8 @@ class StatusRecordTicketUser:
         default_factory=lambda: datetime.now(UTC),
     )
 
-    comment: str = ""
+    #comment: str = ""
+    status_comment:str=""
 
     def __post_init__(self) -> None:
         self.status = TicketUserStatus(self.status)
@@ -161,11 +172,12 @@ class StatusRecordTicketUser:
             field_name="date_created",
         )
 
-        self.comment = self._normalize_comment(
-            self.comment
+        self.status_comment = self._normalize_comment(
+            self.status_comment
         )
 
         self._validate_identity()
+        self._validate_record_time()
 
     # ----------------------------
     # Queries
@@ -207,6 +219,13 @@ class StatusRecordTicketUser:
             raise ItemValidationError(
                 "TicketUser status actor employee ID "
                 "must be positive"
+            )
+
+    def _validate_record_time(self) -> None:
+        if self.date_created > datetime.now(UTC):
+            raise ItemValidationError(
+                "TicketUser status record date_created "
+                "cannot be in the future"
             )
 
     # ----------------------------
@@ -425,7 +444,7 @@ class TicketUser:
                     actor_employee_id=actor_admin_id,
                     status=TicketUserStatus.CONFIRMED_BY_ADMIN,
                     date_created=now,
-                    comment=comment,
+                    status_comment=comment,
                 ),
             ],
         )
@@ -526,11 +545,11 @@ class TicketUser:
     # ----------------------------
 
     def update_details(
-        self,
-        *,
-        actor_employee_id: int,
-        description: str = "",
-        contact_user_id: int = 0,
+            self,
+            *,
+            actor_employee_id: int,
+            description: str = "",
+            contact_user_id: int = 0,
     ) -> None:
         if actor_employee_id <= 0:
             raise DomainOperationError(
@@ -560,7 +579,7 @@ class TicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=actor_employee_id,
                 status=TicketUserStatus.CONFIRMED_BY_ADMIN,
-                comment=comment,
+                status_comment=comment,
             )
         )
 
@@ -574,7 +593,7 @@ class TicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=actor_employee_id,
                 status=TicketUserStatus.IN_WORK,
-                comment=comment,
+                status_comment=comment,
             )
         )
 
@@ -588,7 +607,7 @@ class TicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=actor_employee_id,
                 status=TicketUserStatus.WAITING_FOR_CONFIRMATION,
-                comment=comment,
+                status_comment=comment,
             )
         )
 
@@ -602,7 +621,7 @@ class TicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=actor_employee_id,
                 status=TicketUserStatus.EXECUTION_CONFIRMED_BY_USER,
-                comment=comment,
+                status_comment=comment,
             )
         )
 
@@ -616,7 +635,7 @@ class TicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=actor_employee_id,
                 status=TicketUserStatus.EXECUTION_CONFIRMED_BY_ADMIN,
-                comment=comment,
+                status_comment=comment,
             )
         )
 
@@ -630,7 +649,7 @@ class TicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=actor_employee_id,
                 status=TicketUserStatus.CANCELLED_BY_USER,
-                comment=comment,
+                status_comment=comment,
             )
         )
 
@@ -644,7 +663,7 @@ class TicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=actor_employee_id,
                 status=TicketUserStatus.CANCELLED_BY_ADMIN,
-                comment=comment,
+                status_comment=comment,
             )
         )
 

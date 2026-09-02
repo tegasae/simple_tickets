@@ -132,23 +132,23 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             for row in rows
         ]
 
-    def iter_active_by_client_id(
-        self,
-        *,
-        client_id: int,
-        batch_size: int = 500,
-    ) -> Iterator[list[Ticket]]:
+    def iter_by_client_id(
+            self,
+            *,
+            client_id: int,
+            batch_size: int = 500,
+    ) -> Iterator[Ticket]:
         """
-        Loads non-terminal tickets of one client in batches.
+        Loads all tickets of one client in batches.
 
-        The SQL query determines only whether a ticket is terminal.
-        Domain rules decide which workflow action is allowed.
+        Repository does not interpret Ticket workflow state.
+        Domain/application logic decides what to do with each Ticket.
         """
         last_id = 0
 
         while True:
             rows = self._get_many(
-                TicketGateway.SELECT_ACTIVE_BY_CLIENT_ID_BATCH,
+                TicketGateway.SELECT_BY_CLIENT_ID_BATCH,
                 TicketMapper.TICKET_FIELDS,
                 {
                     "client_id": client_id,
@@ -160,10 +160,33 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             if not rows:
                 return
 
-            yield [
-                self._load_ticket(row)
-                for row in rows
-            ]
+            for row in rows:
+                yield self._load_ticket(row)
+
+            last_id = rows[-1]["ticket_id"]
+
+    def iter_get_all(
+            self,
+            *,
+            batch_size: int = 500,
+    ) -> Iterator[Ticket]:
+        last_id = 0
+
+        while True:
+            rows = self._get_many(
+                TicketGateway.SELECT_ALL_BATCH,
+                TicketMapper.TICKET_FIELDS,
+                {
+                    "last_id": last_id,
+                    "limit": batch_size,
+                },
+            )
+
+            if not rows:
+                return
+
+            for row in rows:
+                yield self._load_ticket(row)
 
             last_id = rows[-1]["ticket_id"]
 

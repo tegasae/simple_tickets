@@ -64,17 +64,25 @@ class TicketRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def iter_active_by_client_id(
+    def iter_by_client_id(
         self,
         *,
         client_id: int,
         batch_size: int = 500,
-    ) -> Iterator[list[Ticket]]:
+    ) -> Iterator[Ticket]:
         """
         Iterate non-terminal tickets of one client in batches.
 
         More specific workflow rules are checked later by domain services.
         """
+        raise NotImplementedError
+
+    @abstractmethod
+    def iter_get_all(
+            self,
+            *,
+            batch_size: int = 500,
+    ) -> Iterator[Ticket]:
         raise NotImplementedError
 
     @abstractmethod

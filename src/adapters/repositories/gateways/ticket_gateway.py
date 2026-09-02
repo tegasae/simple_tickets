@@ -32,7 +32,7 @@ class TicketGateway:
     WHERE user_ticket_id = :user_ticket_id
     """
 
-    SELECT_ACTIVE_BY_CLIENT_ID_BATCH = """
+    SELECT_BY_CLIENT_ID_BATCH ="""
     SELECT
         t.ticket_id,
         t.client_id,
@@ -48,24 +48,34 @@ class TicketGateway:
         t.urgency_level,
         t.version
     FROM tickets AS t
-    JOIN ticket_status_records AS current_status
-        ON current_status.status_id = (
-            SELECT status_record.status_id
-            FROM ticket_status_records AS status_record
-            WHERE status_record.ticket_id = t.ticket_id
-            ORDER BY status_record.status_id DESC
-            LIMIT 1
-        )
     WHERE t.client_id = :client_id
       AND t.ticket_id > :last_id
-      AND current_status.status NOT IN (
-          'rejected',
-          'executed',
-          'cancelled'
-      )
     ORDER BY t.ticket_id
     LIMIT :limit
-    """
+"""
+
+
+    SELECT_ALL_BATCH = """
+    SELECT
+        t.ticket_id,
+        t.client_id,
+        t.admin_id,
+        t.user_id,
+        t.contact_user_id,
+        t.user_ticket_id,
+        t.department_id,
+        t.text_of_ticket,
+        t.description,
+        t.date_created,
+        t.is_remote,
+        t.urgency_level,
+        t.version
+    FROM tickets AS t
+    WHERE t.ticket_id > :last_id
+    ORDER BY t.ticket_id
+    LIMIT :limit
+"""
+
 
     INSERT = """
     INSERT INTO tickets (
@@ -101,15 +111,15 @@ class TicketGateway:
     UPDATE = """
     UPDATE tickets
     SET
-        department_id = :department_id,
-        text_of_ticket = :text_of_ticket,
-        description = :description,
-        is_remote = :is_remote,
-        admin_id=:admin_id,
-        urgency_level = :urgency_level,
-        version = version + 1
-    WHERE ticket_id = :ticket_id
-      AND version = :version
+    contact_user_id = :contact_user_id,
+    department_id = :department_id,
+    text_of_ticket = :text_of_ticket,
+    description = :description,
+    is_remote = :is_remote,
+    urgency_level = :urgency_level,
+    version = version + 1
+WHERE ticket_id = :ticket_id
+  AND version = :version
     """
 
     DELETE = """

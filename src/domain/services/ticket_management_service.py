@@ -18,12 +18,10 @@ class TicketManagementService:
     - enabled/disabled состояния сотрудников;
     - знания о конкретных TicketStatus.
 
-    TicketStatusRecord:
-        создаёт корректную status-record для конкретного действия.
+    TicketStatusRecord создаёт корректную status-record.
 
-    Ticket:
-        проверяет допустимость перехода и добавляет record
-        в status history.
+    Ticket проверяет допустимость перехода
+    и добавляет record в status history.
     """
 
     @staticmethod
@@ -41,7 +39,6 @@ class TicketManagementService:
         )
 
         ticket.append_status(record)
-
         return record
 
     @staticmethod
@@ -59,7 +56,6 @@ class TicketManagementService:
         )
 
         ticket.append_status(record)
-
         return record
 
     @staticmethod
@@ -77,7 +73,6 @@ class TicketManagementService:
         )
 
         ticket.append_status(record)
-
         return record
 
     @staticmethod
@@ -99,7 +94,6 @@ class TicketManagementService:
         )
 
         ticket.append_status(record)
-
         return record
 
     @staticmethod
@@ -119,7 +113,6 @@ class TicketManagementService:
         )
 
         ticket.append_status(record)
-
         return record
 
     @staticmethod
@@ -143,7 +136,6 @@ class TicketManagementService:
         )
 
         ticket.append_status(record)
-
         return record
 
     @staticmethod
@@ -161,7 +153,6 @@ class TicketManagementService:
         )
 
         ticket.append_status(record)
-
         return record
 
     @staticmethod
@@ -171,62 +162,10 @@ class TicketManagementService:
         comment: str = "",
         date_created: datetime | None = None,
     ) -> TicketStatusRecord:
-        """
-        Отмена внутренней Ticket по событию из TicketUser workflow.
-
-        Конкретный User хранится в TicketUser history.
-        Поэтому для внутренней Ticket actor_employee_id
-        формируется самой TicketStatusRecord.
-        """
         record = TicketStatusRecord.create_cancelled_by_user(
             comment=comment,
             date_created=date_created,
         )
 
         ticket.append_status(record)
-
         return record
-
-    @staticmethod
-    def handle_client_disabled(
-        *,
-        ticket: Ticket,
-        actor_employee_id: int,
-        comment: str,
-        date_created: datetime | None = None,
-    ) -> bool:
-        """
-        Применяет workflow-реакцию на отключение Client.
-
-        Текущая TicketStatusRecord определяет,
-        какая реакция предусмотрена для её состояния.
-
-        Returns:
-            True:
-                status history была изменена.
-
-            False:
-                для текущего состояния никакого перехода
-                при отключении Client не требуется.
-        """
-        current_record = ticket.current_status_record()
-
-        if current_record.should_reject_when_client_disabled():
-            TicketManagementService.reject(
-                ticket=ticket,
-                actor_employee_id=actor_employee_id,
-                comment=comment,
-                date_created=date_created,
-            )
-            return True
-
-        if current_record.should_defer_when_client_disabled():
-            TicketManagementService.defer(
-                ticket=ticket,
-                actor_employee_id=actor_employee_id,
-                comment=comment,
-                date_created=date_created,
-            )
-            return True
-
-        return False
