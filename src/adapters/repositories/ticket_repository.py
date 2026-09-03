@@ -14,7 +14,7 @@ from src.adapters.repositories.gateways.ticket_gateway import (
 )
 from src.adapters.repositories.mappers.ticket_mapper import TicketMapper
 from src.domain.exceptions import ItemNotFoundError
-from src.domain.repositories.ticket_repository import TicketRepository, TicketSearchCriteria
+from src.domain.repositories.ticket_repository import TicketRepository
 
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket import Ticket
@@ -343,7 +343,7 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             TicketGateway.EXISTS_BY_DEPARTMENT_ID,
             {"department_id": department_id},
         )
-
+'''
     def search(
             self,
             criteria: TicketSearchCriteria,
@@ -449,3 +449,5 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             self.get(row["ticket_id"])
             for row in rows
         ]
+        
+        '''

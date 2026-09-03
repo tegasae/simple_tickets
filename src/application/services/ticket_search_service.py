@@ -1,16 +1,11 @@
 # src/application/services/ticket_search_service.py
-from src.application.assemblers.assembler import TicketAssembler
-from src.application.dto.ticket_dto import TicketResponseDTO
-from src.application.dto.ticket_search_dto import TicketSearchDTO
-from src.application.helper.actor_helper import EmployeeActorHelper
-from src.domain.exceptions import DomainOperationError
-from src.domain.repositories.ticket_repository import TicketSearchCriteria
-from src.domain.uow.unit_of_work import UnitOfWork
 
 
+# TODO:
+# Implement repository-level search when the number of tickets
+# makes get_all() + frontend filtering impractical.
 
-
-class TicketSearchService:
+'''class TicketSearchService:
     def __init__(
             self,
             *,
@@ -107,3 +102,5 @@ class TicketSearchService:
             raise DomainOperationError(
                 "date_from must be earlier than date_to",
             )
+
+'''

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Iterator
 
 from src.domain.ticket import Ticket
-
+'''
 @dataclass(frozen=True, kw_only=True)
 class TicketSearchCriteria:
         client_id: int = 0
@@ -24,7 +24,7 @@ class TicketSearchCriteria:
         limit: int = 100
         offset: int = 0
 
-
+'''
 
 @dataclass(frozen=True, kw_only=True)
 class TicketSearchCriteria:
@@ -147,10 +147,11 @@ class TicketRepository(ABC):
         Returns True when at least one Ticket belongs to department_id.
         """
         raise NotImplementedError
-
+'''
     @abstractmethod
     def search(
             self,
             criteria: TicketSearchCriteria,
     ) -> list[Ticket]:
         raise NotImplementedError
+'''

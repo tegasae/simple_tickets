@@ -112,34 +112,53 @@ class TicketAssembler:
 class TicketUserAssembler:
 
     @staticmethod
-    def to_dto(ticket_user: TicketUser) -> TicketUserResponseDTO:
-        statuses=[]
+    def to_dto(
+        ticket_user: TicketUser,
+    ) -> TicketUserResponseDTO:
+        statuses = []
+
         for status in ticket_user.statuses:
-             statuses.append({'id':status.status_id,'status':status.status.value,'actor_id':status.actor_employee_id,'date':str(status.date_created)})
+            statuses.append(
+                {
+                    "id": status.status_id,
+                    "status": status.status.value,
+                    "actor_id": status.actor_employee_id,
+                    "status_comment": status.status_comment,
+                    "date": str(status.date_created),
+                }
+            )
 
         comments = []
+
         for comment in ticket_user.comments:
-            comments.append({'id': comment.comment_id, 'comment': comment.comment, 'actor_id': comment.employee_id, 'date': str(comment.date_created)})
-
-
-
+            comments.append(
+                {
+                    "id": comment.comment_id,
+                    "comment": comment.comment,
+                    "actor_id": comment.employee_id,
+                    "date": str(comment.date_created),
+                }
+            )
 
         return TicketUserResponseDTO(
             ticket_id=ticket_user.ticket_id,
-            date_created=str(ticket_user.date_created),
-            description=str(ticket_user.description),
-            date_finished=str(ticket_user.date_finished),
-            contact_user_id=ticket_user.contact_user_id,
+            client_id=ticket_user.client_id,
             user_id=ticket_user.user_id,
+            contact_user_id=ticket_user.contact_user_id,
+            text_of_ticket=ticket_user.text_of_ticket,
+            description=ticket_user.description,
+            urgency_level=ticket_user.urgency_level,
+            current_status=str(ticket_user.current_status().value),
+            is_closed=ticket_user.is_closed,
+            date_created=str(ticket_user.date_created),
+            date_finished=(
+                str(ticket_user.date_finished)
+                if ticket_user.date_finished is not None
+                else None
+            ),
             statuses=statuses,
             comments=comments,
-            is_closed=ticket_user.is_closed,
-            current_status=ticket_user.current_status(),
-            client_id=ticket_user.client_id,
-            text_of_ticket=ticket_user.text_of_ticket,
-            urgency_level=ticket_user.urgency_level
         )
-
 
 class AdminAssembler:
     @staticmethod
