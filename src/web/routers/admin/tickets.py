@@ -27,6 +27,7 @@ from src.web.models.tickets import (
     TicketReadyToWorkRequest,
     TicketRecordCompletedWorkForReviewRequest,
     TicketRejectRequest,
+    TicketResponse,
     TicketResumeWorkRequest,
     TicketReturnToAssignedRequest,
     TicketReturnToDeferredRequest,
@@ -37,7 +38,6 @@ from src.web.models.tickets import (
     TicketStartWorkRequest,
     TicketSubmitForReviewRequest,
     TicketUpdateDetailsRequest,
-    TicketResponse,
 )
 
 
@@ -78,7 +78,9 @@ def to_ticket_response(response_dto) -> TicketResponse:
     return TicketResponse.model_validate(response_dto)
 
 
-def to_ticket_responses(response_dtos) -> list[TicketResponse]:
+def to_ticket_responses(
+    response_dtos,
+) -> list[TicketResponse]:
     return [
         to_ticket_response(response_dto)
         for response_dto in response_dtos
@@ -130,7 +132,6 @@ def ticket_create_request_to_dto(
     return TicketDTO(
         ticket_id=0,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         client_id=request.client_id,
         user_id=request.user_id,
         contact_user_id=request.contact_user_id,
@@ -151,7 +152,6 @@ def ticket_id_to_dto(
 ) -> TicketDTO:
     return TicketDTO(
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         ticket_id=ticket_id,
     )
 
@@ -165,7 +165,6 @@ def ticket_update_details_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         description=request.description,
         contact_user_id=request.contact_user_id,
         is_remote=request.is_remote,
@@ -181,7 +180,6 @@ def ticket_change_department_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         department_id=request.department_id,
     )
 
@@ -195,7 +193,6 @@ def ticket_comment_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         comment=request.comment,
     )
 
@@ -209,7 +206,6 @@ def ticket_accept_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         comment=request.comment,
     )
 
@@ -223,7 +219,6 @@ def ticket_reject_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         comment=request.comment,
     )
 
@@ -237,7 +232,6 @@ def ticket_defer_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         comment=request.comment,
     )
 
@@ -251,7 +245,6 @@ def ticket_schedule_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         planned_start_at=request.planned_start_at,
         planned_finish_at=request.planned_finish_at,
         comment=request.comment,
@@ -267,7 +260,6 @@ def ticket_assign_executor_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         executor_id=request.executor_id,
         comment=request.comment,
     )
@@ -282,7 +274,6 @@ def ticket_ready_to_work_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         executor_id=request.executor_id,
         planned_start_at=request.planned_start_at,
         planned_finish_at=request.planned_finish_at,
@@ -299,7 +290,6 @@ def ticket_start_work_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         comment=request.comment,
     )
 
@@ -313,7 +303,6 @@ def ticket_pause_work_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         comment=request.comment,
     )
 
@@ -327,7 +316,6 @@ def ticket_resume_work_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         comment=request.comment,
     )
 
@@ -341,7 +329,6 @@ def ticket_submit_for_review_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         comment=request.comment,
     )
 
@@ -355,7 +342,6 @@ def ticket_record_completed_work_for_review_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         executor_id=request.executor_id,
         actual_started_at=request.actual_started_at,
         actual_finished_at=request.actual_finished_at,
@@ -372,7 +358,6 @@ def ticket_confirm_execution_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         comment=request.comment,
     )
 
@@ -386,7 +371,6 @@ def ticket_return_to_work_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         comment=request.comment,
     )
 
@@ -400,7 +384,6 @@ def ticket_return_to_assigned_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         executor_id=request.executor_id,
         comment=request.comment,
     )
@@ -415,7 +398,6 @@ def ticket_return_to_scheduled_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         planned_start_at=request.planned_start_at,
         planned_finish_at=request.planned_finish_at,
         comment=request.comment,
@@ -431,7 +413,6 @@ def ticket_return_to_ready_to_work_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         executor_id=request.executor_id,
         planned_start_at=request.planned_start_at,
         planned_finish_at=request.planned_finish_at,
@@ -448,7 +429,6 @@ def ticket_return_to_deferred_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         comment=request.comment,
     )
 
@@ -462,7 +442,6 @@ def ticket_cancel_request_to_dto(
     return TicketDTO(
         ticket_id=ticket_id,
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
         comment=request.comment,
     )
 
@@ -480,7 +459,9 @@ def ticket_cancel_request_to_dto(
 def create_ticket(
     ticket_request: TicketCreateRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_create_request_to_dto(
         request=ticket_request,
@@ -514,7 +495,9 @@ def search_tickets(
     limit: int = 100,
     offset: int = 0,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_search_query_to_dto(
         actor_admin_id=actor_admin_id,
@@ -531,7 +514,7 @@ def search_tickets(
         limit=limit,
         offset=offset,
     )
-
+    #todo передалть на get_all
     response_dtos = asf.ticket_search_service().search(
         search_dto=dto,
     )
@@ -548,11 +531,12 @@ def search_tickets(
 )
 def get_all_tickets(
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
-        admin_id=actor_admin_id,
     )
 
     response_dtos = asf.ticket_service().get_all(
@@ -571,7 +555,9 @@ def get_all_tickets(
 def get_ticket(
     ticket_id: int,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_id_to_dto(
         actor_admin_id=actor_admin_id,
@@ -595,7 +581,9 @@ def update_ticket_details(
     ticket_id: int,
     ticket_request: TicketUpdateDetailsRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_update_details_request_to_dto(
         request=ticket_request,
@@ -620,7 +608,9 @@ def change_ticket_department(
     ticket_id: int,
     ticket_request: TicketChangeDepartmentRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_change_department_request_to_dto(
         request=ticket_request,
@@ -645,7 +635,9 @@ def accept_ticket(
     ticket_id: int,
     ticket_request: TicketAcceptRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_accept_request_to_dto(
         request=ticket_request,
@@ -670,7 +662,9 @@ def reject_ticket(
     ticket_id: int,
     ticket_request: TicketRejectRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_reject_request_to_dto(
         request=ticket_request,
@@ -695,7 +689,9 @@ def defer_ticket(
     ticket_id: int,
     ticket_request: TicketDeferRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_defer_request_to_dto(
         request=ticket_request,
@@ -720,7 +716,9 @@ def schedule_ticket(
     ticket_id: int,
     ticket_request: TicketScheduleRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_schedule_request_to_dto(
         request=ticket_request,
@@ -745,7 +743,9 @@ def assign_executor(
     ticket_id: int,
     ticket_request: TicketAssignExecutorRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_assign_executor_request_to_dto(
         request=ticket_request,
@@ -770,7 +770,9 @@ def ready_to_work(
     ticket_id: int,
     ticket_request: TicketReadyToWorkRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_ready_to_work_request_to_dto(
         request=ticket_request,
@@ -795,7 +797,9 @@ def start_work(
     ticket_id: int,
     ticket_request: TicketStartWorkRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_start_work_request_to_dto(
         request=ticket_request,
@@ -820,7 +824,9 @@ def pause_work(
     ticket_id: int,
     ticket_request: TicketPauseWorkRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_pause_work_request_to_dto(
         request=ticket_request,
@@ -845,7 +851,9 @@ def resume_work(
     ticket_id: int,
     ticket_request: TicketResumeWorkRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_resume_work_request_to_dto(
         request=ticket_request,
@@ -870,7 +878,9 @@ def submit_for_review(
     ticket_id: int,
     ticket_request: TicketSubmitForReviewRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_submit_for_review_request_to_dto(
         request=ticket_request,
@@ -895,7 +905,9 @@ def record_completed_work_for_review(
     ticket_id: int,
     ticket_request: TicketRecordCompletedWorkForReviewRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_record_completed_work_for_review_request_to_dto(
         request=ticket_request,
@@ -903,8 +915,11 @@ def record_completed_work_for_review(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().record_completed_work_for_review(
-        ticket_dto=dto,
+    response_dto = (
+        asf.ticket_service()
+        .record_completed_work_for_review(
+            ticket_dto=dto,
+        )
     )
 
     return to_ticket_response(response_dto)
@@ -920,7 +935,9 @@ def confirm_execution(
     ticket_id: int,
     ticket_request: TicketConfirmExecutionRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_confirm_execution_request_to_dto(
         request=ticket_request,
@@ -946,7 +963,9 @@ def execute_ticket(
     ticket_id: int,
     ticket_request: TicketExecuteRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_confirm_execution_request_to_dto(
         request=ticket_request,
@@ -971,7 +990,9 @@ def return_to_work(
     ticket_id: int,
     ticket_request: TicketReturnToWorkRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_return_to_work_request_to_dto(
         request=ticket_request,
@@ -996,7 +1017,9 @@ def return_to_assigned(
     ticket_id: int,
     ticket_request: TicketReturnToAssignedRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_return_to_assigned_request_to_dto(
         request=ticket_request,
@@ -1021,7 +1044,9 @@ def return_to_scheduled(
     ticket_id: int,
     ticket_request: TicketReturnToScheduledRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_return_to_scheduled_request_to_dto(
         request=ticket_request,
@@ -1046,7 +1071,9 @@ def return_to_ready_to_work(
     ticket_id: int,
     ticket_request: TicketReturnToReadyToWorkRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_return_to_ready_to_work_request_to_dto(
         request=ticket_request,
@@ -1054,8 +1081,11 @@ def return_to_ready_to_work(
         ticket_id=ticket_id,
     )
 
-    response_dto = asf.ticket_service().return_to_ready_to_work(
-        ticket_dto=dto,
+    response_dto = (
+        asf.ticket_service()
+        .return_to_ready_to_work(
+            ticket_dto=dto,
+        )
     )
 
     return to_ticket_response(response_dto)
@@ -1071,7 +1101,9 @@ def return_to_deferred(
     ticket_id: int,
     ticket_request: TicketReturnToDeferredRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_return_to_deferred_request_to_dto(
         request=ticket_request,
@@ -1096,7 +1128,9 @@ def cancel_ticket(
     ticket_id: int,
     ticket_request: TicketCancelRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_cancel_request_to_dto(
         request=ticket_request,
@@ -1121,7 +1155,9 @@ def add_comment(
     ticket_id: int,
     ticket_request: TicketCommentRequest,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_comment_request_to_dto(
         request=ticket_request,
@@ -1144,7 +1180,9 @@ def add_comment(
 def delete_ticket(
     ticket_id: int,
     asf=Depends(get_application_service_factory),
-    actor_admin_id: int = Depends(get_employee_id_from_request),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
 ):
     dto = ticket_id_to_dto(
         actor_admin_id=actor_admin_id,
@@ -1156,3 +1194,4 @@ def delete_ticket(
     )
 
     return None
+

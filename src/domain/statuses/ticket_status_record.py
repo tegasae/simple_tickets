@@ -457,18 +457,6 @@ class TicketStatusRecord:
             record.status,
         )
 
-    def created_from_ticket_user_to_accepted(
-        self,
-        record: Self,
-    ) -> bool:
-        """
-        Этот переход имеет дополнительный aggregate-effect:
-        Ticket фиксирует первого admin_id из actor новой record.
-        """
-        return (
-            self.status == TicketStatus.CREATED_FROM_TICKET_USER
-            and record.status == TicketStatus.ACCEPTED
-        )
 
     # ----------------------------
     # Transition validation

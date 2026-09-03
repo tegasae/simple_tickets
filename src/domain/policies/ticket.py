@@ -204,40 +204,6 @@ class TicketPolicy:
                 f"{ticket_user.ticket_id} have different contact users"
             )
 
-    # ----------------------------
-    # Admin relation
-    # ----------------------------
-
-    @staticmethod
-    def ensure_ticket_has_no_admin_yet(
-        *,
-        ticket: Ticket,
-    ) -> None:
-        """
-        Проверка перед назначением первого Admin
-        связанной Ticket.
-
-        Какой workflow допускает эту операцию,
-        определяет сам Ticket / TicketStatusRecord.
-
-        Policy проверяет только cross-aggregate факт:
-        Admin ещё не должен быть зафиксирован.
-        """
-        if ticket.admin_id != 0:
-            raise DomainOperationError(
-                f"Ticket {ticket.ticket_id} already has admin "
-                f"{ticket.admin_id}"
-            )
-
-    @staticmethod
-    def ensure_ticket_has_admin(
-        *,
-        ticket: Ticket,
-    ) -> None:
-        if ticket.admin_id <= 0:
-            raise DomainOperationError(
-                f"Ticket {ticket.ticket_id} has no assigned admin"
-            )
 
     # ----------------------------
     # User relations

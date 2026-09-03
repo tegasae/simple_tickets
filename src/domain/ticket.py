@@ -35,6 +35,19 @@ class Ticket:
     - координирует добавление новых status-record;
     - вычисляет derived state заявки.
 
+    admin_id:
+    - Admin, который создал внутреннюю Ticket;
+    - для Ticket, созданной непосредственно Admin,
+      admin_id > 0;
+    - для Ticket, созданной из TicketUser,
+      admin_id == 0;
+    - после создания Ticket значение admin_id
+      никогда не изменяется.
+
+    Сотрудник, выполняющий workflow-операцию,
+    включая ACCEPTED, фиксируется в
+    TicketStatusRecord.actor_employee_id.
+
     Ticket не знает:
     - RBAC;
     - permissions;
@@ -93,6 +106,7 @@ class Ticket:
         self._validate_identity()
         self._validate_content()
         self._validate_status_history()
+        self._validate_creator_admin()
 
         self._recompute_closed_state()
 
@@ -121,6 +135,9 @@ class Ticket:
         """
         Создаёт новую внутреннюю Ticket,
         зарегистрированную Admin.
+
+        admin_id фиксирует Admin,
+        создавшего внутреннюю Ticket.
         """
         if ticket_id != 0:
             raise ItemValidationError(
@@ -190,6 +207,9 @@ class Ticket:
 
         Ticket и TicketUser остаются независимыми aggregates.
         Их создание координирует application service.
+
+        Так как внутреннюю Ticket не создавал Admin:
+            admin_id == 0.
         """
         if ticket_id != 0:
             raise ItemValidationError(
@@ -256,6 +276,11 @@ class Ticket:
         - persisted ticket_id > 0;
         - полную status history;
         - history в правильном порядке.
+
+        admin_id должен соответствовать actor_employee_id
+        первой status-record:
+        - CREATED -> admin_id > 0;
+        - CREATED_FROM_TICKET_USER -> admin_id == 0.
 
         is_closed и date_finished не загружаются как
         domain state, потому что вычисляются из history.
@@ -345,9 +370,10 @@ class Ticket:
 
         Проверяются:
         - допустимость перехода;
-        - context-dependent payload перехода;
-        - фиксация Admin при принятии Ticket,
-          созданной из TicketUser.
+        - context-dependent payload перехода.
+
+        admin_id при workflow-переходах
+        никогда не изменяется.
         """
         current_record = self.current_status_record()
 
@@ -363,11 +389,6 @@ class Ticket:
         )
 
         self.statuses.append(record)
-
-        if current_record.created_from_ticket_user_to_accepted(
-            record,
-        ):
-            self.admin_id = record.actor_employee_id
 
         self._recompute_closed_state()
 
@@ -576,6 +597,34 @@ class Ticket:
                 current_record,
             )
 
+    def _validate_creator_admin(self) -> None:
+        """
+        Проверяет согласованность admin_id
+        с происхождением Ticket.
+
+        admin_id хранит только Admin,
+        создавшего внутреннюю Ticket.
+
+        Поэтому он всегда должен совпадать
+        с actor_employee_id первой status-record:
+
+        CREATED:
+            actor_employee_id > 0
+            admin_id > 0
+
+        CREATED_FROM_TICKET_USER:
+            actor_employee_id == 0
+            admin_id == 0
+        """
+        first_record = self.statuses[0]
+
+        if self.admin_id != first_record.actor_employee_id:
+            raise DomainOperationError(
+                f"Ticket admin_id {self.admin_id} "
+                "does not match creator in first status record "
+                f"{first_record.actor_employee_id}",
+            )
+
     # ----------------------------
     # Derived state
     # ----------------------------
@@ -686,6 +735,7 @@ class Ticket:
 
     def is_in_work(self) -> bool:
         return self.current_status_record().state.work_in_progress
+
     # ----------------------------
     # Helpers
     # ----------------------------
