@@ -124,7 +124,6 @@ class TicketApplicationService:
                     "when user_id is set.",
                 )
 
-
             self._validate_create_references(
                 ticket_dto=ticket_dto,
             )
@@ -211,9 +210,9 @@ class TicketApplicationService:
             )
 
     def update_details(
-        self,
-        *,
-        ticket_dto: TicketDTO,
+            self,
+            *,
+            ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         """
         Admin изменяет обычные дополнительные поля Ticket.
@@ -226,6 +225,11 @@ class TicketApplicationService:
         Если Ticket связана с TicketUser:
             description и contact_user_id
             изменяются согласованно в обоих aggregates.
+
+        Новый contact_user_id, если он задан:
+            - должен существовать;
+            - должен быть enabled;
+            - должен принадлежать тому же Client.
 
         Не меняет:
             text_of_ticket
@@ -251,7 +255,7 @@ class TicketApplicationService:
                     "update_details requires ticket_id > 0",
                 )
 
-            ticket = self.uow.tickets.get(
+            ticket = self._get_ticket(
                 ticket_dto.ticket_id,
             )
 
@@ -268,11 +272,35 @@ class TicketApplicationService:
                     ticket.user_ticket_id,
                 )
 
-                # Проверяем исходную согласованность агрегатов
-                # до начала синхронного изменения.
+                # Проверяем исходную согласованность
+                # до любых изменений.
                 TicketPolicy.ensure_ticket_matches_ticket_user(
                     ticket=ticket,
                     ticket_user=ticket_user,
+                )
+
+            # Новый contact_user_id необходимо проверить
+            # до изменения Ticket и TicketUser.
+            if (
+                    ticket_dto.contact_user_id != 0
+                    and ticket_dto.contact_user_id
+                    != ticket.contact_user_id
+            ):
+                contact_user = self.uow.users.get(
+                    ticket_dto.contact_user_id,
+                )
+
+                TicketPolicy.ensure_user_enabled(
+                    contact_user,
+                )
+
+                client = self.uow.clients.get(
+                    ticket.client_id,
+                )
+
+                TicketPolicy.ensure_contact_user_belongs_to_client(
+                    contact_user=contact_user,
+                    client=client,
                 )
 
             ticket.update_details(
@@ -289,8 +317,6 @@ class TicketApplicationService:
                     contact_user_id=ticket.contact_user_id,
                 )
 
-                # После изменения инвариант также
-                # должен оставаться выполненным.
                 TicketPolicy.ensure_ticket_matches_ticket_user(
                     ticket=ticket,
                     ticket_user=ticket_user,
@@ -303,7 +329,6 @@ class TicketApplicationService:
             return self._save_commit_and_to_dto(
                 ticket,
             )
-
     def change_department(
         self,
         *,
@@ -342,7 +367,7 @@ class TicketApplicationService:
                     "department_id > 0",
                 )
 
-            self._validate_department_exists(
+            self._ensure_department_valid(
                 department_id=ticket_dto.department_id,
             )
 
@@ -1327,9 +1352,11 @@ class TicketApplicationService:
         if department_id == 0:
             return
 
-        self.uow.departments.get(
+        department = self.uow.departments.get(
             department_id,
         )
+
+        department.ensure_enabled()
 
     def _ensure_executor_valid(
         self,
@@ -1466,25 +1493,3 @@ class TicketApplicationService:
 
         return value
 
-    def _validate_department_exists(
-        self,
-        *,
-        department_id: int,
-    ) -> None:
-        if department_id <= 0:
-            raise DomainOperationError(
-                "department_id must be positive",
-            )
-
-        department = self.uow.departments.get(
-            department_id,
-        )
-
-        if getattr(
-            department,
-            "enabled",
-            True,
-        ) is False:
-            raise DomainOperationError(
-                "Department is disabled",
-            )

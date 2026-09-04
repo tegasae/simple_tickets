@@ -474,7 +474,7 @@ def create_ticket(
 
     return to_ticket_response(response_dto)
 
-
+'''
 @router.get(
     "/",
     response_model=list[TicketResponse],
@@ -520,7 +520,7 @@ def search_tickets(
     )
 
     return to_ticket_responses(response_dtos)
-
+'''
 
 @router.get(
     "/all",

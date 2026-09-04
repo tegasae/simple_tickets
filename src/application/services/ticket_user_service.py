@@ -1,20 +1,29 @@
 # src/application/services/ticket_user_application_service.py
 
-from __future__ import annotations
+
 
 from datetime import datetime, timezone
 
 from src.application.assemblers.assembler import TicketUserAssembler
-from src.application.dto.ticket_dto import TicketUserDTO, TicketUserResponseDTO
+from src.application.dto.ticket_dto import (
+    TicketUserDTO,
+    TicketUserResponseDTO,
+)
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.client import Client
 from src.domain.employee import User
 from src.domain.exceptions import DomainOperationError
 from src.domain.policies.ticket import TicketPolicy
 from src.domain.rbac.permissions import UserPermission
-from src.domain.services.ticket_management_service import TicketManagementService
-from src.domain.services.ticket_review_service import TicketReviewService
-from src.domain.services.ticket_user_sync_service import TicketUserSyncService
+from src.domain.services.ticket_management_service import (
+    TicketManagementService,
+)
+from src.domain.services.ticket_review_service import (
+    TicketReviewService,
+)
+from src.domain.services.ticket_user_sync_service import (
+    TicketUserSyncService,
+)
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
 from src.domain.uow.unit_of_work import UnitOfWork
@@ -84,7 +93,6 @@ class TicketUserApplicationService:
         ID для новых сущностей генерирует repository.
         Поэтому ticket_id и ticket_user_id должны быть 0.
         """
-
         if ticket_user_dto.ticket_user_id != 0:
             raise DomainOperationError(
                 "create_from_user requires ticket_user_id = 0",
@@ -97,7 +105,9 @@ class TicketUserApplicationService:
                 actor_user_id=ticket_user_dto.actor_user_id,
             )
 
-            client = self._get_client(ticket_user_dto.client_id)
+            client = self._get_client(
+                ticket_user_dto.client_id,
+            )
 
             TicketPolicy.ensure_user_belongs_to_client(
                 user=user,
@@ -126,7 +136,9 @@ class TicketUserApplicationService:
                 date_created=now,
             )
 
-            saved_ticket_user = self._uow.user_tickets.save(ticket_user)
+            saved_ticket_user = self._uow.user_tickets.save(
+                ticket_user,
+            )
 
             if saved_ticket_user is None:
                 saved_ticket_user = ticket_user
@@ -156,15 +168,20 @@ class TicketUserApplicationService:
                 ticket_user=saved_ticket_user,
             )
 
-            self._uow.tickets.save(ticket)
+            self._uow.tickets.save(
+                ticket,
+            )
+
             self._uow.commit()
 
-            return TicketUserAssembler.to_dto(saved_ticket_user)
+            return TicketUserAssembler.to_dto(
+                saved_ticket_user,
+            )
 
     def cancel_by_user(
-            self,
-            *,
-            ticket_user_dto: TicketUserDTO,
+        self,
+        *,
+        ticket_user_dto: TicketUserDTO,
     ) -> TicketUserResponseDTO:
         """
         User снимает свою заявку до принятия Admin.
@@ -179,18 +196,23 @@ class TicketUserApplicationService:
 
         Внутренний переход:
 
-            Ticket.CREATED_FROM_TICKET_USER -> Ticket.CANCELLED_BY_USER
+            Ticket.CREATED_FROM_TICKET_USER
+                -> Ticket.CANCELLED_BY_USER
 
         Пользовательский переход:
 
-            TicketUser.CREATED -> TicketUser.CANCELLED_BY_USER
+            TicketUser.CREATED
+                -> TicketUser.CANCELLED_BY_USER
 
         Важно:
             application service не проверяет workflow-статус напрямую.
             Это делает TicketManagementService.cancel_by_user().
         """
         with self._uow:
-            ticket = self._uow.tickets.get_by_user_ticket_id(ticket_user_dto.ticket_user_id)
+            ticket = self._uow.tickets.get_by_user_ticket_id(
+                ticket_user_dto.ticket_user_id,
+            )
+
             ticket_user = self._uow.user_tickets.get(
                 ticket_user_dto.ticket_user_id,
             )
@@ -210,25 +232,36 @@ class TicketUserApplicationService:
                 comment=ticket_user_dto.comment,
             )
 
-            ticket_user_changed = TicketUserSyncService.sync_from_ticket(
-                ticket=ticket,
-                ticket_user=ticket_user,
-                actor_employee_id=ticket_user_dto.actor_user_id,
-                comment=ticket_user_dto.comment,
+            ticket_user_changed = (
+                TicketUserSyncService.sync_from_ticket(
+                    ticket=ticket,
+                    ticket_user=ticket_user,
+                    actor_employee_id=(
+                        ticket_user_dto.actor_user_id
+                    ),
+                    comment=ticket_user_dto.comment,
+                )
             )
 
             if ticket_user_changed:
-                self._uow.user_tickets.save(ticket_user)
+                self._uow.user_tickets.save(
+                    ticket_user,
+                )
 
-            self._uow.tickets.save(ticket)
+            self._uow.tickets.save(
+                ticket,
+            )
+
             self._uow.commit()
 
-            return TicketUserAssembler.to_dto(ticket_user)
+            return TicketUserAssembler.to_dto(
+                ticket_user,
+            )
 
     def confirm_execution_by_user(
-            self,
-            *,
-            ticket_user_dto: TicketUserDTO,
+        self,
+        *,
+        ticket_user_dto: TicketUserDTO,
     ) -> TicketUserResponseDTO:
         """
         User подтверждает выполнение заявки.
@@ -243,20 +276,26 @@ class TicketUserApplicationService:
 
         TicketUser:
 
-            WAITING_FOR_CONFIRMATION -> EXECUTION_CONFIRMED_BY_USER
+            WAITING_FOR_CONFIRMATION
+                -> EXECUTION_CONFIRMED_BY_USER
 
         Ticket:
 
-            READY_FOR_REVIEW -> EXECUTED
+            READY_FOR_REVIEW
+                -> EXECUTED
 
         Важно:
             здесь sync_from_ticket не используется,
             потому что инициатором является пользовательская сторона.
+
             Если синхронизировать от Ticket.EXECUTED,
             получится EXECUTION_CONFIRMED_BY_ADMIN.
         """
         with self._uow:
-            ticket = self._uow.tickets.get_by_user_ticket_id(ticket_user_dto.ticket_user_id)
+            ticket = self._uow.tickets.get_by_user_ticket_id(
+                ticket_user_dto.ticket_user_id,
+            )
+
             ticket_user = self._uow.user_tickets.get(
                 ticket_user_dto.ticket_user_id,
             )
@@ -282,11 +321,19 @@ class TicketUserApplicationService:
                 comment=ticket_user_dto.comment,
             )
 
-            self._uow.user_tickets.save(ticket_user)
-            self._uow.tickets.save(ticket)
+            self._uow.user_tickets.save(
+                ticket_user,
+            )
+
+            self._uow.tickets.save(
+                ticket,
+            )
+
             self._uow.commit()
 
-            return TicketUserAssembler.to_dto(ticket_user)
+            return TicketUserAssembler.to_dto(
+                ticket_user,
+            )
 
     # --------------------------------
     # Queries
@@ -309,7 +356,9 @@ class TicketUserApplicationService:
             actor_user должен принадлежать этому client.
         """
         with self._uow:
-            client = self._get_client(ticket_user_dto.client_id)
+            client = self._get_client(
+                ticket_user_dto.client_id,
+            )
 
             self._require_user_view_all_for_client(
                 actor_user_id=ticket_user_dto.actor_user_id,
@@ -321,7 +370,8 @@ class TicketUserApplicationService:
             return [
                 TicketUserAssembler.to_dto(ticket_user)
                 for ticket_user in ticket_users
-                if ticket_user.client_id == ticket_user_dto.client_id
+                if ticket_user.client_id
+                == ticket_user_dto.client_id
             ]
 
     def get_by_user(
@@ -330,7 +380,8 @@ class TicketUserApplicationService:
         ticket_user_dto: TicketUserDTO,
     ) -> list[TicketUserResponseDTO]:
         """
-        Возвращает пользовательские заявки конкретного user внутри client.
+        Возвращает пользовательские заявки
+        конкретного user внутри client.
 
         Права:
 
@@ -348,10 +399,18 @@ class TicketUserApplicationService:
         )
 
         with self._uow:
-            client = self._get_client(ticket_user_dto.client_id)
-            target_user = self._uow.users.get(target_user_id)
+            client = self._get_client(
+                ticket_user_dto.client_id,
+            )
 
-            TicketPolicy.ensure_user_enabled(target_user)
+            target_user = self._uow.users.get(
+                target_user_id,
+            )
+
+            TicketPolicy.ensure_user_enabled(
+                target_user,
+            )
+
             TicketPolicy.ensure_user_belongs_to_client(
                 user=target_user,
                 client=client,
@@ -369,7 +428,8 @@ class TicketUserApplicationService:
                 TicketUserAssembler.to_dto(ticket_user)
                 for ticket_user in ticket_users
                 if (
-                    ticket_user.client_id == ticket_user_dto.client_id
+                    ticket_user.client_id
+                    == ticket_user_dto.client_id
                     and ticket_user.user_id == target_user_id
                 )
             ]
@@ -400,7 +460,9 @@ class TicketUserApplicationService:
                 ticket_user=ticket_user,
             )
 
-            return TicketUserAssembler.to_dto(ticket_user)
+            return TicketUserAssembler.to_dto(
+                ticket_user,
+            )
 
     # --------------------------------
     # Permission helpers: operations
@@ -416,7 +478,9 @@ class TicketUserApplicationService:
             permission=UserPermission.TICKET_OPERATION,
         )
 
-        TicketPolicy.ensure_user_enabled(user)
+        TicketPolicy.ensure_user_enabled(
+            user,
+        )
 
         return user
 
@@ -430,15 +494,17 @@ class TicketUserApplicationService:
             permission=UserPermission.TICKET_OPERATION_ALL,
         )
 
-        TicketPolicy.ensure_user_enabled(user)
+        TicketPolicy.ensure_user_enabled(
+            user,
+        )
 
         return user
 
     def _require_user_operation_for_ticket_user(
-            self,
-            *,
-            actor_user_id: int,
-            ticket_user: TicketUser,
+        self,
+        *,
+        actor_user_id: int,
+        ticket_user: TicketUser,
     ) -> User:
         if actor_user_id == ticket_user.user_id:
             user = self._require_user_operation(
@@ -449,7 +515,9 @@ class TicketUserApplicationService:
                 actor_user_id=actor_user_id,
             )
 
-        client = self._get_ticket_user_client(ticket_user)
+        client = self._get_ticket_user_client(
+            ticket_user,
+        )
 
         TicketPolicy.ensure_user_belongs_to_client(
             user=user,
@@ -457,6 +525,7 @@ class TicketUserApplicationService:
         )
 
         return user
+
     # --------------------------------
     # Permission helpers: views
     # --------------------------------
@@ -471,7 +540,9 @@ class TicketUserApplicationService:
             permission=UserPermission.TICKET_VIEW,
         )
 
-        TicketPolicy.ensure_user_enabled(user)
+        TicketPolicy.ensure_user_enabled(
+            user,
+        )
 
         return user
 
@@ -485,7 +556,9 @@ class TicketUserApplicationService:
             permission=UserPermission.TICKET_VIEW_ALL,
         )
 
-        TicketPolicy.ensure_user_enabled(user)
+        TicketPolicy.ensure_user_enabled(
+            user,
+        )
 
         return user
 
@@ -544,7 +617,9 @@ class TicketUserApplicationService:
                 actor_user_id=actor_user_id,
             )
 
-        client = self._get_ticket_user_client(ticket_user)
+        client = self._get_ticket_user_client(
+            ticket_user,
+        )
 
         TicketPolicy.ensure_user_belongs_to_client(
             user=user,
@@ -570,9 +645,14 @@ class TicketUserApplicationService:
         if contact_user_id == main_user.employee_id:
             return
 
-        contact_user = self._uow.users.get(contact_user_id)
+        contact_user = self._uow.users.get(
+            contact_user_id,
+        )
 
-        TicketPolicy.ensure_user_enabled(contact_user)
+        TicketPolicy.ensure_user_enabled(
+            contact_user,
+        )
+
         TicketPolicy.ensure_contact_user_belongs_to_client(
             contact_user=contact_user,
             client=client,
@@ -586,15 +666,23 @@ class TicketUserApplicationService:
         if department_id == 0:
             return
 
-        self._uow.departments.get(department_id)
+        department = self._uow.departments.get(
+            department_id,
+        )
+
+        department.ensure_enabled()
 
     def _get_client(
         self,
         client_id: int,
     ) -> Client:
-        client = self._uow.clients.get(client_id)
+        client = self._uow.clients.get(
+            client_id,
+        )
 
-        TicketPolicy.ensure_client_enabled(client)
+        TicketPolicy.ensure_client_enabled(
+            client,
+        )
 
         return client
 
@@ -602,7 +690,9 @@ class TicketUserApplicationService:
         self,
         ticket_user: TicketUser,
     ) -> Client:
-        return self._get_client(ticket_user.client_id)
+        return self._get_client(
+            ticket_user.client_id,
+        )
 
     @staticmethod
     def _required_positive_dto_attr(
