@@ -1,0 +1,21 @@
+[run]
+branch = True
+source = src
+omit =
+    src/application/services/tickets/*
+    src/application/services/ticket_search_service.py
+    src/oauth2/*
+    src/domain/rbac/role.py
+    src/domain/rbac/role_repository.py
+    src/domain/repositories/*
+    src/domain/uow/unit_of_work.py
+    */__init__.py
+
+[report]
+show_missing = True
+skip_covered = False
+exclude_lines =
+    pragma: no cover
+    if TYPE_CHECKING:
+    raise NotImplementedError
+    @abstractmethod

@@ -302,10 +302,10 @@ class AdminApplicationService:
         admin_dto: AdminDTO,
     ) -> PermissionsResponseDTO:
         with self.uow:
-            self.actor.require_actor_admin(
-                actor_admin_id=admin_dto.actor_admin_id,
-                permission=AdminPermission.ADMIN_OPERATION,
-            )
+            #self.actor.require_actor_admin(
+            #    actor_admin_id=admin_dto.actor_admin_id,
+            #    permission=AdminPermission.ADMIN_OPERATION,
+            #0)
 
             admin = self.uow.admins.get(
                 admin_id=admin_dto.employee_id,

@@ -212,24 +212,35 @@ class UserApplicationService:
             return self._save_and_to_dto(user)
 
     def delete(self, *, user_dto: UserDTO) -> None:
-
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.USER_OPERATION,
             )
-            user = self.uow.users.get(user_id=user_dto.employee_id)
 
-            user_tickets = self.uow.user_tickets.get_all()
-            # todo проверить участвуебт пользователб в заявках
-            for user_ticket in user_tickets:
-                if user_ticket.belong(employee_id=user.employee_id):
+            user = self.uow.users.get(
+                user_id=user_dto.employee_id,
+            )
+
+            for user_ticket in self.uow.user_tickets.get_all():
+                if user_ticket.belong(
+                        employee_id=user.employee_id,
+                ):
                     raise DomainOperationError(
                         "You can't delete this user because it has tickets"
                     )
 
-            self.uow.users.delete(user.employee_id)
+            for ticket in self.uow.tickets.get_all():
+                if ticket.belong(
+                        employee_id=user.employee_id,
+                ):
+                    raise DomainOperationError(
+                        "You can't delete this user because it has tickets"
+                    )
 
+            self.uow.users.delete(
+                user.employee_id,
+            )
     # --------------------------------
     # Queries
     # --------------------------------

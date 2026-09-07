@@ -88,14 +88,18 @@ async def refresh(
     return auth_manager.refresh(refresh_request=refresh_request)
 
 
+
 @router.post("/admin/logout")
 async def logout(
-        auth_manager: AuthManager = Depends(get_auth_manager_admin)
+    logout_request: LogoutRequest,
+    auth_manager: AuthManager = Depends(
+        get_auth_manager_admin,
+    ),
 ):
-    logout_request=LogoutRequest()
-    auth_manager.logout(logout_request=logout_request)
+    auth_manager.logout(
+        logout_request=logout_request,
+    )
     return {"message": "Logged out successfully"}
-
 
 
 

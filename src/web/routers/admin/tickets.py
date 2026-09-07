@@ -522,6 +522,56 @@ def search_tickets(
     return to_ticket_responses(response_dtos)
 '''
 
+
+
+@router.get(
+    "/",
+    response_model=list[TicketResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Search tickets",
+)
+def search_tickets(
+    client_id: int = 0,
+    user_id: int = 0,
+    admin_id: int = 0,
+    executor_id: int = 0,
+    department_id: int = 0,
+    ticket_status: str = Query("", alias="status"),
+    is_closed: bool | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    text: str = "",
+    limit: int = 100,
+    offset: int = 0,
+    asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request,
+    ),
+):
+    dto = ticket_search_query_to_dto(
+        actor_admin_id=actor_admin_id,
+        client_id=client_id,
+        user_id=user_id,
+        admin_id=admin_id,
+        executor_id=executor_id,
+        department_id=department_id,
+        ticket_status=ticket_status,
+        is_closed=is_closed,
+        date_from=date_from,
+        date_to=date_to,
+        text=text,
+        limit=limit,
+        offset=offset,
+    )
+
+    response_dtos = asf.ticket_service().get_all(ticket_dto=dto)
+
+    return to_ticket_responses(response_dtos)
+
+
+
+
+
 @router.get(
     "/all",
     response_model=list[TicketResponse],

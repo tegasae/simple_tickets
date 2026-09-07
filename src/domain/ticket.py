@@ -706,8 +706,8 @@ class Ticket:
     # ----------------------------
 
     def belong(
-        self,
-        employee_id: int,
+            self,
+            employee_id: int,
     ) -> bool:
         """
         Проверяет, упоминается ли employee в Ticket.
@@ -718,6 +718,12 @@ class Ticket:
             return False
 
         if employee_id == self.admin_id:
+            return True
+
+        if employee_id == self.user_id:
+            return True
+
+        if employee_id == self.contact_user_id:
             return True
 
         for comment in self.comments:

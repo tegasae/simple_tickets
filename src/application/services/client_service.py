@@ -191,5 +191,3 @@ class ClientApplicationService:
 
             if changed:
                 self.uow.tickets.save(ticket)
-                if changed:
-                    self.uow.tickets.save(ticket)

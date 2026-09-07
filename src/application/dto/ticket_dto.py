@@ -118,6 +118,7 @@ class TicketUserDTO:
     ticket_user_id: int
     client_id: int
     actor_user_id: int
+    user_id: int=0
     text_of_ticket: str
 
     contact_user_id: int = 0
