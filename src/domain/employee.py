@@ -221,9 +221,10 @@ class Admin(_Employee):
         return cls(**base_data, job_title=job_title,department_id=department_id)
 
 
-    def update(self, job_title:str="", first_name: str="", last_name: str="", email: str="", phone: str="")->Self:
+    def update(self, job_title:str="", first_name: str="", last_name: str="", email: str="", phone: str="",department_id:int=0)->Self:
         self.update_base(first_name, last_name, email, phone)
         self.job_title = job_title
+        self.department_id=department_id
         return self
 
     def change_department(self, department_id: int ) -> None:

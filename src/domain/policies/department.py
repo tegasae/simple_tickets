@@ -22,3 +22,11 @@ class DepartmentPolicy:
                     "You can't disable this department because it has enabled admins"
                 )
         department.disable()
+
+
+    @staticmethod
+    def can_operation(*,department:Department):
+        if not department.enabled:
+            raise DomainOperationError(
+                    f"You can't work with disable department {department.department_id} {department.name}"
+                )

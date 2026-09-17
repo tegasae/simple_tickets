@@ -13,11 +13,13 @@ from src.application.helper.actor_helper import EmployeeActorHelper
 from src.application.helper.employee_helper import EmployeeHelper
 from src.domain.employee import Admin
 from src.domain.exceptions import DomainOperationError
+from src.domain.policies.department import DepartmentPolicy
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.admin_department_service import (
     AdminDepartmentService,
 )
 from src.domain.uow.unit_of_work import UnitOfWork
+from tests_pyramid.conftest import department
 
 
 class AdminApplicationService:
@@ -112,7 +114,8 @@ class AdminApplicationService:
             self.helper.ensure_login_is_free(
                 login=admin_dto.login,
             )
-
+            department=self.uow.departments.get(department_id=admin_dto.department_id)
+            DepartmentPolicy.can_operation(department=department)
             admin = Admin.create(
                 employee_id=0,
                 job_title=admin_dto.job_title,
@@ -123,6 +126,7 @@ class AdminApplicationService:
                 login=admin_dto.login,
                 password=admin_dto.password,
                 enable_account=admin_dto.enable_account,
+                department_id=department.department_id
             )
 
             if admin_dto.roles:
@@ -158,12 +162,17 @@ class AdminApplicationService:
                 admin_id=admin_dto.employee_id,
             )
 
+            department=self.uow.departments.get(department_id=admin_dto.department_id)
+            DepartmentPolicy.can_operation(department=department)
+
+
             admin.update(
-                admin_dto.job_title,
-                admin_dto.first_name,
-                admin_dto.last_name,
-                admin_dto.email,
-                admin_dto.phone,
+                job_title=admin_dto.job_title,
+                first_name=admin_dto.first_name,
+                last_name=admin_dto.last_name,
+                email=admin_dto.email,
+                phone=admin_dto.phone,
+                department_id=department.department_id
             )
 
             return self._save_and_to_dto(admin)
