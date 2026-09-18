@@ -387,11 +387,7 @@ class TicketUserApplicationService:
 
             если actor_user_id == user_id:
                 UserPermission.TICKET_VIEW
-
-            если actor_user_id != user_id:
-                UserPermission.TICKET_VIEW_ALL
-
-        В обоих случаях actor_user должен принадлежать client.
+        actor_user должен принадлежать client.
         """
         target_user_id = self._required_positive_dto_attr(
             ticket_user_dto,
