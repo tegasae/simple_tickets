@@ -3,7 +3,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.application.dto.ticket_dto import TicketUserDTO
@@ -135,13 +135,12 @@ def to_user_ticket_responses(response_dtos) -> list[UserTicketResponse]:
 def create_request_to_dto(
     *,
     request: UserTicketCreateRequest,
-    actor_user_id: int,
+    user_id: int,
 ) -> TicketUserDTO:
     return TicketUserDTO(
         #ticket_id=0,
         ticket_user_id=0,
-        actor_user_id=actor_user_id,
-        client_id=request.client_id,
+        user_id=user_id,
         contact_user_id=request.contact_user_id,
         department_id=request.department_id,
         is_remote=request.is_remote,
@@ -154,34 +153,30 @@ def create_request_to_dto(
 
 def user_filter_to_dto(
     *,
-    actor_user_id: int,
-    client_id: int,
+    user_id: int,
 ) -> TicketUserDTO:
     return TicketUserDTO(
         #ticket_id=0,
         ticket_user_id=0,
-        actor_user_id=actor_user_id,
-        client_id=client_id,
+        user_id=user_id,
         contact_user_id=0,
         department_id=0,
         is_remote=False,
         text_of_ticket="",
         description="",
         urgency_level=0,
-        comment="",
+        comment=""
     )
 
 
 def ticket_user_id_to_dto(
     *,
-    actor_user_id: int,
+    user_id: int,
     ticket_user_id: int,
 ) -> TicketUserDTO:
     return TicketUserDTO(
         #ticket_id=0,
         ticket_user_id=ticket_user_id,
-        actor_user_id=actor_user_id,
-        client_id=0,
         contact_user_id=0,
         department_id=0,
         is_remote=False,
@@ -189,20 +184,20 @@ def ticket_user_id_to_dto(
         description="",
         urgency_level=0,
         comment="",
+        user_id=user_id
     )
 
 
 def action_request_to_dto(
     *,
     request: UserTicketActionRequest,
-    actor_user_id: int,
+    user_id: int,
     ticket_user_id: int,
 ) -> TicketUserDTO:
     return TicketUserDTO(
         #ticket_id=request.ticket_id,
         ticket_user_id=ticket_user_id,
-        actor_user_id=actor_user_id,
-        client_id=0,
+        user_id=user_id,
         contact_user_id=0,
         department_id=0,
         is_remote=False,
@@ -225,13 +220,13 @@ def action_request_to_dto(
 )
 def create_ticket(
     request: UserTicketCreateRequest,
-    actor_user_id: int = Depends(get_employee_id_from_request),
+    user_id: int = Depends(get_employee_id_from_request),
     service=Depends(get_ticket_user_service),
 ):
     try:
         dto = create_request_to_dto(
             request=request,
-            actor_user_id=actor_user_id,
+            user_id=user_id,
         )
 
         response_dto = service.create_from_user(
@@ -251,14 +246,12 @@ def create_ticket(
     summary="Get current user tickets",
 )
 def get_my_tickets(
-    client_id: int = Query(..., gt=0),
-    actor_user_id: int = Depends(get_employee_id_from_request),
+    user_id: int = Depends(get_employee_id_from_request),
     service=Depends(get_ticket_user_service),
 ):
     try:
         dto = user_filter_to_dto(
-            actor_user_id=actor_user_id,
-            client_id=client_id,
+            user_id=user_id,
         )
 
         response_dtos = service.get_by_user(
@@ -279,12 +272,12 @@ def get_my_tickets(
 )
 def get_ticket(
     ticket_user_id: int,
-    actor_user_id: int = Depends(get_employee_id_from_request),
+    user_id: int = Depends(get_employee_id_from_request),
     service=Depends(get_ticket_user_service),
 ):
     try:
         dto = ticket_user_id_to_dto(
-            actor_user_id=actor_user_id,
+            user_id=user_id,
             ticket_user_id=ticket_user_id,
         )
 
@@ -307,13 +300,13 @@ def get_ticket(
 def cancel_ticket(
     ticket_user_id: int,
     request: UserTicketActionRequest,
-    actor_user_id: int = Depends(get_employee_id_from_request),
+    user_id: int = Depends(get_employee_id_from_request),
     service=Depends(get_ticket_user_service),
 ):
     try:
         dto = action_request_to_dto(
             request=request,
-            actor_user_id=actor_user_id,
+            user_id=user_id,
             ticket_user_id=ticket_user_id,
         )
 
@@ -336,13 +329,13 @@ def cancel_ticket(
 def confirm_execution(
     ticket_user_id: int,
     request: UserTicketActionRequest,
-    actor_user_id: int = Depends(get_employee_id_from_request),
+    user_id: int = Depends(get_employee_id_from_request),
     service=Depends(get_ticket_user_service),
 ):
     try:
         dto = action_request_to_dto(
             request=request,
-            actor_user_id=actor_user_id,
+            user_id=user_id,
             ticket_user_id=ticket_user_id,
         )
 
