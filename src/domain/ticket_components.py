@@ -2,16 +2,16 @@
 # src/domain/ticket_components.py
 # Shared components (composition, not inheritance)
 # ============================
-from __future__ import annotations
+
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from typing import TypeVar
+from typing import TypeVar, Self
 
 from src.domain.exceptions import DomainOperationError
 
-
+from src.domain.value_objects import CommonComment
 
 S = TypeVar("S")  # status enum type
 R = TypeVar("R")  # status record type
@@ -23,12 +23,15 @@ R = TypeVar("R")  # status record type
 class Comment:
     comment_id:int=0
     employee_id: int
-    comment: str
+    comment: CommonComment
     date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+
+
+
 @dataclass(kw_only=True)
-class ExecutorAssignment1:
+class ExecutorAssignment:
     """
     Executor assignment uses an admin id in your model.
     Naming it explicitly reduces confusion between 'employee' and 'admin'.
@@ -38,8 +41,8 @@ class ExecutorAssignment1:
     date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @classmethod
-    def empty_executor(cls) -> ExecutorAssignment1:
-        return ExecutorAssignment1(admin_id=0)
+    def empty_executor(cls) -> Self:
+        return cls(admin_id=0)
 
 @dataclass
 class CommentThread:
@@ -55,12 +58,12 @@ class ExecutorAssignments:
     Stores executor assignments over time.
     In your model executor is an admin id, so the VO is ExecutorAssignment(admin_id=...).
     """
-    assignments: list[ExecutorAssignment1] = field(default_factory=list)
+    assignments: list[ExecutorAssignment] = field(default_factory=list)
 
-    def add(self, assignment: ExecutorAssignment1) -> None:
+    def add(self, assignment: ExecutorAssignment) -> None:
         self.assignments.append(assignment)
 
-    def current(self) -> ExecutorAssignment1:
+    def current(self) -> ExecutorAssignment:
         try:
             return self.assignments[-1]
         except IndexError:

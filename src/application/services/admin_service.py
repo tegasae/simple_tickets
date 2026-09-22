@@ -19,7 +19,7 @@ from src.domain.services.admin_department_service import (
     AdminDepartmentService,
 )
 from src.domain.uow.unit_of_work import UnitOfWork
-from tests_pyramid.conftest import department
+
 
 
 class AdminApplicationService:

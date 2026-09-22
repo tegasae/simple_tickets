@@ -4,21 +4,15 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Self
 
+
+
 from src.domain.exceptions import (
     DomainOperationError,
     ItemValidationError,
 )
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-
-
-@dataclass(kw_only=True)
-class Comment:
-    comment_id: int = 0
-    employee_id: int
-    comment: str
-    date_created: datetime = field(
-        default_factory=lambda: datetime.now(UTC),
-    )
+from src.domain.ticket_components import Comment
+from src.domain.value_objects import CommonComment, Empty
 
 
 @dataclass(kw_only=True)
@@ -179,7 +173,7 @@ class Ticket:
             ticket.add_comment(
                 Comment(
                     employee_id=admin_id,
-                    comment=comment,
+                    comment=CommonComment(comment) if comment else Empty(),
                     date_created=now,
                 ),
             )
@@ -402,7 +396,7 @@ class Ticket:
                 f"{self.ticket_id}",
             )
 
-        comment.comment = comment.comment.strip()
+
 
         if not comment.comment:
             raise DomainOperationError(
