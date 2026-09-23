@@ -5,10 +5,9 @@ from datetime import UTC, datetime
 from src.adapters.repositories.mappers.auxiliary import datetime_to_db
 from src.domain.ticket_components import Comment
 from src.domain.ticket_user import (
-    StatusRecordTicketUser,
     TicketUser,
-    TicketUserStatus,
 )
+from src.domain.statuses.ticket_user_status import TicketUserStatus, StatusRecordTicketUser
 
 
 def _datetime_from_db(

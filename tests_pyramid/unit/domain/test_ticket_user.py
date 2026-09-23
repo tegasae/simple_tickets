@@ -7,11 +7,10 @@ import pytest
 from src.domain.exceptions import DomainOperationError, ItemValidationError
 from src.domain.ticket_components import Comment
 from src.domain.ticket_user import (
-    StatusRecordTicketUser,
     TicketUser,
-    TicketUserStatus,
-    _validate_ticket_user_transitions,
 )
+from src.domain.statuses.ticket_user_status import TicketUserStatus, _validate_ticket_user_transitions, \
+    StatusRecordTicketUser
 
 pytestmark = pytest.mark.unit
 BASE = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)

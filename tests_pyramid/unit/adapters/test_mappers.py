@@ -22,7 +22,8 @@ from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket import Ticket
 from src.domain.ticket_components import Comment
-from src.domain.ticket_user import StatusRecordTicketUser, TicketUser, TicketUserStatus
+from src.domain.ticket_user import TicketUser
+from src.domain.statuses.ticket_user_status import TicketUserStatus, StatusRecordTicketUser
 
 pytestmark = pytest.mark.unit
 BASE = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)

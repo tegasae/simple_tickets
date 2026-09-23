@@ -25,9 +25,9 @@ from src.domain.repositories.ticket_user_repository import (
 )
 from src.domain.ticket_components import Comment
 from src.domain.ticket_user import (
-    StatusRecordTicketUser,
     TicketUser,
 )
+from src.domain.statuses.ticket_user_status import StatusRecordTicketUser
 
 
 class TicketUserRepositorySQLite(

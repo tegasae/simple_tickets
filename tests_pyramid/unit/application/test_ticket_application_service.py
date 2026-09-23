@@ -13,8 +13,8 @@ from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.ticket import Ticket
-from src.domain.ticket_user import TicketUser, TicketUserStatus
-
+from src.domain.ticket_user import TicketUser
+from src.domain.statuses.ticket_user_status import TicketUserStatus
 
 CLIENT_ID = 10
 OTHER_CLIENT_ID = 11

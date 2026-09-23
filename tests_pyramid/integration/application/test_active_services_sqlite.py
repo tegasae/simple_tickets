@@ -13,7 +13,7 @@ from src.domain.department import Department
 from src.domain.employee import Admin, User
 from src.domain.rbac.permissions import AdminPermission, UserPermission
 from src.domain.statuses.ticket_status import TicketStatus
-from src.domain.ticket_user import TicketUserStatus
+from src.domain.statuses.ticket_user_status import TicketUserStatus
 from tests_pyramid.support.service_imports import (
     TicketApplicationService,
     TicketUserApplicationService,

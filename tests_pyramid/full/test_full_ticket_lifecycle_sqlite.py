@@ -20,7 +20,7 @@ from src.domain.employee import Admin
 from src.domain.rbac.permissions import AdminPermission, UserPermission
 from src.domain.rbac.role_new import Role
 from src.domain.statuses.ticket_status import TicketStatus
-from src.domain.ticket_user import TicketUserStatus
+from src.domain.statuses.ticket_user_status import TicketUserStatus
 from utils.db.connect import Connection
 
 pytestmark = pytest.mark.integration

@@ -8,9 +8,8 @@ from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import (
     TicketUser,
-    TicketUserStatus,
 )
-
+from src.domain.statuses.ticket_user_status import TicketUserStatus
 
 _TICKET_TO_TICKET_USER_STATUS: Final[
     dict[TicketStatus, TicketUserStatus]
