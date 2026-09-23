@@ -10,6 +10,7 @@ from src.domain.exceptions import (
     ItemValidationError,
 )
 from src.domain.ticket_components import Comment
+from src.domain.value_objects import Empty, CommonComment, Description
 
 
 class TicketUserStatus(StrEnum):
@@ -54,14 +55,13 @@ class TicketUserStatus(StrEnum):
 
 # Compatibility alias for older imports.
 # Do not use this name in new code.
-StatusTicketOfClient = TicketUserStatus
+#StatusTicketOfClient = TicketUserStatus
 
 
 FIRST_TICKET_USER_STATUSES: Final[
     frozenset[TicketUserStatus]
 ] = frozenset({
     TicketUserStatus.CREATED,
-    TicketUserStatus.CONFIRMED_BY_ADMIN,
 })
 
 
@@ -162,19 +162,18 @@ class StatusRecordTicketUser:
     )
 
     #comment: str = ""
-    status_comment:str=""
+    status_comment:Comment|Empty=field(default_factory=Empty)
 
     def __post_init__(self) -> None:
         self.status = TicketUserStatus(self.status)
+
+
 
         self.date_created = self._normalize_datetime(
             value=self.date_created,
             field_name="date_created",
         )
 
-        self.status_comment = self._normalize_comment(
-            self.status_comment
-        )
 
         self._validate_identity()
         self._validate_record_time()
@@ -232,24 +231,6 @@ class StatusRecordTicketUser:
     # Normalization
     # ----------------------------
 
-    @staticmethod
-    def _normalize_comment(
-        comment: str,
-    ) -> str:
-        if not isinstance(comment, str):
-            raise ItemValidationError(
-                "TicketUser status comment must be a string"
-            )
-
-        comment = comment.strip()
-
-        if len(comment) > 1000:
-            raise ItemValidationError(
-                "TicketUser status comment cannot exceed "
-                "1000 characters"
-            )
-
-        return comment
 
     @staticmethod
     def _normalize_datetime(
@@ -288,8 +269,7 @@ class TicketUser:
     user_id: int
 
     text_of_ticket: str
-    description: str = ""
-
+    description: Description|Empty=field(default_factory=Empty)
     contact_user_id: int = 0
     urgency_level: int = 0
 
@@ -318,7 +298,9 @@ class TicketUser:
 
     def __post_init__(self) -> None:
         self.text_of_ticket = self.text_of_ticket.strip()
-        self.description = self.description.strip()
+
+        if not self.contact_user_id:
+            self.contact_user_id=self.user_id
 
         self.date_created = self._normalize_datetime(
             value=self.date_created,
@@ -369,7 +351,7 @@ class TicketUser:
             user_id=user_id,
             text_of_ticket=text_of_ticket,
             contact_user_id=contact_user_id,
-            description=description,
+            description=Description(description) if description else Empty(),
             urgency_level=urgency_level,
             date_created=now,
             statuses=[
@@ -381,16 +363,11 @@ class TicketUser:
             ],
         )
 
-        comment = comment.strip()
+
 
         if comment:
-            ticket_user.add_comment(
-                Comment(
-                    employee_id=user_id,
-                    comment=comment,
-                    date_created=now,
-                ),
-            )
+            ticket_user.add_comment(comment=Comment(employee_id=user_id,comment=CommonComment(comment)))
+
 
         return ticket_user
 
@@ -436,7 +413,7 @@ class TicketUser:
             user_id=user_id,
             text_of_ticket=text_of_ticket,
             contact_user_id=contact_user_id,
-            description=description,
+            description=Description(description) if description else Empty(),
             urgency_level=urgency_level,
             date_created=now,
             statuses=[
@@ -444,7 +421,7 @@ class TicketUser:
                     actor_employee_id=actor_admin_id,
                     status=TicketUserStatus.CONFIRMED_BY_ADMIN,
                     date_created=now,
-                    status_comment=comment,
+                    status_comment=CommonComment(comment) if comment else Empty(),
                 ),
             ],
         )
@@ -493,7 +470,7 @@ class TicketUser:
             user_id=user_id,
             text_of_ticket=text_of_ticket,
             contact_user_id=contact_user_id,
-            description=description,
+            description=Description(description) if description else Empty(),
             urgency_level=urgency_level,
             statuses=statuses,
             comments=comments or [],
@@ -566,7 +543,7 @@ class TicketUser:
                 "contact_user_id cannot be negative"
             )
 
-        self.description = description.strip()
+        self.description=Description(description) if description else Empty()
         self.contact_user_id = contact_user_id
 
     def confirm_by_admin(
@@ -579,7 +556,7 @@ class TicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=actor_employee_id,
                 status=TicketUserStatus.CONFIRMED_BY_ADMIN,
-                status_comment=comment,
+                status_comment=CommonComment(comment) if comment else Empty(),
             )
         )
 
@@ -593,7 +570,7 @@ class TicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=actor_employee_id,
                 status=TicketUserStatus.IN_WORK,
-                status_comment=comment,
+                status_comment=CommonComment(comment) if comment else Empty(),
             )
         )
 
@@ -607,7 +584,7 @@ class TicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=actor_employee_id,
                 status=TicketUserStatus.WAITING_FOR_CONFIRMATION,
-                status_comment=comment,
+                status_comment=CommonComment(comment) if comment else Empty(),
             )
         )
 
@@ -621,7 +598,7 @@ class TicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=actor_employee_id,
                 status=TicketUserStatus.EXECUTION_CONFIRMED_BY_USER,
-                status_comment=comment,
+                status_comment=CommonComment(comment) if comment else Empty(),
             )
         )
 
@@ -635,7 +612,7 @@ class TicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=actor_employee_id,
                 status=TicketUserStatus.EXECUTION_CONFIRMED_BY_ADMIN,
-                status_comment=comment,
+                status_comment=CommonComment(comment) if comment else Empty(),
             )
         )
 
@@ -649,7 +626,7 @@ class TicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=actor_employee_id,
                 status=TicketUserStatus.CANCELLED_BY_USER,
-                status_comment=comment,
+                status_comment=CommonComment(comment) if comment else Empty(),
             )
         )
 
@@ -663,7 +640,7 @@ class TicketUser:
             StatusRecordTicketUser(
                 actor_employee_id=actor_employee_id,
                 status=TicketUserStatus.CANCELLED_BY_ADMIN,
-                status_comment=comment,
+                status_comment=CommonComment(comment) if comment else Empty(),
             )
         )
 
@@ -673,7 +650,6 @@ class TicketUser:
     ) -> None:
         self._ensure_not_terminal()
 
-        comment.comment = comment.comment.strip()
 
         if not comment.comment:
             raise DomainOperationError(
@@ -762,7 +738,7 @@ class TicketUser:
                 "TicketUser user_id must be positive"
             )
 
-        if self.contact_user_id < 0:
+        if self.contact_user_id <= 0:
             raise DomainOperationError(
                 "TicketUser contact_user_id cannot be negative"
             )
@@ -796,32 +772,7 @@ class TicketUser:
         else:
             self.date_finished = None
 
-    # ----------------------------
-    # References
-    # ----------------------------
 
-    def belong(
-        self,
-        employee_id: int,
-    ) -> bool:
-        if employee_id <= 0:
-            return False
-
-        if employee_id == self.user_id:
-            return True
-
-        if employee_id == self.contact_user_id:
-            return True
-
-        for record in self.statuses:
-            if record.actor_employee_id == employee_id:
-                return True
-
-        for comment in self.comments:
-            if comment.employee_id == employee_id:
-                return True
-
-        return False
 
     # ----------------------------
     # Helpers

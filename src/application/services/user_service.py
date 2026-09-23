@@ -130,9 +130,11 @@ class UserApplicationService:
                 actor_admin_id=user_dto.actor_admin_id,
                 permission=AdminPermission.USER_OPERATION,
             )
-            client = self.uow.clients.get(client_id=user_dto.client_id)
-            TicketPolicy.ensure_client_enabled(client)
             user = self.uow.users.get(user_id=user_dto.employee_id)
+            client = self.uow.clients.get(client_id=user.client_id)
+            TicketPolicy.ensure_client_enabled(client)
+
+
             user.remove_account()
 
             return self._save_and_to_dto(user)
@@ -221,14 +223,11 @@ class UserApplicationService:
             user = self.uow.users.get(
                 user_id=user_dto.employee_id,
             )
-
-            for user_ticket in self.uow.user_tickets.get_all():
-                if user_ticket.belong(
-                        employee_id=user.employee_id,
-                ):
-                    raise DomainOperationError(
-                        "You can't delete this user because it has tickets"
+            if self.uow.user_tickets.has_user_reference(user_id=user_dto.employee_id):
+                raise DomainOperationError(
+                            f"You can't delete this user {user_dto.employee_id} because it has tickets"
                     )
+
 
             for ticket in self.uow.tickets.get_all():
                 if ticket.belong(

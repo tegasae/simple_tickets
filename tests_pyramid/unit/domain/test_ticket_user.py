@@ -199,13 +199,3 @@ def test_add_comment_trims_blank_and_new_lists() -> None:
         ticket_user.add_comment(Comment(employee_id=20, comment="   ", date_created=BASE))
 
 
-def test_belong_checks_owner_contact_status_actor_and_comment_actor() -> None:
-    ticket_user = make_ticket_user()
-    ticket_user.confirm_by_admin(actor_employee_id=100)
-    ticket_user.add_comment(Comment(employee_id=300, comment="note", date_created=BASE))
-    assert ticket_user.belong(20)
-    assert ticket_user.belong(21)
-    assert ticket_user.belong(100)
-    assert ticket_user.belong(300)
-    assert not ticket_user.belong(0)
-    assert not ticket_user.belong(999)

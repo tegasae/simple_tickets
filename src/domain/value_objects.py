@@ -238,6 +238,41 @@ class Description(ValueObject[str]):
         return new_value
 
 
+@dataclass(frozen=True, order=True)
+class CommonComment(ValueObject[str]):
+    """Value object for validated common comment.
+
+    Attributes:
+        value: Name string
+        MIN_LENGTH: Minimum allowed comment length
+        MAX_LENGTH: Maximum allowed comment length
+    """
+    value: str
+    MIN_LENGTH: ClassVar[int] = 1
+    MAX_LENGTH: ClassVar[int] = 1000
+
+    def _validate(self) -> str:
+        """Validate comment length and content.
+
+        Returns:
+            Normalized comment
+
+        Raises:
+            ValueError: If comment is invalid
+        """
+        new_value = self.value.strip()
+
+
+        if len(new_value) < self.MIN_LENGTH:
+            raise ValueError(f"Common comment must be at least {self.MIN_LENGTH} characters")
+
+        if len(new_value) > self.MAX_LENGTH:
+            raise ValueError(f"Common comment cannot exceed {self.MAX_LENGTH} characters")
+
+        return new_value
+
+
+
 
 
 @dataclass(frozen=True, order=True)

@@ -1,6 +1,5 @@
 # src/domain/services/ticket_user_sync_service.py
 
-from __future__ import annotations
 
 from typing import Final
 

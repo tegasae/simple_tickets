@@ -9,6 +9,7 @@ from src.domain.exceptions import (
     ItemValidationError,
 )
 from src.domain.statuses.ticket_status import TicketState, TicketStatus
+from src.domain.value_objects import Empty, CommonComment
 
 
 @dataclass(kw_only=True)
@@ -51,7 +52,7 @@ class TicketStatusRecord:
     actual_started_at: datetime | None = None
     actual_finished_at: datetime | None = None
 
-    comment: str = ""
+    comment: CommonComment|Empty=field(default_factory=Empty)
 
     @property
     def state(self) -> TicketState:
@@ -61,9 +62,6 @@ class TicketStatusRecord:
         self.status = TicketStatus(self.status)
 
 
-        self.comment = self._normalize_comment(
-            self.comment,
-        )
 
         self.date_created = self._normalize_datetime(
             value=self.date_created,
@@ -140,7 +138,7 @@ class TicketStatusRecord:
         return cls(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.ACCEPTED,
-            comment=comment,
+            comment=CommonComment(comment) if comment else Empty(),
             date_created=date_created or datetime.now(UTC),
         )
 
@@ -155,7 +153,7 @@ class TicketStatusRecord:
         return cls(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.REJECTED,
-            comment=comment,
+            comment=CommonComment(comment) if comment else Empty(),
             date_created=date_created or datetime.now(UTC),
         )
 
@@ -170,7 +168,7 @@ class TicketStatusRecord:
         return cls(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.DEFERRED,
-            comment=comment,
+            comment=CommonComment(comment) if comment else Empty(),
             date_created=date_created or datetime.now(UTC),
         )
 
@@ -189,7 +187,7 @@ class TicketStatusRecord:
             status=TicketStatus.SCHEDULED,
             planned_start_at=planned_start_at,
             planned_finish_at=planned_finish_at,
-            comment=comment,
+            comment=CommonComment(comment) if comment else Empty(),
             date_created=date_created or datetime.now(UTC),
         )
 
@@ -206,7 +204,7 @@ class TicketStatusRecord:
             actor_employee_id=actor_employee_id,
             status=TicketStatus.ASSIGNED,
             executor_id=executor_id,
-            comment=comment,
+            comment=CommonComment(comment) if comment else Empty(),
             date_created=date_created or datetime.now(UTC),
         )
 
@@ -227,7 +225,7 @@ class TicketStatusRecord:
             executor_id=executor_id,
             planned_start_at=planned_start_at,
             planned_finish_at=planned_finish_at,
-            comment=comment,
+            comment=CommonComment(comment) if comment else Empty(),
             date_created=date_created or datetime.now(UTC),
         )
 
@@ -242,7 +240,7 @@ class TicketStatusRecord:
         return cls(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.CANCELLED,
-            comment=comment,
+            comment=CommonComment(comment) if comment else Empty(),
             date_created=date_created or datetime.now(UTC),
         )
 
@@ -256,7 +254,7 @@ class TicketStatusRecord:
         return cls(
             actor_employee_id=0,
             status=TicketStatus.CANCELLED_BY_USER,
-            comment=comment,
+            comment=CommonComment(comment) if comment else Empty(),
             date_created=date_created or datetime.now(UTC),
         )
 
@@ -287,7 +285,7 @@ class TicketStatusRecord:
             executor_id=executor_id,
             date_created=now,
             actual_started_at=now,
-            comment=comment,
+            comment=CommonComment(comment) if comment else Empty(),
         )
 
     @classmethod
@@ -303,7 +301,7 @@ class TicketStatusRecord:
             actor_employee_id=actor_employee_id,
             status=TicketStatus.PAUSED,
             executor_id=executor_id,
-            comment=comment,
+            comment=CommonComment(comment) if comment else Empty(),
             date_created=date_created or datetime.now(UTC),
         )
 
@@ -333,7 +331,7 @@ class TicketStatusRecord:
             executor_id=executor_id,
             date_created=now,
             actual_finished_at=now,
-            comment=comment,
+            comment=CommonComment(comment) if comment else Empty(),
         )
 
     @classmethod
@@ -360,7 +358,7 @@ class TicketStatusRecord:
             executor_id=executor_id,
             actual_started_at=actual_started_at,
             actual_finished_at=actual_finished_at,
-            comment=comment,
+            comment=CommonComment(comment) if comment else Empty(),
             date_created=date_created or datetime.now(UTC),
         )
 
@@ -379,7 +377,7 @@ class TicketStatusRecord:
         return cls(
             actor_employee_id=actor_employee_id,
             status=TicketStatus.EXECUTED,
-            comment=comment,
+            comment=CommonComment(comment) if comment else Empty(),
             date_created=date_created or datetime.now(UTC),
         )
 
@@ -730,23 +728,6 @@ class TicketStatusRecord:
     # Normalization
     # ----------------------------
 
-    @staticmethod
-    def _normalize_comment(
-        comment: str,
-    ) -> str:
-        if not isinstance(comment, str):
-            raise ItemValidationError(
-                "Status comment must be a string"
-            )
-
-        comment = comment.strip()
-
-        if len(comment) > 1000:
-            raise ItemValidationError(
-                "Status comment cannot exceed 1000 characters"
-            )
-
-        return comment
 
     @staticmethod
     def _normalize_optional_datetime(
