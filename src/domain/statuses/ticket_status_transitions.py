@@ -24,6 +24,7 @@ TICKET_TRANSITIONS: Final[
         TicketStatus.ACCEPTED,
         TicketStatus.REJECTED,
         TicketStatus.SUSPENDED,
+        TicketStatus.CANCELLED_BY_USER,
     }),
 
     TicketStatus.REJECTED: frozenset(),
@@ -33,7 +34,6 @@ TICKET_TRANSITIONS: Final[
         TicketStatus.DEFERRED,
         TicketStatus.SUSPENDED,
         TicketStatus.CANCELLED,
-        TicketStatus.CANCELLED_BY_USER,
     }),
 
     TicketStatus.DEFERRED: frozenset({
@@ -41,7 +41,6 @@ TICKET_TRANSITIONS: Final[
         TicketStatus.ASSIGNED,
         TicketStatus.SUSPENDED,
         TicketStatus.CANCELLED,
-        TicketStatus.CANCELLED_BY_USER,
     }),
 
     TicketStatus.SUSPENDED: frozenset({
@@ -60,7 +59,6 @@ TICKET_TRANSITIONS: Final[
         TicketStatus.DEFERRED,
         TicketStatus.SUSPENDED,
         TicketStatus.CANCELLED,
-        TicketStatus.CANCELLED_BY_USER,
     }),
 
     TicketStatus.AT_WORK: frozenset({
@@ -69,7 +67,6 @@ TICKET_TRANSITIONS: Final[
         TicketStatus.DEFERRED,
         TicketStatus.READY_FOR_REVIEW,
         TicketStatus.CANCELLED,
-        TicketStatus.CANCELLED_BY_USER,
     }),
 
     TicketStatus.PAUSED: frozenset({
@@ -78,7 +75,6 @@ TICKET_TRANSITIONS: Final[
         TicketStatus.DEFERRED,
         TicketStatus.SUSPENDED,
         TicketStatus.CANCELLED,
-        TicketStatus.CANCELLED_BY_USER,
     }),
 
     TicketStatus.READY_FOR_REVIEW: frozenset({
@@ -87,11 +83,9 @@ TICKET_TRANSITIONS: Final[
         TicketStatus.EXECUTION_CONFIRMED_BY_USER,
         TicketStatus.EXECUTED,
         TicketStatus.CANCELLED,
-        TicketStatus.CANCELLED_BY_USER,
     }),
 
     TicketStatus.EXECUTION_CONFIRMED_BY_USER: frozenset({
-        TicketStatus.SUSPENDED,
         TicketStatus.EXECUTED,
     }),
 

@@ -152,13 +152,15 @@ class TicketStatusRule:
         This flag only declares that such data is allowed for the status.
         Validation of valid combinations of these fields belongs to the
         status-record payload validation.
+
+    set_remotely_or_not True if kind of work has to set
     """
 
     user_action: bool = False
     requires_comment: bool = False
     requires_executor: bool = False
     allows_work_data: bool = False
-
+    set_remotely_or_not:bool = False
 
 TICKET_STATUS_RULES: Final[dict[TicketStatus, TicketStatusRule]] = {
     TicketStatus.CREATED: TicketStatusRule(),
@@ -185,6 +187,8 @@ TICKET_STATUS_RULES: Final[dict[TicketStatus, TicketStatusRule]] = {
 
     TicketStatus.AT_WORK: TicketStatusRule(
         allows_work_data=True,
+        requires_executor=True,
+        set_remotely_or_not=True
     ),
 
     TicketStatus.PAUSED: TicketStatusRule(),
