@@ -208,36 +208,16 @@ TICKET_STATUS_RULES: Final[dict[TicketStatus, TicketStatusRule]] = {
 
 
 def _validate_ticket_status_rules() -> None:
-    """
-    Validate completeness of the Ticket status-rule table.
-
-    Every TicketStatus must have exactly one entry in
-    ``TICKET_STATUS_RULES``.
-
-    This check protects the domain model from a common error where a new
-    TicketStatus is added to the enum but its intrinsic rules are forgotten.
-    """
-
-    statuses = set(TicketStatus)
-    statuses_with_rules = set(TICKET_STATUS_RULES)
-
-    missing = statuses - statuses_with_rules
-    extra = statuses_with_rules - statuses
+    missing: list[TicketStatus] = [
+        status
+        for status in TicketStatus
+        if status not in TICKET_STATUS_RULES
+    ]
 
     if missing:
-        missing_names = ", ".join(
-            sorted(status.value for status in missing)
-        )
         raise RuntimeError(
-            f"Ticket statuses without rules: {missing_names}"
-        )
-
-    if extra:
-        extra_names = ", ".join(
-            sorted(status.value for status in extra)
-        )
-        raise RuntimeError(
-            f"Rules defined for unknown Ticket statuses: {extra_names}"
+            "Ticket statuses without rules: "
+            + ", ".join(map(str, missing))
         )
 
 
