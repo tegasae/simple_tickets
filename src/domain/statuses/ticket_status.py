@@ -1,6 +1,21 @@
-# src/domain/statuses/ticket_status.py
+"""
+Ticket statuses and their intrinsic rules.
 
-from __future__ import annotations
+This module describes:
+
+- the set of statuses available for Ticket;
+- which statuses represent actions performed by a User rather than an Admin;
+- which statuses require a comment;
+- which statuses require an executor;
+- which statuses may contain actual work-time data.
+
+Workflow transitions are intentionally not defined here.
+They belong to a separate part of the domain model.
+
+By default, a status is considered to be produced by an Admin action.
+Only statuses explicitly marked with ``user_action=True`` are produced
+by a User action.
+"""
 
 from dataclasses import dataclass
 from enum import StrEnum
@@ -8,6 +23,79 @@ from typing import Final
 
 
 class TicketStatus(StrEnum):
+    """
+    Status of a Ticket.
+
+    The status represents the business state recorded in the Ticket history.
+
+    Notes
+    -----
+    CREATED
+        Ticket was created directly by an Admin.
+
+    CREATED_FROM_TICKET_USER
+        Ticket was created from a TicketUser request.
+        The action is attributed to the User.
+
+    REJECTED
+        Ticket was rejected by an Admin.
+        A comment explaining the reason is required.
+
+    ACCEPTED
+        Ticket was accepted by an Admin.
+
+    DEFERRED
+        Ticket was deliberately deferred by an Admin.
+        A comment explaining the reason is required.
+
+    SUSPENDED
+        Ticket was suspended because the related Client or User was disabled.
+
+        This status is semantically different from DEFERRED.
+        DEFERRED represents a normal business decision to postpone work,
+        while SUSPENDED represents suspension caused by availability of the
+        related Client/User.
+
+    ASSIGNED
+        An executor was assigned to the Ticket.
+        ``executor_id`` is required for the corresponding status record.
+
+    AT_WORK
+        Work on the Ticket is being performed or actual work is being
+        registered retrospectively.
+
+        The corresponding status record may contain:
+
+        - actual_started_at;
+        - actual_finished_at;
+        - duration.
+
+        Exact validation rules for these fields belong to the status-record
+        payload validation.
+
+    PAUSED
+        Work on the Ticket was paused.
+
+    READY_FOR_REVIEW
+        Work was completed by the executor and submitted for review.
+
+    EXECUTION_CONFIRMED_BY_USER
+        User confirmed the result of the work.
+
+        This is not a terminal status. Final completion of the Ticket is
+        performed by an Admin with the required permission.
+
+    EXECUTED
+        Ticket was finally completed by an authorized Admin.
+
+    CANCELLED
+        Ticket was cancelled by an Admin.
+        A comment explaining the reason is required.
+
+    CANCELLED_BY_USER
+        Ticket was cancelled by the User.
+    """
+
     CREATED = "created"
     CREATED_FROM_TICKET_USER = "created_from_ticket_user"
 
@@ -15,516 +103,142 @@ class TicketStatus(StrEnum):
     ACCEPTED = "accepted"
 
     DEFERRED = "deferred"
-    SCHEDULED = "scheduled"
-    ASSIGNED = "assigned"
-    READY_TO_WORK = "ready_to_work"
+    SUSPENDED = "suspended"
 
+    ASSIGNED = "assigned"
     AT_WORK = "at_work"
     PAUSED = "paused"
+
     READY_FOR_REVIEW = "ready_for_review"
 
+    EXECUTION_CONFIRMED_BY_USER = "execution_confirmed_by_user"
     EXECUTED = "executed"
+
     CANCELLED = "cancelled"
     CANCELLED_BY_USER = "cancelled_by_user"
 
-    @property
-    def state(self) -> TicketState:
-        return _TICKET_STATES[self]
-
 
 @dataclass(frozen=True, slots=True)
-class TicketState:
+class TicketStatusRule:
     """
-    Неизменяемое описание одного workflow-состояния Ticket.
+    Intrinsic rules of a Ticket status.
 
-    TicketState содержит только свойства состояния:
-    - требования к payload status-record;
-    - свойства текущего состояния Ticket;
-    - допустимые workflow-переходы;
-    - допустимость execution/review операций.
+    These rules describe the payload and origin of a status itself.
+    They do not describe allowed transitions between statuses.
 
-    Здесь нет:
-    - RBAC;
-    - permissions;
-    - actor role checks;
-    - cross-aggregate rules;
-    - реакций на внешние события вроде Client disabled.
+    Attributes
+    ----------
+    user_action:
+        ``True`` if the status represents an action performed by a User.
 
-    status:
-        Стабильный код состояния.
+        ``False`` means that the action is performed by an Admin.
 
-    first_status:
-        Состояние может быть первым в status history.
-
-    terminal:
-        Состояние завершает Ticket.
-        Из terminal-состояния переходов быть не должно.
-
-    requires_executor:
-        TicketStatusRecord должен содержать executor_id > 0.
-
-    requires_planned_start:
-        TicketStatusRecord должен содержать planned_start_at.
-
-        planned_finish_at при этом остаётся необязательным.
+        Admin is intentionally the default because most Ticket workflow
+        actions are administrative actions.
 
     requires_comment:
-        TicketStatusRecord должен содержать непустой comment.
+        ``True`` if the status record must contain a non-empty comment.
 
-    allows_actual_start:
-        В TicketStatusRecord разрешён actual_started_at.
+    requires_executor:
+        ``True`` if the status record must contain a valid ``executor_id``.
 
-    requires_actual_start:
-        actual_started_at не только разрешён,
-        но и обязателен.
+    allows_work_data:
+        ``True`` if the status record may contain actual work information:
 
-    allows_actual_finish:
-        В TicketStatusRecord разрешён actual_finished_at.
+        - ``actual_started_at``;
+        - ``actual_finished_at``;
+        - ``duration``.
 
-    requires_actual_finish:
-        actual_finished_at не только разрешён,
-        но и обязателен.
-
-    work_started:
-        Работа по Ticket уже была начата.
-
-        Это семантическое свойство состояния,
-        а не проверка наличия actual timestamps.
-
-    locks_department_change:
-        Department Ticket нельзя менять
-        обычной domain-операцией.
-
-    allows_ticket_text_update:
-        Текст Ticket разрешено изменять
-        в текущем состоянии.
-
-    can_take_to_work:
-        ExecutionService может начать новый рабочий интервал.
-
-    can_pause_work:
-        ExecutionService может приостановить работу.
-
-    can_resume_work:
-        ExecutionService может возобновить работу.
-
-    can_submit_for_review:
-        Текущий рабочий интервал можно завершить
-        и отправить результат на review.
-
-    can_record_completed_work:
-        Можно ретроспективно зарегистрировать
-        уже завершённую работу напрямую в review.
-
-    can_review_result:
-        Ticket находится в состоянии ожидания
-        проверки результата.
-
-    allowed_next:
-        Допустимые следующие TicketStatus.
-
-        Это только общий workflow-граф.
-        Более узкие правила конкретного use case
-        могут дополнительно проверяться domain service.
+        This flag only declares that such data is allowed for the status.
+        Validation of valid combinations of these fields belongs to the
+        status-record payload validation.
     """
 
-    status: TicketStatus
-
-    first_status: bool = False
-    terminal: bool = False
-    work_in_progress: bool = False
-    # Status-record payload.
-    requires_executor: bool = False
-    requires_planned_start: bool = False
+    user_action: bool = False
     requires_comment: bool = False
-
-    allows_actual_start: bool = False
-    requires_actual_start: bool = False
-
-    allows_actual_finish: bool = False
-    requires_actual_finish: bool = False
-
-    # Ticket state semantics.
-    work_started: bool = False
-    locks_department_change: bool = False
-    allows_ticket_text_update: bool = False
-
-    # Execution / review capabilities.
-    can_take_to_work: bool = False
-    can_pause_work: bool = False
-    can_resume_work: bool = False
-    can_submit_for_review: bool = False
-    can_record_completed_work: bool = False
-    can_review_result: bool = False
-
-    # Workflow graph.
-    allowed_next: frozenset[TicketStatus] = frozenset()
-
-    def allows_transition_to(
-        self,
-        new_status: TicketStatus,
-    ) -> bool:
-        return TicketStatus(new_status) in self.allowed_next
+    requires_executor: bool = False
+    allows_work_data: bool = False
 
 
-_TICKET_STATES: Final[dict[TicketStatus, TicketState]] = {
+TICKET_STATUS_RULES: Final[dict[TicketStatus, TicketStatusRule]] = {
+    TicketStatus.CREATED: TicketStatusRule(),
 
-    # ---------------------------------------------------------
-    # Initial states
-    # ---------------------------------------------------------
-
-    TicketStatus.CREATED: TicketState(
-        status=TicketStatus.CREATED,
-        first_status=True,
-        allows_ticket_text_update=True,
-        allowed_next=frozenset({
-            TicketStatus.ACCEPTED,
-            TicketStatus.REJECTED,
-        }),
+    TicketStatus.CREATED_FROM_TICKET_USER: TicketStatusRule(
+        user_action=True,
     ),
 
-    TicketStatus.CREATED_FROM_TICKET_USER: TicketState(
-        status=TicketStatus.CREATED_FROM_TICKET_USER,
-        first_status=True,
-        allowed_next=frozenset({
-            TicketStatus.ACCEPTED,
-            TicketStatus.REJECTED,
-            TicketStatus.CANCELLED_BY_USER,
-        }),
-    ),
-
-    # ---------------------------------------------------------
-    # Initial decision
-    # ---------------------------------------------------------
-
-    TicketStatus.REJECTED: TicketState(
-        status=TicketStatus.REJECTED,
-        terminal=True,
+    TicketStatus.REJECTED: TicketStatusRule(
         requires_comment=True,
     ),
 
-    TicketStatus.ACCEPTED: TicketState(
-        status=TicketStatus.ACCEPTED,
-        allows_ticket_text_update=True,
-        allowed_next=frozenset({
-            TicketStatus.DEFERRED,
-            TicketStatus.SCHEDULED,
-            TicketStatus.ASSIGNED,
-            TicketStatus.READY_TO_WORK,
-            TicketStatus.CANCELLED,
-        }),
-    ),
+    TicketStatus.ACCEPTED: TicketStatusRule(),
 
-    # ---------------------------------------------------------
-    # Management
-    # ---------------------------------------------------------
-
-    TicketStatus.DEFERRED: TicketState(
-        status=TicketStatus.DEFERRED,
-        requires_comment=True,
-        allowed_next=frozenset({
-            TicketStatus.ACCEPTED,
-            TicketStatus.SCHEDULED,
-            TicketStatus.ASSIGNED,
-            TicketStatus.READY_TO_WORK,
-            TicketStatus.CANCELLED,
-        }),
-    ),
-
-    TicketStatus.SCHEDULED: TicketState(
-        status=TicketStatus.SCHEDULED,
-        requires_planned_start=True,
-
-        can_record_completed_work=True,
-
-        allowed_next=frozenset({
-            TicketStatus.SCHEDULED,
-            TicketStatus.READY_TO_WORK,
-            TicketStatus.ASSIGNED,
-            TicketStatus.ACCEPTED,
-            TicketStatus.DEFERRED,
-            TicketStatus.CANCELLED,
-            TicketStatus.READY_FOR_REVIEW,
-        }),
-    ),
-
-    TicketStatus.ASSIGNED: TicketState(
-        status=TicketStatus.ASSIGNED,
-        requires_executor=True,
-
-        locks_department_change=True,
-
-        can_take_to_work=True,
-        can_record_completed_work=True,
-
-        allowed_next=frozenset({
-            TicketStatus.ASSIGNED,
-            TicketStatus.READY_TO_WORK,
-            TicketStatus.SCHEDULED,
-            TicketStatus.ACCEPTED,
-            TicketStatus.AT_WORK,
-            TicketStatus.DEFERRED,
-            TicketStatus.CANCELLED,
-            TicketStatus.READY_FOR_REVIEW,
-        }),
-    ),
-
-    TicketStatus.READY_TO_WORK: TicketState(
-        status=TicketStatus.READY_TO_WORK,
-        requires_executor=True,
-        requires_planned_start=True,
-
-        locks_department_change=True,
-
-        can_take_to_work=True,
-        can_record_completed_work=True,
-
-        allowed_next=frozenset({
-            TicketStatus.READY_TO_WORK,
-            TicketStatus.SCHEDULED,
-            TicketStatus.ASSIGNED,
-            TicketStatus.ACCEPTED,
-            TicketStatus.AT_WORK,
-            TicketStatus.DEFERRED,
-            TicketStatus.CANCELLED,
-            TicketStatus.READY_FOR_REVIEW,
-        }),
-    ),
-
-    # ---------------------------------------------------------
-    # Execution
-    # ---------------------------------------------------------
-
-    TicketStatus.AT_WORK: TicketState(
-        status=TicketStatus.AT_WORK,
-        requires_executor=True,
-
-        allows_actual_start=True,
-        requires_actual_start=True,
-
-        work_started=True,
-        locks_department_change=True,
-
-        can_pause_work=True,
-        can_submit_for_review=True,
-        work_in_progress=True,
-
-        allowed_next=frozenset({
-            TicketStatus.PAUSED,
-            TicketStatus.READY_FOR_REVIEW,
-            TicketStatus.DEFERRED,
-            TicketStatus.SCHEDULED,
-            TicketStatus.ASSIGNED,
-            TicketStatus.READY_TO_WORK,
-            TicketStatus.CANCELLED,
-        }),
-    ),
-
-    TicketStatus.PAUSED: TicketState(
-        status=TicketStatus.PAUSED,
-        requires_executor=True,
-
-        work_started=True,
-        locks_department_change=True,
-
-        can_resume_work=True,
-
-        allowed_next=frozenset({
-            TicketStatus.AT_WORK,
-            TicketStatus.DEFERRED,
-            TicketStatus.SCHEDULED,
-            TicketStatus.ASSIGNED,
-            TicketStatus.READY_TO_WORK,
-            TicketStatus.CANCELLED,
-        }),
-    ),
-
-    # ---------------------------------------------------------
-    # Review
-    # ---------------------------------------------------------
-
-    TicketStatus.READY_FOR_REVIEW: TicketState(
-        status=TicketStatus.READY_FOR_REVIEW,
-        requires_executor=True,
-
-
-        allows_actual_start=True,
-
-        allows_actual_finish=True,
-        requires_actual_finish=True,
-
-        work_started=True,
-        locks_department_change=True,
-
-        can_review_result=True,
-
-        allowed_next=frozenset({
-            TicketStatus.EXECUTED,
-            TicketStatus.AT_WORK,
-            TicketStatus.ASSIGNED,
-            TicketStatus.SCHEDULED,
-            TicketStatus.READY_TO_WORK,
-            TicketStatus.DEFERRED,
-            TicketStatus.CANCELLED,
-        }),
-    ),
-
-    # ---------------------------------------------------------
-    # Terminal states
-    # ---------------------------------------------------------
-
-    TicketStatus.EXECUTED: TicketState(
-        status=TicketStatus.EXECUTED,
-        terminal=True,
-    ),
-
-    TicketStatus.CANCELLED: TicketState(
-        status=TicketStatus.CANCELLED,
-        terminal=True,
+    TicketStatus.DEFERRED: TicketStatusRule(
         requires_comment=True,
     ),
 
-    TicketStatus.CANCELLED_BY_USER: TicketState(
-        status=TicketStatus.CANCELLED_BY_USER,
-        terminal=True,
+    TicketStatus.SUSPENDED: TicketStatusRule(),
+
+    TicketStatus.ASSIGNED: TicketStatusRule(
+        requires_executor=True,
+    ),
+
+    TicketStatus.AT_WORK: TicketStatusRule(
+        allows_work_data=True,
+    ),
+
+    TicketStatus.PAUSED: TicketStatusRule(),
+
+    TicketStatus.READY_FOR_REVIEW: TicketStatusRule(),
+
+    TicketStatus.EXECUTION_CONFIRMED_BY_USER: TicketStatusRule(
+        user_action=True,
+    ),
+
+    TicketStatus.EXECUTED: TicketStatusRule(),
+
+    TicketStatus.CANCELLED: TicketStatusRule(
+        requires_comment=True,
+    ),
+
+    TicketStatus.CANCELLED_BY_USER: TicketStatusRule(
+        user_action=True,
     ),
 }
 
 
-def _validate_ticket_states() -> None:
+def _validate_ticket_status_rules() -> None:
     """
-    Проверяет внутреннюю согласованность описания workflow.
+    Validate completeness of the Ticket status-rule table.
+
+    Every TicketStatus must have exactly one entry in
+    ``TICKET_STATUS_RULES``.
+
+    This check protects the domain model from a common error where a new
+    TicketStatus is added to the enum but its intrinsic rules are forgotten.
     """
 
-    # Каждый TicketStatus должен иметь TicketState.
-    missing_statuses: list[TicketStatus] = [
-        status
-        for status in TicketStatus
-        if status not in _TICKET_STATES
-    ]
+    statuses = set(TicketStatus)
+    statuses_with_rules = set(TICKET_STATUS_RULES)
 
-    if missing_statuses:
-        missing_values: list[str] = [
-            str(status.value)
-            for status in missing_statuses
-        ]
-        missing_values.sort()
+    missing = statuses - statuses_with_rules
+    extra = statuses_with_rules - statuses
 
+    if missing:
+        missing_names = ", ".join(
+            sorted(status.value for status in missing)
+        )
         raise RuntimeError(
-            "Missing TicketState definitions: "
-            + ", ".join(missing_values)
+            f"Ticket statuses without rules: {missing_names}"
         )
 
-    for status, state in _TICKET_STATES.items():
-
-        # Ключ mapping должен соответствовать state.status.
-        if status != state.status:
-            raise RuntimeError(
-                "TicketState key does not match state.status: "
-                f"{status.value} != {state.status.value}"
-            )
-
-        # Нельзя требовать actual_start, если он запрещён.
-        if (
-            state.requires_actual_start
-            and not state.allows_actual_start
-        ):
-            raise RuntimeError(
-                f"TicketState {status.value}: "
-                "requires_actual_start=True requires "
-                "allows_actual_start=True"
-            )
-
-        # Нельзя требовать actual_finish, если он запрещён.
-        if (
-            state.requires_actual_finish
-            and not state.allows_actual_finish
-        ):
-            raise RuntimeError(
-                f"TicketState {status.value}: "
-                "requires_actual_finish=True requires "
-                "allows_actual_finish=True"
-            )
-
-        # Terminal state не должен иметь исходящих переходов.
-        if state.terminal and state.allowed_next:
-            raise RuntimeError(
-                f"Terminal TicketState {status.value} "
-                "cannot have allowed_next statuses"
-            )
-
-        # take_to_work всегда означает переход в AT_WORK.
-        if (
-            state.can_take_to_work
-            and TicketStatus.AT_WORK not in state.allowed_next
-        ):
-            raise RuntimeError(
-                f"TicketState {status.value}: "
-                "can_take_to_work requires transition "
-                "to AT_WORK"
-            )
-
-        # pause_work всегда означает переход в PAUSED.
-        if (
-            state.can_pause_work
-            and TicketStatus.PAUSED not in state.allowed_next
-        ):
-            raise RuntimeError(
-                f"TicketState {status.value}: "
-                "can_pause_work requires transition "
-                "to PAUSED"
-            )
-
-        # resume_work всегда означает переход в AT_WORK.
-        if (
-            state.can_resume_work
-            and TicketStatus.AT_WORK not in state.allowed_next
-        ):
-            raise RuntimeError(
-                f"TicketState {status.value}: "
-                "can_resume_work requires transition "
-                "to AT_WORK"
-            )
-
-        # Обычное завершение работы ведёт на review.
-        if (
-            state.can_submit_for_review
-            and TicketStatus.READY_FOR_REVIEW
-            not in state.allowed_next
-        ):
-            raise RuntimeError(
-                f"TicketState {status.value}: "
-                "can_submit_for_review requires transition "
-                "to READY_FOR_REVIEW"
-            )
-
-        # Ретроспективная фиксация работы тоже ведёт на review.
-        if (
-            state.can_record_completed_work
-            and TicketStatus.READY_FOR_REVIEW
-            not in state.allowed_next
-        ):
-            raise RuntimeError(
-                f"TicketState {status.value}: "
-                "can_record_completed_work requires transition "
-                "to READY_FOR_REVIEW"
-            )
-
-        if state.terminal and (
-                state.can_take_to_work
-                or state.can_pause_work
-                or state.can_resume_work
-                or state.can_submit_for_review
-                or state.can_record_completed_work
-                or state.can_review_result
-        ):
-            raise RuntimeError(
-                f"Terminal TicketState {status.value} "
-                "cannot have workflow capabilities"
-            )
-_validate_ticket_states()
+    if extra:
+        extra_names = ", ".join(
+            sorted(status.value for status in extra)
+        )
+        raise RuntimeError(
+            f"Rules defined for unknown Ticket statuses: {extra_names}"
+        )
 
 
-
-
-
+_validate_ticket_status_rules()
