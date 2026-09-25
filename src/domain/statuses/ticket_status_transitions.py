@@ -80,14 +80,12 @@ TICKET_TRANSITIONS: Final[
     TicketStatus.READY_FOR_REVIEW: frozenset({
         TicketStatus.ASSIGNED,
         TicketStatus.SUSPENDED,
-        TicketStatus.EXECUTION_CONFIRMED_BY_USER,
+        TicketStatus.CONFIRMED_BY_USER,
         TicketStatus.EXECUTED,
         TicketStatus.CANCELLED,
     }),
 
-    TicketStatus.EXECUTION_CONFIRMED_BY_USER: frozenset({
-        TicketStatus.EXECUTED,
-    }),
+    TicketStatus.CONFIRMED_BY_USER: frozenset(),
 
     TicketStatus.EXECUTED: frozenset(),
 
@@ -104,6 +102,7 @@ TERMINAL_TICKET_STATUSES: Final[
     TicketStatus.EXECUTED,
     TicketStatus.CANCELLED,
     TicketStatus.CANCELLED_BY_USER,
+    TicketStatus.CONFIRMED_BY_USER
 })
 
 

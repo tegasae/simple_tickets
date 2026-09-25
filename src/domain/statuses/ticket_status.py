@@ -79,7 +79,7 @@ class TicketStatus(StrEnum):
     READY_FOR_REVIEW
         Work was completed by the executor and submitted for review.
 
-    EXECUTION_CONFIRMED_BY_USER
+    CONFIRMED_BY_USER
         User confirmed the result of the work.
 
         This is not a terminal status. Final completion of the Ticket is
@@ -111,7 +111,7 @@ class TicketStatus(StrEnum):
 
     READY_FOR_REVIEW = "ready_for_review"
 
-    EXECUTION_CONFIRMED_BY_USER = "execution_confirmed_by_user"
+    CONFIRMED_BY_USER = "confirmed_by_user"
     EXECUTED = "executed"
 
     CANCELLED = "cancelled"
@@ -153,14 +153,14 @@ class TicketStatusRule:
         Validation of valid combinations of these fields belongs to the
         status-record payload validation.
 
-    set_remotely_or_not True if kind of work has to set
+     requires_work_mode True if kind of work has to set
     """
 
     user_action: bool = False
     requires_comment: bool = False
     requires_executor: bool = False
     allows_work_data: bool = False
-    set_remotely_or_not:bool = False
+    requires_work_mode:bool = False
 
 TICKET_STATUS_RULES: Final[dict[TicketStatus, TicketStatusRule]] = {
     TicketStatus.CREATED: TicketStatusRule(),
@@ -188,14 +188,14 @@ TICKET_STATUS_RULES: Final[dict[TicketStatus, TicketStatusRule]] = {
     TicketStatus.AT_WORK: TicketStatusRule(
         allows_work_data=True,
         requires_executor=True,
-        set_remotely_or_not=True
+        requires_work_mode=True
     ),
 
     TicketStatus.PAUSED: TicketStatusRule(),
 
     TicketStatus.READY_FOR_REVIEW: TicketStatusRule(),
 
-    TicketStatus.EXECUTION_CONFIRMED_BY_USER: TicketStatusRule(
+    TicketStatus.CONFIRMED_BY_USER: TicketStatusRule(
         user_action=True,
     ),
 
