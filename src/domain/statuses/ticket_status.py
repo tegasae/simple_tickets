@@ -187,7 +187,6 @@ TICKET_STATUS_RULES: Final[dict[TicketStatus, TicketStatusRule]] = {
 
     TicketStatus.AT_WORK: TicketStatusRule(
         allows_work_data=True,
-        requires_executor=True,
         requires_work_mode=True
     ),
 
