@@ -114,6 +114,16 @@ FIRST_TICKET_STATUSES: Final[
 })
 
 
+EXECUTOR_ACTIVE_STATUSES: Final[
+    frozenset[TicketStatus]
+] = frozenset({
+    TicketStatus.ASSIGNED,
+    TicketStatus.AT_WORK,
+    TicketStatus.PAUSED,
+    TicketStatus.READY_FOR_REVIEW,
+})
+
+
 
 def _validate_ticket_transitions() -> None:
     """

@@ -10,10 +10,20 @@ from src.domain.exceptions import (
     DomainOperationError,
     ItemValidationError,
 )
+from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
+from src.domain.statuses.ticket_status_transitions import TERMINAL_TICKET_STATUSES, EXECUTOR_ACTIVE_STATUSES
 from src.domain.ticket_components import Comment
-from src.domain.value_objects import CommonComment, Empty
+from src.domain.value_objects import CommonComment
 
+
+from enum import StrEnum
+
+
+class TicketUrgency(StrEnum):
+    NORMAL = "normal"
+    URGENT = "urgent"
+    MAINTENANCE = "maintenance"
 
 @dataclass(kw_only=True)
 class Ticket:
@@ -56,9 +66,9 @@ class Ticket:
     ticket_id: int
     client_id: int
 
-    admin_id: int = 0
 
-    text_of_ticket: str = ""
+
+    text_of_ticket: str
     user_id: int = 0
     contact_user_id: int = 0
 
@@ -73,11 +83,13 @@ class Ticket:
         default_factory=lambda: datetime.now(UTC),
     )
 
+    planned_at: datetime | None = None
+
     department_id: int = 0
-    is_remote: bool = False
+    remote_work_recommended: bool =False
 
     version: int = 0
-    urgency_level: int = 0
+    urgency: TicketUrgency = TicketUrgency.NORMAL
     user_ticket_id: int = 0
 
     description: str = ""
@@ -104,208 +116,398 @@ class Ticket:
 
         self._recompute_closed_state()
 
+    """
+    class Ticket:
+
+    # Factories
+    #create(...)
+    #create_from_ticket_user(...)
+    #rehydrate(...)
+
+    # Current state
+    #current_status_record()
+    #current_status()
+    #is_terminal()
+
+    # Executor
+    current_executor_id()
+    executor_id_at(status_index)
+
+    # Persistence helpers
+    is_new()
+    new_statuses()
+    new_comments()
+
+    # Workflow
+    append_status(record)
+
+    # Ticket data
+    add_comment(comment)
+    change_department(department_id)
+    change_contact_user(contact_user_id)
+    update_description(description)
+    set_remote_work_recommended(value)
+    change_urgency(urgency)
+
+    # Planning
+    schedule(planned_at)
+    clear_schedule()
+
+    # Analytics
+    working_time()
+
+    # Internal validation
+    _validate_identity()
+    _validate_content()
+    _validate_status_history()
+    _validate_creator()
+
+    # Derived state
+    _recompute_closed_state()
+    
+    
+    """
+
     # ----------------------------
     # Factories
     # ----------------------------
 
+    @staticmethod
+    def _resolve_contact_user_id(
+            *,
+            user_id: int,
+            contact_user_id: int,
+    ) -> int:
+        """
+        Resolve the contact User for a new Ticket.
+
+        If contact_user_id is not specified, user_id is used.
+        If both values are zero, the Ticket has no contact User.
+        """
+
+        if contact_user_id < 0:
+            raise ItemValidationError(
+                "Contact user id cannot be negative"
+            )
+
+        return (
+            contact_user_id
+            if contact_user_id > 0
+            else user_id
+        )
+
     @classmethod
-    def create(
-        cls,
-        *,
-        ticket_id: int = 0,
-        client_id: int,
-        admin_id: int,
-        text_of_ticket: str = "",
-        user_id: int = 0,
-        contact_user_id: int = 0,
-        is_remote: bool = False,
-        urgency_level: int = 0,
-        user_ticket_id: int = 0,
-        department_id: int = 0,
-        comment: str = "",
-        description: str = "",
-        date_created: datetime | None = None,
+    def _create_new(
+            cls,
+            *,
+            client_id: int,
+            text_of_ticket: str,
+            initial_status: TicketStatus,
+            actor_employee_id: int,
+            user_id: int = 0,
+            contact_user_id: int = 0,
+            user_ticket_id: int = 0,
+            department_id: int = 0,
+            description: str = "",
+            remote_work_recommended: bool = False,
+            urgency: TicketUrgency = TicketUrgency.NORMAL,
+            planned_at: datetime | None = None,
+            comment: str = "",
+            date_created: datetime | None = None,
     ) -> Self:
         """
-        Создаёт новую внутреннюю Ticket,
-        зарегистрированную Admin.
+        Common factory implementation for a new Ticket.
 
-        admin_id фиксирует Admin,
-        создавшего внутреннюю Ticket.
+        Public factories define the business scenario and provide:
+
+        - initial_status;
+        - actor_employee_id.
+
+        This method performs only common Ticket construction.
         """
-        if ticket_id != 0:
-            raise ItemValidationError(
-                "New Ticket ticket_id must be 0",
-            )
-
-        if admin_id <= 0:
-            raise ItemValidationError(
-                "Admin id must be positive",
-            )
 
         now = date_created or datetime.now(UTC)
+
+        resolved_contact_user_id = cls._resolve_contact_user_id(
+            user_id=user_id,
+            contact_user_id=contact_user_id,
+        )
 
         ticket = cls(
             ticket_id=0,
             client_id=client_id,
-            admin_id=admin_id,
             text_of_ticket=text_of_ticket,
             user_id=user_id,
-            contact_user_id=contact_user_id,
-            date_created=now,
-            department_id=department_id,
-            is_remote=is_remote,
-            version=0,
-            urgency_level=urgency_level,
+            contact_user_id=resolved_contact_user_id,
             user_ticket_id=user_ticket_id,
+            department_id=department_id,
             description=description,
+            remote_work_recommended=remote_work_recommended,
+            urgency=urgency,
+            planned_at=planned_at,
+            date_created=now,
+            version=0,
             statuses=[
-                TicketStatusRecord.create_new(
-                    actor_employee_id=admin_id,
+                TicketStatusRecord(
+                    status=initial_status,
+                    actor_employee_id=actor_employee_id,
                     date_created=now,
                 ),
             ],
         )
 
-        comment = comment.strip()
-
-        if comment:
+        if comment.strip():
             ticket.add_comment(
                 Comment(
-                    employee_id=admin_id,
-                    comment=CommonComment(comment) if comment else Empty(),
+                    employee_id=actor_employee_id,
+                    comment=CommonComment(comment),
                     date_created=now,
-                ),
+                )
             )
 
         return ticket
 
     @classmethod
-    def create_from_ticket_user(
-        cls,
-        *,
-        ticket_id: int = 0,
-        client_id: int,
-        user_id: int,
-        contact_user_id: int,
-        user_ticket_id: int,
-        text_of_ticket: str,
-        description: str = "",
-        urgency_level: int = 0,
-        department_id: int = 0,
-        is_remote: bool = False,
-        date_created: datetime | None = None,
+    def create(
+            cls,
+            *,
+            client_id: int,
+            admin_id: int,
+            text_of_ticket: str,
+            user_id: int = 0,
+            contact_user_id: int = 0,
+            department_id: int = 0,
+            user_ticket_id: int = 0,
+            description: str = "",
+            remote_work_recommended: bool = False,
+            urgency: TicketUrgency = TicketUrgency.NORMAL,
+            planned_at: datetime | None = None,
+            comment: str = "",
+            date_created: datetime | None = None,
     ) -> Self:
         """
-        Создаёт внутреннюю Ticket из TicketUser.
+        Create a new internal Ticket by an Admin.
 
-        Ticket и TicketUser остаются независимыми aggregates.
-        Их создание координирует application service.
+        The first workflow record is CREATED.
 
-        Так как внутреннюю Ticket не создавал Admin:
-            admin_id == 0.
+        admin_id is not stored as a separate Ticket field.
+        The Admin who created the Ticket is recorded as
+        actor_employee_id of the CREATED status record.
+
+        text_of_ticket is required and cannot be changed after creation.
         """
-        if ticket_id != 0:
+
+        if admin_id <= 0:
             raise ItemValidationError(
-                "New Ticket ticket_id must be 0",
+                "Admin id must be positive"
             )
+
+        return cls._create_new(
+            client_id=client_id,
+            text_of_ticket=text_of_ticket,
+            initial_status=TicketStatus.CREATED,
+            actor_employee_id=admin_id,
+            user_id=user_id,
+            contact_user_id=contact_user_id,
+            user_ticket_id=user_ticket_id,
+            department_id=department_id,
+            description=description,
+            remote_work_recommended=remote_work_recommended,
+            urgency=urgency,
+            planned_at=planned_at,
+            comment=comment,
+            date_created=date_created,
+        )
+
+    @classmethod
+    def create_from_ticket_user(
+            cls,
+            *,
+            client_id: int,
+            user_id: int,
+            user_ticket_id: int,
+            text_of_ticket: str,
+            contact_user_id: int = 0,
+            description: str = "",
+            department_id: int = 0,
+            remote_work_recommended: bool = False,
+            urgency: TicketUrgency = TicketUrgency.NORMAL,
+            planned_at: datetime | None = None,
+            comment: str = "",
+            date_created: datetime | None = None,
+    ) -> Self:
+        """
+        Create an internal Ticket from a TicketUser.
+
+        Ticket and TicketUser remain independent aggregates.
+        Their creation and linking are coordinated by the application layer.
+
+        The first workflow record is CREATED_FROM_TICKET_USER.
+
+        The User who created the corresponding TicketUser is recorded as
+        actor_employee_id of the first status record.
+
+        If contact_user_id is not specified, user_id is used as the
+        contact User.
+        """
 
         if user_id <= 0:
             raise ItemValidationError(
-                "User id must be positive",
+                "User id must be positive"
             )
 
         if user_ticket_id <= 0:
             raise ItemValidationError(
-                "User ticket id must be positive",
+                "User ticket id must be positive"
             )
 
-        now = date_created or datetime.now(UTC)
-
-        return cls(
-            ticket_id=0,
+        return cls._create_new(
             client_id=client_id,
-            admin_id=0,
+            text_of_ticket=text_of_ticket,
+            initial_status=TicketStatus.CREATED_FROM_TICKET_USER,
+            actor_employee_id=user_id,
             user_id=user_id,
             contact_user_id=contact_user_id,
-            text_of_ticket=text_of_ticket,
-            date_created=now,
-            department_id=department_id,
-            is_remote=is_remote,
-            version=0,
-            urgency_level=urgency_level,
             user_ticket_id=user_ticket_id,
+            department_id=department_id,
             description=description,
-            statuses=[
-                TicketStatusRecord.create_from_ticket_user(
-                    date_created=now,
-                ),
-            ],
+            remote_work_recommended=remote_work_recommended,
+            urgency=urgency,
+            planned_at=planned_at,
+            comment=comment,
+            date_created=date_created,
         )
 
     @classmethod
     def rehydrate(
-        cls,
-        *,
-        ticket_id: int,
-        client_id: int,
-        admin_id: int,
-        text_of_ticket: str,
-        statuses: list[TicketStatusRecord],
-        date_created: datetime,
-        user_id: int = 0,
-        contact_user_id: int = 0,
-        comments: list[Comment] | None = None,
-        department_id: int = 0,
-        description: str = "",
-        is_remote: bool = False,
-        version: int = 0,
-        urgency_level: int = 0,
-        user_ticket_id: int = 0,
+            cls,
+            *,
+            ticket_id: int,
+            client_id: int,
+            text_of_ticket: str,
+            statuses: list[TicketStatusRecord],
+            date_created: datetime,
+            user_id: int = 0,
+            contact_user_id: int = 0,
+            comments: list[Comment] | None = None,
+            department_id: int = 0,
+            user_ticket_id: int = 0,
+            description: str = "",
+            remote_work_recommended: bool = False,
+            urgency: TicketUrgency = TicketUrgency.NORMAL,
+            planned_at: datetime | None = None,
+            version: int = 0,
     ) -> Self:
         """
-        Восстанавливает Ticket из persistence.
+        Rehydrate a persisted Ticket.
 
-        Repository обязан передать:
+        Repository must provide:
+
         - persisted ticket_id > 0;
-        - полную status history;
-        - history в правильном порядке.
+        - complete status history;
+        - status history in persistence order.
 
-        admin_id должен соответствовать actor_employee_id
-        первой status-record:
-        - CREATED -> admin_id > 0;
-        - CREATED_FROM_TICKET_USER -> admin_id == 0.
+        Creator information is restored from the first status record.
 
-        is_closed и date_finished не загружаются как
-        domain state, потому что вычисляются из history.
+        Unlike the creation factories, rehydrate does not resolve or
+        normalize contact_user_id. Persisted domain state is restored
+        exactly as stored and then validated by the aggregate.
+
+        is_closed and date_finished are not loaded as independent domain
+        state because they are derived from status history.
         """
+
         if ticket_id <= 0:
             raise DomainOperationError(
-                "Cannot rehydrate Ticket with non-positive ticket_id",
+                "Cannot rehydrate Ticket with non-positive ticket_id"
             )
 
         if not statuses:
             raise DomainOperationError(
-                "Cannot rehydrate Ticket without status history",
+                "Cannot rehydrate Ticket without status history"
             )
 
         return cls(
             ticket_id=ticket_id,
             client_id=client_id,
-            admin_id=admin_id,
             text_of_ticket=text_of_ticket,
             user_id=user_id,
             contact_user_id=contact_user_id,
             statuses=statuses,
-            comments=comments or [],
+            comments=comments if comments is not None else [],
             date_created=date_created,
             department_id=department_id,
-            description=description,
-            is_remote=is_remote,
-            version=version,
-            urgency_level=urgency_level,
             user_ticket_id=user_ticket_id,
+            description=description,
+            remote_work_recommended=remote_work_recommended,
+            urgency=urgency,
+            planned_at=planned_at,
+            version=version,
         )
+
+    # ----------------------------
+    # Current state
+    # ----------------------------
+
+    def current_status_record(self) -> TicketStatusRecord:
+        """
+        Return the current Ticket status record.
+
+        The current state of the Ticket is always defined by the last
+        record in the complete status history.
+        """
+
+        if not self.statuses:
+            raise DomainOperationError(
+                "Ticket has no status history"
+            )
+
+        return self.statuses[-1]
+
+    def current_status(self) -> TicketStatus:
+        """
+        Return the current Ticket status.
+        """
+
+        return self.current_status_record().status
+
+    def is_terminal(self) -> bool:
+        """
+        Return True if the Ticket is in a terminal state.
+        """
+
+        return self.current_status() in TERMINAL_TICKET_STATUSES
+
+    def current_executor_id(self) -> int:
+        """
+        Return the currently assigned executor.
+
+        The executor is considered active only while Ticket is in one of:
+
+        - ASSIGNED
+        - AT_WORK
+        - PAUSED
+        - READY_FOR_REVIEW
+
+        ACCEPTED, DEFERRED and SUSPENDED clear the assignment.
+        Terminal statuses do not have a current executor.
+
+        The executor is resolved from the nearest preceding ASSIGNED
+        status record.
+        """
+
+        if self.current_status() not in EXECUTOR_ACTIVE_STATUSES:
+            return 0
+
+        for record in reversed(self.statuses):
+            if record.status == TicketStatus.ASSIGNED:
+                return record.executor_id
+
+        raise DomainOperationError(
+            "Ticket is in executor-active status "
+            "but has no preceding ASSIGNED record"
+        )
+
 
     # ----------------------------
     # Queries
@@ -314,28 +516,11 @@ class Ticket:
     def is_new(self) -> bool:
         return self.ticket_id == 0
 
-    def current_status_record(self) -> TicketStatusRecord:
-        if not self.statuses:
-            raise DomainOperationError(
-                "Ticket has no status history",
-            )
 
-        return self.statuses[-1]
-
-    def current_executor_id(self) -> int:
-        """
-        Текущий исполнитель определяется исключительно
-        текущей status-record.
-
-        0 означает отсутствие текущего исполнителя.
-        """
-        return self.current_status_record().executor_id
 
     def has_executor(self) -> bool:
         return self.current_executor_id() > 0
 
-    def is_terminal(self) -> bool:
-        return self.current_status_record().is_terminal()
 
     def new_statuses(self) -> list[TicketStatusRecord]:
         return [
@@ -698,40 +883,6 @@ class Ticket:
     # ----------------------------
     # References
     # ----------------------------
-
-    def belong(
-            self,
-            employee_id: int,
-    ) -> bool:
-        """
-        Проверяет, упоминается ли employee в Ticket.
-
-        Это не permission check.
-        """
-        if employee_id <= 0:
-            return False
-
-        if employee_id == self.admin_id:
-            return True
-
-        if employee_id == self.user_id:
-            return True
-
-        if employee_id == self.contact_user_id:
-            return True
-
-        for comment in self.comments:
-            if comment.employee_id == employee_id:
-                return True
-
-        for record in self.statuses:
-            if record.actor_employee_id == employee_id:
-                return True
-
-            if record.executor_id == employee_id:
-                return True
-
-        return False
 
     def is_in_work(self) -> bool:
         return self.current_status_record().state.work_in_progress
