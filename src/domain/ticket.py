@@ -130,7 +130,7 @@ class Ticket:
     #is_terminal()
 
     # Executor
-    current_executor_id()
+    #current_executor_id()
     executor_id_at(status_index)
 
     # Persistence helpers
@@ -478,6 +478,7 @@ class Ticket:
 
         return self.current_status() in TERMINAL_TICKET_STATUSES
 
+    # Executor
     def current_executor_id(self) -> int:
         """
         Return the currently assigned executor.
