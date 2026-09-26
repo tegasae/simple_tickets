@@ -17,13 +17,11 @@ TICKET_TRANSITIONS: Final[
     TicketStatus.CREATED: frozenset({
         TicketStatus.ACCEPTED,
         TicketStatus.REJECTED,
-        TicketStatus.SUSPENDED,
     }),
 
     TicketStatus.CREATED_FROM_TICKET_USER: frozenset({
         TicketStatus.ACCEPTED,
         TicketStatus.REJECTED,
-        TicketStatus.SUSPENDED,
         TicketStatus.CANCELLED_BY_USER,
     }),
 
@@ -46,9 +44,6 @@ TICKET_TRANSITIONS: Final[
     TicketStatus.SUSPENDED: frozenset({
         TicketStatus.ACCEPTED,
         TicketStatus.DEFERRED,
-        TicketStatus.ASSIGNED,
-        TicketStatus.READY_FOR_REVIEW,
-        TicketStatus.EXECUTED,
         TicketStatus.CANCELLED,
     }),
 
@@ -79,7 +74,6 @@ TICKET_TRANSITIONS: Final[
 
     TicketStatus.READY_FOR_REVIEW: frozenset({
         TicketStatus.ASSIGNED,
-        TicketStatus.SUSPENDED,
         TicketStatus.CONFIRMED_BY_USER,
         TicketStatus.EXECUTED,
         TicketStatus.CANCELLED,
@@ -113,15 +107,6 @@ FIRST_TICKET_STATUSES: Final[
     TicketStatus.CREATED_FROM_TICKET_USER,
 })
 
-
-EXECUTOR_ACTIVE_STATUSES: Final[
-    frozenset[TicketStatus]
-] = frozenset({
-    TicketStatus.ASSIGNED,
-    TicketStatus.AT_WORK,
-    TicketStatus.PAUSED,
-    TicketStatus.READY_FOR_REVIEW,
-})
 
 
 
