@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Self
 
@@ -15,7 +15,7 @@ from src.domain.statuses.ticket_status_transitions import (
     TICKET_TRANSITIONS,
 )
 from src.domain.ticket_components import Comment
-from src.domain.value_objects import CommonComment
+from src.domain.value_objects import CommonComment, Empty
 
 
 class TicketUrgency(StrEnum):
@@ -902,45 +902,21 @@ class Ticket:
     # ==================================================================
 
     def append_status(
-        self,
-        record: TicketStatusRecord,
+            self,
+            record: TicketStatusRecord,
     ) -> None:
         """
         Append a new workflow status record.
 
-        Responsibilities
-        ----------------
+        TicketStatusRecord has already validated its own intrinsic payload.
 
-        Ticket validates:
+        Ticket validates context-dependent workflow rules:
 
-        1. workflow transition;
-        2. chronological order;
-        3. UTC datetime contract.
-
-        TicketStatusRecord validates its own status-specific payload.
-
-        Transition
-        ----------
-
-        Allowed next statuses are defined by:
-
-            TICKET_TRANSITIONS[current_status]
-
-        Chronology
-        ----------
-
-        New status cannot have date_created earlier than the current record.
-
-        Equal timestamps are allowed.
-
-        This is important because multiple workflow operations may be stored
-        with the same timestamp resolution.
+        - transition is allowed;
+        - status history remains chronological;
+        - actor is allowed to perform transitions that depend on the
+          currently assigned executor.
         """
-
-        self._require_utc_datetime(
-            record.date_created,
-            field_name="status.date_created",
-        )
 
         current_record = self.current_status_record()
 
@@ -955,6 +931,11 @@ class Ticket:
             raise DomainOperationError(
                 "Ticket status history must be chronological"
             )
+
+        self._validate_transition_context(
+            current_record=current_record,
+            new_record=record,
+        )
 
         self.statuses.append(record)
 
@@ -1308,6 +1289,511 @@ class Ticket:
         return total_seconds
 
     # ==================================================================
+    # Workflow commands
+    # ==================================================================
+
+    def accept(
+            self,
+            *,
+            actor_employee_id: int,
+            comment: str = "",
+    )-> None:
+        """
+        Accept Ticket for further processing.
+
+        Resulting status:
+
+            ACCEPTED
+
+        This is an Admin action.
+
+        The exact set of statuses from which ACCEPTED is allowed is defined
+        by TICKET_TRANSITIONS.
+
+        ACCEPTED clears an active executor assignment because this status
+        itself does not have an active executor.
+        """
+
+        record = TicketStatusRecord(
+            status=TicketStatus.ACCEPTED,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
+        )
+
+        self.append_status(record)
+
+    def reject(
+            self,
+            *,
+            actor_employee_id: int,
+            comment: str,
+    )-> None:
+        """
+        Reject Ticket.
+
+        Resulting status:
+
+            REJECTED
+
+        REJECTED is a terminal Admin status.
+
+        A non-empty comment is required by TicketStatusRule and validated
+        by TicketStatusRecord.
+        """
+
+        record = TicketStatusRecord(
+            status=TicketStatus.REJECTED,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
+        )
+
+        self.append_status(record)
+
+
+    def defer(
+            self,
+            *,
+            actor_employee_id: int,
+            comment: str,
+    )-> None:
+        """
+        Defer Ticket.
+
+        Resulting status:
+
+            DEFERRED
+
+        DEFERRED represents a normal business decision to postpone work.
+
+        It is different from SUSPENDED, which represents suspension caused
+        by the state of a related Client/User.
+
+        A non-empty comment is required.
+
+        Entering DEFERRED clears the current executor assignment.
+        """
+
+        record = TicketStatusRecord(
+            status=TicketStatus.DEFERRED,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
+        )
+
+        self.append_status(record)
+
+    def suspend(
+            self,
+            *,
+            actor_employee_id: int,
+            comment: str = "",
+    )-> None:
+        """
+        Suspend Ticket.
+
+        Resulting status:
+
+            SUSPENDED
+
+        SUSPENDED is used when normal processing cannot continue because
+        the related Client/User is unavailable or disabled.
+
+        It is not a normal business postponement; DEFERRED represents that
+        scenario.
+
+        Entering SUSPENDED clears the current executor assignment.
+        """
+
+        record = TicketStatusRecord(
+            status=TicketStatus.SUSPENDED,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
+        )
+
+        self.append_status(record)
+
+    def assign(
+            self,
+            *,
+            actor_employee_id: int,
+            executor_id: int,
+            comment: str = "",
+    )-> None:
+        """
+        Assign an executor to Ticket.
+
+        Resulting status:
+
+            ASSIGNED
+
+        actor_employee_id identifies the Admin performing the assignment.
+
+        executor_id identifies the employee who will perform the work.
+
+        executor_id must be positive. This requirement is validated by
+        TicketStatusRecord.
+
+        Repeated ASSIGNED transitions are allowed by the workflow and
+        represent reassignment.
+        """
+
+        record = TicketStatusRecord(
+            status=TicketStatus.ASSIGNED,
+            actor_employee_id=actor_employee_id,
+            executor_id=executor_id,
+            comment=self._make_status_comment(comment),
+        )
+
+        self.append_status(record)
+
+    def start_work(
+            self,
+            *,
+            actor_employee_id: int,
+            work_is_remote: bool,
+            comment: str = "",
+    )-> None:
+        """
+        Start current work by the assigned executor.
+
+        This command represents:
+
+            ASSIGNED -> AT_WORK
+
+        It is a live workflow action, not retrospective registration.
+
+        Therefore:
+
+            actual_started_at is None
+            actual_finished_at is None
+            duration == timedelta(0)
+
+        actor_employee_id must be equal to the currently assigned executor.
+
+        The executor rule is checked by Ticket because it depends on complete
+        Ticket history and cannot be validated by TicketStatusRecord.
+
+        work_is_remote describes how this concrete work episode is actually
+        being performed.
+        """
+
+        self._require_current_status(
+            TicketStatus.ASSIGNED,
+            operation="start work",
+        )
+
+        record = TicketStatusRecord(
+            status=TicketStatus.AT_WORK,
+            actor_employee_id=actor_employee_id,
+            work_is_remote=work_is_remote,
+        )
+
+        # Keep an optional status comment if one was supplied.
+        if comment.strip():
+            record = TicketStatusRecord(
+                status=TicketStatus.AT_WORK,
+                actor_employee_id=actor_employee_id,
+                work_is_remote=work_is_remote,
+                comment=CommonComment(comment),
+            )
+
+        self.append_status(record)
+
+    def register_work(
+            self,
+            *,
+            actor_employee_id: int,
+            work_is_remote: bool,
+            actual_started_at: datetime | None = None,
+            actual_finished_at: datetime | None = None,
+            duration: timedelta = timedelta(0),
+            comment: str = "",
+    )-> None:
+        """
+        Register work retrospectively.
+
+        This command represents:
+
+            ASSIGNED -> AT_WORK
+
+        but differs semantically from start_work().
+
+        start_work()
+            means that the assigned executor starts work now.
+
+        register_work()
+            means that already performed work is being entered into the system.
+
+        Retrospective work must contain either:
+
+        1. an exact interval:
+
+               actual_started_at
+               actual_finished_at
+
+           or
+
+        2. a positive explicit duration:
+
+               duration > timedelta(0)
+
+        The two forms are mutually exclusive.
+
+        actor_employee_id does not have to equal the assigned executor.
+
+        This allows an Admin to register work when the actual executor cannot
+        enter the work record personally.
+
+        TicketStatusRecord validates:
+
+        - completeness of the exact interval;
+        - UTC datetime values;
+        - mutual exclusivity of interval and duration;
+        - positive duration;
+        - work mode.
+        """
+
+        self._require_current_status(
+            TicketStatus.ASSIGNED,
+            operation="register retrospective work",
+        )
+
+        record = TicketStatusRecord(
+            status=TicketStatus.AT_WORK,
+            actor_employee_id=actor_employee_id,
+            actual_started_at=actual_started_at,
+            actual_finished_at=actual_finished_at,
+            duration=duration,
+            work_is_remote=work_is_remote,
+            comment=self._make_status_comment(comment),
+        )
+
+        if not self._has_retrospective_work_time(record):
+            raise DomainOperationError(
+                "Retrospective work registration requires "
+                "an exact work interval or a positive duration"
+            )
+
+        self.append_status(record)
+
+    def pause_work(
+            self,
+            *,
+            actor_employee_id: int,
+            comment: str = "",
+    )-> None:
+        """
+        Pause current work.
+
+        This command represents:
+
+            AT_WORK -> PAUSED
+
+        Only the currently assigned executor may pause work.
+
+        PAUSED itself does not contain work-time payload. The work interval
+        represented by the preceding live AT_WORK record ends at the timestamp
+        of this PAUSED record.
+        """
+
+        self._require_current_status(
+            TicketStatus.AT_WORK,
+            operation="pause work",
+        )
+
+        record = TicketStatusRecord(
+            status=TicketStatus.PAUSED,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
+        )
+
+        self.append_status(record)
+
+    def resume_work(
+            self,
+            *,
+            actor_employee_id: int,
+            work_is_remote: bool,
+            comment: str = "",
+    )-> None:
+        """
+        Resume work after PAUSED.
+
+        This command represents:
+
+            PAUSED -> AT_WORK
+
+        Only the currently assigned executor may resume work.
+
+        This is a live resume operation. Retrospective work-time fields are
+        intentionally not accepted:
+
+            actual_started_at is None
+            actual_finished_at is None
+            duration == timedelta(0)
+
+        The new live work interval starts from the date_created timestamp of
+        the resulting AT_WORK record.
+        """
+
+        self._require_current_status(
+            TicketStatus.PAUSED,
+            operation="resume work",
+        )
+
+        record = TicketStatusRecord(
+            status=TicketStatus.AT_WORK,
+            actor_employee_id=actor_employee_id,
+            work_is_remote=work_is_remote,
+            comment=self._make_status_comment(comment),
+        )
+
+        self.append_status(record)
+
+    def submit_for_review(
+            self,
+            *,
+            actor_employee_id: int,
+            comment: str = "",
+    )-> None:
+        """
+        Submit completed work for review.
+
+        This command represents:
+
+            AT_WORK -> READY_FOR_REVIEW
+
+        Only the currently assigned executor may perform this transition.
+
+        READY_FOR_REVIEW means that execution work has finished and the result
+        is waiting for final confirmation.
+        """
+
+        self._require_current_status(
+            TicketStatus.AT_WORK,
+            operation="submit work for review",
+        )
+
+        record = TicketStatusRecord(
+            status=TicketStatus.READY_FOR_REVIEW,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
+        )
+
+        self.append_status(record)
+
+    def confirm_by_user(
+            self,
+            *,
+            comment: str = "",
+    )-> None:
+        """
+        Record final confirmation by User.
+
+        This command represents:
+
+            READY_FOR_REVIEW -> CONFIRMED_BY_USER
+
+        CONFIRMED_BY_USER is terminal.
+
+        User actions in internal Ticket history deliberately use:
+
+            actor_employee_id == 0
+
+        The real User identity is handled outside Ticket and is available
+        through the related Ticket/TicketUser context.
+        """
+
+        record = TicketStatusRecord(
+            status=TicketStatus.CONFIRMED_BY_USER,
+            actor_employee_id=0,
+            comment=self._make_status_comment(comment),
+        )
+
+        self.append_status(record)
+
+    def execute(
+            self,
+            *,
+            actor_employee_id: int,
+            comment: str = "",
+    )-> None:
+        """
+        Complete Ticket by Admin.
+
+        This command represents:
+
+            READY_FOR_REVIEW -> EXECUTED
+
+        EXECUTED is a terminal Admin status.
+        """
+
+        record = TicketStatusRecord(
+            status=TicketStatus.EXECUTED,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
+        )
+
+        self.append_status(record)
+
+    def cancel(
+            self,
+            *,
+            actor_employee_id: int,
+            comment: str,
+    )-> None:
+        """
+        Cancel Ticket by Admin.
+
+        Resulting status:
+
+            CANCELLED
+
+        CANCELLED is terminal.
+
+        A non-empty comment explaining the cancellation reason is required
+        by TicketStatusRule.
+        """
+
+        record = TicketStatusRecord(
+            status=TicketStatus.CANCELLED,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
+        )
+
+        self.append_status(record)
+
+    def cancel_by_user(
+            self,
+            *,
+            comment: str = "",
+    ) -> None:
+        """
+        Cancel Ticket by User.
+
+        Resulting status:
+
+            CANCELLED_BY_USER
+
+        CANCELLED_BY_USER is terminal.
+
+        In the current workflow this transition is allowed only from
+        CREATED_FROM_TICKET_USER.
+
+        User actions in internal Ticket history use:
+
+            actor_employee_id == 0
+        """
+
+        record = TicketStatusRecord(
+            status=TicketStatus.CANCELLED_BY_USER,
+            actor_employee_id=0,
+            comment=self._make_status_comment(comment),
+        )
+
+        self.append_status(record)
+
+
+    # ==================================================================
     # Validation
     # ==================================================================
 
@@ -1565,3 +2051,213 @@ class Ticket:
             )
         else:
             self.date_finished = None
+
+    def _validate_transition_context(
+            self,
+            *,
+            current_record: TicketStatusRecord,
+            new_record: TicketStatusRecord,
+    ) -> None:
+        """
+        Validate workflow rules that depend on current Ticket context.
+
+        TicketStatusRecord cannot validate these rules because they depend on
+        previous workflow state and current executor assignment.
+
+
+        ASSIGNED -> AT_WORK
+        ===================
+
+        Normal start of work:
+
+            actual_started_at is None
+            actual_finished_at is None
+            duration == timedelta(0)
+
+        may be performed only by the currently assigned executor.
+
+        Retrospective AT_WORK:
+
+            exact interval is supplied
+
+        or:
+
+            duration > timedelta(0)
+
+        may be created by another Admin.
+
+        This is required for situations where the actual executor cannot enter
+        the work record personally.
+
+
+        AT_WORK -> PAUSED
+        =================
+
+        Only the currently assigned executor may pause work.
+
+
+        PAUSED -> AT_WORK
+        =================
+
+        Only the currently assigned executor may resume work.
+
+        This transition represents resuming work now and therefore must not
+        contain retrospective work-time information.
+
+
+        AT_WORK -> READY_FOR_REVIEW
+        ===========================
+
+        Only the currently assigned executor may submit work for review.
+        """
+
+        current_status = current_record.status
+        next_status = new_record.status
+
+        # --------------------------------------------------------------
+        # ASSIGNED -> AT_WORK
+        # --------------------------------------------------------------
+
+        if (
+                current_status == TicketStatus.ASSIGNED
+                and next_status == TicketStatus.AT_WORK
+        ):
+            # Retrospective work may be entered by another Admin.
+            if self._has_retrospective_work_time(new_record):
+                return
+
+            self._require_current_executor_actor(new_record)
+            return
+
+        # --------------------------------------------------------------
+        # AT_WORK -> PAUSED
+        # --------------------------------------------------------------
+
+        if (
+                current_status == TicketStatus.AT_WORK
+                and next_status == TicketStatus.PAUSED
+        ):
+            self._require_current_executor_actor(new_record)
+            return
+
+        # --------------------------------------------------------------
+        # PAUSED -> AT_WORK
+        # --------------------------------------------------------------
+
+        if (
+                current_status == TicketStatus.PAUSED
+                and next_status == TicketStatus.AT_WORK
+        ):
+            if self._has_retrospective_work_time(new_record):
+                raise DomainOperationError(
+                    "PAUSED -> AT_WORK does not allow "
+                    "retrospective work time"
+                )
+
+            self._require_current_executor_actor(new_record)
+            return
+
+        # --------------------------------------------------------------
+        # AT_WORK -> READY_FOR_REVIEW
+        # --------------------------------------------------------------
+
+        if (
+                current_status == TicketStatus.AT_WORK
+                and next_status == TicketStatus.READY_FOR_REVIEW
+        ):
+            self._require_current_executor_actor(new_record)
+
+    @staticmethod
+    def _has_retrospective_work_time(
+                record: TicketStatusRecord,
+    ) -> bool:
+            """
+            Return True when AT_WORK explicitly describes retrospective work.
+
+            Retrospective work is present when either:
+
+            - exact actual_started_at / actual_finished_at interval is supplied;
+            - positive explicit duration is supplied.
+
+            duration == timedelta(0) means that explicit duration is absent.
+            """
+
+            return (
+                record.actual_started_at is not None
+                or record.actual_finished_at is not None
+                or record.duration > timedelta(0)
+            )
+
+    def _require_current_executor_actor(
+            self,
+            record: TicketStatusRecord,
+    ) -> None:
+        """
+        Require workflow action to be performed by the current executor.
+
+        The current executor is reconstructed from Ticket workflow history.
+
+        This method is used only for transitions whose business semantics
+        explicitly require executor participation.
+        """
+
+        executor_id = self.current_executor_id()
+
+        if record.actor_employee_id != executor_id:
+            raise DomainOperationError(
+                "Only the current Ticket executor may perform "
+                f"{self.current_status().value} -> "
+                f"{record.status.value}"
+            )
+
+    @staticmethod
+    def _make_status_comment(
+            comment: str,
+    ) -> CommonComment | Empty:
+        """
+        Convert command comment text to status-record representation.
+
+        Empty or whitespace-only string means that no status comment was
+        supplied.
+
+        Whether a comment is mandatory for a particular status is validated
+        by TicketStatusRecord through TicketStatusRule.
+        """
+
+        if not comment.strip():
+            return Empty()
+
+        return CommonComment(comment)
+
+    def _require_current_status(
+            self,
+            status: TicketStatus,
+            *,
+            operation: str,
+    ) -> None:
+        """
+        Require one concrete current status for a semantic workflow command.
+
+        This helper is used when different commands lead to the same resulting
+        status but have different business meanings.
+
+        Example:
+
+            start_work():
+                ASSIGNED -> AT_WORK
+
+            resume_work():
+                PAUSED -> AT_WORK
+
+        TICKET_TRANSITIONS alone cannot distinguish which public command was
+        intended because both transitions result in AT_WORK.
+        """
+
+        current_status = self.current_status()
+
+        if current_status != status:
+            raise DomainOperationError(
+                f"Cannot {operation} when Ticket is in status "
+                f"{current_status.value}; expected {status.value}"
+            )
+

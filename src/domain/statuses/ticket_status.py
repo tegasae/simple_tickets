@@ -81,9 +81,7 @@ class TicketStatus(StrEnum):
 
     CONFIRMED_BY_USER
         User confirmed the result of the work.
-
-        This is not a terminal status. Final completion of the Ticket is
-        performed by an Admin with the required permission.
+        This is a terminal status.
 
     EXECUTED
         Ticket was finally completed by an authorized Admin.

@@ -5,6 +5,7 @@ from src.domain.exceptions import ItemValidationError
 from src.domain.statuses.ticket_status import (
     TICKET_STATUS_RULES,
     TicketStatus,
+    TicketStatusRule,
 )
 from src.domain.value_objects import CommonComment, Empty
 
@@ -14,248 +15,224 @@ class TicketStatusRecord:
     """
     Historical record of a Ticket workflow status.
 
-    The record represents one concrete status change in Ticket history.
+    TicketStatusRecord represents one concrete entry in Ticket workflow
+    history.
 
-    Responsibilities
-    ----------------
+    The record validates only its own intrinsic payload.
 
-    TicketStatusRecord validates only its own intrinsic payload:
+    It does not know:
 
-    - persistent identity;
-    - status type;
-    - actor identity;
-    - required comment;
-    - executor payload;
-    - work payload;
-    - datetime contract.
+    - previous Ticket status;
+    - next Ticket status;
+    - current Ticket executor;
+    - complete Ticket workflow history.
 
-    It does not validate transitions between Ticket statuses.
+    Context-dependent workflow validation belongs to Ticket.
 
-    Allowed transitions are defined separately by:
+    In particular, rules such as:
 
-        TICKET_TRANSITIONS
+        "only the currently assigned executor may pause work"
 
-
-    status
-    ------
-
-    Ticket workflow status represented by this record.
-
-    The value must be an instance of TicketStatus.
+    cannot be validated here because TicketStatusRecord does not know
+    who the current executor is.
 
 
-    actor_employee_id
-    -----------------
+    Status
+    ======
 
-    Identifier of the actor who performed the workflow action.
+    status is the resulting Ticket workflow status.
 
-    The actor realm is determined by TicketStatusRule:
+    The value must be TicketStatus.
 
-        user_action == False
-            action is performed by Admin
 
-        user_action == True
-            action is performed by User
+    Actor
+    =====
 
-    In the current Ticket model some User actions may use:
+    actor_employee_id identifies the actor representation stored in the
+    internal Ticket history.
+
+    For Admin actions:
+
+        rule.user_action == False
+
+    actor_employee_id must be positive.
+
+    For User actions:
+
+        rule.user_action == True
+
+    the current Ticket model deliberately stores:
 
         actor_employee_id == 0
 
-    Therefore actor validation must follow the semantics of the concrete
-    status rather than assuming that every actor identifier is positive.
+    The actual User identity belongs to the related Ticket/TicketUser data
+    rather than this field.
+
+    Therefore:
+
+        Admin action -> actor_employee_id > 0
+        User action  -> actor_employee_id == 0
+
+    Negative values are never allowed.
 
 
-    status_id
-    ---------
+    Persistent identity
+    ===================
 
-    Persistent identifier of the status record.
+    status_id == 0:
+        new record, not persisted yet.
 
-        status_id == 0
-            record has not been persisted yet
+    status_id > 0:
+        persisted record.
 
-        status_id > 0
-            persisted record
-
-        status_id < 0
-            invalid
+    status_id < 0:
+        invalid.
 
 
-    executor_id
-    -----------
+    Executor
+    ========
 
-    Executor assigned to the Ticket.
-
-    Required only when the corresponding TicketStatusRule declares:
+    executor_id is used only by statuses whose TicketStatusRule declares:
 
         requires_executor == True
 
-    For statuses that do not allow executor assignment:
+    Currently ASSIGNED requires executor_id > 0.
 
-        executor_id must be 0.
+    Other statuses must have:
 
-
-    comment
-    -------
-
-    Optional status comment.
-
-    The absence of a comment is represented by Empty.
-
-    Some statuses require a comment according to:
-
-        TicketStatusRule.requires_comment
+        executor_id == 0
 
 
-    Work payload
-    ------------
+    Comment
+    =======
 
-    Work payload is allowed only for statuses whose rule declares:
+    Empty represents absence of a status comment.
 
-        allows_work_data == True
+    If:
 
-    The payload may contain:
+        rule.requires_comment == True
+
+    the status record must contain CommonComment.
+
+
+    Work data
+    =========
+
+    Work-related payload is allowed only when:
+
+        rule.allows_work_data == True
+
+    Currently AT_WORK is the status that allows actual work data.
+
+    Work data consists of:
 
         actual_started_at
         actual_finished_at
         duration
         work_is_remote
 
-    The current workflow model uses these values for AT_WORK.
+
+    Work time representation
+    ========================
+
+    Work time may be represented in three ways.
+
+    1. Exact retrospective interval:
+
+        actual_started_at != None
+        actual_finished_at != None
+        duration == timedelta(0)
+
+    2. Explicit retrospective duration:
+
+        actual_started_at == None
+        actual_finished_at == None
+        duration > timedelta(0)
+
+    3. No explicit retrospective work time:
+
+        actual_started_at == None
+        actual_finished_at == None
+        duration == timedelta(0)
+
+    In the third case Ticket may derive work time from workflow timestamps.
+
+    duration == timedelta(0) therefore means:
+
+        explicit duration is not specified
+
+    It is not an error.
+
+    Negative duration is invalid.
+
+    Exact retrospective interval and positive explicit duration are mutually
+    exclusive.
 
 
-    actual_started_at / actual_finished_at
-    --------------------------------------
+    Work mode
+    =========
 
-    These fields represent an exact retrospective work interval.
+    work_is_remote describes how this concrete work episode was actually
+    performed:
 
-    They must:
+        True  -> remote
+        False -> on site
+        None  -> not specified
 
-    - either both be specified or both be absent;
-    - use UTC;
-    - satisfy actual_finished_at > actual_started_at.
+    AT_WORK currently requires work mode.
 
-    Exact timestamps are an alternative to explicit duration.
-
-
-    duration
-    --------
-
-    Explicit actual work duration.
-
-    Used when exact start/finish timestamps are not known.
-
-    duration must be positive.
-
-    duration cannot be specified together with an exact retrospective
-    interval.
-
-
-    work_is_remote
-    --------------
-
-    Describes how this concrete work episode was actually performed:
-
-        True
-            remotely
-
-        False
-            on site
-
-        None
-            not specified
-
-    Whether this value is required is determined by:
-
-        TicketStatusRule.requires_work_mode
-
-    This field is different from Ticket.remote_work_recommended.
-
-    Ticket.remote_work_recommended describes a recommendation/property
-    of the Ticket.
-
-    work_is_remote describes how one concrete work episode was actually
-    performed.
+    This is different from Ticket.remote_work_recommended, which is only a
+    recommendation/property of the Ticket.
 
 
     Date/time contract
-    ------------------
+    ==================
 
-    All datetime values inside domain use UTC.
+    All datetime values in the domain must explicitly use UTC.
 
-    Therefore:
+    The following fields therefore require datetime.UTC when present:
 
         date_created
         actual_started_at
         actual_finished_at
 
-    must explicitly use datetime.UTC when present.
+    Naive datetime values are rejected.
 
-    The domain rejects:
+    Datetime values using another timezone are also rejected.
 
-    - naive datetime;
-    - datetime values using another timezone.
-
-    The domain does not automatically normalize other timezones to UTC.
-
-    Conversion must happen before values enter the domain.
+    The domain never converts values to UTC automatically.
     """
 
     status: TicketStatus
     actor_employee_id: int
 
-    # Persistent identifier of this status record.
-    #
-    # 0 means that the record has not been persisted yet.
     status_id: int = 0
 
-    # Executor assigned by this status.
-    #
-    # Only statuses whose rule requires executor may have executor_id > 0.
     executor_id: int = 0
 
-    # Optional status comment.
-    #
-    # Empty represents the absence of a comment.
     comment: CommonComment | Empty = field(
         default_factory=Empty,
     )
 
-    # Exact retrospective work interval.
-    #
-    # These values are used only when work data is allowed by the
-    # corresponding status rule.
     actual_started_at: datetime | None = None
     actual_finished_at: datetime | None = None
 
-    # Explicit work duration.
-    #
-    # This is an alternative to actual_started_at + actual_finished_at.
-    duration: timedelta | None = None
+    # Zero means that explicit duration is not specified.
+    duration: timedelta = field(
+        default_factory=timedelta,
+    )
 
-    # Actual work mode for this concrete work episode.
     work_is_remote: bool | None = None
 
-    # Time when this status record was created.
-    #
-    # Newly created records use UTC automatically.
-    # Rehydrated records must already contain UTC datetime.
     date_created: datetime = field(
-        default_factory=lambda: datetime.now(UTC)
+        default_factory=lambda: datetime.now(UTC),
     )
 
     def __post_init__(self) -> None:
         """
-        Validate complete intrinsic state of the status record.
+        Validate complete intrinsic payload of the record.
 
-        Validation is intentionally divided into small methods:
-
-        - _validate_identity()
-        - _validate_actor()
-        - _validate_comment()
-        - _validate_executor()
-        - _validate_work_payload()
-
-        Transition validation does not belong here.
+        Workflow-context validation intentionally does not belong here.
         """
 
         self._validate_identity()
@@ -265,27 +242,19 @@ class TicketStatusRecord:
         self._validate_work_payload()
 
     @property
-    def rule(self):
+    def rule(self) -> TicketStatusRule:
         """
-        Return intrinsic rules for the current Ticket status.
-
-        These rules describe properties of the status itself.
-
-        They do not define allowed workflow transitions.
+        Return intrinsic rule for this status.
         """
 
         return TICKET_STATUS_RULES[self.status]
 
     def is_new(self) -> bool:
         """
-        Return True when this status record has not been persisted yet.
-
-        New records use:
-
-            status_id == 0
+        Return True when this status record has not been persisted.
         """
 
-        return not bool(self.status_id)
+        return self.status_id == 0
 
     # ==================================================================
     # Identity
@@ -293,22 +262,7 @@ class TicketStatusRecord:
 
     def _validate_identity(self) -> None:
         """
-        Validate persistent identity, status type and creation time.
-
-        status_id
-        ---------
-
-        Negative values are not allowed.
-
-        status
-        ------
-
-        Must be an instance of TicketStatus.
-
-        date_created
-        ------------
-
-        Must explicitly use UTC.
+        Validate status record identity and creation timestamp.
         """
 
         if self.status_id < 0:
@@ -332,26 +286,38 @@ class TicketStatusRecord:
 
     def _validate_actor(self) -> None:
         """
-        Validate actor identity.
+        Validate actor according to TicketStatusRule.
 
-        For Admin actions actor_employee_id must be positive.
+        User actions
+        ------------
 
-        For User actions the current Ticket model may use
-        actor_employee_id == 0.
+        The internal Ticket history does not store User ID in
+        actor_employee_id.
 
-        Negative actor identifiers are never allowed.
+        Therefore:
+
+            actor_employee_id == 0
+
+        is required.
+
+        Admin actions
+        -------------
+
+        Admin actions always store the real employee identifier:
+
+            actor_employee_id > 0
         """
 
         if self.rule.user_action:
-            if self.actor_employee_id < 0:
+            if self.actor_employee_id != 0:
                 raise ItemValidationError(
-                    "Actor employee ID cannot be negative"
+                    "User action must have actor_employee_id equal to 0"
                 )
             return
 
         if self.actor_employee_id <= 0:
             raise ItemValidationError(
-                "Actor employee ID must be positive"
+                "Admin action requires positive actor_employee_id"
             )
 
     # ==================================================================
@@ -360,15 +326,7 @@ class TicketStatusRecord:
 
     def _validate_comment(self) -> None:
         """
-        Validate comment requirements.
-
-        Most statuses allow an empty comment.
-
-        If:
-
-            rule.requires_comment == True
-
-        the record must contain CommonComment rather than Empty.
+        Validate status comment requirement.
         """
 
         if (
@@ -387,13 +345,9 @@ class TicketStatusRecord:
         """
         Validate executor payload.
 
-        If the status requires executor:
+        A status requiring executor must contain executor_id > 0.
 
-            executor_id must be positive.
-
-        Otherwise:
-
-            executor_id must be exactly 0.
+        Every other status must contain executor_id == 0.
         """
 
         if self.rule.requires_executor:
@@ -414,28 +368,32 @@ class TicketStatusRecord:
 
     def _validate_work_payload(self) -> None:
         """
-        Validate all work-related payload.
+        Validate complete work-related payload.
 
-        Work payload is allowed only when:
+        Work data is allowed only for statuses whose intrinsic rule has:
 
-            rule.allows_work_data == True
+            allows_work_data == True
 
-        If work data is not allowed, none of these fields may be set:
-
-            actual_started_at
-            actual_finished_at
-            duration
-            work_is_remote
-
-        If work data is allowed, validation is delegated to:
-
-            _validate_work_mode()
-            _validate_work_time()
+        Zero duration does not count as explicit work data.
         """
+
+        if not isinstance(self.duration, timedelta):
+            raise ItemValidationError(
+                "duration must be timedelta"
+            )
+
+        if self.work_is_remote is not None:
+            if not isinstance(self.work_is_remote, bool):
+                raise ItemValidationError(
+                    "work_is_remote must be bool or None"
+                )
 
         has_started_at = self.actual_started_at is not None
         has_finished_at = self.actual_finished_at is not None
-        has_duration = self.duration is not None
+
+        # timedelta(0) means explicit duration is absent.
+        has_duration = self.duration != timedelta(0)
+
         has_work_mode = self.work_is_remote is not None
 
         if not self.rule.allows_work_data:
@@ -448,6 +406,7 @@ class TicketStatusRecord:
                 raise ItemValidationError(
                     f"{self.status} does not allow work data"
                 )
+
             return
 
         self._validate_work_mode()
@@ -457,69 +416,63 @@ class TicketStatusRecord:
         """
         Validate actual work mode.
 
-        If the status requires work mode:
-
-            work_is_remote must be either True or False.
-
-        None means that work mode was not specified.
+        When the status requires work mode, work_is_remote must be
+        explicitly True or False.
         """
 
-        if self.rule.requires_work_mode:
-            if self.work_is_remote is None:
-                raise ItemValidationError(
-                    f"{self.status} requires work mode"
-                )
+        if (
+            self.rule.requires_work_mode
+            and self.work_is_remote is None
+        ):
+            raise ItemValidationError(
+                f"{self.status} requires work mode"
+            )
 
     def _validate_work_time(self) -> None:
         """
-        Validate actual work time payload.
+        Validate work-time representation.
 
-        Work time can be represented in one of two explicit forms:
+        Exact retrospective interval
+        ----------------------------
 
-        1. exact retrospective interval:
+        actual_started_at and actual_finished_at must either both be present
+        or both be absent.
 
-               actual_started_at
-               actual_finished_at
+        When present:
 
-        2. explicit duration:
+        - both must use UTC;
+        - finished time must be later than started time;
+        - explicit positive duration must not also be supplied.
 
-               duration
+        Explicit duration
+        -----------------
 
-        These forms are mutually exclusive.
+        duration == timedelta(0):
+            explicit duration is absent.
 
-        If neither form is supplied, work time may later be derived by
-        Ticket from workflow timestamps.
+        duration > timedelta(0):
+            explicit work duration.
 
-        Exact interval
-        --------------
-
-        actual_started_at and actual_finished_at must:
-
-        - be specified together;
-        - explicitly use UTC;
-        - satisfy:
-
-              actual_finished_at > actual_started_at
-
-        Duration
-        --------
-
-        duration must be strictly positive.
+        duration < timedelta(0):
+            invalid.
         """
 
         has_started_at = self.actual_started_at is not None
         has_finished_at = self.actual_finished_at is not None
-        has_duration = self.duration is not None
 
-        # Exact retrospective interval must be complete.
+        if self.duration < timedelta(0):
+            raise ItemValidationError(
+                "Work duration cannot be negative"
+            )
+
+        has_duration = self.duration > timedelta(0)
+
         if has_started_at != has_finished_at:
             raise ItemValidationError(
                 "actual_started_at and actual_finished_at "
                 "must be specified together"
             )
 
-        # Exact interval and duration represent alternative forms
-        # of the same work-time information.
         if has_started_at and has_duration:
             raise ItemValidationError(
                 "Work interval and duration cannot be specified together"
@@ -545,16 +498,8 @@ class TicketStatusRecord:
                     "actual_started_at"
                 )
 
-        if has_duration:
-            assert self.duration is not None
-
-            if self.duration <= timedelta(0):
-                raise ItemValidationError(
-                    "Work duration must be positive"
-                )
-
     # ==================================================================
-    # Datetime helpers
+    # Datetime
     # ==================================================================
 
     @staticmethod
@@ -564,19 +509,9 @@ class TicketStatusRecord:
         field_name: str,
     ) -> None:
         """
-        Validate the domain datetime contract.
+        Require an explicitly UTC datetime.
 
-        The value must:
-
-        - be a datetime instance;
-        - explicitly use datetime.UTC.
-
-        The domain rejects both:
-
-        - naive datetime values;
-        - timezone-aware values from any timezone other than UTC.
-
-        No timezone conversion is performed here.
+        No automatic timezone normalization is performed.
         """
 
         if not isinstance(value, datetime):
@@ -588,4 +523,3 @@ class TicketStatusRecord:
             raise ItemValidationError(
                 f"{field_name} must use UTC timezone"
             )
-
