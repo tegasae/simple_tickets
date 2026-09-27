@@ -10,8 +10,11 @@ from src.domain.statuses.ticket_user_status import TicketUserStatus
 from src.domain.statuses.ticket_user_status_record import (
     TicketUserStatusRecord,
 )
-from src.domain.statuses.ticket_user_status_transistions import TERMINAL_TICKET_USER_STATUSES, TICKET_USER_TRANSITIONS, \
-    FIRST_TICKET_USER_STATUSES
+from src.domain.statuses.ticket_user_status_transitions import (
+    FIRST_TICKET_USER_STATUSES,
+    TERMINAL_TICKET_USER_STATUSES,
+    TICKET_USER_TRANSITIONS,
+)
 from src.domain.ticket_components import Comment
 from src.domain.value_objects import (
     CommonComment,
@@ -33,8 +36,8 @@ class TicketUser:
 
         Ticket.user_ticket_id == TicketUser.ticket_id
 
-    Эта связь координируется application layer и не поддерживается
-    самим TicketUser.
+    Cross-aggregate invariants и синхронизация Ticket/TicketUser не являются
+    ответственностью этого aggregate.
 
 
     Public construction API
@@ -66,25 +69,61 @@ class TicketUser:
 
     TicketUser отвечает за:
 
-    - корректность первого status;
+    - корректный первый status;
     - допустимость переходов;
     - хронологический порядок status records;
-    - terminal state;
+    - невозможность продолжения terminal workflow;
     - derived state is_closed/date_finished.
 
-    TicketUserStatusRecord отвечает только за собственный payload.
+    TicketUserStatusRecord отвечает только за intrinsic payload одной
+    записи status.
+
+    В частности TicketUserStatusRecord проверяет:
+
+    - status type;
+    - actor identity;
+    - обязательность comment;
+    - date_created.
 
     Допустимые переходы определяются отдельно:
 
         TICKET_USER_TRANSITIONS
 
-    Начальные состояния определяются:
+    Начальные состояния:
 
         FIRST_TICKET_USER_STATUSES
 
-    Terminal states определяются:
+    Terminal states:
 
         TERMINAL_TICKET_USER_STATUSES
+
+
+    Workflow API
+    ============
+
+    Основные бизнес-команды представлены явными методами:
+
+        mark_in_work(...)
+        mark_waiting_for_confirmation(...)
+        confirm_by_user(...)
+        confirm_by_admin(...)
+        suspend(...)
+        cancel_by_user(...)
+        cancel_by_admin(...)
+
+    Кроме них append_status(...) пока остаётся публичным низкоуровневым
+    workflow API.
+
+    Все workflow-методы изменяют aggregate непосредственно и возвращают
+    None.
+
+    Созданная status record после выполнения операции доступна через:
+
+        current_status_record()
+
+    Новые неперсистированные status records доступны через:
+
+        new_statuses()
 
 
     Actor
@@ -97,14 +136,14 @@ class TicketUser:
 
     Поэтому:
 
-    - для действий User записывается реальный user_id;
+    - для действий User записывается реальный user id;
     - для действий Admin записывается реальный admin/employee id.
 
-    Какой тип actor ожидается для конкретного status, определяется
+    Какой вид actor соответствует конкретному status, определяется
     TicketUserStatusRule.user_action.
 
-    TicketUser самостоятельно не проверяет существование соответствующего
-    User/Admin. Это ответственность application layer.
+    Сам TicketUser не проверяет существование User/Admin и не выполняет
+    RBAC.
 
 
     user_id / contact_user_id
@@ -114,7 +153,7 @@ class TicketUser:
 
         user_id > 0
 
-    Поэтому TicketUser всегда должна иметь contact User:
+    Поэтому существующая TicketUser всегда должна иметь contact User:
 
         contact_user_id > 0
 
@@ -126,32 +165,36 @@ class TicketUser:
 
         contact_user_id == 0
 
-    означает возврат contact User к:
+    означает:
 
-        self.user_id
+        contact_user_id = self.user_id
 
     contact_user_id может отличаться от user_id.
 
     При rehydrate persisted contact_user_id не нормализуется.
-    Если persistence передал 0 или отрицательное значение, aggregate
-    отвергает такое состояние.
+
+    Если persistence передал:
+
+        contact_user_id <= 0
+
+    aggregate отвергает такое состояние.
 
 
     Comments
     ========
 
-    TicketUser содержит два разных вида комментариев.
+    TicketUser содержит два вида комментариев.
 
     1. Ordinary comments:
 
         comments: list[Comment]
 
-    2. Status-specific comments:
+    2. Workflow status comments:
 
         TicketUserStatusRecord.comment
 
     Comment.employee_id использует общее пространство идентификаторов
-    User/Admin и всегда хранит реального автора.
+    User/Admin и хранит реального автора.
 
     Все даты комментариев должны использовать UTC.
 
@@ -171,27 +214,30 @@ class TicketUser:
 
     Все datetime внутри domain должны явно использовать UTC.
 
+    Допускается только datetime с:
+
+        tzinfo is UTC
+
     Domain отвергает:
 
     - naive datetime;
-    - datetime с timezone, отличной от UTC.
+    - datetime в timezone, отличной от UTC.
 
     Domain не преобразует datetime автоматически.
 
-    В частности, внутри TicketUser должны быть UTC:
+    В частности UTC обязателен для:
 
     - TicketUser.date_created;
     - TicketUserStatusRecord.date_created;
     - Comment.date_created.
 
-    Преобразование внешних datetime в UTC является ответственностью
-    внешнего слоя до передачи значения в domain.
+    Нормализация внешних datetime является ответственностью внешнего слоя.
 
 
     Derived state
     =============
 
-    is_closed и date_finished полностью выводятся из текущего workflow.
+    is_closed и date_finished полностью выводятся из workflow.
 
     Terminal status:
 
@@ -216,16 +262,17 @@ class TicketUser:
     - существование Client;
     - enabled/disabled state других aggregates;
     - внутреннюю Ticket;
-    - механизм синхронизации Ticket <-> TicketUser.
+    - механизм синхронизации Ticket <-> TicketUser;
+    - cross-aggregate invariants.
 
-    Эти проверки и координация выполняются на других уровнях.
+    Эти обязанности находятся за пределами TicketUser.
     """
 
     ticket_id: int
     client_id: int
     user_id: int
 
-    # Immutable business text of the request.
+    # Immutable business text of the user request.
     #
     # text_of_ticket задаётся при create()/rehydrate() и после создания
     # не изменяется.
@@ -241,7 +288,7 @@ class TicketUser:
     # Для существующей TicketUser значение всегда должно быть > 0.
     contact_user_id: int = 0
 
-    # Complete TicketUser workflow history.
+    # Complete workflow history.
     statuses: list[TicketUserStatusRecord] = field(
         default_factory=list,
     )
@@ -265,7 +312,8 @@ class TicketUser:
     # ------------------------------------------------------------------
     # Derived state.
     #
-    # Эти значения не загружаются как самостоятельное domain state.
+    # Эти значения не являются самостоятельным persisted domain state.
+    # Они всегда вычисляются из workflow.
     # ------------------------------------------------------------------
 
     is_closed: bool = field(
@@ -282,15 +330,19 @@ class TicketUser:
         """
         Normalize immutable text and validate aggregate state.
 
-        __post_init__ intentionally does not repair persisted data.
+        __post_init__ проверяет invariants, которые должны выполняться для
+        любой существующей TicketUser.
 
-        In particular:
+        Он намеренно не исправляет persisted state.
 
-        - contact_user_id is not substituted here;
-        - datetime values are not converted to UTC;
-        - workflow history is not reordered.
+        В частности:
 
-        Creation-specific normalization belongs to create().
+        - contact_user_id не подставляется автоматически;
+        - datetime не конвертируются в UTC;
+        - workflow history не сортируется;
+        - некорректная история не исправляется.
+
+        Creation-specific normalization выполняется фабрикой create().
         """
 
         self.text_of_ticket = self.text_of_ticket.strip()
@@ -318,21 +370,21 @@ class TicketUser:
         Rules
         -----
 
-        Explicit positive contact_user_id:
+        contact_user_id > 0:
 
-            use contact_user_id
+            использовать явно переданный contact User.
 
         contact_user_id == 0:
 
-            use user_id
+            использовать user_id.
 
-        Negative contact_user_id:
+        contact_user_id < 0:
 
-            invalid
+            invalid.
 
-        This helper is used only while creating a new aggregate.
+        Этот helper применяется только при создании новой TicketUser.
 
-        rehydrate() intentionally does not use it.
+        rehydrate() намеренно его не использует.
         """
 
         if contact_user_id < 0:
@@ -362,24 +414,24 @@ class TicketUser:
         Identity
         --------
 
-        A newly created aggregate always has:
+        Новая TicketUser всегда имеет:
 
             ticket_id == 0
             version == 0
 
-        ticket_id is assigned by persistence later.
+        ticket_id назначается persistence layer позже.
 
 
         Workflow
         --------
 
-        Initial status is always:
+        Начальный status всегда:
 
-            TicketUserStatus.CREATED
+            CREATED
 
-        CREATED is a User action.
+        CREATED является User action.
 
-        Therefore:
+        Поэтому:
 
             actor_employee_id == user_id
 
@@ -387,7 +439,7 @@ class TicketUser:
         Contact User
         ------------
 
-        If contact_user_id is omitted or equals 0:
+        Если contact_user_id не передан или равен 0:
 
             contact_user_id = user_id
 
@@ -395,21 +447,21 @@ class TicketUser:
         Creation time
         -------------
 
-        date_created is generated automatically in UTC.
+        date_created автоматически создаётся в UTC.
 
-        The same timestamp is used for:
+        Один timestamp используется для:
 
         - TicketUser.date_created;
-        - initial CREATED status;
+        - начального CREATED status;
         - optional initial ordinary comment.
 
 
         Initial comment
         ---------------
 
-        If comment is supplied, it is stored as an ordinary Comment.
+        Если comment передан, он создаётся как ordinary Comment.
 
-        Its author is the creating User:
+        Его автор:
 
             Comment.employee_id == user_id
         """
@@ -448,7 +500,7 @@ class TicketUser:
             ],
         )
 
-        if comment:
+        if comment.strip():
             ticket_user.add_comment(
                 Comment(
                     employee_id=user_id,
@@ -480,49 +532,54 @@ class TicketUser:
         Persistence contract
         --------------------
 
-        Repository must provide:
+        Repository должен передать:
 
-        - persisted ticket_id > 0;
-        - complete status history;
-        - status history in persistence order;
-        - persisted contact_user_id;
-        - datetime values already using UTC.
-
-        Domain does not repair persistence data.
+        - ticket_id > 0;
+        - полную workflow history;
+        - history в persisted порядке;
+        - datetime уже в UTC;
+        - persisted contact_user_id без нормализации.
 
 
         Workflow reconstruction
         -----------------------
 
-        Only the first persisted status is initially passed to TicketUser.
-
-        Remaining records are replayed through _append_status():
+        В constructor передаётся только первый persisted status:
 
             statuses[0]
-                -> constructor / __post_init__
 
-            statuses[1:]
-                -> _append_status(...)
+        Остальные status records последовательно проигрываются через:
 
-        Therefore persisted history is checked by the same transition and
-        chronology rules used for runtime workflow changes.
+            append_status(...)
+
+        Таким образом persisted history проходит те же проверки переходов
+        и хронологии, что и runtime workflow.
 
 
         Contact User
         ------------
 
-        contact_user_id is restored exactly as persisted.
+        contact_user_id восстанавливается точно таким, каким его вернул
+        persistence layer.
 
-        Unlike create(), rehydrate() does not replace zero with user_id.
+        В отличие от create(), rehydrate() не заменяет:
 
-        Invalid persisted contact state is rejected by the aggregate.
+            contact_user_id == 0
+
+        на:
+
+            user_id
+
+        Некорректное persisted состояние отвергается aggregate.
 
 
         Derived state
         -------------
 
-        is_closed and date_finished are recomputed from workflow history.
-        They are not restored as independent authoritative values.
+        is_closed и date_finished не загружаются как самостоятельные
+        authoritative значения.
+
+        Они вычисляются из workflow history.
         """
 
         if ticket_id <= 0:
@@ -558,7 +615,7 @@ class TicketUser:
         )
 
         for status in statuses[1:]:
-            ticket_user._append_status(status)
+            ticket_user.append_status(status)
 
         return ticket_user
 
@@ -579,10 +636,10 @@ class TicketUser:
 
     def current_status_record(self) -> TicketUserStatusRecord:
         """
-        Return the current TicketUser status record.
+        Return current workflow record.
 
-        Current state is always defined by the last record in complete
-        workflow history.
+        Текущее состояние TicketUser всегда определяется последней записью
+        полной workflow history.
         """
 
         if not self.statuses:
@@ -609,9 +666,13 @@ class TicketUser:
             in TERMINAL_TICKET_USER_STATUSES
         )
 
+    # ==================================================================
+    # Persistence helpers
+    # ==================================================================
+
     def new_statuses(self) -> list[TicketUserStatusRecord]:
         """
-        Return status records not yet persisted.
+        Return workflow records not yet persisted.
         """
 
         return [
@@ -648,26 +709,23 @@ class TicketUser:
         actor_employee_id
         -----------------
 
-        The command requires the identity of the employee performing
-        the operation.
+        Команда требует идентификатор employee, выполняющего изменение.
 
-        The identifier must be positive.
+        Значение должно быть положительным.
 
-        This method does not itself perform RBAC or check whether the actor
-        is User or Admin.
+        TicketUser не выполняет RBAC и не проверяет существование actor.
 
 
         Terminal state
         --------------
 
-        Details cannot be changed after TicketUser reaches a terminal
-        workflow state.
+        После достижения terminal status данные изменять нельзя.
 
 
         Description
         -----------
 
-        Empty string clears description and stores Empty.
+        Пустая строка очищает description и сохраняется как Empty.
 
 
         Contact User
@@ -675,18 +733,17 @@ class TicketUser:
 
         contact_user_id > 0:
 
-            set that User as contact.
+            установить указанного contact User.
 
         contact_user_id == 0:
 
-            reset contact User to TicketUser.user_id.
+            вернуть contact User к TicketUser.user_id.
 
         contact_user_id < 0:
 
             invalid.
 
-        Because TicketUser always belongs to a User, it can never exist
-        without a positive contact_user_id.
+        TicketUser всегда должна иметь положительный contact_user_id.
         """
 
         if actor_employee_id <= 0:
@@ -722,121 +779,151 @@ class TicketUser:
         *,
         actor_employee_id: int,
         comment: str = "",
-    ) -> TicketUserStatusRecord:
+    ) -> None:
         """
         Move TicketUser to IN_WORK.
 
-        IN_WORK is an Admin action according to TicketUserStatusRule.
+        IN_WORK is an Admin action.
 
-        Concrete actor authorization is handled outside the aggregate.
+        В зависимости от текущего workflow state это может означать:
+
+            CREATED -> IN_WORK
+
+                Заявка принята в работу.
+
+            WAITING_FOR_CONFIRMATION -> IN_WORK
+
+                Заявка возвращена в работу.
+
+            SUSPENDED -> IN_WORK
+
+                Работа возобновлена после suspension.
+
+        Конкретная допустимость перехода проверяется append_status().
         """
 
-        return self._append_status(
-            TicketUserStatusRecord(
-                actor_employee_id=actor_employee_id,
-                status=TicketUserStatus.IN_WORK,
-                comment=self._make_status_comment(comment),
-            )
+        record = TicketUserStatusRecord(
+            status=TicketUserStatus.IN_WORK,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
         )
+
+        self.append_status(record)
 
     def mark_waiting_for_confirmation(
         self,
         *,
         actor_employee_id: int,
         comment: str = "",
-    ) -> TicketUserStatusRecord:
+    ) -> None:
         """
         Move TicketUser to WAITING_FOR_CONFIRMATION.
 
-        This state means that service-side work is finished and the result
-        is waiting for confirmation.
+        WAITING_FOR_CONFIRMATION is an Admin action.
+
+        Status означает, что работа со стороны исполнителей закончена и
+        результат ожидает подтверждения.
+
+        Допустимые source states определяются TICKET_USER_TRANSITIONS.
         """
 
-        return self._append_status(
-            TicketUserStatusRecord(
-                actor_employee_id=actor_employee_id,
-                status=TicketUserStatus.WAITING_FOR_CONFIRMATION,
-                comment=self._make_status_comment(comment),
-            )
+        record = TicketUserStatusRecord(
+            status=TicketUserStatus.WAITING_FOR_CONFIRMATION,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
         )
+
+        self.append_status(record)
 
     def confirm_by_user(
         self,
         *,
         actor_employee_id: int,
         comment: str = "",
-    ) -> TicketUserStatusRecord:
+    ) -> None:
         """
-        Confirm execution by User.
+        Confirm completion by User.
 
         Resulting status:
 
             CONFIRMED_BY_USER
 
-        This is a terminal User action.
+        CONFIRMED_BY_USER является terminal status.
+
+        TicketUserStatusRecord хранит реальный положительный идентификатор
+        User actor.
+
+        Проверка того, какой именно User имеет право подтвердить заявку,
+        не выполняется этим методом.
         """
 
-        return self._append_status(
-            TicketUserStatusRecord(
-                actor_employee_id=actor_employee_id,
-                status=TicketUserStatus.CONFIRMED_BY_USER,
-                comment=self._make_status_comment(comment),
-            )
+        record = TicketUserStatusRecord(
+            status=TicketUserStatus.CONFIRMED_BY_USER,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
         )
+
+        self.append_status(record)
 
     def confirm_by_admin(
         self,
         *,
         actor_employee_id: int,
         comment: str = "",
-    ) -> TicketUserStatusRecord:
+    ) -> None:
         """
-        Confirm execution by Admin.
+        Confirm completion by Admin.
 
         Resulting status:
 
             CONFIRMED_BY_ADMIN
 
-        This is a terminal Admin action.
+        CONFIRMED_BY_ADMIN является terminal status.
         """
 
-        return self._append_status(
-            TicketUserStatusRecord(
-                actor_employee_id=actor_employee_id,
-                status=TicketUserStatus.CONFIRMED_BY_ADMIN,
-                comment=self._make_status_comment(comment),
-            )
+        record = TicketUserStatusRecord(
+            status=TicketUserStatus.CONFIRMED_BY_ADMIN,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
         )
+
+        self.append_status(record)
 
     def suspend(
         self,
         *,
         actor_employee_id: int,
         comment: str = "",
-    ) -> TicketUserStatusRecord:
+    ) -> None:
         """
-        Move TicketUser to SUSPENDED.
+        Suspend TicketUser processing.
 
-        SUSPENDED represents temporary suspension of the user-facing
-        request, for example when the related Client/User is disabled.
+        Resulting status:
 
-        SUSPENDED is not terminal.
+            SUSPENDED
+
+        SUSPENDED не является terminal status.
+
+        Status представляет временную приостановку пользовательской заявки,
+        например из-за отключённого Client/User.
+
+        Допустимые source states определяются TICKET_USER_TRANSITIONS.
         """
 
-        return self._append_status(
-            TicketUserStatusRecord(
-                actor_employee_id=actor_employee_id,
-                status=TicketUserStatus.SUSPENDED,
-                comment=self._make_status_comment(comment),
-            )
+        record = TicketUserStatusRecord(
+            status=TicketUserStatus.SUSPENDED,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
         )
+
+        self.append_status(record)
 
     def cancel_by_user(
         self,
         *,
         actor_employee_id: int,
         comment: str = "",
-    ) -> TicketUserStatusRecord:
+    ) -> None:
         """
         Cancel TicketUser by User.
 
@@ -844,23 +931,28 @@ class TicketUser:
 
             CANCELLED_BY_USER
 
-        This is a terminal User action.
+        CANCELLED_BY_USER является terminal status.
+
+        TicketUserStatusRecord хранит реальный положительный идентификатор
+        User actor.
+
+        Допустимость перехода определяется TICKET_USER_TRANSITIONS.
         """
 
-        return self._append_status(
-            TicketUserStatusRecord(
-                actor_employee_id=actor_employee_id,
-                status=TicketUserStatus.CANCELLED_BY_USER,
-                comment=self._make_status_comment(comment),
-            )
+        record = TicketUserStatusRecord(
+            status=TicketUserStatus.CANCELLED_BY_USER,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
         )
+
+        self.append_status(record)
 
     def cancel_by_admin(
         self,
         *,
         actor_employee_id: int,
-        comment: str = "",
-    ) -> TicketUserStatusRecord:
+        comment: str,
+    ) -> None:
         """
         Cancel TicketUser by Admin.
 
@@ -868,87 +960,62 @@ class TicketUser:
 
             CANCELLED_BY_ADMIN
 
-        This status requires a comment according to
-        TicketUserStatusRule.
+        CANCELLED_BY_ADMIN является terminal status.
 
-        TicketUserStatusRecord performs that payload validation.
+        Непустой comment обязателен.
+
+        Требование comment определяется TicketUserStatusRule и проверяется
+        TicketUserStatusRecord.
+
+        Поэтому этот метод не дублирует проверку comment.
         """
 
-        return self._append_status(
-            TicketUserStatusRecord(
-                actor_employee_id=actor_employee_id,
-                status=TicketUserStatus.CANCELLED_BY_ADMIN,
-                comment=self._make_status_comment(comment),
-            )
+        record = TicketUserStatusRecord(
+            status=TicketUserStatus.CANCELLED_BY_ADMIN,
+            actor_employee_id=actor_employee_id,
+            comment=self._make_status_comment(comment),
         )
 
-    # ==================================================================
-    # Ordinary comments
-    # ==================================================================
-
-    def add_comment(
-        self,
-        comment: Comment,
-    ) -> None:
-        """
-        Add an ordinary comment.
-
-        Comments cannot be added to a terminal TicketUser.
-
-        Comment date_created must explicitly use UTC.
-        """
-
-        self._ensure_not_terminal()
-
-        if not comment.comment:
-            raise DomainOperationError(
-                "Comment cannot be empty"
-            )
-
-        self._require_utc_datetime(
-            comment.date_created,
-            field_name="comment.date_created",
-        )
-
-        self.comments.append(comment)
+        self.append_status(record)
 
     # ==================================================================
-    # Workflow internals
+    # Workflow
     # ==================================================================
 
-    def _append_status(
+    def append_status(
         self,
         record: TicketUserStatusRecord,
-    ) -> TicketUserStatusRecord:
+    ) -> None:
         """
         Append one workflow status record.
 
-        Responsibilities
-        ----------------
+        TicketUserStatusRecord уже проверил собственный intrinsic payload:
 
-        TicketUser validates:
-
-        - TicketUser is not already terminal;
-        - status transition is allowed;
-        - status history remains chronological;
-        - record timestamp uses UTC.
-
-        TicketUserStatusRecord is responsible for validating its own
-        payload, including:
-
-        - actor;
+        - status type;
+        - actor identity;
         - required comment;
-        - status type.
+        - date_created.
 
+        TicketUser проверяет aggregate-level workflow rules:
+
+        - текущий status не terminal;
+        - transition разрешён;
+        - status history остаётся хронологической;
+        - record.date_created использует UTC.
 
         Chronology
         ----------
 
-        New record must satisfy:
+        Новый record должен удовлетворять:
 
             record.date_created >= current_record.date_created
 
-        Equal timestamps are allowed.
+        Равные timestamps разрешены.
+
+        Этот метод пока остаётся public API.
+
+        Он также используется rehydrate(), поэтому persisted workflow
+        history проходит те же transition checks, что и runtime workflow.
         """
 
         self._ensure_not_terminal()
@@ -979,7 +1046,42 @@ class TicketUser:
 
         self._recompute_closed_state()
 
-        return record
+    # ==================================================================
+    # Ordinary comments
+    # ==================================================================
+
+    def add_comment(
+        self,
+        comment: Comment,
+    ) -> None:
+        """
+        Add an ordinary comment.
+
+        Ordinary comments нельзя добавлять после достижения terminal status.
+
+        Comment.employee_id использует общее пространство идентификаторов
+        User/Admin.
+
+        comment.date_created должен явно использовать UTC.
+        """
+
+        self._ensure_not_terminal()
+
+        if not comment.comment:
+            raise DomainOperationError(
+                "Comment cannot be empty"
+            )
+
+        self._require_utc_datetime(
+            comment.date_created,
+            field_name="comment.date_created",
+        )
+
+        self.comments.append(comment)
+
+    # ==================================================================
+    # Workflow validation
+    # ==================================================================
 
     def _validate_status_history(self) -> None:
         """
@@ -988,13 +1090,14 @@ class TicketUser:
         Validation checks:
 
         - history is not empty;
-        - first status is allowed as an initial status;
-        - all transitions are allowed;
+        - first status belongs to FIRST_TICKET_USER_STATUSES;
+        - every transition is allowed;
         - timestamps are chronological.
 
         Equal consecutive timestamps are allowed.
 
-        Individual status payload is validated by TicketUserStatusRecord.
+        Intrinsic payload каждой status record проверяется самим
+        TicketUserStatusRecord.
         """
 
         if not self.statuses:
@@ -1033,7 +1136,7 @@ class TicketUser:
 
     def _ensure_not_terminal(self) -> None:
         """
-        Reject a command when TicketUser is already terminal.
+        Reject operation when TicketUser is already terminal.
         """
 
         if self.is_terminal():
@@ -1043,16 +1146,21 @@ class TicketUser:
             )
 
     # ==================================================================
-    # Validation
+    # Aggregate validation
     # ==================================================================
 
     def _validate_identity(self) -> None:
         """
-        Validate aggregate identifiers and persistence version.
+        Validate identifiers and persistence version.
 
-        This method checks only identifier invariants.
+        Метод проверяет только aggregate invariants.
 
-        It does not check whether referenced entities actually exist.
+        Он не проверяет существование:
+
+        - Client;
+        - User;
+        - contact User;
+        - actor.
         """
 
         if self.ticket_id < 0:
@@ -1092,12 +1200,12 @@ class TicketUser:
 
     def _validate_datetimes(self) -> None:
         """
-        Validate aggregate datetime contract.
+        Validate complete TicketUser datetime contract.
 
-        All datetime values currently stored inside TicketUser must
-        explicitly use UTC.
+        Все datetime, уже находящиеся внутри aggregate, должны явно
+        использовать UTC.
 
-        No normalization or conversion is performed.
+        Никакой normalization здесь не выполняется.
         """
 
         self._require_utc_datetime(
@@ -1154,15 +1262,15 @@ class TicketUser:
         comment: str,
     ) -> CommonComment | Empty:
         """
-        Convert command comment text to status-record representation.
+        Convert workflow comment text to status-record representation.
 
-        Empty string means that the status has no comment.
+        Empty или whitespace-only string означает отсутствие status comment.
 
-        Whether a comment is mandatory for a concrete status is validated
-        by TicketUserStatusRecord through TicketUserStatusRule.
+        Обязательность comment для конкретного status определяется
+        TicketUserStatusRule и проверяется TicketUserStatusRecord.
         """
 
-        if not comment:
+        if not comment.strip():
             return Empty()
 
         return CommonComment(comment)
@@ -1184,9 +1292,9 @@ class TicketUser:
         Domain rejects:
 
         - naive datetime;
-        - datetime in any timezone other than UTC.
+        - timezone-aware datetime с timezone, отличной от UTC.
 
-        Domain never converts timezone automatically.
+        Domain не выполняет автоматическое timezone conversion.
         """
 
         if not isinstance(value, datetime):
