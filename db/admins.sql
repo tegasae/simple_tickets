@@ -309,33 +309,6 @@ INSERT INTO user_tickets_status_record VALUES(30,199,12,'created','2026-09-15T15
 INSERT INTO user_tickets_status_record VALUES(31,122,12,'confirmed_by_admin','2026-09-15T15:31:48.119721+00:00','');
 INSERT INTO user_tickets_status_record VALUES(32,199,13,'created','2026-09-15T15:31:58.908792+00:00','');
 INSERT INTO user_tickets_status_record VALUES(33,122,13,'confirmed_by_admin','2026-09-15T15:31:58.908837+00:00','comment1');
-CREATE TABLE user_tickets_executor_assignments (
-	user_executor_assignment_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	user_ticket_id INTEGER,
-	admin_id INTEGER,
-	date_assignment TEXT,
-	CONSTRAINT executor_assignments_admin_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict,
-	CONSTRAINT executor_assignments_tickets_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict
-);
-CREATE TABLE user_tickets (
-	user_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	client_id INTEGER, -- заявки от какого клиента
-	user_id INTEGER, -- кто создал заявку
-	user_ticket_contact_user_id INTEGER DEFAULT NULL, -- контактное лицо по заявке, может не быть
-	text_of_ticket TEXT, -- текст заявки 
-	date_created TEXT,
-	version INTEGER DEFAULT 0,
-	date_closed TEXT, -- дата завершения или снятия заявки 
-	is_closed INTEGER, description TEXT, urgency_level INTEGER DEFAULT (0) NOT NULL,
-	CONSTRAINT user_tickets_users_FK FOREIGN KEY (user_id) REFERENCES employees(employee_id) on delete restrict,
-	CONSTRAINT user_tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
-	CONSTRAINT user_tickets_user_ticket_contact_user_FK FOREIGN KEY (user_ticket_contact_user_id) REFERENCES employees(employee_id) on delete restrict
-);
-INSERT INTO user_tickets VALUES(9,33,182,NULL,'Настроить принтер','2026-09-08T11:22:31.517291+00:00',1,NULL,0,'Принтер новый',0);
-INSERT INTO user_tickets VALUES(10,34,184,184,'расскажите, почему вы считаете меня дураком?','2026-09-09T09:48:17.888599+00:00',8,'2026-09-09T09:54:02.785926+00:00',1,'Надо набрать статистику',0);
-INSERT INTO user_tickets VALUES(11,32,199,NULL,'string','2026-09-15T11:58:24.551541+00:00',0,NULL,0,'ампуапмепмпм',0);
-INSERT INTO user_tickets VALUES(12,32,199,NULL,'string','2026-09-15T15:31:48.119684+00:00',0,NULL,0,'',0);
-INSERT INTO user_tickets VALUES(13,32,199,NULL,'string','2026-09-15T15:31:58.908792+00:00',0,NULL,0,'',0);
 CREATE TABLE ticket_comments (
     ticket_comment_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -495,12 +468,24 @@ INSERT INTO ticket_status_records VALUES(98,20,122,'created','2026-09-16T12:03:5
 INSERT INTO ticket_status_records VALUES(99,20,122,'accepted','2026-09-16T12:03:54.370388+00:00',NULL,NULL,NULL,NULL,NULL,'');
 INSERT INTO ticket_status_records VALUES(100,20,122,'assigned','2026-09-16T12:05:39.640295+00:00',122,NULL,NULL,NULL,NULL,'');
 INSERT INTO ticket_status_records VALUES(101,20,122,'at_work','2026-09-16T12:05:51.096456+00:00',122,NULL,NULL,'2026-09-16T12:05:51.096456+00:00',NULL,'');
+CREATE TABLE user_tickets (
+	user_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	client_id INTEGER, -- заявки от какого клиента
+	user_id INTEGER, -- кто создал заявку
+	contact_user_id INTEGER DEFAULT NULL, -- контактное лицо по заявке, может не быть
+	text_of_ticket TEXT, -- текст заявки 
+	date_created TEXT,
+	version INTEGER DEFAULT 0,
+	date_closed TEXT DEFAULT NULL, -- дата завершения или снятия заявки 
+	CONSTRAINT user_tickets_users_FK FOREIGN KEY (user_id) REFERENCES employees(employee_id) on delete restrict,
+	CONSTRAINT user_tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
+	CONSTRAINT user_tickets_user_ticket_contact_user_FK FOREIGN KEY (contact_user_id) REFERENCES employees(employee_id) on delete restrict
+);
 DELETE FROM sqlite_sequence;
 INSERT INTO sqlite_sequence VALUES('employees',209);
 INSERT INTO sqlite_sequence VALUES('accounts',569);
 INSERT INTO sqlite_sequence VALUES('roles',70);
 INSERT INTO sqlite_sequence VALUES('clients',37);
-INSERT INTO sqlite_sequence VALUES('user_tickets',13);
 INSERT INTO sqlite_sequence VALUES('user_tickets_status_record',33);
 INSERT INTO sqlite_sequence VALUES('user_tickets_comment',3);
 INSERT INTO sqlite_sequence VALUES('departments',7);
