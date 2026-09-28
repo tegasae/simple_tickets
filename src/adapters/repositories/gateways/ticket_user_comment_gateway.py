@@ -1,12 +1,12 @@
 class TicketUserCommentGateway:
     SELECT = """
     SELECT
-    user_comment_ticket_id AS comment_id,
+    user_comment_ticket_id,
     employee_id,
     comment,
     date_created
     FROM user_tickets_comment
-    WHERE user_ticket_id = :ticket_id
+    WHERE user_ticket_id = :ticket_user_id
     ORDER BY user_comment_ticket_id
     """
 
@@ -18,7 +18,7 @@ class TicketUserCommentGateway:
         date_created
     )
     VALUES (
-        :ticket_id,
+        :ticket_user_id,
         :employee_id,
         :comment,
         :date_created
@@ -27,7 +27,7 @@ class TicketUserCommentGateway:
 
     DELETE_ALL = """
     DELETE FROM user_tickets_comment
-    WHERE user_ticket_id = :ticket_id
+    WHERE ticket_user_id = :ticket_user_id
     """
 
     EXISTS_BY_EMPLOYEE_ID = """

@@ -1,32 +1,18 @@
 # src/adapters/repositories/mappers/ticket_user_mapper.py
 
-from datetime import UTC, datetime
 
-from src.adapters.repositories.mappers.auxiliary import datetime_to_db
+
+from src.adapters.repositories.mappers.auxiliary import datetime_to_db, dt_from_sqlite
+from src.domain.statuses.ticket_user_status_record import TicketUserStatusRecord
 from src.domain.ticket_components import Comment
 from src.domain.ticket_user import (
     TicketUser,
 )
-from src.domain.statuses.ticket_user_status import TicketUserStatus, StatusRecordTicketUser
-
-
-def _datetime_from_db(
-    value: str | datetime,
-) -> datetime:
-    if isinstance(value, datetime):
-        result = value
-    else:
-        result = datetime.fromisoformat(value)
-
-    if result.tzinfo is None:
-        return result.replace(tzinfo=UTC)
-
-    return result.astimezone(UTC)
-
+from src.domain.statuses.ticket_user_status import TicketUserStatus
 
 class TicketUserMapper:
     TICKET_FIELDS = [
-        "ticket_id",
+        "ticket_user_id",
         "client_id",
         "user_id",
         "contact_user_id",
@@ -34,11 +20,10 @@ class TicketUserMapper:
         "description",
         "date_created",
         "version",
-        "urgency_level",
     ]
 
     STATUS_FIELDS = [
-        "status_id",
+        "ticket_user_status_id",
         "actor_employee_id",
         "status",
         "comment",
@@ -60,35 +45,34 @@ class TicketUserMapper:
     def row_to_ticket(
         row: dict,
         *,
-        statuses: list[StatusRecordTicketUser],
+        statuses: list[TicketUserStatusRecord],
         comments: list[Comment],
     ) -> TicketUser:
         return TicketUser.rehydrate(
-            ticket_id=row["ticket_id"],
+            ticket_user_id=row["ticket_user_id"],
             client_id=row["client_id"],
             user_id=row["user_id"],
             contact_user_id=row["contact_user_id"] or 0,
             text_of_ticket=row["text_of_ticket"],
             description=row["description"] or "",
-            date_created=_datetime_from_db(
+            date_created=dt_from_sqlite(
                 row["date_created"],
             ),
             version=row["version"] or 0,
             comments=comments,
             statuses=statuses,
-            urgency_level=row["urgency_level"] or 0,
         )
 
     @staticmethod
     def row_to_status(
         row: dict,
-    ) -> StatusRecordTicketUser:
-        return StatusRecordTicketUser(
-            status_id=row["status_id"],
+    ) -> TicketUserStatusRecord:
+        return TicketUserStatusRecord(
+            ticket_user_status_id=row["ticket_user_status_id"],
             actor_employee_id=row["actor_employee_id"],
             status=TicketUserStatus(row["status"]),
-            status_comment=row["comment"] or "",
-            date_created=_datetime_from_db(
+            comment=row["comment"] or "",
+            date_created=dt_from_sqlite(
                 row["date_created"],
             ),
         )
@@ -101,7 +85,7 @@ class TicketUserMapper:
             comment_id=row["comment_id"],
             employee_id=row["employee_id"],
             comment=row["comment"],
-            date_created=_datetime_from_db(
+            date_created=dt_from_sqlite(
                 row["date_created"],
             ),
         )
@@ -115,7 +99,7 @@ class TicketUserMapper:
         ticket: TicketUser,
     ) -> dict:
         return {
-            "ticket_id": ticket.ticket_id,
+            "ticket_user_id": ticket.ticket_user_id,
             "client_id": ticket.client_id,
             "user_id": ticket.user_id,
             "contact_user_id": (
@@ -129,8 +113,6 @@ class TicketUserMapper:
                 ticket.date_created,
             ),
             "version": ticket.version,
-            "urgency_level": ticket.urgency_level,
-            "is_closed": int(ticket.is_closed),
             "date_closed": (
                 datetime_to_db(ticket.date_finished)
                 if ticket.date_finished is not None
@@ -141,14 +123,14 @@ class TicketUserMapper:
     @staticmethod
     def status_record_params(
         *,
-        ticket_id: int,
-        record: StatusRecordTicketUser,
+        ticket_user_id: int,
+        record: TicketUserStatusRecord,
     ) -> dict:
         return {
-            "ticket_id": ticket_id,
+            "ticket_user_id": ticket_user_id,
             "actor_employee_id": record.actor_employee_id,
             "status": record.status.value,
-            "comment": record.status_comment,
+            "comment": record.comment,
             "date_created": datetime_to_db(
                 record.date_created,
             ),
@@ -157,11 +139,11 @@ class TicketUserMapper:
     @staticmethod
     def comment_params(
         *,
-        ticket_id: int,
+        ticket_user_id: int,
         comment: Comment,
     ) -> dict:
         return {
-            "ticket_id": ticket_id,
+            "ticket_user_id": ticket_user_id,
             "employee_id": comment.employee_id,
             "comment": comment.comment,
             "date_created": datetime_to_db(

@@ -4,13 +4,13 @@
 class TicketUserStatusGateway:
     SELECT = """
     SELECT
-        user_ticket_status_record_id AS status_id,
+        ticket_user_status_record_id,
         employee_id AS actor_employee_id,
         status,
         comment,
         date_created
     FROM user_tickets_status_record
-    WHERE user_ticket_id = :ticket_id
+    WHERE user_ticket_id = :user_ticket_id
     ORDER BY user_ticket_status_record_id
     """
 
@@ -24,7 +24,7 @@ class TicketUserStatusGateway:
     )
     VALUES (
         :actor_employee_id,
-        :ticket_id,
+        :user_ticket_id,
         :status,
         :comment,
         :date_created
@@ -33,7 +33,7 @@ class TicketUserStatusGateway:
 
     DELETE_ALL = """
     DELETE FROM user_tickets_status_record
-    WHERE user_ticket_id = :ticket_id
+    WHERE user_ticket_id = :user_ticket_id
     """
 
     EXISTS_BY_EMPLOYEE_ID = """

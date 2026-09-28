@@ -14,12 +14,12 @@ class TicketUserTicketPolicy:
     def can_cancel_user_ticket(user_ticket:TicketUser,ticket:Ticket|None) -> None:
         if ticket and ticket.current_status_record():
             raise DomainOperationError(
-                f"Cannot cancel a user ticket {user_ticket.ticket_id} with an active ticket {ticket.ticket_id}"
+                f"Cannot cancel a user ticket {user_ticket.ticket_user_id} with an active ticket {ticket.ticket_id}"
             )
 
     @staticmethod
     def can_delete_user_ticket(user_ticket: TicketUser, ticket: Ticket | None) -> None:
         if ticket:
             raise DomainOperationError(
-                f"Cannot delete a user ticket {user_ticket.ticket_id} with an active ticket {ticket.ticket_id}"
+                f"Cannot delete a user ticket {user_ticket.ticket_user_id} with an active ticket {ticket.ticket_id}"
             )

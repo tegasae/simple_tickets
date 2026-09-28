@@ -23,11 +23,12 @@ from src.domain.exceptions import ItemNotFoundError
 from src.domain.repositories.ticket_user_repository import (
     TicketUserRepository,
 )
+from src.domain.statuses.ticket_user_status_record import TicketUserStatusRecord
 from src.domain.ticket_components import Comment
 from src.domain.ticket_user import (
     TicketUser,
 )
-from src.domain.statuses.ticket_user_status import StatusRecordTicketUser
+
 
 
 class TicketUserRepositorySQLite(
@@ -53,7 +54,7 @@ class TicketUserRepositorySQLite(
     def _load_statuses(
         self,
         ticket_id: int,
-    ) -> list[StatusRecordTicketUser]:
+    ) -> list[TicketUserStatusRecord]:
         rows = self._get_many(
             TicketUserStatusGateway.SELECT,
             TicketUserMapper.STATUS_FIELDS,
@@ -116,12 +117,12 @@ class TicketUserRepositorySQLite(
             result = self._exec(
                 TicketUserStatusGateway.INSERT,
                 TicketUserMapper.status_record_params(
-                    ticket_id=ticket.ticket_id,
+                    ticket_id=ticket.ticket_user_id,
                     record=record,
                 ),
             )
 
-            record.status_id = result.last_row_id
+            record.ticket_user_status_id = result.last_row_id
 
     def _append_new_comments(
         self,
@@ -131,7 +132,7 @@ class TicketUserRepositorySQLite(
             result = self._exec(
                 TicketUserCommentGateway.INSERT,
                 TicketUserMapper.comment_params(
-                    ticket_id=ticket.ticket_id,
+                    ticket_id=ticket.ticket_user_id,
                     comment=comment,
                 ),
             )
@@ -196,7 +197,7 @@ class TicketUserRepositorySQLite(
             3. append new comments.
         """
         try:
-            if ticket.ticket_id == 0:
+            if ticket.ticket_user_id == 0:
                 result = self._exec(
                     TicketUserGateway.INSERT,
                     TicketUserMapper.ticket_params(
@@ -204,7 +205,7 @@ class TicketUserRepositorySQLite(
                     ),
                 )
 
-                ticket.ticket_id = result.last_row_id
+                ticket.ticket_user_id = result.last_row_id
 
                 self._append_new_statuses(
                     ticket,
@@ -225,7 +226,7 @@ class TicketUserRepositorySQLite(
 
             if result.rowcount == 0:
                 raise OptimisticLockError(
-                    f"TicketUser {ticket.ticket_id} "
+                    f"TicketUser {ticket.ticket_user_id} "
                     f"was changed by another transaction"
                 )
 
@@ -250,7 +251,7 @@ class TicketUserRepositorySQLite(
         except Exception as exc:
             raise PersistenceError(
                 f"Failed to save TicketUser "
-                f"{ticket.ticket_id}: {exc}"
+                f"{ticket.ticket_user_id}: {exc}"
             ) from exc
 
     # --------------------------------

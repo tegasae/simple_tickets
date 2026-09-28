@@ -141,7 +141,7 @@ def test_delete_rejects_references(reference: str) -> None:
         uow.tickets.save(ticket)
     else:
         tu = TicketUser.create(client_id=100, user_id=20, text_of_ticket="x")
-        tu.ticket_id = 300
+        tu.ticket_user_id = 300
         uow.user_tickets.save(tu)
     with pytest.raises(DomainOperationError):
         ClientApplicationService(uow).delete(dto_client=ClientDTO(actor_admin_id=actor.employee_id, client_id=100))

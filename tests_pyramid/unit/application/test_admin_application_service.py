@@ -247,7 +247,7 @@ def test_delete_admin_rejects_client_ticket_and_ticket_user_references() -> None
     uow.tickets.items.clear()
 
     tu = TicketUser.create_confirmed_by_admin(client_id=100, user_id=30, actor_admin_id=20, text_of_ticket="x")
-    tu.ticket_id = 3000
+    tu.ticket_user_id = 3000
     uow.user_tickets.save(tu)
     with pytest.raises(DomainOperationError, match="user tickets"):
         service.delete(admin_dto=AdminDTO(actor_admin_id=actor.employee_id, employee_id=20))

@@ -236,12 +236,12 @@ def test_ticket_repository_created_from_user_keeps_zero_admin(conn: Connection) 
         user_id=user.employee_id,
         contact_user_id=0,
         text_of_ticket="Phone",
-        user_ticket_id=user_ticket.ticket_id,
+        user_ticket_id=user_ticket.ticket_user_id,
     ))
     loaded = repo.get(ticket.ticket_id)
     assert loaded.admin_id == 0
     assert loaded.statuses[0].actor_employee_id == 0
-    assert repo.get_by_user_ticket_id(user_ticket.ticket_id).ticket_id == ticket.ticket_id
+    assert repo.get_by_user_ticket_id(user_ticket.ticket_user_id).ticket_id == ticket.ticket_id
 
 
 def test_ticket_repository_optimistic_lock(conn: Connection) -> None:
@@ -261,12 +261,12 @@ def test_ticket_user_repository_roundtrip_append_history_comments_and_references
     repo = TicketUserRepositorySQLite(conn)
     tu = TicketUser.create(client_id=client.client_id, user_id=user.employee_id, text_of_ticket="Need help", comment="initial")
     saved = repo.save(tu)
-    assert saved.ticket_id > 0 and saved.statuses[0].status_id > 0
-    loaded = repo.get(saved.ticket_id)
+    assert saved.ticket_user_id > 0 and saved.statuses[0].ticket_user_status_id > 0
+    loaded = repo.get(saved.ticket_user_id)
     assert loaded.user_id == user.employee_id
     loaded.confirm_by_admin(actor_employee_id=admin.employee_id, comment="accepted")
     repo.save(loaded)
-    reloaded = repo.get(saved.ticket_id)
+    reloaded = repo.get(saved.ticket_user_id)
     assert reloaded.current_status().value == "confirmed_by_admin"
     assert reloaded.statuses[-1].status_comment == "accepted"
     assert repo.does_client_exist(client.client_id)
@@ -278,7 +278,7 @@ def test_ticket_user_repository_optimistic_lock(conn: Connection) -> None:
     admin = save_admin(conn); client = save_client(conn, admin_id=admin.employee_id); user = save_user(conn, client_id=client.client_id)
     repo = TicketUserRepositorySQLite(conn)
     saved = repo.save(TicketUser.create(client_id=client.client_id, user_id=user.employee_id, text_of_ticket="x"))
-    a = repo.get(saved.ticket_id); b = repo.get(saved.ticket_id)
+    a = repo.get(saved.ticket_user_id); b = repo.get(saved.ticket_user_id)
     a.update_details(actor_employee_id=admin.employee_id, description="a", contact_user_id=0)
     repo.save(a)
     b.update_details(actor_employee_id=admin.employee_id, description="b", contact_user_id=0)

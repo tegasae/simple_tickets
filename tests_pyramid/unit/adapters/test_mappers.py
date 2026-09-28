@@ -219,15 +219,15 @@ def test_ticket_mapper_comment_roundtrip() -> None:
 
 def test_ticket_user_mapper_roundtrip_status_comment_and_optional_contact() -> None:
     ticket_user = TicketUser.create(client_id=1, user_id=20, text_of_ticket="Need help", date_created=BASE)
-    ticket_user.ticket_id = 50
+    ticket_user.ticket_user_id = 50
     root = TicketUserMapper.ticket_params(ticket_user)
     assert root["contact_user_id"] is None
     record = ticket_user.statuses[0]
-    record.status_id = 9
+    record.ticket_user_status_id = 9
     sr = TicketUserMapper.status_record_params(ticket_id=50, record=record)
     restored_status = TicketUserMapper.row_to_status({"status_id": 9, **sr})
     restored = TicketUserMapper.row_to_ticket(root, statuses=[restored_status], comments=[])
-    assert restored.ticket_id == 50
+    assert restored.ticket_user_id == 50
     assert restored.current_status() is TicketUserStatus.CREATED
     assert restored.statuses[0].status_comment == ""
 

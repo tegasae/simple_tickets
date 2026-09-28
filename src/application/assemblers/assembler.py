@@ -120,7 +120,7 @@ class TicketUserAssembler:
         for status in ticket_user.statuses:
             statuses.append(
                 {
-                    "id": status.status_id,
+                    "id": status.ticket_user_status_id,
                     "status": status.status.value,
                     "actor_id": status.actor_employee_id,
                     "status_comment": status.status_comment,
@@ -141,7 +141,7 @@ class TicketUserAssembler:
             )
 
         return TicketUserResponseDTO(
-            ticket_id=ticket_user.ticket_id,
+            ticket_id=ticket_user.ticket_user_id,
             client_id=ticket_user.client_id,
             user_id=ticket_user.user_id,
             contact_user_id=ticket_user.contact_user_id,

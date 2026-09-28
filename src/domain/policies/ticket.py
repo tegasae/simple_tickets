@@ -109,7 +109,7 @@ class TicketPolicy:
     ) -> None:
         if ticket_user.client_id != client.client_id:
             raise DomainOperationError(
-                f"TicketUser {ticket_user.ticket_id} does not belong to "
+                f"TicketUser {ticket_user.ticket_user_id} does not belong to "
                 f"client {client.client_id}"
             )
 
@@ -160,10 +160,10 @@ class TicketPolicy:
                 f"Ticket {ticket.ticket_id} is not linked to TicketUser"
             )
 
-        if ticket.user_ticket_id != ticket_user.ticket_id:
+        if ticket.user_ticket_id != ticket_user.ticket_user_id:
             raise DomainOperationError(
                 f"Ticket {ticket.ticket_id} is linked to TicketUser "
-                f"{ticket.user_ticket_id}, not {ticket_user.ticket_id}"
+                f"{ticket.user_ticket_id}, not {ticket_user.ticket_user_id}"
             )
 
     @staticmethod
@@ -189,19 +189,19 @@ class TicketPolicy:
         if ticket.client_id != ticket_user.client_id:
             raise DomainOperationError(
                 f"Ticket {ticket.ticket_id} and TicketUser "
-                f"{ticket_user.ticket_id} belong to different clients"
+                f"{ticket_user.ticket_user_id} belong to different clients"
             )
 
         if ticket.user_id != ticket_user.user_id:
             raise DomainOperationError(
                 f"Ticket {ticket.ticket_id} and TicketUser "
-                f"{ticket_user.ticket_id} belong to different users"
+                f"{ticket_user.ticket_user_id} belong to different users"
             )
 
         if ticket.contact_user_id != ticket_user.contact_user_id:
             raise DomainOperationError(
                 f"Ticket {ticket.ticket_id} and TicketUser "
-                f"{ticket_user.ticket_id} have different contact users"
+                f"{ticket_user.ticket_user_id} have different contact users"
             )
 
 
@@ -218,7 +218,7 @@ class TicketPolicy:
         if user.employee_id != ticket_user.user_id:
             raise DomainOperationError(
                 f"User {user.employee_id} does not match TicketUser "
-                f"{ticket_user.ticket_id}"
+                f"{ticket_user.ticket_user_id}"
             )
 
     @staticmethod
@@ -242,7 +242,7 @@ class TicketPolicy:
         if contact_user.employee_id != ticket_user.contact_user_id:
             raise DomainOperationError(
                 f"Contact user {contact_user.employee_id} does not match "
-                f"TicketUser {ticket_user.ticket_id}"
+                f"TicketUser {ticket_user.ticket_user_id}"
             )
 
     @staticmethod

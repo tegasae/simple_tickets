@@ -169,13 +169,13 @@ class TicketApplicationService:
                     ticket_user,
                 )
 
-                if ticket_user.ticket_id == 0:
+                if ticket_user.ticket_user_id == 0:
                     raise DomainOperationError(
                         "TicketUser repository must assign "
                         "ticket_id before creating linked Ticket",
                     )
 
-                user_ticket_id = ticket_user.ticket_id
+                user_ticket_id = ticket_user.ticket_user_id
 
             ticket = Ticket.create(
                 ticket_id=0,

@@ -162,7 +162,7 @@ def test_ticket_user_create_from_user_persists_both_aggregates(conn: Connection)
     assert ticket.admin_id == 0
     assert ticket.current_status_record().status is TicketStatus.CREATED_FROM_TICKET_USER
     assert ticket.current_status_record().actor_employee_id == 0
-    assert ticket.user_ticket_id == ticket_user.ticket_id
+    assert ticket.user_ticket_id == ticket_user.ticket_user_id
     assert ticket.client_id == ticket_user.client_id
     assert ticket.user_id == ticket_user.user_id
     assert ticket.contact_user_id == ticket_user.contact_user_id

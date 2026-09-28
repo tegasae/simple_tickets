@@ -143,7 +143,7 @@ class TicketUserApplicationService:
             if saved_ticket_user is None:
                 saved_ticket_user = ticket_user
 
-            if saved_ticket_user.ticket_id == 0:
+            if saved_ticket_user.ticket_user_id == 0:
                 raise DomainOperationError(
                     "TicketUser repository must assign ticket_id before "
                     "creating linked Ticket",
@@ -155,7 +155,7 @@ class TicketUserApplicationService:
                 user_id=ticket_user_dto.actor_user_id,
                 contact_user_id=ticket_user_dto.contact_user_id,
                 text_of_ticket=ticket_user_dto.text_of_ticket,
-                user_ticket_id=saved_ticket_user.ticket_id,
+                user_ticket_id=saved_ticket_user.ticket_user_id,
                 department_id=ticket_user_dto.department_id,
                 is_remote=ticket_user_dto.is_remote,
                 description=ticket_user_dto.description,

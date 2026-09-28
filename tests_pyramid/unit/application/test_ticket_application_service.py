@@ -408,7 +408,7 @@ def test_explicit_accept_of_ticket_from_user_keeps_admin_id_zero() -> None:
         client_id=CLIENT_ID,
         user_id=USER_ID,
         contact_user_id=CONTACT_USER_ID,
-        user_ticket_id=ticket_user.ticket_id,
+        user_ticket_id=ticket_user.ticket_user_id,
         text_of_ticket="Need help",
         department_id=ENABLED_DEPARTMENT_ID,
     )
@@ -448,7 +448,7 @@ def test_update_details_updates_linked_ticket_and_ticket_user_together() -> None
         admin_id=CREATOR_ADMIN_ID,
         user_id=USER_ID,
         contact_user_id=CONTACT_USER_ID,
-        user_ticket_id=ticket_user.ticket_id,
+        user_ticket_id=ticket_user.ticket_user_id,
         text_of_ticket="Need help",
         description="Old",
         department_id=ENABLED_DEPARTMENT_ID,

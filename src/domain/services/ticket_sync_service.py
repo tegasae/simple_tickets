@@ -235,12 +235,12 @@ class TicketSyncService:
                 "Ticket is not linked to TicketUser"
             )
 
-        if ticket_user.ticket_id <= 0:
+        if ticket_user.ticket_user_id <= 0:
             raise DomainOperationError(
                 "Linked TicketUser must have positive ticket_id"
             )
 
-        if ticket.user_ticket_id != ticket_user.ticket_id:
+        if ticket.user_ticket_id != ticket_user.ticket_user_id:
             raise DomainOperationError(
                 "Ticket user_ticket_id does not match "
                 "TicketUser ticket_id"

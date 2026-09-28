@@ -235,23 +235,23 @@ class TicketUserSyncService:
                 "is not linked to TicketUser"
             )
 
-        if ticket.user_ticket_id != ticket_user.ticket_id:
+        if ticket.user_ticket_id != ticket_user.ticket_user_id:
             raise DomainOperationError(
                 f"Ticket {ticket.ticket_id} is linked to "
                 f"TicketUser {ticket.user_ticket_id}, "
-                f"not {ticket_user.ticket_id}"
+                f"not {ticket_user.ticket_user_id}"
             )
 
         if ticket.client_id != ticket_user.client_id:
             raise DomainOperationError(
                 f"Ticket {ticket.ticket_id} and TicketUser "
-                f"{ticket_user.ticket_id} belong to "
+                f"{ticket_user.ticket_user_id} belong to "
                 "different clients"
             )
 
         if ticket.user_id != ticket_user.user_id:
             raise DomainOperationError(
                 f"Ticket {ticket.ticket_id} and TicketUser "
-                f"{ticket_user.ticket_id} belong to "
+                f"{ticket_user.ticket_user_id} belong to "
                 "different users"
             )

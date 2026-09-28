@@ -275,7 +275,7 @@ def linked_pair() -> tuple[Ticket, TicketUser]:
         text_of_ticket="Need help",
         date_created=BASE,
     )
-    ticket_user.ticket_id = 30
+    ticket_user.ticket_user_id = 30
     ticket = Ticket.create_from_ticket_user(
         client_id=10,
         user_id=20,

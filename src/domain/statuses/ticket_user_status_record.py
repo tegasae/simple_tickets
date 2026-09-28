@@ -79,15 +79,15 @@ class TicketUserStatusRecord:
     Persistence identity
     --------------------
 
-    status_id is the persistent identifier of this history record.
+    ticket_user_status_id is the persistent identifier of this history record.
 
-        status_id == 0
+        ticket_user_status_id == 0
             record has not been persisted yet
 
-        status_id > 0
+        ticket_user_status_id > 0
             persisted record
 
-        status_id < 0
+        ticket_user_status_id < 0
             invalid
 
 
@@ -131,7 +131,7 @@ class TicketUserStatusRecord:
     # Persistent record identifier.
     #
     # 0 means that this record has not been persisted yet.
-    status_id: int = 0
+    ticket_user_status_id: int = 0
 
     # Optional status comment.
     #
@@ -188,7 +188,7 @@ class TicketUserStatusRecord:
             status_id == 0
         """
 
-        return not bool(self.status_id)
+        return not bool(self.ticket_user_status_id)
 
 
     def _validate_identity(self) -> None:
@@ -216,7 +216,7 @@ class TicketUserStatusRecord:
         - timezone-aware datetime in a timezone other than UTC.
         """
 
-        if self.status_id < 0:
+        if self.ticket_user_status_id < 0:
             raise ItemValidationError(
                 "Status record ID cannot be negative"
             )

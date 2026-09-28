@@ -1,6 +1,8 @@
 from datetime import datetime
 
 
+
+
 def datetime_to_db(value: datetime | None) -> str | None:
     """
     Converts domain datetime to SQLite TEXT.

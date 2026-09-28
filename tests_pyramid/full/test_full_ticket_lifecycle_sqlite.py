@@ -171,7 +171,7 @@ def test_full_user_ticket_lifecycle_survives_database_reopen(db_path: Path) -> N
         ticket = uow.tickets.get_by_user_ticket_id(ticket_user_id)
         internal_ticket_id = ticket.ticket_id
 
-    assert ticket_user.ticket_id == ticket_user_id
+    assert ticket_user.ticket_user_id == ticket_user_id
     assert ticket_user.client_id == client.client_id
     assert ticket_user.user_id == user.employee_id
     assert ticket_user.current_status() is TicketUserStatus.CREATED
@@ -293,7 +293,7 @@ def test_full_user_ticket_lifecycle_survives_database_reopen(db_path: Path) -> N
             TicketUserStatus.EXECUTION_CONFIRMED_BY_USER,
         ]
 
-        assert ticket_after_reopen.user_ticket_id == ticket_user_after_reopen.ticket_id
+        assert ticket_after_reopen.user_ticket_id == ticket_user_after_reopen.ticket_user_id
         assert ticket_after_reopen.client_id == ticket_user_after_reopen.client_id
         assert ticket_after_reopen.user_id == ticket_user_after_reopen.user_id
         assert ticket_after_reopen.contact_user_id == ticket_user_after_reopen.contact_user_id

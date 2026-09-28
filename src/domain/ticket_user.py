@@ -268,7 +268,7 @@ class TicketUser:
     Эти обязанности находятся за пределами TicketUser.
     """
 
-    ticket_id: int
+    ticket_user_id: int
     client_id: int
     user_id: int
 
@@ -416,10 +416,10 @@ class TicketUser:
 
         Новая TicketUser всегда имеет:
 
-            ticket_id == 0
+            ticket_user_id == 0
             version == 0
 
-        ticket_id назначается persistence layer позже.
+        ticket_user_id назначается persistence layer позже.
 
 
         Workflow
@@ -479,7 +479,7 @@ class TicketUser:
         )
 
         ticket_user = cls(
-            ticket_id=0,
+            ticket_user_id=0,
             client_id=client_id,
             user_id=user_id,
             text_of_ticket=text_of_ticket,
@@ -515,7 +515,7 @@ class TicketUser:
     def rehydrate(
         cls,
         *,
-        ticket_id: int,
+        ticket_user_id: int,
         client_id: int,
         user_id: int,
         text_of_ticket: str,
@@ -534,7 +534,7 @@ class TicketUser:
 
         Repository должен передать:
 
-        - ticket_id > 0;
+        - ticket_user_id > 0;
         - полную workflow history;
         - history в persisted порядке;
         - datetime уже в UTC;
@@ -582,10 +582,10 @@ class TicketUser:
         Они вычисляются из workflow history.
         """
 
-        if ticket_id <= 0:
+        if ticket_user_id <= 0:
             raise DomainOperationError(
                 "Cannot rehydrate TicketUser with "
-                "non-positive ticket_id"
+                "non-positive ticket_user_id"
             )
 
         if not statuses:
@@ -594,7 +594,7 @@ class TicketUser:
             )
 
         ticket_user = cls(
-            ticket_id=ticket_id,
+            ticket_user_id=ticket_user_id,
             client_id=client_id,
             user_id=user_id,
             text_of_ticket=text_of_ticket,
@@ -629,10 +629,10 @@ class TicketUser:
 
         New aggregate uses:
 
-            ticket_id == 0
+            ticket_user_id == 0
         """
 
-        return self.ticket_id == 0
+        return self.ticket_user_id == 0
 
     def current_status_record(self) -> TicketUserStatusRecord:
         """
@@ -1183,7 +1183,7 @@ class TicketUser:
 
         if self.is_terminal():
             raise DomainOperationError(
-                f"TicketUser {self.ticket_id} is in terminal "
+                f"TicketUser {self.ticket_user_id} is in terminal "
                 f"status {self.current_status().value}"
             )
 
@@ -1205,9 +1205,9 @@ class TicketUser:
         - actor.
         """
 
-        if self.ticket_id < 0:
+        if self.ticket_user_id < 0:
             raise DomainOperationError(
-                "TicketUser ticket_id cannot be negative"
+                "TicketUser ticket_user_id cannot be negative"
             )
 
         if self.client_id <= 0:

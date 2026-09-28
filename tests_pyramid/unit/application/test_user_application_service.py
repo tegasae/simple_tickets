@@ -115,7 +115,7 @@ def test_delete_rejects_ticket_user_reference() -> None:
     user = User.create(employee_id=20, first_name="User", client_id=100)
     uow.users.save(user)
     tu = TicketUser.create(client_id=100, user_id=20, text_of_ticket="x")
-    tu.ticket_id = 1000
+    tu.ticket_user_id = 1000
     uow.user_tickets.save(tu)
     with pytest.raises(DomainOperationError, match="has tickets"):
         UserApplicationService(uow).delete(user_dto=UserDTO(actor_admin_id=actor.employee_id, employee_id=20))

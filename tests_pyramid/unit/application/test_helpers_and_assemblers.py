@@ -134,7 +134,7 @@ def test_ticket_user_assembler_uses_status_comment_and_none_date_finished() -> N
         text_of_ticket="Need help",
         date_created=BASE,
     )
-    ticket_user.ticket_id = 200
+    ticket_user.ticket_user_id = 200
     ticket_user.confirm_by_admin(actor_employee_id=10, comment="accepted")
     dto = TicketUserAssembler.to_dto(ticket_user)
     assert dto.ticket_id == 200
