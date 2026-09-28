@@ -167,7 +167,7 @@ class TicketMapper:
     ) -> dict:
         return {
             "ticket_id": ticket_id,
-            "actor_employee_id": record.actor_employee_id or None,
+            "actor_employee_id": record.actor_employee_id,
             "status": record.status.value,
             "date_created": datetime_to_db(
                 record.date_created
