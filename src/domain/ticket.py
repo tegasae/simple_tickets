@@ -484,6 +484,7 @@ class Ticket:
         client_id: int,
         admin_id: int,
         text_of_ticket: str,
+        ticket_user_id: int=0,
         user_id: int = 0,
         contact_user_id: int = 0,
         department_id: int = 0,
@@ -541,6 +542,7 @@ class Ticket:
                 "Admin id must be positive"
             )
 
+
         return cls._create_new(
             client_id=client_id,
             text_of_ticket=text_of_ticket,
@@ -549,7 +551,7 @@ class Ticket:
             comment_employee_id=admin_id,
             user_id=user_id,
             contact_user_id=contact_user_id,
-            user_ticket_id=0,
+            user_ticket_id=ticket_user_id,
             department_id=department_id,
             description=description,
             remote_work_recommended=remote_work_recommended,
@@ -1828,6 +1830,10 @@ class Ticket:
                 "Ticket contact_user_id cannot be negative",
             )
 
+        if self.user_ticket_id > 0 and self.user_id == 0:
+            raise DomainOperationError(
+                "Ticket linked to TicketUser must have user_id"
+            )
         # A Ticket associated with a User must always have a contact User.
         #
         # The contact User does not have to be the same User.
@@ -1904,42 +1910,29 @@ class Ticket:
 
     def _validate_creation_origin(self) -> None:
         """
-        Validate relation between the first workflow status and Ticket origin.
+         Validate Ticket creation origin.
 
-        This validation is important primarily for rehydrate().
+         CREATED
+         -------
 
-        It prevents corrupted persisted state from being accepted merely
-        because individual field values are valid.
+         Internal Ticket was created by Admin.
 
-        CREATED
-        -------
+         It may either:
 
-        A Ticket created directly by Admin does not originate from
-        TicketUser:
+         - be independent from TicketUser;
+         - be linked to an existing TicketUser.
 
-            user_ticket_id == 0
+         CREATED_FROM_TICKET_USER
+         ------------------------
 
-        CREATED_FROM_TICKET_USER
-        ------------------------
+         Internal Ticket was created as a result of a User-side request.
 
-        Such Ticket must have:
-
-            user_ticket_id > 0
-            user_id > 0
-
-        Other details of the first TicketStatusRecord remain the
-        responsibility of TicketStatusRecord itself.
-        """
+         Such Ticket must be linked to User and TicketUser.
+         """
 
         first_status = self.statuses[0].status
 
         if first_status == TicketStatus.CREATED:
-            if self.user_ticket_id != 0:
-                raise DomainOperationError(
-                    "Ticket with CREATED status "
-                    "cannot have user_ticket_id"
-                )
-
             return
 
         if first_status == TicketStatus.CREATED_FROM_TICKET_USER:
@@ -2155,6 +2148,17 @@ class Ticket:
                 )
 
             self._require_current_executor_actor(new_record)
+            return
+
+        if (
+                current_status == TicketStatus.CREATED
+                and next_status == TicketStatus.CANCELLED_BY_USER
+        ):
+            if self.user_ticket_id <= 0 or self.user_id <= 0:
+                raise DomainOperationError(
+                    "Standalone Ticket cannot be cancelled by User"
+                )
+
             return
 
         # --------------------------------------------------------------

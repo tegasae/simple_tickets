@@ -770,6 +770,48 @@ class TicketUser:
             else self.user_id
         )
 
+    def change_contact_user(
+            self,
+            *,
+            actor_employee_id: int,
+            contact_user_id: int,
+    ) -> None:
+        """
+        Change contact User.
+
+        actor_employee_id must be positive.
+
+        contact_user_id > 0:
+            set the specified contact User.
+
+        contact_user_id == 0:
+            reset contact User to TicketUser.user_id.
+
+        contact_user_id < 0:
+            invalid.
+
+        Contact User cannot be changed after TicketUser reaches a terminal
+        workflow state.
+        """
+
+        if actor_employee_id <= 0:
+            raise DomainOperationError(
+                "actor_employee_id must be positive"
+            )
+
+        self._ensure_not_terminal()
+
+        if contact_user_id < 0:
+            raise DomainOperationError(
+                "contact_user_id cannot be negative"
+            )
+
+        self.contact_user_id = (
+            contact_user_id
+            if contact_user_id > 0
+            else self.user_id
+        )
+
     # ==================================================================
     # Workflow commands
     # ==================================================================

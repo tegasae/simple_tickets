@@ -17,6 +17,7 @@ TICKET_TRANSITIONS: Final[
     TicketStatus.CREATED: frozenset({
         TicketStatus.ACCEPTED,
         TicketStatus.REJECTED,
+        TicketStatus.CANCELLED_BY_USER
     }),
 
     TicketStatus.CREATED_FROM_TICKET_USER: frozenset({
