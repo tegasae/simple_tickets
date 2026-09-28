@@ -10,23 +10,20 @@ from src.domain.ticket_components import Comment
 
 
 
-
-
-
 class TicketMapper:
     TICKET_FIELDS = [
         "ticket_id",
         "client_id",
-        "admin_id",
+        "text_of_ticket",
         "user_id",
         "contact_user_id",
-        "user_ticket_id",
-        "department_id",
-        "text_of_ticket",
-        "description",
         "date_created",
-        "is_remote",
-        "urgency_level",
+        "planned_at",
+        "department_id",
+        "remote_work_recommended",
+        "urgency",
+        "user_ticket_id",
+        "description",
         "version",
     ]
 
@@ -37,16 +34,17 @@ class TicketMapper:
         "date_created",
     ]
 
+
     STATUS_FIELDS = [
         "status_id",
-        "actor_employee_id",
         "status",
+        "actor_employee_id",
+        "work_is_remote",
         "date_created",
         "executor_id",
-        "planned_start_at",
-        "planned_finish_at",
         "actual_started_at",
         "actual_finished_at",
+        "duration",
         "comment",
     ]
 
@@ -67,7 +65,6 @@ class TicketMapper:
         return Ticket.rehydrate(
             ticket_id=row["ticket_id"],
             client_id=row["client_id"],
-            admin_id=row["admin_id"] or 0,
             text_of_ticket=row["text_of_ticket"] or "",
             user_id=row["user_id"] or 0,
             contact_user_id=row["contact_user_id"] or 0,
@@ -75,9 +72,10 @@ class TicketMapper:
             department_id=row["department_id"] or 0,
             description=row["description"] or "",
             date_created=date_created,
-            is_remote=bool(row["is_remote"]),
-            urgency_level=row["urgency_level"] or 0,
+            remote_work_recommended=bool(row["is_remote"]),
+            urgency=row["urgency_level"] or 0,
             version=row["version"] or 0,
+            planned_at=row["planned_at"] or 0,
             statuses=statuses,
             comments=comments,
         )
@@ -115,18 +113,14 @@ class TicketMapper:
             status=TicketStatus(row["status"]),
             date_created=date_created,
             executor_id=row["executor_id"] or 0,
-            planned_start_at=dt_from_sqlite(
-                row["planned_start_at"]
-            ),
-            planned_finish_at=dt_from_sqlite(
-                row["planned_finish_at"]
-            ),
+            work_is_remote=row["work_is_remote"] or 0,
             actual_started_at=dt_from_sqlite(
                 row["actual_started_at"]
             ),
             actual_finished_at=dt_from_sqlite(
                 row["actual_finished_at"]
             ),
+            duration=row["duration"] or 0,
             comment=row["comment"] or "",
         )
 
@@ -135,7 +129,6 @@ class TicketMapper:
         return {
             "ticket_id": ticket.ticket_id,
             "client_id": ticket.client_id,
-            "admin_id": ticket.admin_id or None,
             "user_id": ticket.user_id or None,
             "contact_user_id": ticket.contact_user_id or None,
             "user_ticket_id": ticket.user_ticket_id or None,
@@ -143,9 +136,12 @@ class TicketMapper:
             "text_of_ticket": ticket.text_of_ticket,
             "description": ticket.description or None,
             "date_created": datetime_to_db(ticket.date_created),
-            "is_remote": int(ticket.is_remote),
-            "urgency_level": ticket.urgency_level,
+            "work_is_remote": int(ticket.remote_work_recommended),
+            "planned_at":  datetime_to_db(ticket.planned_at),
+            "urgency_level": ticket.urgency,
             "version": ticket.version,
+            "current_executor_id": ticket.current_executor_id(),
+            "date_finished": datetime_to_db(ticket.date_finished),
         }
 
     @staticmethod
@@ -157,7 +153,7 @@ class TicketMapper:
         return {
             "ticket_id": ticket_id,
             "employee_id": comment.employee_id,
-            "comment": comment.comment,
+            "comment": comment.comment.value,
             "date_created": datetime_to_db(
                 comment.date_created
             ),
@@ -178,20 +174,16 @@ class TicketMapper:
             ),
             "executor_id": (
                 record.executor_id
-                if record.executor_id != 0
-                else None
+
             ),
-            "planned_start_at": datetime_to_db(
-                record.planned_start_at
-            ),
-            "planned_finish_at": datetime_to_db(
-                record.planned_finish_at
-            ),
+
             "actual_started_at": datetime_to_db(
                 record.actual_started_at
             ),
             "actual_finished_at": datetime_to_db(
                 record.actual_finished_at
             ),
-            "comment": record.comment,
+            "work_is_remote":record.work_is_remote,
+            "duration": record.duration,
+            "comment": record.comment.value,
         }
