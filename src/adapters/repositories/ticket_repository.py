@@ -325,10 +325,6 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
         """
         return (
             self._exists(
-                TicketGateway.EXISTS_BY_ADMIN_ID,
-                {"admin_id": admin_id},
-            )
-            or self._exists(
                 TicketStatusGateway.EXISTS_BY_EMPLOYEE_ID,
                 {"employee_id": admin_id},
             )
