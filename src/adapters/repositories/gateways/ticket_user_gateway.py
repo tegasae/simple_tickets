@@ -40,7 +40,7 @@ class TicketUserGateway:
         date_created,
         version,
         is_closed,
-        date_closed
+        date_finished
     )
     VALUES (
         :client_id,
@@ -51,7 +51,7 @@ class TicketUserGateway:
         :date_created,
         :version,
         :is_closed,
-        :date_closed,
+        :date_finished,
         
     )
     """
@@ -61,7 +61,7 @@ class TicketUserGateway:
     SET
         contact_user_id = :contact_user_id,
         description = :description,
-        date_closed = :date_closed,
+        date_finished = :date_finished,
         version = version + 1
     WHERE user_ticket_id = :ticket_id
       AND version = :version

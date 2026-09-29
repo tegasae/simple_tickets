@@ -113,7 +113,7 @@ class TicketUserMapper:
                 ticket.date_created,
             ),
             "version": ticket.version,
-            "date_closed": (
+            "date_finished": (
                 datetime_to_db(ticket.date_finished)
                 if ticket.date_finished is not None
                 else None

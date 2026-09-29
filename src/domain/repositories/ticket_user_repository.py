@@ -10,9 +10,9 @@ class TicketUserRepository(ABC):
     Repository interface for TicketUser aggregate.
     """
 
-    # --------------------------------
+    # ==================================================================
     # Reads
-    # --------------------------------
+    # ==================================================================
 
     @abstractmethod
     def get(
@@ -25,11 +25,75 @@ class TicketUserRepository(ABC):
     def get_all(
         self,
     ) -> list[TicketUser]:
+        """
+        Return all TicketUser aggregates.
+
+        Kept as a simple general-purpose method while the number of
+        requests remains small.
+        """
+
         raise NotImplementedError
 
-    # --------------------------------
+    @abstractmethod
+    def get_by_user_id(
+        self,
+        user_id: int,
+    ) -> list[TicketUser]:
+        """
+        Return all requests belonging to the specified User.
+
+        Both open and closed requests are returned.
+        """
+
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_by_client_id(
+        self,
+        client_id: int,
+    ) -> list[TicketUser]:
+        """
+        Return all requests belonging to the specified Client.
+
+        Both open and closed requests are returned.
+        """
+
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_closed_by_user_id(
+        self,
+        user_id: int,
+    ) -> list[TicketUser]:
+        """
+        Return closed requests belonging to the specified User.
+
+        Persistence may use:
+
+            date_finished IS NOT NULL
+        """
+
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_closed_by_client_id(
+        self,
+        client_id: int,
+    ) -> list[TicketUser]:
+        """
+        Return closed requests belonging to the specified Client.
+
+        Persistence may use:
+
+            client_id = ?
+            AND date_finished IS NOT NULL
+        """
+
+        raise NotImplementedError
+
+    # ==================================================================
     # Persistence
-    # --------------------------------
+    # ==================================================================
 
     @abstractmethod
     def save(
@@ -45,9 +109,9 @@ class TicketUserRepository(ABC):
     ) -> None:
         raise NotImplementedError
 
-    # --------------------------------
+    # ==================================================================
     # Reference checks
-    # --------------------------------
+    # ==================================================================
 
     @abstractmethod
     def does_client_exist(
@@ -55,12 +119,11 @@ class TicketUserRepository(ABC):
         client_id: int,
     ) -> bool:
         """
-        Returns True when at least one TicketUser
-        belongs to client_id.
+        Return True when at least one TicketUser belongs to client_id.
 
-        Historical method name is preserved
-        for compatibility.
+        Historical method name is preserved for compatibility.
         """
+
         raise NotImplementedError
 
     @abstractmethod
@@ -69,11 +132,11 @@ class TicketUserRepository(ABC):
         admin_id: int,
     ) -> bool:
         """
-        Returns True when Admin is referenced
-        by TicketUser aggregate data.
+        Return True when Admin is referenced by TicketUser aggregate data.
 
         Used before deleting Admin.
         """
+
         raise NotImplementedError
 
     @abstractmethod
@@ -82,9 +145,9 @@ class TicketUserRepository(ABC):
         user_id: int,
     ) -> bool:
         """
-        Returns True when User is referenced
-        by TicketUser aggregate data.
+        Return True when User is referenced by TicketUser aggregate data.
 
         Used before deleting User.
         """
+
         raise NotImplementedError
