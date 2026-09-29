@@ -41,6 +41,18 @@ class TicketUserRepositorySQLite(
     Status history и comments являются append-only.
     """
 
+    def get_by_user_id(self, user_id: int) -> list[TicketUser]:
+        pass
+
+    def get_by_client_id(self, client_id: int) -> list[TicketUser]:
+        pass
+
+    def get_closed_by_user_id(self, user_id: int) -> list[TicketUser]:
+        pass
+
+    def get_closed_by_client_id(self, client_id: int) -> list[TicketUser]:
+        pass
+
     # --------------------------------
     # Load helpers
     # --------------------------------

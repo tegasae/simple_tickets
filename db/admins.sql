@@ -286,12 +286,12 @@ CREATE TABLE user_tickets_comment (
 INSERT INTO user_tickets_comment VALUES(3,13,199,'comment1','2026-09-15T15:31:58.908792+00:00');
 CREATE TABLE user_tickets_status_record (
 	user_ticket_status_record_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	employee_id INTEGER,
+	actor_employee_id INTEGER,
 	user_ticket_id INTEGER,
 	status TEXT,
 	date_created TEXT, comment TEXT,
 	CONSTRAINT tickets_status_record_tickets_FK FOREIGN KEY (user_ticket_id) REFERENCES user_tickets(user_ticket_id) on delete restrict,
-	CONSTRAINT tickets_status_record_employees_FK FOREIGN KEY (employee_id) REFERENCES employees(employee_id) on delete restrict
+	CONSTRAINT tickets_status_record_employees_FK FOREIGN KEY (actor_employee_id) REFERENCES employees(employee_id) on delete restrict
 );
 INSERT INTO user_tickets_status_record VALUES(18,182,9,'created','2026-09-08T11:22:31.517291+00:00','');
 INSERT INTO user_tickets_status_record VALUES(19,122,9,'confirmed_by_admin','2026-09-08T11:22:31.517328+00:00','');
@@ -330,63 +330,51 @@ INSERT INTO ticket_comments VALUES(4,10,122,'Комментарий','2026-09-08
 INSERT INTO ticket_comments VALUES(5,12,122,'На следующие выезд захватить бизнес-тренера','2026-09-09T09:51:27.190503+00:00');
 INSERT INTO ticket_comments VALUES(6,15,122,'comment1','2026-09-15T15:31:58.910575+00:00');
 INSERT INTO ticket_comments VALUES(7,16,122,'jm uil;.','2026-09-16T09:48:49.833694+00:00');
+CREATE TABLE user_tickets (
+	user_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	client_id INTEGER, -- заявки от какого клиента
+	user_id INTEGER, -- кто создал заявку
+	contact_user_id INTEGER DEFAULT NULL, -- контактное лицо по заявке, может не быть
+	text_of_ticket TEXT, -- текст заявки 
+	date_created TEXT,
+	version INTEGER DEFAULT 0,
+	date_finished TEXT DEFAULT NULL, description TEXT, -- дата завершения или снятия заявки 
+	CONSTRAINT user_tickets_users_FK FOREIGN KEY (user_id) REFERENCES employees(employee_id) on delete restrict,
+	CONSTRAINT user_tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
+	CONSTRAINT user_tickets_user_ticket_contact_user_FK FOREIGN KEY (contact_user_id) REFERENCES employees(employee_id) on delete restrict
+);
 CREATE TABLE tickets (
     ticket_id INTEGER PRIMARY KEY AUTOINCREMENT,
     client_id INTEGER NOT NULL,
-    admin_id INTEGER,
     user_id INTEGER NULL,
     contact_user_id INTEGER NULL,
     user_ticket_id INTEGER NULL,
-
     department_id INTEGER NULL,
-
-    text_of_ticket TEXT NOT NULL,
+    text_of_ticket TEXT,
     description TEXT NULL,
-
     date_created TEXT NOT NULL,
-
-    is_remote INTEGER NOT NULL DEFAULT 0
-        CHECK (is_remote IN (0, 1)),
-
+    remote_work_recommended INTEGER NOT NULL DEFAULT 0 CHECK (remote_work_recommended IN (0, 1)),
+	planned_at TEXT,
     urgency_level INTEGER NOT NULL DEFAULT 0,
-
+	current_executor_id INTEGER DEFAULT 0,
+	date_finished TEXT NULL,
     version INTEGER DEFAULT 0,
-
     FOREIGN KEY (client_id)
         REFERENCES clients(client_id)
         ON DELETE RESTRICT,
-
-    FOREIGN KEY (admin_id)
-        REFERENCES admins(employee_id)
-        ON DELETE RESTRICT,
-
     FOREIGN KEY (user_id)
         REFERENCES users(employee_id)
         ON DELETE RESTRICT,
-
     FOREIGN KEY (contact_user_id)
         REFERENCES users(employee_id)
         ON DELETE RESTRICT,
-
     FOREIGN KEY (user_ticket_id)
         REFERENCES user_tickets(user_ticket_id)
         ON DELETE RESTRICT,
-
     FOREIGN KEY (department_id)
         REFERENCES departments(department_id)
         ON DELETE RESTRICT
 );
-INSERT INTO tickets VALUES(10,32,181,NULL,NULL,NULL,2,'Настроить принтер','Принтер новый','2026-09-08T11:21:06.712174+00:00',0,1,14);
-INSERT INTO tickets VALUES(11,33,122,182,NULL,9,2,'Настроить принтер','Принтер новый','2026-09-08T11:22:31.517626+00:00',0,0,3);
-INSERT INTO tickets VALUES(12,34,122,184,184,10,2,'расскажите, почему вы считаете меня дураком?','Надо набрать статистику','2026-09-09T09:48:17.888943+00:00',0,0,13);
-INSERT INTO tickets VALUES(13,32,NULL,199,NULL,11,NULL,'string','ампуапмепмпм','2026-09-15T11:58:24.551541+00:00',0,0,1);
-INSERT INTO tickets VALUES(14,32,122,199,NULL,12,NULL,'string',NULL,'2026-09-15T15:31:48.121220+00:00',0,0,0);
-INSERT INTO tickets VALUES(15,32,122,199,NULL,13,NULL,'string',NULL,'2026-09-15T15:31:58.910575+00:00',0,0,0);
-INSERT INTO tickets VALUES(16,37,122,NULL,NULL,NULL,2,'string',NULL,'2026-09-16T09:48:49.833694+00:00',0,0,0);
-INSERT INTO tickets VALUES(17,37,181,NULL,NULL,NULL,2,'string','вуамуамуацмуам','2026-09-16T10:46:20.126014+00:00',0,0,9);
-INSERT INTO tickets VALUES(18,37,122,NULL,NULL,NULL,2,'string','fvef fe g','2026-09-16T11:14:04.565507+00:00',0,0,0);
-INSERT INTO tickets VALUES(19,37,122,NULL,NULL,NULL,NULL,'string',NULL,'2026-09-16T12:01:00.791839+00:00',0,0,2);
-INSERT INTO tickets VALUES(20,37,122,NULL,NULL,NULL,NULL,'string',NULL,'2026-09-16T12:03:54.370354+00:00',0,0,2);
 CREATE TABLE ticket_status_records (
     status_id INTEGER PRIMARY KEY AUTOINCREMENT,
     ticket_id INTEGER NOT NULL,
@@ -394,10 +382,9 @@ CREATE TABLE ticket_status_records (
     status TEXT NOT NULL,
     date_created TEXT NOT NULL,
     executor_id INTEGER NULL,
-    planned_start_at TEXT NULL,
-    planned_finish_at TEXT NULL,
     actual_started_at TEXT NULL,
     actual_finished_at TEXT NULL,
+    work_is_remote INTEGER DEFAULT 0 CHECK (work_is_remote IN (0, 1)),
     comment TEXT NOT NULL DEFAULT '',
 
     FOREIGN KEY (ticket_id)
@@ -412,75 +399,6 @@ CREATE TABLE ticket_status_records (
         REFERENCES admins(employee_id)
         ON DELETE RESTRICT
 );
-INSERT INTO ticket_status_records VALUES(46,10,181,'created','2026-09-08T11:21:06.712174+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(47,11,122,'created','2026-09-08T11:22:31.517626+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(48,11,122,'accepted','2026-09-08T11:22:31.517677+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(49,10,122,'accepted','2026-09-08T11:23:41.695436+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(50,10,122,'scheduled','2026-09-08T11:24:10.329183+00:00',NULL,'2026-09-08T11:24:00+00:00',NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(51,10,122,'scheduled','2026-09-08T11:24:25.845771+00:00',NULL,'2026-09-08T11:24:00+00:00',NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(52,10,122,'assigned','2026-09-08T11:24:43.767104+00:00',122,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(53,10,122,'at_work','2026-09-08T11:24:50.871218+00:00',122,NULL,NULL,'2026-09-08T11:24:50.871218+00:00',NULL,'');
-INSERT INTO ticket_status_records VALUES(54,10,122,'paused','2026-09-08T11:24:58.883317+00:00',122,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(55,10,122,'assigned','2026-09-08T11:25:24.645916+00:00',122,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(56,10,122,'assigned','2026-09-08T11:25:35.882793+00:00',122,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(57,10,122,'accepted','2026-09-08T11:26:38.132384+00:00',NULL,NULL,NULL,NULL,NULL,'Комментарий');
-INSERT INTO ticket_status_records VALUES(58,10,122,'deferred','2026-09-08T11:27:29.143392+00:00',NULL,NULL,NULL,NULL,NULL,'Комментарий отложено');
-INSERT INTO ticket_status_records VALUES(59,10,122,'accepted','2026-09-08T11:32:36.058239+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(60,10,122,'assigned','2026-09-08T11:32:40.328693+00:00',181,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(61,11,122,'deferred','2026-09-08T11:40:02.257529+00:00',NULL,NULL,NULL,NULL,NULL,'Client disabled');
-INSERT INTO ticket_status_records VALUES(62,12,122,'created','2026-09-09T09:48:17.888943+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(63,12,122,'accepted','2026-09-09T09:48:17.888990+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(64,12,122,'assigned','2026-09-09T09:48:54.293506+00:00',181,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(65,12,122,'accepted','2026-09-09T09:49:22.644316+00:00',NULL,NULL,NULL,NULL,NULL,'Мы пока думаем');
-INSERT INTO ticket_status_records VALUES(66,12,122,'deferred','2026-09-09T09:49:35.634993+00:00',NULL,NULL,NULL,NULL,NULL,'Мы пока думаем');
-INSERT INTO ticket_status_records VALUES(67,12,122,'accepted','2026-09-09T09:51:47.330816+00:00',NULL,NULL,NULL,NULL,NULL,'На следующие выезд захватить бизнес-тренера');
-INSERT INTO ticket_status_records VALUES(68,12,122,'assigned','2026-09-09T09:51:58.243980+00:00',181,NULL,NULL,NULL,NULL,'На следующие выезд захватить бизнес-тренера');
-INSERT INTO ticket_status_records VALUES(69,12,122,'assigned','2026-09-09T09:52:14.059304+00:00',122,NULL,NULL,NULL,NULL,'На следующие выезд захватить бизнес-тренера');
-INSERT INTO ticket_status_records VALUES(70,12,122,'at_work','2026-09-09T09:52:17.913301+00:00',122,NULL,NULL,'2026-09-09T09:52:17.913301+00:00',NULL,'На следующие выезд захватить бизнес-тренера');
-INSERT INTO ticket_status_records VALUES(71,12,122,'paused','2026-09-09T09:52:25.043878+00:00',122,NULL,NULL,NULL,NULL,'На следующие выезд захватить бизнес-тренера');
-INSERT INTO ticket_status_records VALUES(72,12,122,'at_work','2026-09-09T09:53:02.186999+00:00',122,NULL,NULL,'2026-09-09T09:53:02.186999+00:00',NULL,'');
-INSERT INTO ticket_status_records VALUES(73,12,122,'ready_for_review','2026-09-09T09:53:31.407125+00:00',122,NULL,NULL,NULL,'2026-09-09T09:53:31.407125+00:00','');
-INSERT INTO ticket_status_records VALUES(74,12,122,'executed','2026-09-09T09:54:02.785644+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(75,13,NULL,'created_from_ticket_user','2026-09-15T11:58:24.551541+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(76,13,NULL,'cancelled_by_user','2026-09-15T12:08:49.925451+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(77,10,122,'deferred','2026-09-15T12:47:24.556687+00:00',NULL,NULL,NULL,NULL,NULL,'Client disabled');
-INSERT INTO ticket_status_records VALUES(78,14,122,'created','2026-09-15T15:31:48.121220+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(79,14,122,'accepted','2026-09-15T15:31:48.121293+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(80,15,122,'created','2026-09-15T15:31:58.910575+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(81,15,122,'accepted','2026-09-15T15:31:58.910654+00:00',NULL,NULL,NULL,NULL,NULL,'comment1');
-INSERT INTO ticket_status_records VALUES(82,16,122,'created','2026-09-16T09:48:49.833694+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(83,16,122,'accepted','2026-09-16T09:48:49.833760+00:00',NULL,NULL,NULL,NULL,NULL,'jm uil;.');
-INSERT INTO ticket_status_records VALUES(84,17,181,'created','2026-09-16T10:46:20.126014+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(85,18,122,'created','2026-09-16T11:14:04.565507+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(86,18,122,'accepted','2026-09-16T11:14:04.565540+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(87,17,122,'accepted','2026-09-16T11:15:01.389216+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(88,17,122,'deferred','2026-09-16T11:29:33.812214+00:00',NULL,NULL,NULL,NULL,NULL,'string');
-INSERT INTO ticket_status_records VALUES(89,17,122,'scheduled','2026-09-16T11:38:34.499488+00:00',NULL,'2025-09-16T11:36:40.255000+00:00','2026-09-16T11:36:40.255000+00:00',NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(90,17,122,'scheduled','2026-09-16T11:39:11.565138+00:00',NULL,'2026-09-17T11:36:40.255000+00:00','2026-09-18T11:36:40.255000+00:00',NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(91,17,122,'assigned','2026-09-16T11:56:41.361244+00:00',181,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(92,17,122,'deferred','2026-09-16T11:58:55.171285+00:00',NULL,NULL,NULL,NULL,NULL,'string');
-INSERT INTO ticket_status_records VALUES(93,17,122,'scheduled','2026-09-16T12:00:20.250291+00:00',NULL,'2026-09-17T11:36:40.255000+00:00','2026-09-18T11:36:40.255000+00:00',NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(94,19,122,'created','2026-09-16T12:01:00.791839+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(95,19,122,'accepted','2026-09-16T12:01:00.791872+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(96,19,122,'scheduled','2026-09-16T12:01:19.252999+00:00',NULL,'2026-09-17T11:36:40.255000+00:00','2026-09-18T11:36:40.255000+00:00',NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(97,19,122,'ready_to_work','2026-09-16T12:03:27.546783+00:00',181,'2026-09-16T12:03:17.153000+00:00','2026-09-16T12:03:17.153000+00:00',NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(98,20,122,'created','2026-09-16T12:03:54.370354+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(99,20,122,'accepted','2026-09-16T12:03:54.370388+00:00',NULL,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(100,20,122,'assigned','2026-09-16T12:05:39.640295+00:00',122,NULL,NULL,NULL,NULL,'');
-INSERT INTO ticket_status_records VALUES(101,20,122,'at_work','2026-09-16T12:05:51.096456+00:00',122,NULL,NULL,'2026-09-16T12:05:51.096456+00:00',NULL,'');
-CREATE TABLE user_tickets (
-	user_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	client_id INTEGER, -- заявки от какого клиента
-	user_id INTEGER, -- кто создал заявку
-	contact_user_id INTEGER DEFAULT NULL, -- контактное лицо по заявке, может не быть
-	text_of_ticket TEXT, -- текст заявки 
-	date_created TEXT,
-	version INTEGER DEFAULT 0,
-	date_closed TEXT DEFAULT NULL, -- дата завершения или снятия заявки 
-	CONSTRAINT user_tickets_users_FK FOREIGN KEY (user_id) REFERENCES employees(employee_id) on delete restrict,
-	CONSTRAINT user_tickets_clients_FK FOREIGN KEY (client_id) REFERENCES clients(client_id) on delete restrict,
-	CONSTRAINT user_tickets_user_ticket_contact_user_FK FOREIGN KEY (contact_user_id) REFERENCES employees(employee_id) on delete restrict
-);
 DELETE FROM sqlite_sequence;
 INSERT INTO sqlite_sequence VALUES('employees',209);
 INSERT INTO sqlite_sequence VALUES('accounts',569);
@@ -489,8 +407,6 @@ INSERT INTO sqlite_sequence VALUES('clients',37);
 INSERT INTO sqlite_sequence VALUES('user_tickets_status_record',33);
 INSERT INTO sqlite_sequence VALUES('user_tickets_comment',3);
 INSERT INTO sqlite_sequence VALUES('departments',7);
-INSERT INTO sqlite_sequence VALUES('tickets',20);
-INSERT INTO sqlite_sequence VALUES('ticket_status_records',101);
 INSERT INTO sqlite_sequence VALUES('ticket_comments',7);
 CREATE UNIQUE INDEX accounts_login_IDX ON accounts (login);
 CREATE UNIQUE INDEX accounts_employee_uq ON accounts(employee_id);

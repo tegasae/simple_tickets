@@ -34,6 +34,24 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
     Executor history is stored inside TicketStatusRecord.executor_id.
     """
 
+    def get_by_client_id(self, client_id: int) -> list[Ticket]:
+        pass
+
+    def get_by_user_id(self, user_id: int) -> list[Ticket]:
+        pass
+
+    def get_by_department_id(self, department_id: int) -> list[Ticket]:
+        pass
+
+    def get_by_current_executor(self, executor_id: int) -> list[Ticket]:
+        pass
+
+    def get_open(self) -> list[Ticket]:
+        pass
+
+    def get_closed(self) -> list[Ticket]:
+        pass
+
     # ---------------------------
     # Load helpers
     # ---------------------------
