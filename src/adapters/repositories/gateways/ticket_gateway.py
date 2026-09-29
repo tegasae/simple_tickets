@@ -15,8 +15,7 @@ class TicketGateway:
         department_id,
         remote_work_recommended,
         description,
-        remote_work_recommended,
-        urgency,
+        urgency_level,
         user_ticket_id,
         description,
         version
@@ -57,8 +56,7 @@ class TicketGateway:
         t.department_id,
         t.remote_work_recommended,
         t.description,
-        t.remote_work_recommended,
-        t.urgency,
+        t.urgency_level,
         t.user_ticket_id,
         t.description,
         t.version
@@ -83,8 +81,7 @@ class TicketGateway:
         t.department_id,
         t.remote_work_recommended,
         t.description,
-        t.remote_work_recommended,
-        t.urgency,
+        t.urgency_level,
         t.user_ticket_id,
         t.description,
         t.version
@@ -105,7 +102,7 @@ class TicketGateway:
         text_of_ticket,
         description,
         date_created,
-        work_is_remote,
+        remote_work_recommended,
         planned_at, 
         urgency_level,
         version,

@@ -7,14 +7,8 @@ from src.adapters.repositories.exceptions import (
     OptimisticLockError,
     PersistenceError,
 )
-from src.adapters.repositories.gateways.ticket_user_comment_gateway import (
-    TicketUserCommentGateway,
-)
 from src.adapters.repositories.gateways.ticket_user_gateway import (
-    TicketUserGateway,
-)
-from src.adapters.repositories.gateways.ticket_user_status_gateway import (
-    TicketUserStatusGateway,
+    TicketUserGateway, TicketUserCommentGateway, TicketUserStatusGateway,
 )
 from src.adapters.repositories.mappers.ticket_user_mapper import (
     TicketUserMapper,
@@ -59,7 +53,7 @@ class TicketUserRepositorySQLite(
             TicketUserStatusGateway.SELECT,
             TicketUserMapper.STATUS_FIELDS,
             {
-                "ticket_id": ticket_id,
+                "ticket_user_id": ticket_id,
             },
         )
 
@@ -76,7 +70,7 @@ class TicketUserRepositorySQLite(
             TicketUserCommentGateway.SELECT,
             TicketUserMapper.COMMENT_FIELDS,
             {
-                "ticket_id": ticket_id,
+                "ticket_user_id": ticket_id,
             },
         )
 
@@ -117,7 +111,7 @@ class TicketUserRepositorySQLite(
             result = self._exec(
                 TicketUserStatusGateway.INSERT,
                 TicketUserMapper.status_record_params(
-                    ticket_id=ticket.ticket_user_id,
+                    ticket_user_id=ticket.ticket_user_id,
                     record=record,
                 ),
             )
@@ -132,7 +126,7 @@ class TicketUserRepositorySQLite(
             result = self._exec(
                 TicketUserCommentGateway.INSERT,
                 TicketUserMapper.comment_params(
-                    ticket_id=ticket.ticket_user_id,
+                    ticket_user_id=ticket.ticket_user_id,
                     comment=comment,
                 ),
             )
@@ -151,7 +145,7 @@ class TicketUserRepositorySQLite(
             TicketUserGateway.SELECT_BY_ID,
             TicketUserMapper.TICKET_FIELDS,
             {
-                "ticket_id": ticket_id,
+                "user_ticket_id": ticket_id,
             },
         )
 
@@ -272,21 +266,21 @@ class TicketUserRepositorySQLite(
             self._exec(
                 TicketUserCommentGateway.DELETE_ALL,
                 {
-                    "ticket_id": ticket_id,
+                    "user_ticket_id": ticket_id,
                 },
             )
 
             self._exec(
                 TicketUserStatusGateway.DELETE_ALL,
                 {
-                    "ticket_id": ticket_id,
+                    "user_ticket_id": ticket_id,
                 },
             )
 
             self._exec(
                 TicketUserGateway.DELETE,
                 {
-                    "ticket_id": ticket_id,
+                    "user_ticket_id": ticket_id,
                 },
             )
 
@@ -344,7 +338,7 @@ class TicketUserRepositorySQLite(
             self._exists(
                 TicketUserStatusGateway.EXISTS_BY_EMPLOYEE_ID,
                 {
-                    "employee_id": admin_id,
+                    "actor_employee_id": admin_id,
                 },
             )
             or self._exists(
@@ -369,7 +363,7 @@ class TicketUserRepositorySQLite(
                 or self._exists(
             TicketUserStatusGateway.EXISTS_BY_EMPLOYEE_ID,
             {
-                "employee_id": user_id,
+                "actor_employee_id": user_id,
             },
         )
                 or self._exists(

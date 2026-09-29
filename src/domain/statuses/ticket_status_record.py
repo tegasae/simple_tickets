@@ -10,7 +10,7 @@ from src.domain.statuses.ticket_status import (
 from src.domain.value_objects import CommonComment, Empty
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
+@dataclass(slots=True, kw_only=True)
 class TicketStatusRecord:
     """
     Historical record of a Ticket workflow status.

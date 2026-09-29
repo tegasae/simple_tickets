@@ -49,7 +49,7 @@ class TicketUserMapper:
         comments: list[Comment],
     ) -> TicketUser:
         return TicketUser.rehydrate(
-            ticket_user_id=row["ticket_user_id"],
+            ticket_user_id=row["user_ticket_id"],
             client_id=row["client_id"],
             user_id=row["user_id"],
             contact_user_id=row["contact_user_id"] or 0,
@@ -68,7 +68,7 @@ class TicketUserMapper:
         row: dict,
     ) -> TicketUserStatusRecord:
         return TicketUserStatusRecord(
-            ticket_user_status_id=row["ticket_user_status_id"],
+            ticket_user_status_id=row["user_ticket_status_record_id"],
             actor_employee_id=row["actor_employee_id"],
             status=TicketUserStatus(row["status"]),
             comment=row["comment"] or "",
@@ -99,7 +99,7 @@ class TicketUserMapper:
         ticket: TicketUser,
     ) -> dict:
         return {
-            "ticket_user_id": ticket.ticket_user_id,
+            "user_ticket_id": ticket.ticket_user_id,
             "client_id": ticket.client_id,
             "user_id": ticket.user_id,
             "contact_user_id": (

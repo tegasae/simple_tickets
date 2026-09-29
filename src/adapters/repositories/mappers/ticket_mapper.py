@@ -136,7 +136,7 @@ class TicketMapper:
             "text_of_ticket": ticket.text_of_ticket,
             "description": ticket.description or None,
             "date_created": datetime_to_db(ticket.date_created),
-            "work_is_remote": int(ticket.remote_work_recommended),
+            "remote_work_recommended": int(ticket.remote_work_recommended),
             "planned_at":  datetime_to_db(ticket.planned_at),
             "urgency_level": ticket.urgency,
             "version": ticket.version,
