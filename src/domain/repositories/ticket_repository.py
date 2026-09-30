@@ -306,3 +306,10 @@ class TicketRepository(ABC):
         """
 
         raise NotImplementedError
+
+    @abstractmethod
+    def touch(
+            self,
+            ticket: Ticket,
+    ) -> None:
+        raise NotImplementedError

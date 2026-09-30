@@ -28,3 +28,10 @@ class DepartmentRepository(ABC):
     @abstractmethod
     def delete(self, department_id: int) -> None:
         raise NotImplementedError()
+
+    @abstractmethod
+    def touch(
+            self,
+            department: Department,
+    ) -> None:
+        raise NotImplementedError

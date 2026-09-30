@@ -47,3 +47,10 @@ class DepartmentGateway:
     WHERE department_id = :department_id
     LIMIT 1
     """
+
+    TOUCH = """
+        UPDATE departments
+        SET version = version + 1
+        WHERE department_id = :department_id
+          AND version = :version
+    """

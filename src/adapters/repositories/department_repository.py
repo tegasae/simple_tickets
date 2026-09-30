@@ -103,3 +103,19 @@ class DepartmentRepositorySQLite(BaseRepository, DepartmentRepository):
             DepartmentGateway.DELETE,
             {"department_id": department_id},
         )
+
+    def touch(
+            self,
+            department: Department,
+    ) -> None:
+        self._touch_version(
+            DepartmentGateway.TOUCH,
+            {
+                "department_id": department.department_id,
+                "version": department.version,
+            },
+            entity_name="Department",
+            entity_id=department.department_id,
+        )
+
+        department.version += 1

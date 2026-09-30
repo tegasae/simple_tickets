@@ -184,3 +184,19 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
                 users.append(user)
 
             return users
+
+    def touch(
+            self,
+            user: User,
+    ) -> None:
+        self._touch_version(
+            UserGateway.TOUCH_USER,
+            {
+                "employee_id": user.employee_id,
+                "version": user.version,
+            },
+            entity_name="User",
+            entity_id=user.employee_id,
+        )
+
+        user.version += 1

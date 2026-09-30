@@ -388,6 +388,22 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             {"department_id": department_id},
         )
 
+    def touch(
+            self,
+            ticket: Ticket,
+    ) -> None:
+        self._touch_version(
+            TicketGateway.TOUCH,
+            {
+                "ticket_id": ticket.ticket_id,
+                "version": ticket.version,
+            },
+            entity_name="Ticket",
+            entity_id=ticket.ticket_id,
+        )
+
+        ticket.version += 1
+
     def _load_many_tickets(
             self,
             sql: str,

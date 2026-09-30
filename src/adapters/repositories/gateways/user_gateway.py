@@ -71,3 +71,11 @@ class UserGateway:
     WHERE login = :login
     LIMIT 1
     """
+
+    TOUCH_USER = """
+        UPDATE employees
+        SET version = version + 1
+        WHERE employee_id = :employee_id
+          AND version = :version
+          AND is_admin = 0
+    """

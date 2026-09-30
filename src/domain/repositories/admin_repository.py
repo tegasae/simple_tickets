@@ -142,3 +142,10 @@ class AdminRepository(ABC):
     @abstractmethod
     def has_department_reference(self, department_id: int) -> bool:
         raise NotImplementedError
+
+    @abstractmethod
+    def touch(
+            self,
+            admin: Admin,
+    ) -> None:
+        raise NotImplementedError

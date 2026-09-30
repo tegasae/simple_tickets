@@ -227,3 +227,19 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
             AdminGateway.EXISTS_BY_DEPARTMENT_ID,
             {"department_id": department_id},
         )
+
+    def touch(
+            self,
+            admin: Admin,
+    ) -> None:
+        self._touch_version(
+            AdminGateway.TOUCH_ADMIN,
+            {
+                "employee_id": admin.employee_id,
+                "version": admin.version,
+            },
+            entity_name="Admin",
+            entity_id=admin.employee_id,
+        )
+
+        admin.version += 1

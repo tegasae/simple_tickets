@@ -207,6 +207,13 @@ class TicketGateway:
     LIMIT 1
     """
 
+    TOUCH = """
+        UPDATE tickets
+        SET version = version + 1
+        WHERE ticket_id = :ticket_id
+          AND version = :version
+    """
+
 
 class TicketCommentGateway:
     SELECT_BY_TICKET_ID = """

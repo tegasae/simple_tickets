@@ -100,6 +100,13 @@ class TicketUserGateway:
     LIMIT 1
     """
 
+    TOUCH = """
+        UPDATE user_tickets
+        SET version = version + 1
+        WHERE user_ticket_id = :user_ticket_id
+          AND version = :version
+    """
+
 
 class TicketUserCommentGateway:
     SELECT = """

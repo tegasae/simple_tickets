@@ -94,3 +94,10 @@ class UserRepository(ABC):
     @abstractmethod
     def does_client_exist(self, client_id: int) -> bool:
         raise NotImplementedError
+
+    @abstractmethod
+    def touch(
+            self,
+            user: User,
+    ) -> None:
+        raise NotImplementedError

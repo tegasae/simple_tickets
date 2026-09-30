@@ -442,4 +442,20 @@ class TicketUserRepositorySQLite(
         )
         )
 
+    def touch(
+            self,
+            ticket: TicketUser,
+    ) -> None:
+        self._touch_version(
+            TicketUserGateway.TOUCH,
+            {
+                "user_ticket_id": ticket.ticket_user_id,
+                "version": ticket.version,
+            },
+            entity_name="TicketUser",
+            entity_id=ticket.ticket_user_id,
+        )
+
+        ticket.version += 1
+
 
