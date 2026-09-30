@@ -1,8 +1,6 @@
 # src/application/services/ticket_user_application_service.py
 
-
-
-from datetime import datetime, timezone
+from __future__ import annotations
 
 from src.application.assemblers.assembler import TicketUserAssembler
 from src.application.dto.ticket_dto import (
@@ -10,20 +8,13 @@ from src.application.dto.ticket_dto import (
     TicketUserResponseDTO,
 )
 from src.application.helper.actor_helper import EmployeeActorHelper
-from src.domain.client import Client
+
 from src.domain.employee import User
 from src.domain.exceptions import DomainOperationError
-from src.domain.policies.ticket import TicketPolicy
 from src.domain.rbac.permissions import UserPermission
-from src.domain.services.ticket_management_service import (
-    TicketManagementService,
-)
-from src.domain.services.ticket_review_service import (
-    TicketReviewService,
-)
-from src.domain.services.ticket_user_sync_service import (
-    TicketUserSyncService,
-)
+from src.domain.services.ticket_service import TicketService
+from src.domain.services.ticket_sync_service import TicketSyncService
+from src.domain.services.ticket_user_service import TicketUserService
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
 from src.domain.uow.unit_of_work import UnitOfWork
@@ -31,38 +22,61 @@ from src.domain.uow.unit_of_work import UnitOfWork
 
 class TicketUserApplicationService:
     """
-    Application service для пользовательских заявок.
+    Application service for User-side TicketUser use cases.
 
-    Координирует две связанные сущности:
+    Responsibilities:
+    - RBAC;
+    - UnitOfWork / transaction;
+    - aggregate loading;
+    - access scope: own Ticket vs organization Tickets;
+    - validation of external references;
+    - optimistic concurrency guards;
+    - calling TicketUserService / TicketService;
+    - persistence;
+    - DTO assembly.
 
-        TicketUser — внешний пользовательский workflow.
-        Ticket     — внутренний workflow заявки.
-
-    Здесь есть:
-    - RBAC checks;
-    - загрузка агрегатов через UnitOfWork;
-    - cross-aggregate validation;
-    - вызов domain services;
-    - сохранение Ticket и TicketUser в одной транзакции.
-
-    Здесь нет:
-    - admin-side workflow внутренней Ticket;
-    - ручного изменения status history внутренней Ticket;
-    - workflow-графа статусов;
+    Does not contain:
+    - Ticket workflow rules;
+    - TicketUser workflow rules;
+    - status-record construction;
+    - Ticket / TicketUser synchronization rules;
     - SQL;
-    - repository-логики.
+    - repository business logic.
+
+    User-originated workflow:
+
+        TicketUserApplicationService
+            -> TicketUserService
+            -> TicketUser
+            -> TicketSyncService
+            -> Ticket
+
+    Admin-originated workflow remains in TicketApplicationService.
     """
 
     def __init__(
         self,
         uow: UnitOfWork,
     ) -> None:
-        self._uow = uow
-        self.actor = EmployeeActorHelper(self._uow)
+        self.uow = uow
 
-    # --------------------------------
-    # Commands
-    # --------------------------------
+        self.actor = EmployeeActorHelper(
+            self.uow
+        )
+
+        self.ticket_sync_service = TicketSyncService()
+
+        self.ticket_user_service = TicketUserService(
+            ticket_sync_service=self.ticket_sync_service,
+        )
+
+        self.ticket_service = TicketService(
+            ticket_sync_service=self.ticket_sync_service,
+        )
+
+    # ==================================================================
+    # Creation
+    # ==================================================================
 
     def create_from_user(
         self,
@@ -70,112 +84,276 @@ class TicketUserApplicationService:
         ticket_user_dto: TicketUserDTO,
     ) -> TicketUserResponseDTO:
         """
-        User создаёт пользовательскую заявку.
+        User creates a new TicketUser.
 
-        В одной транзакции создаются:
+        Required permission:
+
+            TICKET_OPERATION
+
+        In the same transaction:
 
             TicketUser.CREATED
 
-        и связанная внутренняя:
+        is created first and persisted to obtain ticket_user_id.
+
+        Then linked internal Ticket is created:
 
             Ticket.CREATED_FROM_TICKET_USER
 
-        В Ticket:
+        TicketUser stores real User actor id.
 
-            admin_id = 0
-            user_ticket_id = saved TicketUser.ticket_id
-            TicketStatusRecord.actor_employee_id = 0
-
-        В TicketUser:
-
-            StatusRecordTicketUser.actor_employee_id = actor_user_id
-
-        ID для новых сущностей генерирует repository.
-        Поэтому ticket_id и ticket_user_id должны быть 0.
+        Internal Ticket represents User-originated workflow actor as 0.
         """
-        if ticket_user_dto.ticket_user_id != 0:
-            raise DomainOperationError(
-                "create_from_user requires ticket_user_id = 0",
-            )
 
-        now = datetime.now(timezone.utc)
-
-        with self._uow:
-            user = self._require_user_operation(
+        with self.uow:
+            actor = self.actor.require_actor_user(
                 actor_user_id=ticket_user_dto.actor_user_id,
+                permission=UserPermission.TICKET_OPERATION,
             )
 
-            client = self._get_client(
-                ticket_user_dto.client_id,
+            if ticket_user_dto.ticket_user_id != 0:
+                raise DomainOperationError(
+                    "create_from_user requires ticket_user_id = 0"
+                )
+
+            if (
+                ticket_user_dto.user_id != 0
+                and ticket_user_dto.user_id != actor.employee_id
+            ):
+                raise DomainOperationError(
+                    "User cannot create TicketUser "
+                    "for another User"
+                )
+
+            self._validate_create_references(
+                actor=actor,
+                ticket_user_dto=ticket_user_dto,
             )
 
-            TicketPolicy.ensure_user_belongs_to_client(
-                user=user,
-                client=client,
-            )
+            # ----------------------------------------------------------
+            # Create TicketUser first.
+            # ----------------------------------------------------------
 
-            self._ensure_contact_user_valid(
-                contact_user_id=ticket_user_dto.contact_user_id,
-                client=client,
-                main_user=user,
-            )
-
-            self._ensure_department_valid(
-                department_id=ticket_user_dto.department_id,
-            )
-
-            ticket_user = TicketUser.create(
-                ticket_id=0,
+            ticket_user = self.ticket_user_service.create(
                 client_id=ticket_user_dto.client_id,
-                user_id=ticket_user_dto.actor_user_id,
-                contact_user_id=ticket_user_dto.contact_user_id,
+                user_id=actor.employee_id,
                 text_of_ticket=ticket_user_dto.text_of_ticket,
+                contact_user_id=ticket_user_dto.contact_user_id,
                 description=ticket_user_dto.description,
-                urgency_level=ticket_user_dto.urgency_level,
                 comment=ticket_user_dto.comment,
-                date_created=now,
             )
 
-            saved_ticket_user = self._uow.user_tickets.save(
-                ticket_user,
+            saved_ticket_user = self.uow.user_tickets.save(
+                ticket_user
             )
 
             if saved_ticket_user is None:
                 saved_ticket_user = ticket_user
 
-            if saved_ticket_user.ticket_user_id == 0:
+            if saved_ticket_user.ticket_user_id <= 0:
                 raise DomainOperationError(
-                    "TicketUser repository must assign ticket_id before "
-                    "creating linked Ticket",
+                    "TicketUser repository must assign "
+                    "ticket_user_id before creating linked Ticket"
                 )
 
-            ticket = Ticket.create_from_ticket_user(
-                ticket_id=0,
-                client_id=ticket_user_dto.client_id,
-                user_id=ticket_user_dto.actor_user_id,
-                contact_user_id=ticket_user_dto.contact_user_id,
-                text_of_ticket=ticket_user_dto.text_of_ticket,
+            # ----------------------------------------------------------
+            # Create linked internal Ticket.
+            #
+            # Use normalized values from TicketUser, especially
+            # contact_user_id: TicketUser.create() may replace 0
+            # with user_id.
+            # ----------------------------------------------------------
+
+            ticket = self.ticket_service.create_from_ticket_user(
+                client_id=saved_ticket_user.client_id,
+                user_id=saved_ticket_user.user_id,
                 user_ticket_id=saved_ticket_user.ticket_user_id,
-                department_id=ticket_user_dto.department_id,
-                is_remote=ticket_user_dto.is_remote,
+                text_of_ticket=saved_ticket_user.text_of_ticket,
+                contact_user_id=(
+                    saved_ticket_user.contact_user_id
+                ),
                 description=ticket_user_dto.description,
-                urgency_level=ticket_user_dto.urgency_level,
-                date_created=now,
+                department_id=ticket_user_dto.department_id,
+                remote_work_recommended=(
+                    ticket_user_dto.remote_work_recommended
+                ),
+                urgency=ticket_user_dto.urgency,
             )
 
-            TicketPolicy.ensure_ticket_matches_ticket_user(
-                ticket=ticket,
-                ticket_user=saved_ticket_user,
-            )
-
-            self._uow.tickets.save(
+            self.ticket_sync_service.ensure_consistent(
                 ticket,
+                saved_ticket_user,
             )
 
-            self._uow.commit()
+            self.uow.tickets.save(
+                ticket
+            )
+
+            self.uow.commit()
 
             return TicketUserAssembler.to_dto(
-                saved_ticket_user,
+                saved_ticket_user
+            )
+
+    # ==================================================================
+    # TicketUser data
+    # ==================================================================
+
+    def add_comment(
+        self,
+        *,
+        ticket_user_dto: TicketUserDTO,
+    ) -> TicketUserResponseDTO:
+        with self.uow:
+            ticket_user = self._get_ticket_user(
+                ticket_user_dto.ticket_user_id,
+            )
+
+            actor = self._require_operation_access(
+                actor_user_id=ticket_user_dto.actor_user_id,
+                ticket_user=ticket_user,
+            )
+
+            self.ticket_user_service.add_comment(
+                ticket_user=ticket_user,
+                employee_id=actor.employee_id,
+                comment=ticket_user_dto.comment,
+            )
+
+            return self._save_ticket_user(
+                ticket_user=ticket_user,
+            )
+
+    def update_description(
+        self,
+        *,
+        ticket_user_dto: TicketUserDTO,
+    ) -> TicketUserResponseDTO:
+        """
+        TicketUser.description is independent from Ticket.description.
+        """
+
+        with self.uow:
+            ticket_user = self._get_ticket_user(
+                ticket_user_dto.ticket_user_id,
+            )
+
+            actor = self._require_operation_access(
+                actor_user_id=ticket_user_dto.actor_user_id,
+                ticket_user=ticket_user,
+            )
+
+            self.ticket_user_service.update_description(
+                ticket_user=ticket_user,
+                actor_employee_id=actor.employee_id,
+                description=ticket_user_dto.description,
+            )
+
+            return self._save_ticket_user(
+                ticket_user=ticket_user,
+            )
+
+    def change_contact_user(
+        self,
+        *,
+        ticket_user_dto: TicketUserDTO,
+    ) -> TicketUserResponseDTO:
+        """
+        Change shared contact_user_id in both aggregates.
+
+        Ticket.contact_user_id
+            ==
+        TicketUser.contact_user_id
+        """
+
+        with self.uow:
+            ticket_user = self._get_ticket_user(
+                ticket_user_dto.ticket_user_id,
+            )
+
+            actor = self._require_operation_access(
+                actor_user_id=ticket_user_dto.actor_user_id,
+                ticket_user=ticket_user,
+            )
+
+            self._validate_contact_user(
+                contact_user_id=ticket_user_dto.contact_user_id,
+                client_id=ticket_user.client_id,
+                main_user_id=ticket_user.user_id,
+            )
+
+            ticket = self._get_linked_ticket(
+                ticket_user=ticket_user,
+            )
+
+            self.ticket_user_service.change_contact_user(
+                ticket_user=ticket_user,
+                ticket=ticket,
+                actor_employee_id=actor.employee_id,
+                contact_user_id=ticket_user_dto.contact_user_id,
+            )
+
+            return self._save_pair(
+                ticket_user=ticket_user,
+                ticket=ticket,
+            )
+
+    # ==================================================================
+    # User workflow
+    # ==================================================================
+
+    def confirm_by_user(
+        self,
+        *,
+        ticket_user_dto: TicketUserDTO,
+    ) -> TicketUserResponseDTO:
+        """
+        User confirms completed work.
+
+        Required permission:
+
+            owner:
+                TICKET_OPERATION
+                OR TICKET_OPERATION_ALL
+
+            another User in the same Client:
+                TICKET_OPERATION_ALL
+
+        TicketUser:
+
+            WAITING_FOR_CONFIRMATION
+                -> CONFIRMED_BY_USER
+
+        Ticket:
+
+            READY_FOR_REVIEW
+                -> CONFIRMED_BY_USER
+        """
+
+        with self.uow:
+            ticket_user = self._get_ticket_user(
+                ticket_user_dto.ticket_user_id,
+            )
+
+            actor = self._require_operation_access(
+                actor_user_id=ticket_user_dto.actor_user_id,
+                ticket_user=ticket_user,
+            )
+
+            ticket = self._get_linked_ticket(
+                ticket_user=ticket_user,
+            )
+
+            self.ticket_user_service.confirm_by_user(
+                ticket_user=ticket_user,
+                ticket=ticket,
+                actor_employee_id=actor.employee_id,
+                comment=ticket_user_dto.comment,
+            )
+
+            return self._save_pair(
+                ticket_user=ticket_user,
+                ticket=ticket,
             )
 
     def cancel_by_user(
@@ -184,160 +362,144 @@ class TicketUserApplicationService:
         ticket_user_dto: TicketUserDTO,
     ) -> TicketUserResponseDTO:
         """
-        User снимает свою заявку до принятия Admin.
+        User cancels TicketUser.
 
-        Права:
+        Required permission:
 
-            владелец заявки:
-                UserPermission.TICKET_OPERATION
+            owner:
+                TICKET_OPERATION
+                OR TICKET_OPERATION_ALL
 
-            пользователь той же организации:
-                UserPermission.TICKET_OPERATION_ALL
+            another User in the same Client:
+                TICKET_OPERATION_ALL
 
-        Внутренний переход:
+        TicketUser:
 
-            Ticket.CREATED_FROM_TICKET_USER
-                -> Ticket.CANCELLED_BY_USER
+            -> CANCELLED_BY_USER
 
-        Пользовательский переход:
+        Linked Ticket:
 
-            TicketUser.CREATED
-                -> TicketUser.CANCELLED_BY_USER
+            -> CANCELLED_BY_USER
 
-        Важно:
-            application service не проверяет workflow-статус напрямую.
-            Это делает TicketManagementService.cancel_by_user().
+        Exact workflow validity is checked by aggregates.
         """
-        with self._uow:
-            ticket = self._uow.tickets.get_by_user_ticket_id(
+
+        with self.uow:
+            ticket_user = self._get_ticket_user(
                 ticket_user_dto.ticket_user_id,
             )
 
-            ticket_user = self._uow.user_tickets.get(
-                ticket_user_dto.ticket_user_id,
-            )
-
-            TicketPolicy.ensure_ticket_matches_ticket_user(
-                ticket=ticket,
-                ticket_user=ticket_user,
-            )
-
-            self._require_user_operation_for_ticket_user(
+            actor = self._require_operation_access(
                 actor_user_id=ticket_user_dto.actor_user_id,
                 ticket_user=ticket_user,
             )
 
-            TicketManagementService.cancel_by_user(
+            ticket = self._get_linked_ticket(
+                ticket_user=ticket_user,
+            )
+
+            self.ticket_user_service.cancel_by_user(
+                ticket_user=ticket_user,
                 ticket=ticket,
+                actor_employee_id=actor.employee_id,
                 comment=ticket_user_dto.comment,
             )
 
-            ticket_user_changed = (
-                TicketUserSyncService.sync_from_ticket(
-                    ticket=ticket,
-                    ticket_user=ticket_user,
-                    actor_employee_id=(
-                        ticket_user_dto.actor_user_id
-                    ),
-                    comment=ticket_user_dto.comment,
-                )
+            return self._save_pair(
+                ticket_user=ticket_user,
+                ticket=ticket,
             )
 
-            if ticket_user_changed:
-                self._uow.user_tickets.save(
-                    ticket_user,
-                )
+    # ==================================================================
+    # Queries
+    # ==================================================================
 
-            self._uow.tickets.save(
-                ticket,
-            )
-
-            self._uow.commit()
-
-            return TicketUserAssembler.to_dto(
-                ticket_user,
-            )
-
-    def confirm_execution_by_user(
+    def get_by_id(
         self,
         *,
         ticket_user_dto: TicketUserDTO,
     ) -> TicketUserResponseDTO:
-        """
-        User подтверждает выполнение заявки.
-
-        Права:
-
-            владелец заявки:
-                UserPermission.TICKET_OPERATION
-
-            пользователь той же организации:
-                UserPermission.TICKET_OPERATION_ALL
-
-        TicketUser:
-
-            WAITING_FOR_CONFIRMATION
-                -> EXECUTION_CONFIRMED_BY_USER
-
-        Ticket:
-
-            READY_FOR_REVIEW
-                -> EXECUTED
-
-        Важно:
-            здесь sync_from_ticket не используется,
-            потому что инициатором является пользовательская сторона.
-
-            Если синхронизировать от Ticket.EXECUTED,
-            получится EXECUTION_CONFIRMED_BY_ADMIN.
-        """
-        with self._uow:
-            ticket = self._uow.tickets.get_by_user_ticket_id(
+        with self.uow:
+            ticket_user = self._get_ticket_user(
                 ticket_user_dto.ticket_user_id,
             )
 
-            ticket_user = self._uow.user_tickets.get(
-                ticket_user_dto.ticket_user_id,
-            )
-
-            TicketPolicy.ensure_ticket_matches_ticket_user(
-                ticket=ticket,
-                ticket_user=ticket_user,
-            )
-
-            self._require_user_operation_for_ticket_user(
+            self._require_view_access(
                 actor_user_id=ticket_user_dto.actor_user_id,
                 ticket_user=ticket_user,
             )
 
-            ticket_user.confirm_execution_by_user(
-                actor_employee_id=ticket_user_dto.actor_user_id,
-                comment=ticket_user_dto.comment,
-            )
-
-            TicketReviewService.confirm_execution(
-                ticket=ticket,
-                actor_employee_id=ticket_user_dto.actor_user_id,
-                comment=ticket_user_dto.comment,
-            )
-
-            self._uow.user_tickets.save(
-                ticket_user,
-            )
-
-            self._uow.tickets.save(
-                ticket,
-            )
-
-            self._uow.commit()
-
             return TicketUserAssembler.to_dto(
-                ticket_user,
+                ticket_user
             )
 
-    # --------------------------------
-    # Queries
-    # --------------------------------
+    def get_by_user_id(
+        self,
+        *,
+        ticket_user_dto: TicketUserDTO,
+    ) -> list[TicketUserResponseDTO]:
+        """
+        Return TicketUser records belonging to target User.
+
+        Own records require:
+
+            TICKET_VIEW
+                OR
+            TICKET_VIEW_ALL
+
+        Another User's records require:
+
+            TICKET_VIEW_ALL
+
+        Actor and target User must belong to the same Client.
+        """
+
+        with self.uow:
+            if ticket_user_dto.user_id <= 0:
+                raise DomainOperationError(
+                    "get_by_user_id requires user_id > 0"
+                )
+
+            target_user = self.uow.users.get(
+                ticket_user_dto.user_id,
+            )
+
+            if (
+                ticket_user_dto.actor_user_id
+                == target_user.employee_id
+            ):
+                actor = self.actor.require_actor_user_any(
+                    actor_user_id=ticket_user_dto.actor_user_id,
+                    permissions=(
+                        UserPermission.TICKET_VIEW,
+                        UserPermission.TICKET_VIEW_ALL,
+                    ),
+                )
+            else:
+                actor = self.actor.require_actor_user(
+                    actor_user_id=ticket_user_dto.actor_user_id,
+                    permission=UserPermission.TICKET_VIEW_ALL,
+                )
+
+            self._ensure_same_client(
+                actor=actor,
+                client_id=target_user.client_id,
+            )
+
+            ticket_users = self.uow.user_tickets.get_all()
+
+            return self._to_dto_list(
+                [
+                    ticket_user
+                    for ticket_user in ticket_users
+                    if (
+                        ticket_user.client_id
+                        == target_user.client_id
+                        and ticket_user.user_id
+                        == target_user.employee_id
+                    )
+                ]
+            )
 
     def get_all(
         self,
@@ -345,365 +507,427 @@ class TicketUserApplicationService:
         ticket_user_dto: TicketUserDTO,
     ) -> list[TicketUserResponseDTO]:
         """
-        Возвращает все пользовательские заявки клиента.
+        Return all TicketUser records for actor's Client.
 
-        Право:
+        Requires:
 
-            UserPermission.TICKET_VIEW_ALL
-
-        Ограничение:
-
-            actor_user должен принадлежать этому client.
+            TICKET_VIEW_ALL
         """
-        with self._uow:
-            client = self._get_client(
-                ticket_user_dto.client_id,
-            )
 
-            self._require_user_view_all_for_client(
+        with self.uow:
+            actor = self.actor.require_actor_user(
                 actor_user_id=ticket_user_dto.actor_user_id,
-                client=client,
+                permission=UserPermission.TICKET_VIEW_ALL,
             )
 
-            ticket_users = self._uow.user_tickets.get_all()
+            if (
+                ticket_user_dto.client_id > 0
+                and ticket_user_dto.client_id != actor.client_id
+            ):
+                raise DomainOperationError(
+                    "User cannot view TicketUser records "
+                    "of another Client"
+                )
 
-            return [
-                TicketUserAssembler.to_dto(ticket_user)
-                for ticket_user in ticket_users
-                if ticket_user.client_id
-                == ticket_user_dto.client_id
-            ]
+            ticket_users = self.uow.user_tickets.get_all()
 
-    def get_by_user(
+            return self._to_dto_list(
+                [
+                    ticket_user
+                    for ticket_user in ticket_users
+                    if ticket_user.client_id == actor.client_id
+                ]
+            )
+
+    def get_open(
         self,
         *,
         ticket_user_dto: TicketUserDTO,
     ) -> list[TicketUserResponseDTO]:
         """
-        Возвращает пользовательские заявки
-        конкретного user внутри client.
+        Return open TicketUser records visible to actor.
 
-        Права:
+        TICKET_VIEW_ALL:
+            all open TicketUser records of actor's Client.
 
-            если actor_user_id == user_id:
-                UserPermission.TICKET_VIEW
-        actor_user должен принадлежать client.
+        TICKET_VIEW:
+            actor's own open TicketUser records.
         """
-        target_user_id = self._required_positive_dto_attr(
-            ticket_user_dto,
-            "user_id",
-        )
 
-        with self._uow:
-            client = self._get_client(
-                ticket_user_dto.client_id,
-            )
-
-            target_user = self._uow.users.get(
-                target_user_id,
-            )
-
-            TicketPolicy.ensure_user_enabled(
-                target_user,
-            )
-
-            TicketPolicy.ensure_user_belongs_to_client(
-                user=target_user,
-                client=client,
-            )
-
-            self._require_user_view_for_user(
+        with self.uow:
+            actor = self.actor.require_actor_user_any(
                 actor_user_id=ticket_user_dto.actor_user_id,
-                target_user=target_user,
-                client=client,
+                permissions=(
+                    UserPermission.TICKET_VIEW,
+                    UserPermission.TICKET_VIEW_ALL,
+                ),
             )
 
-            ticket_users = self._uow.user_tickets.get_all()
+            view_all = self.actor.has_user_permission(
+                actor_user_id=actor.employee_id,
+                permission=UserPermission.TICKET_VIEW_ALL,
+            )
 
-            return [
-                TicketUserAssembler.to_dto(ticket_user)
-                for ticket_user in ticket_users
-                if (
-                    ticket_user.client_id
-                    == ticket_user_dto.client_id
-                    and ticket_user.user_id == target_user_id
-                )
-            ]
+            ticket_users = self.uow.user_tickets.get_all()
 
-    def get_by_id(
+            if view_all:
+                ticket_users = [
+                    ticket_user
+                    for ticket_user in ticket_users
+                    if (
+                        ticket_user.client_id == actor.client_id
+                        and not ticket_user.is_closed
+                    )
+                ]
+            else:
+                ticket_users = [
+                    ticket_user
+                    for ticket_user in ticket_users
+                    if (
+                        ticket_user.client_id == actor.client_id
+                        and ticket_user.user_id == actor.employee_id
+                        and not ticket_user.is_closed
+                    )
+                ]
+
+            return self._to_dto_list(
+                ticket_users
+            )
+
+    def get_closed(
         self,
         *,
         ticket_user_dto: TicketUserDTO,
-    ) -> TicketUserResponseDTO:
+    ) -> list[TicketUserResponseDTO]:
         """
-        Возвращает пользовательскую заявку по ticket_user_id.
+        Return closed TicketUser records visible to actor.
 
-        Права:
+        TICKET_VIEW_ALL:
+            all closed TicketUser records of actor's Client.
 
-            владелец заявки:
-                UserPermission.TICKET_VIEW
-
-            пользователь той же организации:
-                UserPermission.TICKET_VIEW_ALL
+        TICKET_VIEW:
+            actor's own closed TicketUser records.
         """
-        with self._uow:
-            ticket_user = self._uow.user_tickets.get(
-                ticket_user_dto.ticket_user_id,
-            )
 
-            self._require_user_view_for_ticket_user(
+        with self.uow:
+            actor = self.actor.require_actor_user_any(
                 actor_user_id=ticket_user_dto.actor_user_id,
-                ticket_user=ticket_user,
+                permissions=(
+                    UserPermission.TICKET_VIEW,
+                    UserPermission.TICKET_VIEW_ALL,
+                ),
             )
 
-            return TicketUserAssembler.to_dto(
-                ticket_user,
+            view_all = self.actor.has_user_permission(
+                actor_user_id=actor.employee_id,
+                permission=UserPermission.TICKET_VIEW_ALL,
             )
 
-    # --------------------------------
-    # Permission helpers: operations
-    # --------------------------------
+            ticket_users = self.uow.user_tickets.get_all()
 
-    def _require_user_operation(
-        self,
-        *,
-        actor_user_id: int,
-    ) -> User:
-        user = self.actor.require_actor_user(
-            actor_user_id=actor_user_id,
-            permission=UserPermission.TICKET_OPERATION,
-        )
+            if view_all:
+                ticket_users = [
+                    ticket_user
+                    for ticket_user in ticket_users
+                    if (
+                        ticket_user.client_id == actor.client_id
+                        and ticket_user.is_closed
+                    )
+                ]
+            else:
+                ticket_users = [
+                    ticket_user
+                    for ticket_user in ticket_users
+                    if (
+                        ticket_user.client_id == actor.client_id
+                        and ticket_user.user_id == actor.employee_id
+                        and ticket_user.is_closed
+                    )
+                ]
 
-        TicketPolicy.ensure_user_enabled(
-            user,
-        )
-
-        return user
-
-    def _require_user_operation_all(
-        self,
-        *,
-        actor_user_id: int,
-    ) -> User:
-        user = self.actor.require_actor_user(
-            actor_user_id=actor_user_id,
-            permission=UserPermission.TICKET_OPERATION_ALL,
-        )
-
-        TicketPolicy.ensure_user_enabled(
-            user,
-        )
-
-        return user
-
-    def _require_user_operation_for_ticket_user(
-        self,
-        *,
-        actor_user_id: int,
-        ticket_user: TicketUser,
-    ) -> User:
-        if actor_user_id == ticket_user.user_id:
-            user = self._require_user_operation(
-                actor_user_id=actor_user_id,
-            )
-        else:
-            user = self._require_user_operation_all(
-                actor_user_id=actor_user_id,
+            return self._to_dto_list(
+                ticket_users
             )
 
-        client = self._get_ticket_user_client(
-            ticket_user,
-        )
+    # ==================================================================
+    # Access scope
+    # ==================================================================
 
-        TicketPolicy.ensure_user_belongs_to_client(
-            user=user,
-            client=client,
-        )
-
-        return user
-
-    # --------------------------------
-    # Permission helpers: views
-    # --------------------------------
-
-    def _require_user_view(
-        self,
-        *,
-        actor_user_id: int,
-    ) -> User:
-        user = self.actor.require_actor_user(
-            actor_user_id=actor_user_id,
-            permission=UserPermission.TICKET_VIEW,
-        )
-
-        TicketPolicy.ensure_user_enabled(
-            user,
-        )
-
-        return user
-
-    def _require_user_view_all(
-        self,
-        *,
-        actor_user_id: int,
-    ) -> User:
-        user = self.actor.require_actor_user(
-            actor_user_id=actor_user_id,
-            permission=UserPermission.TICKET_VIEW_ALL,
-        )
-
-        TicketPolicy.ensure_user_enabled(
-            user,
-        )
-
-        return user
-
-    def _require_user_view_all_for_client(
-        self,
-        *,
-        actor_user_id: int,
-        client: Client,
-    ) -> User:
-        user = self._require_user_view_all(
-            actor_user_id=actor_user_id,
-        )
-
-        TicketPolicy.ensure_user_belongs_to_client(
-            user=user,
-            client=client,
-        )
-
-        return user
-
-    def _require_user_view_for_user(
-        self,
-        *,
-        actor_user_id: int,
-        target_user: User,
-        client: Client,
-    ) -> User:
-        if actor_user_id == target_user.employee_id:
-            user = self._require_user_view(
-                actor_user_id=actor_user_id,
-            )
-        else:
-            user = self._require_user_view_all(
-                actor_user_id=actor_user_id,
-            )
-
-        TicketPolicy.ensure_user_belongs_to_client(
-            user=user,
-            client=client,
-        )
-
-        return user
-
-    def _require_user_view_for_ticket_user(
+    def _require_operation_access(
         self,
         *,
         actor_user_id: int,
         ticket_user: TicketUser,
     ) -> User:
+        """
+        Owner:
+            TICKET_OPERATION OR TICKET_OPERATION_ALL
+
+        Another User:
+            TICKET_OPERATION_ALL
+
+        In both cases actor must belong to TicketUser Client.
+
+        Actual permission checking and actor caching are delegated
+        to EmployeeActorHelper.
+        """
+
         if actor_user_id == ticket_user.user_id:
-            user = self._require_user_view(
+            actor = self.actor.require_actor_user_any(
                 actor_user_id=actor_user_id,
+                permissions=(
+                    UserPermission.TICKET_OPERATION,
+                    UserPermission.TICKET_OPERATION_ALL,
+                ),
             )
         else:
-            user = self._require_user_view_all(
+            actor = self.actor.require_actor_user(
                 actor_user_id=actor_user_id,
+                permission=UserPermission.TICKET_OPERATION_ALL,
             )
 
-        client = self._get_ticket_user_client(
-            ticket_user,
+        self._ensure_same_client(
+            actor=actor,
+            client_id=ticket_user.client_id,
         )
 
-        TicketPolicy.ensure_user_belongs_to_client(
-            user=user,
-            client=client,
+        return actor
+
+    def _require_view_access(
+        self,
+        *,
+        actor_user_id: int,
+        ticket_user: TicketUser,
+    ) -> User:
+        """
+        Owner:
+            TICKET_VIEW OR TICKET_VIEW_ALL
+
+        Another User:
+            TICKET_VIEW_ALL
+
+        Actor must belong to TicketUser Client.
+        """
+
+        if actor_user_id == ticket_user.user_id:
+            actor = self.actor.require_actor_user_any(
+                actor_user_id=actor_user_id,
+                permissions=(
+                    UserPermission.TICKET_VIEW,
+                    UserPermission.TICKET_VIEW_ALL,
+                ),
+            )
+        else:
+            actor = self.actor.require_actor_user(
+                actor_user_id=actor_user_id,
+                permission=UserPermission.TICKET_VIEW_ALL,
+            )
+
+        self._ensure_same_client(
+            actor=actor,
+            client_id=ticket_user.client_id,
         )
 
-        return user
+        return actor
 
-    # --------------------------------
-    # Validation helpers
-    # --------------------------------
+    # ==================================================================
+    # External reference validation
+    # ==================================================================
 
-    def _ensure_contact_user_valid(
+    def _validate_create_references(
+        self,
+        *,
+        actor: User,
+        ticket_user_dto: TicketUserDTO,
+    ) -> None:
+        if ticket_user_dto.client_id <= 0:
+            raise DomainOperationError(
+                "client_id must be positive"
+            )
+
+        client = self.uow.clients.get(
+            ticket_user_dto.client_id,
+        )
+
+        if not client.enabled:
+            raise DomainOperationError(
+                "Cannot create TicketUser for disabled Client"
+            )
+
+        self._ensure_same_client(
+            actor=actor,
+            client_id=client.client_id,
+        )
+
+        self._validate_contact_user(
+            contact_user_id=ticket_user_dto.contact_user_id,
+            client_id=client.client_id,
+            main_user_id=actor.employee_id,
+        )
+
+        department = None
+
+        if ticket_user_dto.department_id < 0:
+            raise DomainOperationError(
+                "department_id cannot be negative"
+            )
+
+        if ticket_user_dto.department_id > 0:
+            department = self.uow.departments.get(
+                ticket_user_dto.department_id,
+            )
+
+            department.ensure_enabled()
+
+        # --------------------------------------------------------------
+        # Optimistic concurrency guards
+        # --------------------------------------------------------------
+
+        self.uow.clients.touch(
+            client
+        )
+
+        if department is not None:
+            self.uow.departments.touch(
+                department
+            )
+
+    def _validate_contact_user(
         self,
         *,
         contact_user_id: int,
-        client: Client,
-        main_user: User,
+        client_id: int,
+        main_user_id: int,
     ) -> None:
-        if contact_user_id == 0:
+        """
+        contact_user_id == 0 means main User.
+
+        A separate contact User must:
+        - exist;
+        - be enabled;
+        - belong to the same Client.
+        """
+
+        if contact_user_id < 0:
+            raise DomainOperationError(
+                "contact_user_id cannot be negative"
+            )
+
+        if (
+            contact_user_id == 0
+            or contact_user_id == main_user_id
+        ):
             return
 
-        if contact_user_id == main_user.employee_id:
-            return
-
-        contact_user = self._uow.users.get(
+        contact_user = self.uow.users.get(
             contact_user_id,
         )
 
-        TicketPolicy.ensure_user_enabled(
-            contact_user,
-        )
+        contact_user.can_do_operation()
 
-        TicketPolicy.ensure_contact_user_belongs_to_client(
-            contact_user=contact_user,
-            client=client,
-        )
+        if contact_user.client_id != client_id:
+            raise DomainOperationError(
+                "Contact User does not belong "
+                "to TicketUser Client"
+            )
 
-    def _ensure_department_valid(
-        self,
-        *,
-        department_id: int,
-    ) -> None:
-        if department_id == 0:
-            return
-
-        department = self._uow.departments.get(
-            department_id,
-        )
-
-        department.ensure_enabled()
-
-    def _get_client(
-        self,
-        client_id: int,
-    ) -> Client:
-        client = self._uow.clients.get(
-            client_id,
-        )
-
-        TicketPolicy.ensure_client_enabled(
-            client,
-        )
-
-        return client
-
-    def _get_ticket_user_client(
-        self,
-        ticket_user: TicketUser,
-    ) -> Client:
-        return self._get_client(
-            ticket_user.client_id,
+        self.uow.users.touch(
+            contact_user
         )
 
     @staticmethod
-    def _required_positive_dto_attr(
-        ticket_user_dto: TicketUserDTO,
-        name: str,
-    ) -> int:
-        value = getattr(
-            ticket_user_dto,
-            name,
-            None,
-        )
-
-        if not isinstance(value, int) or value <= 0:
+    def _ensure_same_client(
+        *,
+        actor: User,
+        client_id: int,
+    ) -> None:
+        if actor.client_id != client_id:
             raise DomainOperationError(
-                f"TicketUserDTO.{name} must be positive integer",
+                "User does not belong to TicketUser Client"
             )
 
-        return value
+    # ==================================================================
+    # Loading
+    # ==================================================================
+
+    def _get_ticket_user(
+        self,
+        ticket_user_id: int,
+    ) -> TicketUser:
+        if ticket_user_id <= 0:
+            raise DomainOperationError(
+                "ticket_user_id must be positive"
+            )
+
+        return self.uow.user_tickets.get(
+            ticket_user_id
+        )
+
+    def _get_linked_ticket(
+        self,
+        *,
+        ticket_user: TicketUser,
+    ) -> Ticket:
+        if ticket_user.ticket_user_id <= 0:
+            raise DomainOperationError(
+                "Linked TicketUser must have "
+                "positive ticket_user_id"
+            )
+
+        return self.uow.tickets.get_by_user_ticket_id(
+            ticket_user.ticket_user_id
+        )
+
+    # ==================================================================
+    # Persistence
+    # ==================================================================
+
+    def _save_ticket_user(
+        self,
+        *,
+        ticket_user: TicketUser,
+    ) -> TicketUserResponseDTO:
+        saved_ticket_user = self.uow.user_tickets.save(
+            ticket_user
+        )
+
+        self.uow.commit()
+
+        if saved_ticket_user is None:
+            saved_ticket_user = ticket_user
+
+        return TicketUserAssembler.to_dto(
+            saved_ticket_user
+        )
+
+    def _save_pair(
+        self,
+        *,
+        ticket_user: TicketUser,
+        ticket: Ticket,
+    ) -> TicketUserResponseDTO:
+        saved_ticket_user = self.uow.user_tickets.save(
+            ticket_user
+        )
+
+        self.uow.tickets.save(
+            ticket
+        )
+
+        self.uow.commit()
+
+        if saved_ticket_user is None:
+            saved_ticket_user = ticket_user
+
+        return TicketUserAssembler.to_dto(
+            saved_ticket_user
+        )
+
+    @staticmethod
+    def _to_dto_list(
+        ticket_users: list[TicketUser],
+    ) -> list[TicketUserResponseDTO]:
+        return [
+            TicketUserAssembler.to_dto(ticket_user)
+            for ticket_user in ticket_users
+        ]

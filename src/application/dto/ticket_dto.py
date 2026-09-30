@@ -27,7 +27,7 @@ class TicketDTO:
     # Actual mode of one work episode.
     work_is_remote: bool = False
 
-    urgency: TicketUrgency = TicketUrgency.NORMAL
+    urgency: str=TicketUrgency.NORMAL.value
 
     executor_id: int = 0
     comment: str = ""
@@ -77,7 +77,7 @@ class TicketResponseDTO:
 
     remote_work_recommended: bool
 
-    urgency: TicketUrgency
+    urgency: str
 
     version: int
     is_closed: bool
@@ -100,27 +100,40 @@ class TicketResponseDTO:
 # -------------------------------------------------------------------
 
 
+
+
+
 @dataclass(kw_only=True, frozen=True)
 class TicketUserDTO:
     """
-    Command DTO for TicketUser-related use cases.
+    Command DTO for TicketUser use cases.
 
-    department_id and is_remote belong to the internal Ticket,
-    but may be required by the application service when creating
-    a linked Ticket together with TicketUser.
+    actor_user_id:
+        User performing the use case.
+
+    user_id:
+        Target User for query use cases.
+        New TicketUser created by User always belongs to actor_user_id.
+
+    department_id, remote_work_recommended and urgency belong to
+    the linked internal Ticket and are used during creation.
     """
 
-    ticket_user_id: int
-    user_id: int=0
-    text_of_ticket: str
+    actor_user_id: int
+
+    ticket_user_id: int = 0
+    client_id: int = 0
+    user_id: int = 0
+
+    text_of_ticket: str = ""
 
     contact_user_id: int = 0
     department_id: int = 0
 
-    is_remote: bool = False
-
     description: str = ""
-    urgency_level: int = 0
+
+    remote_work_recommended: bool = False
+    urgency: TicketUrgency = TicketUrgency.NORMAL
 
     comment: str = ""
 
@@ -128,35 +141,35 @@ class TicketUserDTO:
 @dataclass(kw_only=True, frozen=True)
 class TicketUserResponseDTO:
     """
-    DTO пользовательской заявки.
+    Response DTO for TicketUser aggregate.
 
-    Это не внутренняя Ticket.
+    Internal Ticket identity is intentionally not exposed here.
+    The link is stored on:
 
-    ticket_id здесь — id агрегата TicketUser.
-
-    Связь с внутренней Ticket хранится
-    на стороне Ticket.user_ticket_id.
+        Ticket.user_ticket_id
     """
 
-    ticket_id: int
-    client_id: int
+    ticket_user_id: int
 
+    client_id: int
     user_id: int
     contact_user_id: int
 
     text_of_ticket: str
     description: str
-    urgency_level: int
 
     current_status: str
-    is_closed: bool
 
-    date_created: str
-    date_finished: str | None
+    date_created: datetime
+    date_finished: datetime | None
+
+    version: int
+    is_closed: bool
 
     statuses: list[dict[str, object]] = field(
         default_factory=list,
     )
+
     comments: list[dict[str, object]] = field(
         default_factory=list,
     )

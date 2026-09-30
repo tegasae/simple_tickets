@@ -1,9 +1,9 @@
 # src/web/models/tickets.py
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.domain.ticket import TicketUrgency
 
@@ -14,32 +14,38 @@ from src.domain.ticket import TicketUrgency
 
 
 class TicketCreateRequest(BaseModel):
-    """
-    Create ordinary internal Ticket.
-
-    This request does not create TicketUser.
-    """
-
     model_config = ConfigDict(extra="forbid")
 
-    client_id: int = Field(gt=0)
-
-    text_of_ticket: str = Field(min_length=1)
+    client_id: int
+    text_of_ticket: str
     description: str = ""
 
-    user_id: int = Field(default=0, ge=0)
-    contact_user_id: int = Field(default=0, ge=0)
-
-    department_id: int = Field(default=0, ge=0)
+    user_id: int = 0
+    contact_user_id: int = 0
+    department_id: int = 0
 
     remote_work_recommended: bool = False
-
-    urgency: TicketUrgency = TicketUrgency.NORMAL
+    urgency: str = "normal"
 
     planned_at: datetime | None = None
 
     comment: str = ""
 
+    @field_validator("planned_at")
+    @classmethod
+    def normalize_planned_at(
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if value is None:
+            return None
+
+        if value.tzinfo is None:
+            raise ValueError(
+                "planned_at must contain timezone"
+            )
+
+        return value.astimezone(UTC)
 
 class TicketCreateForUserRequest(TicketCreateRequest):
     """

@@ -13,8 +13,7 @@ from src.domain.rbac.role_new import Role
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
 from src.application.dto.client_dto import ClientResponseDTO
-
-
+from src.domain.value_objects import CommonComment, Description
 
 
 class ClientAssembler:
@@ -106,57 +105,60 @@ class TicketAssembler:
         )
 
 
+
+
 class TicketUserAssembler:
 
     @staticmethod
     def to_dto(
         ticket_user: TicketUser,
     ) -> TicketUserResponseDTO:
-        statuses = []
+        statuses = [
+            {
+                "id": record.ticket_user_status_id,
+                "status": record.status.value,
+                "actor_id": record.actor_employee_id,
+                "comment": (
+                    record.comment.value
+                    if isinstance(record.comment, CommonComment)
+                    else ""
+                ),
+                "date_created": record.date_created,
+            }
+            for record in ticket_user.statuses
+        ]
 
-        for status in ticket_user.statuses:
-            statuses.append(
-                {
-                    "id": status.ticket_user_status_id,
-                    "status": status.status.value,
-                    "actor_id": status.actor_employee_id,
-                    "status_comment": status.status_comment,
-                    "date": str(status.date_created),
-                }
-            )
+        comments = [
+            {
+                "id": comment.comment_id,
+                "actor_id": comment.employee_id,
+                "comment": comment.comment.value,
+                "date_created": comment.date_created,
+            }
+            for comment in ticket_user.comments
+        ]
 
-        comments = []
-
-        for comment in ticket_user.comments:
-            comments.append(
-                {
-                    "id": comment.comment_id,
-                    "comment": comment.comment,
-                    "actor_id": comment.employee_id,
-                    "date": str(comment.date_created),
-                }
-            )
+        description = (
+            ticket_user.description.value
+            if isinstance(ticket_user.description, Description)
+            else ""
+        )
 
         return TicketUserResponseDTO(
-            ticket_id=ticket_user.ticket_user_id,
+            ticket_user_id=ticket_user.ticket_user_id,
             client_id=ticket_user.client_id,
             user_id=ticket_user.user_id,
             contact_user_id=ticket_user.contact_user_id,
             text_of_ticket=ticket_user.text_of_ticket,
-            description=ticket_user.description,
-            urgency_level=ticket_user.urgency_level,
+            description=description,
             current_status=str(ticket_user.current_status().value),
+            date_created=ticket_user.date_created,
+            date_finished=ticket_user.date_finished,
+            version=ticket_user.version,
             is_closed=ticket_user.is_closed,
-            date_created=str(ticket_user.date_created),
-            date_finished=(
-                str(ticket_user.date_finished)
-                if ticket_user.date_finished is not None
-                else None
-            ),
             statuses=statuses,
             comments=comments,
         )
-
 class AdminAssembler:
     @staticmethod
     def to_dto(admin: Admin) -> AdminResponseDTO:

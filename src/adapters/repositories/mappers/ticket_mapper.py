@@ -1,11 +1,10 @@
 # src/adapters/repositories/mappers/ticket_mapper.py
-
-
+from datetime import timedelta
 
 from src.adapters.repositories.mappers.auxiliary import datetime_to_db, dt_from_sqlite
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-from src.domain.ticket import Ticket
+from src.domain.ticket import Ticket, TicketUrgency
 from src.domain.ticket_components import Comment
 
 
@@ -17,12 +16,12 @@ class TicketMapper:
         "text_of_ticket",
         "user_id",
         "contact_user_id",
+        "user_ticket_id",
         "date_created",
         "planned_at",
         "department_id",
         "remote_work_recommended",
-        "urgency",
-        "user_ticket_id",
+        "urgency_level",
         "description",
         "version",
     ]
@@ -72,10 +71,10 @@ class TicketMapper:
             department_id=row["department_id"] or 0,
             description=row["description"] or "",
             date_created=date_created,
-            remote_work_recommended=bool(row["is_remote"]),
-            urgency=row["urgency_level"] or 0,
+            remote_work_recommended=bool(row["remote_work_recommended"]),
+            urgency=row["urgency_level"],
             version=row["version"] or 0,
-            planned_at=row["planned_at"] or 0,
+            planned_at=dt_from_sqlite(row["planned_at"]),
             statuses=statuses,
             comments=comments,
         )
@@ -113,14 +112,14 @@ class TicketMapper:
             status=TicketStatus(row["status"]),
             date_created=date_created,
             executor_id=row["executor_id"] or 0,
-            work_is_remote=row["work_is_remote"] or 0,
+            work_is_remote=bool(row["work_is_remote"]),
             actual_started_at=dt_from_sqlite(
                 row["actual_started_at"]
             ),
             actual_finished_at=dt_from_sqlite(
                 row["actual_finished_at"]
             ),
-            duration=row["duration"] or 0,
+            duration= timedelta(seconds=row["duration"]) or timedelta(seconds=0),
             comment=row["comment"] or "",
         )
 
@@ -172,10 +171,7 @@ class TicketMapper:
             "date_created": datetime_to_db(
                 record.date_created
             ),
-            "executor_id": (
-                record.executor_id
-
-            ),
+            "executor_id": record.executor_id if record.executor_id else None,
 
             "actual_started_at": datetime_to_db(
                 record.actual_started_at
@@ -184,6 +180,6 @@ class TicketMapper:
                 record.actual_finished_at
             ),
             "work_is_remote":record.work_is_remote,
-            "duration": record.duration,
+            "duration": record.duration.total_seconds(),
             "comment": record.comment.value,
         }

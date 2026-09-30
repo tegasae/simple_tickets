@@ -51,9 +51,8 @@ class UserApplicationService:
         self.helper = EmployeeHelper(self.uow)
         self.actor = EmployeeActorHelper(self.uow)
 
-        self.role_manager = (
-            self.helper.get_role_manager_user()
-        )
+        self.role_manager = self.helper.get_role_manager_user()
+
 
         self.ticket_sync_service = TicketSyncService()
 

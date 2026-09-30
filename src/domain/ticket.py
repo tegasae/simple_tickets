@@ -669,7 +669,7 @@ class Ticket:
         user_ticket_id: int = 0,
         description: str = "",
         remote_work_recommended: bool = False,
-        urgency: TicketUrgency = TicketUrgency.NORMAL,
+        urgency: str=TicketUrgency.NORMAL.value,
         planned_at: datetime | None = None,
         version: int = 0,
     ) -> Self:
@@ -750,7 +750,7 @@ class Ticket:
             user_ticket_id=user_ticket_id,
             description=description,
             remote_work_recommended=remote_work_recommended,
-            urgency=urgency,
+            urgency=TicketUrgency(urgency),
             planned_at=planned_at,
             version=version,
         )

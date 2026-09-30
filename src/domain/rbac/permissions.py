@@ -31,10 +31,15 @@ class AdminPermission(PermissionBase):
     ROLE_USER_ASSIGN = "role_user.assign"                           # имеет право работать с ролями User-ов
 
 
+
+
+
+
 class UserPermission(PermissionBase):
-    TICKET_OPERATION = "ticket.operation"
-    TICKET_OPERATION_ALL="ticket.operation.all"
-    TICKET_VIEW = "ticket.view"
-    TICKET_VIEW_ALL = "ticket.view.all"
+    TICKET_OPERATION = "ticket.operation"                           # имеет право работать со своим заявками
+    TICKET_OPERATION_ALL="ticket.operation.all"                     # имеет право работать со всеми заявками организации
+    TICKET_VIEW = "ticket.view"                                     # имеет право смотреть свои заявки
+    TICKET_VIEW_ALL = "ticket.view.all"                             # имеет право смотреть заявки организации
+
 
 

@@ -1,21 +1,21 @@
-# src/domain/facades/department_facade.py
+# src/domain/services/department_service.py
 
 from src.domain.department import Department
 from src.domain.exceptions import DomainOperationError
 
 
-class DepartmentFacade:
+class DepartmentService:
     """
-    Domain facade for Department operations.
+    Domain service for Department operations.
 
-    Provides a single domain entry point for business operations
-    involving Department.
+    Intended to become the Department domain facade.
 
     Responsibilities:
-    - execute Department operations;
-    - enforce Department business rules;
-    - enforce cross-aggregate rules using facts supplied
-      by the application layer.
+    - create Department;
+    - rename Department;
+    - enable / disable Department;
+    - enforce cross-aggregate Department rules;
+    - validate Department deletion.
 
     Does not handle:
     - repositories;
@@ -24,12 +24,47 @@ class DepartmentFacade:
     - transactions;
     - RBAC;
     - permissions;
-    - loading aggregates.
     """
+
+    # ==================================================================
+    # Create
+    # ==================================================================
+
+    @staticmethod
+    def create(
+        *,
+        department_id: int,
+        name: str,
+        enabled: bool = True,
+    ) -> Department:
+        return Department.create(
+            department_id=department_id,
+            name=name,
+            enabled=enabled,
+        )
+
+    # ==================================================================
+    # Update
+    # ==================================================================
+
+    @staticmethod
+    def rename(
+        *,
+        department: Department,
+        name: str,
+    ) -> None:
+        department.rename(name)
 
     # ==================================================================
     # Enable / disable
     # ==================================================================
+
+    @staticmethod
+    def enable(
+        *,
+        department: Department,
+    ) -> None:
+        department.enable()
 
     @staticmethod
     def disable(
@@ -42,14 +77,10 @@ class DepartmentFacade:
         Disable Department.
 
         Department cannot be disabled while:
-
         - at least one enabled Admin belongs to Department;
         - at least one open Ticket belongs to Department.
 
         No cascade is performed.
-
-        Admins are not disabled automatically.
-        Tickets are not suspended automatically.
         """
 
         if has_enabled_admins:
@@ -68,15 +99,35 @@ class DepartmentFacade:
 
         department.disable()
 
+    # ==================================================================
+    # Delete
+    # ==================================================================
+
     @staticmethod
-    def enable(
+    def ensure_can_delete(
         *,
         department: Department,
+        has_admin_references: bool,
+        has_ticket_references: bool,
     ) -> None:
         """
-        Enable Department.
+        Validate that Department can be deleted.
 
-        Enabling Department has no cross-aggregate side effects.
+        Department cannot be deleted while referenced by:
+        - Admin;
+        - Ticket.
         """
 
-        department.enable()
+        if has_admin_references:
+            raise DomainOperationError(
+                f"Cannot delete department "
+                f"{department.department_id}: "
+                f"department is referenced by admins"
+            )
+
+        if has_ticket_references:
+            raise DomainOperationError(
+                f"Cannot delete department "
+                f"{department.department_id}: "
+                f"department is referenced by tickets"
+            )

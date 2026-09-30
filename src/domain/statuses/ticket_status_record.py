@@ -394,14 +394,14 @@ class TicketStatusRecord:
         # timedelta(0) means explicit duration is absent.
         has_duration = self.duration != timedelta(0)
 
-        has_work_mode = self.work_is_remote is not None
+        #has_work_mode = self.work_is_remote is not None
 
         if not self.rule.allows_work_data:
             if (
                 has_started_at
                 or has_finished_at
                 or has_duration
-                or has_work_mode
+         #       or has_work_mode
             ):
                 raise ItemValidationError(
                     f"{self.status} does not allow work data"

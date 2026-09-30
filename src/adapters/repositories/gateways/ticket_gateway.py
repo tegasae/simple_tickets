@@ -15,9 +15,7 @@ class TicketGateway:
         planned_at,
         department_id,
         remote_work_recommended,
-        description,
         urgency_level,
-        user_ticket_id,
         description,
         version
     FROM tickets
@@ -58,11 +56,11 @@ class TicketGateway:
 
 
     SELECT_BY_OPEN = SELECT_BASE + """
-                WHERE date_finished is not NULL
+                WHERE date_finished is NULL
             """
 
     SELECT_BY_FINISHED = SELECT_BASE + """
-        WHERE date_finished is NULL
+        WHERE date_finished is NOT  NULL
     """
 
 
@@ -143,7 +141,7 @@ class TicketGateway:
         :text_of_ticket,
         :description,
         :date_created,
-        :work_is_remote,
+        :remote_work_recommended,
         :planned_at,
         :urgency_level,
         :version,
@@ -260,13 +258,13 @@ class TicketStatusGateway:
     SELECT_BY_TICKET_ID = """
     SELECT
         status_id,
-        actor_employee_id,
         status,
+        actor_employee_id,
+        work_is_remote,
         date_created,
         executor_id,
         actual_started_at,
         actual_finished_at,
-        work_is_remote,
         duration,
         comment
     FROM ticket_status_records

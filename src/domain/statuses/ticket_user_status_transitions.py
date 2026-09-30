@@ -27,6 +27,7 @@ FIRST_TICKET_USER_STATUSES: Final[
     frozenset[TicketUserStatus]
 ] = frozenset({
     TicketUserStatus.CREATED,
+
 })
 
 
@@ -37,7 +38,7 @@ TERMINAL_TICKET_USER_STATUSES: Final[
     TicketUserStatus.CONFIRMED_BY_ADMIN,
     TicketUserStatus.CANCELLED_BY_USER,
     TicketUserStatus.CANCELLED_BY_ADMIN,
-    TicketUserStatus.SUSPENDED,
+
 })
 
 
