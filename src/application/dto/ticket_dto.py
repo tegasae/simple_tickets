@@ -1,26 +1,11 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
+
+from src.domain.ticket import TicketUrgency
 
 
 @dataclass(kw_only=True)
 class TicketDTO:
-    """
-    Command DTO for the internal Ticket aggregate.
-
-    `status` is intentionally absent.
-    Each workflow transition must be performed by a dedicated
-    application-service use case.
-
-    `admin_id` is intentionally absent.
-
-    When a Ticket is created directly by Admin,
-    Ticket.admin_id is determined from actor_admin_id
-    inside the application service.
-
-    When a Ticket is created automatically from TicketUser,
-    Ticket.admin_id is set to 0 by the Ticket aggregate factory.
-    """
-
     actor_admin_id: int
 
     ticket_id: int = 0
@@ -36,38 +21,45 @@ class TicketDTO:
     text_of_ticket: str = ""
     description: str = ""
 
-    is_remote: bool = False
-    urgency_level: int = 0
+    # Ticket-level recommendation.
+    remote_work_recommended: bool = False
+
+    # Actual mode of one work episode.
+    work_is_remote: bool = False
+
+    urgency: TicketUrgency = TicketUrgency.NORMAL
 
     executor_id: int = 0
     comment: str = ""
 
-    planned_start_at: datetime | None = None
-    planned_finish_at: datetime | None = None
+    planned_at: datetime | None = None
 
     actual_started_at: datetime | None = None
     actual_finished_at: datetime | None = None
 
+    duration: timedelta = field(
+        default_factory=timedelta,
+    )
 
 @dataclass(kw_only=True, frozen=True)
 class TicketResponseDTO:
     """
     Response DTO for the internal Ticket aggregate.
 
-    admin_id:
-        Admin who originally created the internal Ticket.
+    Workflow actors are stored in status records.
 
-        For a Ticket created automatically from TicketUser:
-            admin_id == 0.
+    Ticket creation source is represented by the first workflow status:
 
-        Workflow actors, including the Admin who accepted
-        the Ticket, are stored in status records.
+        CREATED
+        CREATED_FROM_TICKET_USER
+
+    The DTO does not contain admin_id because Ticket no longer stores
+    the creator as a separate aggregate field.
     """
 
     ticket_id: int
 
     client_id: int
-    admin_id: int
 
     user_id: int
     contact_user_id: int
@@ -81,8 +73,11 @@ class TicketResponseDTO:
     date_created: datetime
     date_finished: datetime | None
 
-    is_remote: bool
-    urgency_level: int
+    planned_at: datetime | None
+
+    remote_work_recommended: bool
+
+    urgency: TicketUrgency
 
     version: int
     is_closed: bool
@@ -92,10 +87,10 @@ class TicketResponseDTO:
     statuses: list[dict[str, object]] = field(
         default_factory=list,
     )
+
     comments: list[dict[str, object]] = field(
         default_factory=list,
     )
-
 
 # -------------------------------------------------------------------
 # TicketUser DTOs

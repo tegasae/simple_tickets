@@ -7,7 +7,7 @@ import pytest
 from src.domain.department import Department
 from src.domain.employee import Admin
 from src.domain.exceptions import DomainOperationError
-from src.domain.services.admin_department_service import AdminDepartmentService
+from src.domain.services.admin_service import AdminDepartmentService
 from src.domain.services.ticket_client_service import TicketClientService
 from src.domain.services.ticket_execution_service import TicketExecutionService
 from src.domain.services.ticket_management_service import TicketManagementService

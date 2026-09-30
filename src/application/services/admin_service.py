@@ -11,36 +11,36 @@ from src.application.dto.employee_dto import (
 )
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.application.helper.employee_helper import EmployeeHelper
+
 from src.domain.employee import Admin
 from src.domain.exceptions import DomainOperationError
-from src.domain.policies.department import DepartmentPolicy
 from src.domain.rbac.permissions import AdminPermission
-from src.domain.services.admin_department_service import (
-    AdminDepartmentService,
-)
+from src.domain.services.admin_service import AdminService
 from src.domain.uow.unit_of_work import UnitOfWork
-
 
 
 class AdminApplicationService:
     """
-    Application service для Admin.
+    Application service for Admin.
 
     Responsibilities:
-    - открывает UnitOfWork;
-    - проверяет actor и permissions;
-    - загружает необходимые aggregates;
-    - получает внешние domain-факты из repositories;
-    - вызывает domain operations / domain services;
-    - сохраняет изменения;
-    - преобразует результат в DTO.
+    - opens UnitOfWork;
+    - validates actor and permissions;
+    - loads required aggregates;
+    - obtains external domain facts from repositories;
+    - calls AdminService;
+    - applies optimistic concurrency guards;
+    - persists changes;
+    - converts results to DTO.
 
-    Не содержит:
-    - RBAC business logic;
+    Does not contain:
+    - Admin business rules;
+    - cross-aggregate business decisions;
     - SQL;
     - Ticket workflow logic;
-    - межагрегатные business rules,
-      если они могут быть выражены domain service.
+    - persistence logic.
+
+    RBAC role operations remain delegated to RoleManager.
     """
 
     def __init__(
@@ -56,49 +56,44 @@ class AdminApplicationService:
             self.helper.get_role_manager_admin()
         )
 
-    # --------------------------------
+    # ==================================================================
     # Helpers
-    # --------------------------------
+    # ==================================================================
 
     def _save_and_to_dto(
         self,
         admin: Admin,
     ) -> AdminResponseDTO:
-        saved_admin = self.uow.admins.save(admin)
-
-        return AdminAssembler.to_dto(
-            saved_admin,
+        saved_admin = self.uow.admins.save(
+            admin
         )
 
-    def _has_ticket_in_work_as_executor(
+        return AdminAssembler.to_dto(
+            saved_admin
+        )
+
+    def _has_current_executor_tickets(
         self,
         *,
         admin_id: int,
     ) -> bool:
         """
-        Возвращает True, если Admin является текущим
-        исполнителем хотя бы одной Ticket,
-        которая прямо сейчас находится в работе.
+        Return True when Admin is the current executor
+        of at least one Ticket.
 
-        Repository не знает workflow-семантику Ticket.
-        Он только последовательно загружает все Ticket.
-
-        iter_get_all() возвращает Iterator[Ticket].
+        Application layer obtains the fact.
+        AdminService interprets it.
         """
-        for ticket in self.uow.tickets.iter_get_all(
-            batch_size=500,
-        ):
-            if (
-                ticket.current_executor_id() == admin_id
-                and ticket.is_in_work()
-            ):
-                return True
 
-        return False
+        return bool(
+            self.uow.tickets.get_by_current_executor(
+                executor_id=admin_id,
+            )
+        )
 
-    # --------------------------------
+    # ==================================================================
     # Create
-    # --------------------------------
+    # ==================================================================
 
     def create_admin(
         self,
@@ -114,9 +109,18 @@ class AdminApplicationService:
             self.helper.ensure_login_is_free(
                 login=admin_dto.login,
             )
-            department=self.uow.departments.get(department_id=admin_dto.department_id)
-            DepartmentPolicy.can_operation(department=department)
-            admin = Admin.create(
+
+            if admin_dto.department_id <= 0:
+                raise DomainOperationError(
+                    "Department id must be positive"
+                )
+
+            department = self.uow.departments.get(
+                department_id=admin_dto.department_id,
+            )
+
+            admin = AdminService.create(
+                department=department,
                 employee_id=0,
                 job_title=admin_dto.job_title,
                 first_name=admin_dto.first_name,
@@ -126,26 +130,38 @@ class AdminApplicationService:
                 login=admin_dto.login,
                 password=admin_dto.password,
                 enable_account=admin_dto.enable_account,
-                department_id=department.department_id
             )
 
             if admin_dto.roles:
-                # Для назначения ролей Admin должен сначала
-                # получить настоящий employee_id.
-                admin = self.uow.admins.save(admin)
+                # Admin must receive a real employee_id
+                # before roles can be assigned.
+                admin = self.uow.admins.save(
+                    admin
+                )
 
                 self.role_manager.grant_roles(
                     actor=actor,
                     target=admin,
-                    role_ids=frozenset(admin_dto.roles),
-                    required_permission=AdminPermission.ROLE_ASSIGN,
+                    role_ids=frozenset(
+                        admin_dto.roles
+                    ),
+                    required_permission=(
+                        AdminPermission.ROLE_ASSIGN
+                    ),
                 )
 
-            return self._save_and_to_dto(admin)
+            # AdminService.create() relied on Department.enabled.
+            self.uow.departments.touch(
+                department
+            )
 
-    # --------------------------------
+            return self._save_and_to_dto(
+                admin
+            )
+
+    # ==================================================================
     # Update
-    # --------------------------------
+    # ==================================================================
 
     def update_admin(
         self,
@@ -162,24 +178,56 @@ class AdminApplicationService:
                 admin_id=admin_dto.employee_id,
             )
 
-            department=self.uow.departments.get(department_id=admin_dto.department_id)
-            DepartmentPolicy.can_operation(department=department)
+            if admin_dto.department_id <= 0:
+                raise DomainOperationError(
+                    "Department id must be positive"
+                )
 
+            department_changed = (
+                admin.department_id
+                != admin_dto.department_id
+            )
 
-            admin.update(
+            department = self.uow.departments.get(
+                department_id=admin_dto.department_id,
+            )
+
+            has_current_executor_tickets = False
+
+            if department_changed:
+                has_current_executor_tickets = (
+                    self._has_current_executor_tickets(
+                        admin_id=admin.employee_id,
+                    )
+                )
+
+            AdminService.update(
+                admin=admin,
+                department=department,
+                has_current_executor_tickets=(
+                    has_current_executor_tickets
+                ),
                 job_title=admin_dto.job_title,
                 first_name=admin_dto.first_name,
                 last_name=admin_dto.last_name,
                 email=admin_dto.email,
                 phone=admin_dto.phone,
-                department_id=department.department_id
             )
 
-            return self._save_and_to_dto(admin)
+            if department_changed:
+                # AdminService.update() relied on
+                # target Department.enabled.
+                self.uow.departments.touch(
+                    department
+                )
 
-    # --------------------------------
+            return self._save_and_to_dto(
+                admin
+            )
+
+    # ==================================================================
     # Account management
-    # --------------------------------
+    # ==================================================================
 
     def attach_account(
         self,
@@ -200,13 +248,16 @@ class AdminApplicationService:
                 admin_id=admin_dto.employee_id,
             )
 
-            admin.add_account(
+            AdminService.attach_account(
+                admin=admin,
                 login=admin_dto.login,
                 password=admin_dto.password,
                 enabled_account=admin_dto.enable_account,
             )
 
-            return self._save_and_to_dto(admin)
+            return self._save_and_to_dto(
+                admin
+            )
 
     def detach_account(
         self,
@@ -223,9 +274,13 @@ class AdminApplicationService:
                 admin_id=admin_dto.employee_id,
             )
 
-            admin.remove_account()
+            AdminService.detach_account(
+                admin=admin,
+            )
 
-            return self._save_and_to_dto(admin)
+            return self._save_and_to_dto(
+                admin
+            )
 
     def change_password(
         self,
@@ -240,22 +295,25 @@ class AdminApplicationService:
 
             if not admin_dto.password:
                 raise DomainOperationError(
-                    "Password is required",
+                    "Password is required"
                 )
 
             admin = self.uow.admins.get(
                 admin_id=admin_dto.employee_id,
             )
 
-            admin.change_password(
+            AdminService.change_password(
+                admin=admin,
                 password=admin_dto.password,
             )
 
-            return self._save_and_to_dto(admin)
+            return self._save_and_to_dto(
+                admin
+            )
 
-    # --------------------------------
+    # ==================================================================
     # Role operations
-    # --------------------------------
+    # ==================================================================
 
     def grant_role(
         self,
@@ -275,11 +333,17 @@ class AdminApplicationService:
             self.role_manager.grant_roles(
                 actor=actor,
                 target=admin,
-                role_ids=frozenset(admin_dto.roles),
-                required_permission=AdminPermission.ROLE_ASSIGN,
+                role_ids=frozenset(
+                    admin_dto.roles
+                ),
+                required_permission=(
+                    AdminPermission.ROLE_ASSIGN
+                ),
             )
 
-            return self._save_and_to_dto(admin)
+            return self._save_and_to_dto(
+                admin
+            )
 
     def revoke_role(
         self,
@@ -289,7 +353,7 @@ class AdminApplicationService:
         with self.uow:
             actor = self.actor.require_actor_admin(
                 actor_admin_id=admin_dto.actor_admin_id,
-                permission=AdminPermission.ROLE_REVOKE,
+                permission=AdminPermission.ROLE_ASSIGN,
             )
 
             admin = self.uow.admins.get(
@@ -299,11 +363,17 @@ class AdminApplicationService:
             self.role_manager.revoke_roles(
                 actor=actor,
                 target=admin,
-                role_ids=frozenset(admin_dto.roles),
-                required_permission=AdminPermission.ROLE_REVOKE,
+                role_ids=frozenset(
+                    admin_dto.roles
+                ),
+                required_permission=(
+                    AdminPermission.ROLE_ASSIGN
+                ),
             )
 
-            return self._save_and_to_dto(admin)
+            return self._save_and_to_dto(
+                admin
+            )
 
     def get_permissions(
         self,
@@ -311,11 +381,6 @@ class AdminApplicationService:
         admin_dto: AdminDTO,
     ) -> PermissionsResponseDTO:
         with self.uow:
-            #self.actor.require_actor_admin(
-            #    actor_admin_id=admin_dto.actor_admin_id,
-            #    permission=AdminPermission.ADMIN_OPERATION,
-            #0)
-
             admin = self.uow.admins.get(
                 admin_id=admin_dto.employee_id,
             )
@@ -327,31 +392,14 @@ class AdminApplicationService:
             )
 
             return PermissionAssembler.to_admin_dto(
-                permissions=frozenset(permissions),
+                permissions=frozenset(
+                    permissions
+                ),
             )
 
-    # --------------------------------
+    # ==================================================================
     # Enable / disable
-    # --------------------------------
-
-    def disable(
-        self,
-        *,
-        admin_dto: AdminDTO,
-    ) -> AdminResponseDTO:
-        with self.uow:
-            self.actor.require_actor_admin(
-                actor_admin_id=admin_dto.actor_admin_id,
-                permission=AdminPermission.ADMIN_OPERATION,
-            )
-
-            admin = self.uow.admins.get(
-                admin_id=admin_dto.employee_id,
-            )
-
-            admin.disable()
-
-            return self._save_and_to_dto(admin)
+    # ==================================================================
 
     def enable(
         self,
@@ -368,13 +416,45 @@ class AdminApplicationService:
                 admin_id=admin_dto.employee_id,
             )
 
-            admin.enable()
+            AdminService.enable(
+                admin=admin,
+            )
 
-            return self._save_and_to_dto(admin)
+            return self._save_and_to_dto(
+                admin
+            )
 
-    # --------------------------------
+    def disable(
+        self,
+        *,
+        admin_dto: AdminDTO,
+    ) -> AdminResponseDTO:
+        with self.uow:
+            self.actor.require_actor_admin(
+                actor_admin_id=admin_dto.actor_admin_id,
+                permission=AdminPermission.ADMIN_OPERATION,
+            )
+
+            admin = self.uow.admins.get(
+                admin_id=admin_dto.employee_id,
+            )
+
+            AdminService.disable(
+                admin=admin,
+                has_current_executor_tickets=(
+                    self._has_current_executor_tickets(
+                        admin_id=admin.employee_id,
+                    )
+                ),
+            )
+
+            return self._save_and_to_dto(
+                admin
+            )
+
+    # ==================================================================
     # Department
-    # --------------------------------
+    # ==================================================================
 
     def change_department(
         self,
@@ -382,18 +462,18 @@ class AdminApplicationService:
         admin_dto: AdminDTO,
     ) -> AdminResponseDTO:
         """
-        Переводит Admin в другой Department.
+        Move Admin to another Department.
 
         Application layer:
-        - проверяет permission;
-        - загружает Admin;
-        - загружает Department;
-        - определяет факт наличия выполняемых Ticket.
+        - loads Admin and Department;
+        - obtains current-executor fact;
+        - applies optimistic concurrency guard.
 
-        Domain service:
-        - принимает бизнес-решение;
-        - изменяет Admin.
+        AdminService:
+        - validates business rules;
+        - changes Admin.
         """
+
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=admin_dto.actor_admin_id,
@@ -402,7 +482,7 @@ class AdminApplicationService:
 
             if admin_dto.department_id <= 0:
                 raise DomainOperationError(
-                    "Department id must be positive",
+                    "Department id must be positive"
                 )
 
             admin = self.uow.admins.get(
@@ -413,19 +493,24 @@ class AdminApplicationService:
                 department_id=admin_dto.department_id,
             )
 
-            has_at_work_tickets = (
-                self._has_ticket_in_work_as_executor(
-                    admin_id=admin.employee_id,
-                )
-            )
-
-            AdminDepartmentService.change_department(
+            AdminService.change_department(
                 admin=admin,
                 department=department,
-                has_at_work_tickets=has_at_work_tickets,
+                has_current_executor_tickets=(
+                    self._has_current_executor_tickets(
+                        admin_id=admin.employee_id,
+                    )
+                ),
             )
 
-            return self._save_and_to_dto(admin)
+            # Operation relied on Department.enabled.
+            self.uow.departments.touch(
+                department
+            )
+
+            return self._save_and_to_dto(
+                admin
+            )
 
     def remove_department(
         self,
@@ -433,11 +518,12 @@ class AdminApplicationService:
         admin_dto: AdminDTO,
     ) -> AdminResponseDTO:
         """
-        Снимает Department с Admin.
+        Remove Admin from Department.
 
-        Department нельзя снять, пока Admin является
-        текущим исполнителем Ticket, находящейся в работе.
+        Admin cannot lose Department while being
+        current executor of a Ticket.
         """
+
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=admin_dto.actor_admin_id,
@@ -448,22 +534,22 @@ class AdminApplicationService:
                 admin_id=admin_dto.employee_id,
             )
 
-            has_at_work_tickets = (
-                self._has_ticket_in_work_as_executor(
-                    admin_id=admin.employee_id,
-                )
-            )
-
-            AdminDepartmentService.remove_department(
+            AdminService.remove_department(
                 admin=admin,
-                has_at_work_tickets=has_at_work_tickets,
+                has_current_executor_tickets=(
+                    self._has_current_executor_tickets(
+                        admin_id=admin.employee_id,
+                    )
+                ),
             )
 
-            return self._save_and_to_dto(admin)
+            return self._save_and_to_dto(
+                admin
+            )
 
-    # --------------------------------
+    # ==================================================================
     # Delete
-    # --------------------------------
+    # ==================================================================
 
     def delete(
         self,
@@ -480,37 +566,32 @@ class AdminApplicationService:
                 admin_id=admin_dto.employee_id,
             )
 
-            if self.uow.clients.has_created_by_admin(
-                admin_id=admin.employee_id,
-            ):
-                raise DomainOperationError(
-                    "You can't delete this admin "
-                    "because it has clients",
-                )
-
-            if self.uow.tickets.has_admin_reference(
-                admin.employee_id,
-            ):
-                raise DomainOperationError(
-                    "You can't delete this admin "
-                    "because it has tickets",
-                )
-
-            if self.uow.user_tickets.has_admin_reference(
-                admin.employee_id,
-            ):
-                raise DomainOperationError(
-                    "You can't delete this admin "
-                    "because it has user tickets",
-                )
+            AdminService.ensure_can_delete(
+                admin=admin,
+                has_clients=(
+                    self.uow.clients.has_created_by_admin(
+                        admin_id=admin.employee_id,
+                    )
+                ),
+                has_ticket_references=(
+                    self.uow.tickets.has_admin_reference(
+                        admin.employee_id,
+                    )
+                ),
+                has_ticket_user_references=(
+                    self.uow.user_tickets.has_admin_reference(
+                        admin.employee_id,
+                    )
+                ),
+            )
 
             self.uow.admins.delete(
                 admin_id=admin.employee_id,
             )
 
-    # --------------------------------
+    # ==================================================================
     # Queries
-    # --------------------------------
+    # ==================================================================
 
     def find_by_login(
         self,
@@ -525,14 +606,16 @@ class AdminApplicationService:
 
             if not admin_dto.login:
                 raise DomainOperationError(
-                    "Login is required",
+                    "Login is required"
                 )
 
             admin = self.uow.admins.find_by_login(
                 login=admin_dto.login,
             )
 
-            return AdminAssembler.to_dto(admin)
+            return AdminAssembler.to_dto(
+                admin
+            )
 
     def get_by_id(
         self,
@@ -549,7 +632,9 @@ class AdminApplicationService:
                 admin_id=admin_dto.employee_id,
             )
 
-            return AdminAssembler.to_dto(admin)
+            return AdminAssembler.to_dto(
+                admin
+            )
 
     def get_all(
         self,

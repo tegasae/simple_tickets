@@ -1,0 +1,419 @@
+# src/domain/services/client_service.py
+
+from dataclasses import dataclass
+
+from src.domain.client import Client
+from src.domain.employee import User
+from src.domain.exceptions import DomainOperationError
+from src.domain.services.ticket_sync_service import TicketSyncService
+from src.domain.statuses.ticket_status import TicketStatus
+from src.domain.ticket import Ticket
+from src.domain.ticket_user import TicketUser
+
+
+@dataclass(frozen=True, slots=True)
+class ClientDisableResult:
+    """
+    Dependent aggregates changed as a result of disabling Client.
+
+    Client itself is not included because it is modified directly
+    by ClientService and persisted separately by application layer.
+    """
+
+    users: tuple[User, ...]
+    tickets: tuple[Ticket, ...]
+    ticket_users: tuple[TicketUser, ...]
+
+
+class ClientService:
+    """
+    Domain facade for Client operations.
+
+    Provides a single domain entry point for business operations
+    involving Client.
+
+    Responsibilities:
+    - create Client;
+    - update Client contact data;
+    - enable Client;
+    - disable Client;
+    - apply disable cascade to related User / Ticket / TicketUser;
+    - validate Client deletion.
+
+    Does not handle:
+    - repositories;
+    - UnitOfWork;
+    - persistence;
+    - transactions;
+    - RBAC;
+    - permissions;
+    - loading aggregates.
+
+    Disable rules
+    =============
+
+    When Client is disabled:
+
+    1. Client becomes disabled.
+
+    2. All enabled Users belonging to Client become disabled.
+
+    3. Client Tickets are processed as follows:
+
+       terminal:
+           no change;
+
+       AT_WORK:
+           no change;
+           work already started and continues normally;
+
+       SUSPENDED:
+           no change;
+
+       any other non-terminal status:
+           -> SUSPENDED.
+
+    4. If suspended Ticket is linked to TicketUser,
+       corresponding TicketUser is synchronized through
+       TicketSyncService.
+
+    Enabling Client has no reverse cascade.
+    """
+
+    def __init__(
+        self,
+        ticket_sync_service: TicketSyncService,
+    ) -> None:
+        self._ticket_sync_service = ticket_sync_service
+
+    # ==================================================================
+    # Create
+    # ==================================================================
+
+    @staticmethod
+    def create(
+        *,
+        client_id: int,
+        name: str,
+        email: str,
+        address: str,
+        phone: str,
+        description: str,
+        created_by_admin_id: int,
+    ) -> Client:
+        """
+        Create Client.
+        """
+
+        return Client.create(
+            client_id=client_id,
+            name=name,
+            email=email,
+            address=address,
+            phone=phone,
+            description=description,
+            created_by_admin_id=created_by_admin_id,
+        )
+
+    # ==================================================================
+    # Update
+    # ==================================================================
+
+    @staticmethod
+    def update_contact(
+        *,
+        client: Client,
+        name: str,
+        email: str,
+        address: str,
+        phone: str,
+        description: str,
+    ) -> None:
+        """
+        Update Client contact information.
+        """
+
+        client.update_contact_info(
+            name=name,
+            email=email,
+            address=address,
+            phone=phone,
+            description=description,
+        )
+
+    # ==================================================================
+    # Enable
+    # ==================================================================
+
+    @staticmethod
+    def enable(
+        *,
+        client: Client,
+    ) -> None:
+        """
+        Enable Client.
+
+        Enabling Client does not automatically:
+        - enable its Users;
+        - restore Ticket statuses;
+        - restore TicketUser statuses.
+        """
+
+        client.enable()
+
+    # ==================================================================
+    # Disable
+    # ==================================================================
+
+    def disable(
+        self,
+        *,
+        client: Client,
+        users: list[User],
+        tickets: list[Ticket],
+        ticket_users: dict[int, TicketUser],
+        actor_employee_id: int,
+    ) -> ClientDisableResult:
+        """
+        Disable Client and apply complete cross-aggregate cascade.
+
+        ticket_users mapping:
+
+            TicketUser.user_ticket_id -> TicketUser
+
+        Only dependent aggregates actually changed by this operation
+        are returned.
+        """
+
+        if actor_employee_id <= 0:
+            raise DomainOperationError(
+                "Actor employee id must be positive"
+            )
+
+        # --------------------------------------------------------------
+        # Validate complete context before mutation
+        # --------------------------------------------------------------
+
+        self._validate_users(
+            client=client,
+            users=users,
+        )
+
+        self._validate_tickets(
+            client=client,
+            tickets=tickets,
+        )
+
+        tickets_to_suspend = [
+            ticket
+            for ticket in tickets
+            if self._should_suspend(ticket)
+        ]
+
+        self._validate_ticket_users(
+            tickets=tickets_to_suspend,
+            ticket_users=ticket_users,
+        )
+
+        # --------------------------------------------------------------
+        # Client
+        # --------------------------------------------------------------
+
+        client.disable()
+
+        # --------------------------------------------------------------
+        # Users
+        # --------------------------------------------------------------
+
+        changed_users: list[User] = []
+
+        for user in users:
+            if not user.enabled:
+                continue
+
+            user.disable()
+            changed_users.append(user)
+
+        # --------------------------------------------------------------
+        # Tickets / TicketUsers
+        # --------------------------------------------------------------
+
+        changed_tickets: list[Ticket] = []
+        changed_ticket_users: list[TicketUser] = []
+
+        for ticket in tickets_to_suspend:
+            ticket.suspend(
+                actor_employee_id=actor_employee_id,
+            )
+
+            changed_tickets.append(ticket)
+
+            if ticket.user_ticket_id == 0:
+                continue
+
+            ticket_user = ticket_users[
+                ticket.user_ticket_id
+            ]
+
+            status_before = ticket_user.current_status()
+
+            self._ticket_sync_service.sync_from_ticket(
+                ticket,
+                ticket_user,
+            )
+
+            if ticket_user.current_status() != status_before:
+                changed_ticket_users.append(
+                    ticket_user
+                )
+
+        return ClientDisableResult(
+            users=tuple(changed_users),
+            tickets=tuple(changed_tickets),
+            ticket_users=tuple(changed_ticket_users),
+        )
+
+    # ==================================================================
+    # Delete
+    # ==================================================================
+
+    @staticmethod
+    def ensure_can_delete(
+        *,
+        client: Client,
+        has_users: bool,
+        has_tickets: bool,
+        has_user_tickets: bool,
+    ) -> None:
+        """
+        Validate that Client can be deleted.
+
+        Client cannot be deleted while referenced by:
+        - User;
+        - Ticket;
+        - TicketUser.
+
+        Application layer obtains reference facts from repositories.
+        ClientService interprets them as business rules.
+        """
+
+        if has_users:
+            raise DomainOperationError(
+                f"Cannot delete client {client.client_id}: "
+                f"client has users"
+            )
+
+        if has_tickets:
+            raise DomainOperationError(
+                f"Cannot delete client {client.client_id}: "
+                f"client has tickets"
+            )
+
+        if has_user_tickets:
+            raise DomainOperationError(
+                f"Cannot delete client {client.client_id}: "
+                f"client has user tickets"
+            )
+
+    # ==================================================================
+    # Disable rules
+    # ==================================================================
+
+    @staticmethod
+    def _should_suspend(
+        ticket: Ticket,
+    ) -> bool:
+        """
+        Determine whether Ticket must be automatically suspended
+        when its Client is disabled.
+        """
+
+        if ticket.is_terminal():
+            return False
+
+        current_status = ticket.current_status()
+
+        if current_status == TicketStatus.AT_WORK:
+            return False
+
+        if current_status == TicketStatus.SUSPENDED:
+            return False
+
+        return True
+
+    # ==================================================================
+    # Context validation
+    # ==================================================================
+
+    @staticmethod
+    def _validate_users(
+        *,
+        client: Client,
+        users: list[User],
+    ) -> None:
+        """
+        Ensure that every supplied User belongs to Client.
+        """
+
+        for user in users:
+            if user.client_id != client.client_id:
+                raise DomainOperationError(
+                    f"User {user.employee_id} does not belong "
+                    f"to client {client.client_id}"
+                )
+
+    @staticmethod
+    def _validate_tickets(
+        *,
+        client: Client,
+        tickets: list[Ticket],
+    ) -> None:
+        """
+        Ensure that every supplied Ticket belongs to Client.
+        """
+
+        for ticket in tickets:
+            if ticket.client_id != client.client_id:
+                raise DomainOperationError(
+                    f"Ticket {ticket.ticket_id} does not belong "
+                    f"to client {client.client_id}"
+                )
+
+    def _validate_ticket_users(
+        self,
+        *,
+        tickets: list[Ticket],
+        ticket_users: dict[int, TicketUser],
+    ) -> None:
+        """
+        Validate TicketUser aggregates required for Tickets
+        that are going to be suspended.
+
+        Standalone Ticket:
+            user_ticket_id == 0
+            -> TicketUser is not required.
+
+        Linked Ticket:
+            Ticket.user_ticket_id must identify supplied TicketUser
+            and linked aggregates must be structurally consistent.
+        """
+
+        for ticket in tickets:
+            if ticket.user_ticket_id == 0:
+                continue
+
+            ticket_user = ticket_users.get(
+                ticket.user_ticket_id
+            )
+
+            if ticket_user is None:
+                raise DomainOperationError(
+                    f"TicketUser {ticket.user_ticket_id} "
+                    f"required for ticket {ticket.ticket_id} "
+                    f"was not provided"
+                )
+
+            self._ticket_sync_service.ensure_consistent(
+                ticket,
+                ticket_user,
+            )

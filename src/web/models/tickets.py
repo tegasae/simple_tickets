@@ -1,12 +1,27 @@
 # src/web/models/tickets.py
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.domain.ticket import TicketUrgency
+
+
+# =====================================================================
+# Creation
+# =====================================================================
+
 
 class TicketCreateRequest(BaseModel):
+    """
+    Create ordinary internal Ticket.
+
+    This request does not create TicketUser.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
     client_id: int = Field(gt=0)
 
     text_of_ticket: str = Field(min_length=1)
@@ -17,17 +32,43 @@ class TicketCreateRequest(BaseModel):
 
     department_id: int = Field(default=0, ge=0)
 
-    is_remote: bool = False
-    urgency_level: int = Field(default=0, ge=0)
+    remote_work_recommended: bool = False
+
+    urgency: TicketUrgency = TicketUrgency.NORMAL
+
+    planned_at: datetime | None = None
 
     comment: str = ""
 
 
-class TicketCommentRequest(BaseModel):
+class TicketCreateForUserRequest(TicketCreateRequest):
+    """
+    Admin creates TicketUser and corresponding internal Ticket.
+    """
+
+    user_id: int = Field(gt=0)
+
+
+# =====================================================================
+# Ticket data
+# =====================================================================
+
+
+
+
+
+
+class TicketCommentBaseRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     comment: str = ""
 
 
-class TicketRequiredCommentRequest(BaseModel):
+class TicketCommentRequest(TicketCommentBaseRequest):
+    pass
+
+
+class TicketRequiredCommentRequest(TicketCommentBaseRequest):
     comment: str = Field(min_length=1)
 
 
@@ -43,87 +84,148 @@ class TicketDeferRequest(TicketRequiredCommentRequest):
     pass
 
 
+class TicketDescriptionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    description: str = ""
+
+
+class TicketContactUserRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    contact_user_id: int = Field(ge=0)
+
+
 class TicketChangeDepartmentRequest(BaseModel):
-    department_id:int
+    model_config = ConfigDict(extra="forbid")
+
+    department_id: int = Field(ge=0)
 
 
-class TicketUpdateDetailsRequest(BaseModel):
-    description:str=""
-    contact_user_id: int = Field(default=0, ge=0)
-    is_remote: bool = False
+class TicketRemoteWorkRecommendationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    remote_work_recommended: bool
+
+
+class TicketUrgencyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    urgency: TicketUrgency
+
+
+# =====================================================================
+# Planning
+# =====================================================================
+
 
 class TicketScheduleRequest(BaseModel):
-    planned_start_at: datetime
-    planned_finish_at: datetime | None = None
-    comment: str = ""
+    model_config = ConfigDict(extra="forbid")
+
+    planned_at: datetime
 
 
-class TicketAssignExecutorRequest(BaseModel):
+# =====================================================================
+# Workflow
+# =====================================================================
+
+
+
+
+class TicketAssignRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     executor_id: int = Field(gt=0)
     comment: str = ""
 
 
-class TicketReadyToWorkRequest(BaseModel):
-    executor_id: int = Field(gt=0)
-    planned_start_at: datetime
-    planned_finish_at: datetime | None = None
-    comment: str = ""
+# =====================================================================
+# Work
+# =====================================================================
 
 
 class TicketStartWorkRequest(BaseModel):
+    """
+    Normal ASSIGNED -> AT_WORK.
+
+    work_is_remote describes this concrete work episode.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    work_is_remote: bool = False
     comment: str = ""
 
 
-class TicketPauseWorkRequest(BaseModel):
+class TicketStartRemoteWorkRequest(BaseModel):
+    """
+    Special operation for Ticket where remote work is recommended.
+
+    Work mode is always remote, therefore work_is_remote is not supplied.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
     comment: str = ""
+
+
+class TicketPauseWorkRequest(TicketCommentRequest):
+    pass
 
 
 class TicketResumeWorkRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    work_is_remote: bool = False
     comment: str = ""
 
 
-class TicketSubmitForReviewRequest(BaseModel):
+class TicketFinishWorkRequest(TicketCommentRequest):
+    """
+    Finish current work.
+
+    Application layer may additionally perform EXECUTED when actor
+    has TICKET_EXECUTED.
+    """
+
+    pass
+
+
+class TicketCompleteWorkRetroactivelyRequest(BaseModel):
+    """
+    Register already completed work.
+
+    Domain validates that either:
+
+        actual_started_at + actual_finished_at
+
+    or:
+
+        positive duration
+
+    is supplied.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    work_is_remote: bool = False
+
+    actual_started_at: datetime | None = None
+    actual_finished_at: datetime | None = None
+
+    duration: timedelta = Field(
+        default_factory=timedelta,
+    )
+
     comment: str = ""
 
 
-class TicketRecordCompletedWorkForReviewRequest(BaseModel):
-    executor_id: int = Field(gt=0)
-    actual_started_at: datetime
-    actual_finished_at: datetime
-    comment: str = ""
+# =====================================================================
+# Finalization
+# =====================================================================
 
 
-class TicketExecuteRequest(BaseModel):
-    comment: str = ""
-
-
-class TicketConfirmExecutionRequest(BaseModel):
-    comment: str = ""
-
-
-class TicketReturnToWorkRequest(BaseModel):
-    comment: str = ""
-
-
-class TicketReturnToAssignedRequest(BaseModel):
-    executor_id: int = Field(gt=0)
-    comment: str = ""
-
-
-class TicketReturnToScheduledRequest(BaseModel):
-    planned_start_at: datetime
-    planned_finish_at: datetime | None = None
-    comment: str = ""
-
-
-class TicketReturnToReadyToWorkRequest(BaseModel):
-    executor_id: int = Field(gt=0)
-    planned_start_at: datetime
-    planned_finish_at: datetime | None = None
-    comment: str = ""
-
-
-class TicketReturnToDeferredRequest(TicketRequiredCommentRequest):
+class TicketExecuteRequest(TicketCommentRequest):
     pass
 
 
@@ -131,13 +233,25 @@ class TicketCancelRequest(TicketRequiredCommentRequest):
     pass
 
 
+# =====================================================================
+# Response
+# =====================================================================
+
+
 class TicketResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    """
+    Web representation of internal Ticket.
+
+    Field names must correspond to TicketResponseDTO.
+    """
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
 
     ticket_id: int
 
     client_id: int
-    admin_id: int
 
     user_id: int
     contact_user_id: int
@@ -151,11 +265,21 @@ class TicketResponse(BaseModel):
     date_created: datetime
     date_finished: datetime | None
 
-    is_remote: bool
-    urgency_level: int
+    planned_at: datetime | None = None
+
+    remote_work_recommended: bool
+
+    urgency: TicketUrgency
 
     version: int
     is_closed: bool
-    time_spent:int
-    statuses: list[dict[str, Any]]
-    comments: list[dict[str, Any]]
+
+    time_spent: int = 0
+
+    statuses: list[dict[str, Any]] = Field(
+        default_factory=list,
+    )
+
+    comments: list[dict[str, Any]] = Field(
+        default_factory=list,
+    )

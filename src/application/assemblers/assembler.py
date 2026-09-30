@@ -39,34 +39,23 @@ class ClientAssembler:
 
 class TicketAssembler:
     @staticmethod
-    def to_dto(ticket: Ticket) -> TicketResponseDTO:
+    def to_dto(
+        ticket: Ticket,
+    ) -> TicketResponseDTO:
         statuses = [
             {
                 "id": record.status_id,
                 "status": record.status.value,
                 "actor_id": record.actor_employee_id,
                 "executor_id": record.executor_id,
-                "date_created": str(record.date_created),
-                "planned_start_at": (
-                    record.planned_start_at
-                    if record.planned_start_at is not None
-                    else None
-                ),
-                "planned_finish_at": (
-                    record.planned_finish_at
-                    if record.planned_finish_at is not None
-                    else None
-                ),
-                "actual_started_at": (
-                    record.actual_started_at
-                    if record.actual_started_at is not None
-                    else None
-                ),
-                "actual_finished_at": (
-                    record.actual_finished_at
-                    if record.actual_finished_at is not None
-                    else None
-                ),
+                "date_created": record.date_created,
+
+                "actual_started_at": record.actual_started_at,
+                "actual_finished_at": record.actual_finished_at,
+
+                "duration": record.duration,
+                "work_is_remote": record.work_is_remote,
+
                 "comment": record.comment,
             }
             for record in ticket.statuses
@@ -84,29 +73,37 @@ class TicketAssembler:
 
         return TicketResponseDTO(
             ticket_id=ticket.ticket_id,
+
             client_id=ticket.client_id,
-            admin_id=ticket.admin_id,
+
             user_id=ticket.user_id,
             contact_user_id=ticket.contact_user_id,
             user_ticket_id=ticket.user_ticket_id,
+
             department_id=ticket.department_id,
+
             text_of_ticket=ticket.text_of_ticket,
             description=ticket.description,
+
             date_created=ticket.date_created,
-            date_finished=(
-                ticket.date_finished
-                if ticket.date_finished is not None
-                else None
+            date_finished=ticket.date_finished,
+
+            planned_at=ticket.planned_at,
+
+            remote_work_recommended=(
+                ticket.remote_work_recommended
             ),
-            is_remote=ticket.is_remote,
-            urgency_level=ticket.urgency_level,
+
+            urgency=ticket.urgency,
+
             version=ticket.version,
             is_closed=ticket.is_closed,
+
             time_spent=ticket.working_time(),
+
             statuses=statuses,
             comments=comments,
         )
-
 
 
 class TicketUserAssembler:

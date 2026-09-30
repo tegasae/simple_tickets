@@ -1795,6 +1795,207 @@ class Ticket:
         self.append_status(record)
 
 
+    def complete_work_retroactively(
+            self,
+            *,
+            actor_employee_id: int,
+            work_is_remote: bool,
+            started_at: datetime | None = None,
+            finished_at: datetime | None = None,
+            duration: timedelta = timedelta(),
+            comment: str = "",
+    ) -> None:
+        """
+        Register already completed work.
+
+        Workflow:
+
+            ASSIGNED
+                -> AT_WORK
+                -> READY_FOR_REVIEW
+
+        Work time must be specified either as:
+
+            started_at + finished_at
+
+        or:
+
+            duration
+
+        Only the current executor may perform the operation.
+        """
+
+        if actor_employee_id <= 0:
+            raise DomainOperationError(
+                "Actor employee id must be positive"
+            )
+
+        if self.current_status() != TicketStatus.ASSIGNED:
+            raise DomainOperationError(
+                "Retroactive work completion is allowed "
+                "only from ASSIGNED status"
+            )
+
+        executor_id = self.current_executor_id()
+
+        if executor_id != actor_employee_id:
+            raise DomainOperationError(
+                "Only current executor can complete ticket work"
+            )
+
+        # --------------------------------------------------------------
+        # Work-time input
+        # --------------------------------------------------------------
+
+        has_started_at = started_at is not None
+        has_finished_at = finished_at is not None
+
+        if has_started_at != has_finished_at:
+            raise DomainOperationError(
+                "started_at and finished_at must be provided together"
+            )
+
+        has_interval = (
+                has_started_at
+                and has_finished_at
+        )
+
+        # timedelta() == zero duration.
+        #
+        # Any non-zero duration is considered supplied here.
+        # Validation of its actual value belongs to TicketStatusRecord.
+        has_duration = duration != timedelta()
+
+        if has_interval and has_duration:
+            raise DomainOperationError(
+                "Specify either started_at/finished_at "
+                "or duration, not both"
+            )
+
+        if not has_interval and not has_duration:
+            raise DomainOperationError(
+                "Either started_at/finished_at "
+                "or duration must be provided"
+            )
+
+        # --------------------------------------------------------------
+        # Create records before mutating Ticket.
+        #
+        # TicketStatusRecord validates:
+        # - work_mode;
+        # - duration;
+        # - actual dates;
+        # - AT_WORK payload.
+        # --------------------------------------------------------------
+
+        now = datetime.now(UTC)
+
+        at_work_record = TicketStatusRecord(
+            status=TicketStatus.AT_WORK,
+            actor_employee_id=actor_employee_id,
+            executor_id=executor_id,
+            work_is_remote=work_is_remote,
+            actual_started_at=started_at,
+            actual_finished_at=finished_at,
+            duration=duration,
+            date_created=now,
+            comment=self._make_status_comment(comment=comment),
+        )
+
+        ready_for_review_record = TicketStatusRecord(
+            status=TicketStatus.READY_FOR_REVIEW,
+            actor_employee_id=actor_employee_id,
+            date_created=now,
+        )
+
+        # --------------------------------------------------------------
+        # ASSIGNED -> AT_WORK -> READY_FOR_REVIEW
+        # --------------------------------------------------------------
+
+        self.append_status(
+            at_work_record
+        )
+
+        self.append_status(
+            ready_for_review_record
+        )
+    def start_remote_work(
+            self,
+            *,
+            actor_employee_id: int,
+            comment: str = "",
+    ) -> None:
+        """
+        Start work by executor when remote work is recommended.
+
+        Allowed workflows:
+
+            ACCEPTED
+                -> ASSIGNED
+                -> AT_WORK
+
+            ASSIGNED
+                -> AT_WORK
+
+        From ASSIGNED only the current executor may start work.
+
+        Work is always registered as remote.
+        """
+
+        if actor_employee_id <= 0:
+            raise DomainOperationError(
+                "Actor employee id must be positive"
+            )
+
+        if not self.remote_work_recommended:
+            raise DomainOperationError(
+                "Remote work is not recommended for this ticket"
+            )
+
+        current_status = self.current_status()
+
+        # --------------------------------------------------------------
+        # ACCEPTED -> ASSIGNED
+        # --------------------------------------------------------------
+
+        if current_status == TicketStatus.ACCEPTED:
+            self.append_status(
+                TicketStatusRecord(
+                    status=TicketStatus.ASSIGNED,
+                    actor_employee_id=actor_employee_id,
+                    executor_id=actor_employee_id,
+                )
+            )
+
+        # --------------------------------------------------------------
+        # ASSIGNED
+        # --------------------------------------------------------------
+
+        elif current_status == TicketStatus.ASSIGNED:
+            if self.current_executor_id() != actor_employee_id:
+                raise DomainOperationError(
+                    "Ticket is assigned to another executor"
+                )
+
+        else:
+            raise DomainOperationError(
+                "Remote work can be started only from "
+                "ACCEPTED or ASSIGNED status"
+            )
+
+        # --------------------------------------------------------------
+        # ASSIGNED -> AT_WORK
+        # --------------------------------------------------------------
+
+        self.append_status(
+            TicketStatusRecord(
+                status=TicketStatus.AT_WORK,
+                actor_employee_id=actor_employee_id,
+                executor_id=actor_employee_id,
+                work_is_remote=True,
+                comment=self._make_status_comment(comment=comment),
+            )
+        )
     # ==================================================================
     # Validation
     # ==================================================================
