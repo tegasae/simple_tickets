@@ -224,6 +224,16 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             {"user_id": user_id},
         )
 
+    def get_by_contact_user_id(
+            self,
+            contact_user_id: int,
+    ) -> list[Ticket]:
+        return self._load_many_tickets(
+            TicketGateway.SELECT_BY_CONTACT_USER_ID,
+            {"contact_user_id": contact_user_id},
+        )
+
+
     def get_by_department_id(
             self,
             department_id: int,

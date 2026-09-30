@@ -40,8 +40,13 @@ class TicketGateway:
         """
 
     SELECT_BY_USER_ID = SELECT_BASE + """
-            WHERE user_id=:client_id
+            WHERE user_id=:user_id
             """
+
+    SELECT_BY_CONTACT_USER_ID = SELECT_BASE + """
+                WHERE contact_user_id=:contact_user_id
+                """
+
     SELECT_BY_DEPARTMENT_ID = SELECT_BASE + """
                 WHERE department_id=:department_id
                 """

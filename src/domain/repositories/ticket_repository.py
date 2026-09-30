@@ -88,6 +88,15 @@ class TicketRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_by_contact_user_id(
+            self,
+            contact_user_id: int,
+    ) -> list[Ticket]:
+
+
+        raise NotImplementedError
+
+    @abstractmethod
     def get_by_department_id(
         self,
         department_id: int,

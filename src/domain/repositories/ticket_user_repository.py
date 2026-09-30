@@ -34,7 +34,7 @@ class TicketUserRepository(ABC):
 
         raise NotImplementedError
 
-    @abstractmethod
+    @abstractmetho
     def get_by_user_id(
         self,
         user_id: int,
@@ -46,6 +46,8 @@ class TicketUserRepository(ABC):
         """
 
         raise NotImplementedError
+
+
 
     @abstractmethod
     def get_by_client_id(
@@ -68,6 +70,8 @@ class TicketUserRepository(ABC):
 
 
         raise NotImplementedError
+
+
 
     @abstractmethod
     def get_open_by_client_id(
