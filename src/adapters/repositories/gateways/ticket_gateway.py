@@ -2,6 +2,7 @@
 
 
 class TicketGateway:
+
     SELECT_BASE = """
     SELECT
         ticket_id,
@@ -34,13 +35,32 @@ class TicketGateway:
     WHERE user_ticket_id = :user_ticket_id
     """
 
+    SELECT_BY_CLIENT_ID = SELECT_BASE + """
+        WHERE client_id=:client_id
+        """
+
+    SELECT_BY_USER_ID = SELECT_BASE + """
+            WHERE user_id=:client_id
+            """
+    SELECT_BY_DEPARTMENT_ID = SELECT_BASE + """
+                WHERE department_id=:department_id
+                """
+
     SELECT_BY_EXECUTOR_ID = SELECT_BASE + """
     WHERE current_executor_id=:current_executor_id
     """
 
+
+
+    SELECT_BY_OPEN = SELECT_BASE + """
+                WHERE date_finished is not NULL
+            """
+
     SELECT_BY_FINISHED = SELECT_BASE + """
-        WHERE date_finished is :date_finished
+        WHERE date_finished is NULL
     """
+
+
 
 
     SELECT_BY_CLIENT_ID_BATCH ="""

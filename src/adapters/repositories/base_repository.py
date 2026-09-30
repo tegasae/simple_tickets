@@ -4,7 +4,7 @@ from typing import Any
 from utils.db.connect import Connection
 from utils.db.exceptions import DBOperationError
 
-from src.adapters.repositories.exceptions import PersistenceError
+from src.adapters.repositories.exceptions import PersistenceError, OptimisticLockError
 
 
 @dataclass(frozen=True)
@@ -68,3 +68,28 @@ class BaseRepository:
         )
 
         return bool(row and row.get("one", 0))
+
+    def _touch_version(
+            self,
+            sql: str,
+            params: dict[str, object],
+            *,
+            entity_name: str,
+            entity_id: int,
+    ) -> None:
+        """
+        Atomically advance optimistic-lock version.
+
+        Raises OptimisticLockError when the persisted version no longer
+        matches the expected version.
+        """
+        result = self._exec(
+            sql,
+            params,
+        )
+
+        if result.rowcount == 0:
+            raise OptimisticLockError(
+                f"{entity_name} {entity_id} "
+                f"was changed by another transaction"
+            )

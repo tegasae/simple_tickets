@@ -41,17 +41,6 @@ class TicketUserRepositorySQLite(
     Status history и comments являются append-only.
     """
 
-    def get_by_user_id(self, user_id: int) -> list[TicketUser]:
-        pass
-
-    def get_by_client_id(self, client_id: int) -> list[TicketUser]:
-        pass
-
-    def get_closed_by_user_id(self, user_id: int) -> list[TicketUser]:
-        pass
-
-    def get_closed_by_client_id(self, client_id: int) -> list[TicketUser]:
-        pass
 
     # --------------------------------
     # Load helpers
@@ -151,19 +140,19 @@ class TicketUserRepositorySQLite(
 
     def get(
         self,
-        ticket_id: int,
+        ticket_user_id: int,
     ) -> TicketUser:
         row = self._get_one(
             TicketUserGateway.SELECT_BY_ID,
             TicketUserMapper.TICKET_FIELDS,
             {
-                "user_ticket_id": ticket_id,
+                "user_ticket_id": ticket_user_id,
             },
         )
 
         if not row:
             raise ItemNotFoundError(
-                f"TicketUser {ticket_id}"
+                f"TicketUser {ticket_user_id}"
             )
 
         return self._load_ticket(row)
@@ -171,14 +160,81 @@ class TicketUserRepositorySQLite(
     def get_all(
         self,
     ) -> list[TicketUser]:
-        rows = self._get_many(
-            TicketUserGateway.SELECT_ALL,
-            TicketUserMapper.TICKET_FIELDS,
-        )
 
         return [
             self._load_ticket(row)
-            for row in rows
+            for row in self._get_many(
+                TicketUserGateway.SELECT_ALL,
+                TicketUserMapper.TICKET_FIELDS,
+                )
+        ]
+
+
+
+    def get_by_user_id(self, user_id: int) -> list[TicketUser]:
+        return [
+            self._load_ticket(row)
+            for row in self._get_many(
+                TicketUserGateway.SELECT_BY_USER_ID,
+                TicketUserMapper.TICKET_FIELDS,
+                {"user_id": user_id},
+            )
+        ]
+
+    def get_by_client_id(self, client_id: int) -> list[TicketUser]:
+        return [
+            self._load_ticket(row)
+            for row in self._get_many(
+                TicketUserGateway.SELECT_BY_CLIENT_ID,
+                TicketUserMapper.TICKET_FIELDS,
+                {"client_id": client_id},
+            )
+        ]
+
+    def get_open_by_user_id(self, user_id: int) -> list[TicketUser]:
+        return [
+            self._load_ticket(row)
+            for row in self._get_many(
+                TicketUserGateway.SELECT_BY_OPEN_USER_ID,
+                TicketUserMapper.TICKET_FIELDS,
+                {"user_id": user_id},
+
+            )
+        ]
+
+    def get_open_by_client_id(self, client_id: int) -> list[TicketUser]:
+        return [
+            self._load_ticket(row)
+            for row in self._get_many(
+                TicketUserGateway.SELECT_BY_OPEN_CLIENT_ID,
+                TicketUserMapper.TICKET_FIELDS,
+                {"client_id": client_id},
+
+            )
+        ]
+
+
+
+    def get_finished_by_user_id(self, user_id: int) -> list[TicketUser]:
+        return [
+            self._load_ticket(row)
+            for row in self._get_many(
+                TicketUserGateway.SELECT_BY_FINISHED_USER_ID,
+                TicketUserMapper.TICKET_FIELDS,
+                {"user_id": user_id},
+
+            )
+        ]
+
+    def get_finished_by_client_id(self, client_id: int) -> list[TicketUser]:
+        return [
+            self._load_ticket(row)
+            for row in self._get_many(
+                TicketUserGateway.SELECT_BY_FINISHED_CLIENT_ID,
+                TicketUserMapper.TICKET_FIELDS,
+                {"client_id": client_id},
+
+            )
         ]
 
     # --------------------------------
@@ -385,3 +441,5 @@ class TicketUserRepositorySQLite(
             },
         )
         )
+
+

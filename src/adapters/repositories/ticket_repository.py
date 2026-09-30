@@ -34,23 +34,7 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
     Executor history is stored inside TicketStatusRecord.executor_id.
     """
 
-    def get_by_client_id(self, client_id: int) -> list[Ticket]:
-        pass
 
-    def get_by_user_id(self, user_id: int) -> list[Ticket]:
-        pass
-
-    def get_by_department_id(self, department_id: int) -> list[Ticket]:
-        pass
-
-    def get_by_current_executor(self, executor_id: int) -> list[Ticket]:
-        pass
-
-    def get_open(self) -> list[Ticket]:
-        pass
-
-    def get_closed(self) -> list[Ticket]:
-        pass
 
     # ---------------------------
     # Load helpers
@@ -139,16 +123,29 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
 
         return self._load_ticket(row)
 
-    def get_all(self) -> list[Ticket]:
-        rows = self._get_many(
-            TicketGateway.SELECT_ALL,
+    def get_by_user_ticket_id(
+            self,
+            user_ticket_id: int,
+    ) -> Ticket:
+        row = self._get_one(
+            TicketGateway.SELECT_BY_USER_TICKET_ID,
             TicketMapper.TICKET_FIELDS,
+            {"user_ticket_id": user_ticket_id},
         )
 
-        return [
-            self._load_ticket(row)
-            for row in rows
-        ]
+        if not row:
+            raise ItemNotFoundError(
+                f"Ticket for user ticket {user_ticket_id}"
+            )
+
+        return self._load_ticket(row)
+
+    def get_all(self) -> list[Ticket]:
+        return self._load_many_tickets(
+            TicketGateway.SELECT_ALL,
+        )
+
+
 
     def iter_by_client_id(
             self,
@@ -208,22 +205,55 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
 
             last_id = rows[-1]["ticket_id"]
 
-    def get_by_user_ticket_id(
-        self,
-        user_ticket_id: int,
-    ) -> Ticket:
-        row = self._get_one(
-            TicketGateway.SELECT_BY_USER_TICKET_ID,
-            TicketMapper.TICKET_FIELDS,
-            {"user_ticket_id": user_ticket_id},
+
+    def get_by_client_id(
+            self,
+            client_id: int,
+    ) -> list[Ticket]:
+        return self._load_many_tickets(
+            TicketGateway.SELECT_BY_CLIENT_ID,
+            {"client_id": client_id},
         )
 
-        if not row:
-            raise ItemNotFoundError(
-                f"Ticket for user ticket {user_ticket_id}"
-            )
+    def get_by_user_id(
+            self,
+            user_id: int,
+    ) -> list[Ticket]:
+        return self._load_many_tickets(
+            TicketGateway.SELECT_BY_USER_ID,
+            {"user_id": user_id},
+        )
 
-        return self._load_ticket(row)
+    def get_by_department_id(
+            self,
+            department_id: int,
+    ) -> list[Ticket]:
+        return self._load_many_tickets(
+            TicketGateway.SELECT_BY_DEPARTMENT_ID,
+            {"department_id": department_id},
+        )
+
+    def get_by_current_executor(
+            self,
+            executor_id: int,
+    ) -> list[Ticket]:
+        return self._load_many_tickets(
+            TicketGateway.SELECT_BY_EXECUTOR_ID,
+            {"executor_id": executor_id},
+        )
+
+    def get_open(self) -> list[Ticket]:
+        return self._load_many_tickets(
+            TicketGateway.SELECT_BY_OPEN,
+        )
+
+    def get_finished(self) -> list[Ticket]:
+        return self._load_many_tickets(
+            TicketGateway.SELECT_BY_FINISHED,
+        )
+
+
+
 
     # ---------------------------
     # Save
@@ -357,6 +387,24 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             TicketGateway.EXISTS_BY_DEPARTMENT_ID,
             {"department_id": department_id},
         )
+
+    def _load_many_tickets(
+            self,
+            sql: str,
+            params: dict[str, object] | None = None,
+    ) -> list[Ticket]:
+        rows = self._get_many(
+            sql,
+            TicketMapper.TICKET_FIELDS,
+            params,
+        )
+
+        return [
+            self._load_ticket(row)
+            for row in rows
+        ]
+
+
 '''
     def search(
             self,
@@ -465,3 +513,4 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
         ]
         
         '''
+

@@ -1,8 +1,7 @@
 # src/adapters/repositories/gateways/ticket_user_gateway.py
 
 class TicketUserGateway:
-
-    SELECT_BY_ID = """
+    BASE_SELECT="""
     SELECT
         user_ticket_id,
         client_id,
@@ -12,21 +11,36 @@ class TicketUserGateway:
         description,
         date_created,
         version,
-    FROM user_tickets
-    WHERE user_ticket_id = :ticket_id
+    FROM user_tickets 
     """
 
-    SELECT_ALL = """
-    SELECT
-        user_ticket_id,
-        client_id,
-        user_id,
-        contact_user_id,
-        text_of_ticket,
-        description,
-        date_created,
-        version,
-    FROM user_tickets
+
+    SELECT_BY_ID = BASE_SELECT + """
+    WHERE user_ticket_id = :user_ticket_id
+    """
+
+    SELECT_BY_USER_ID = BASE_SELECT + """
+        WHERE user_id = :user_id
+        """
+    SELECT_BY_CLIENT_ID=BASE_SELECT+ """
+    WHERE client_id = :client_id"""
+
+    SELECT_BY_OPEN_USER_ID=BASE_SELECT +   """ 
+    WHERE user_id=:user_id AND date_finished is NULL"""
+
+    SELECT_BY_OPEN_CLIENT_ID = BASE_SELECT + """ 
+        WHERE client_id=:client_id AND date_finished is NULL"""
+
+    SELECT_BY_FINISHED_USER_ID=BASE_SELECT + """
+    WHERE user_id=:user_id AND date_finished is not NULL"""
+    SELECT_BY_FINISHED_CLIENT_ID = BASE_SELECT + """
+    WHERE user_id=:user_id AND date_finished is NULL"""
+
+
+
+
+    SELECT_ALL = BASE_SELECT + """
+    
     ORDER BY user_ticket_id
     """
 

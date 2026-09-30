@@ -54,3 +54,10 @@ class ClientGateway:
 
     SELECT_BY_ADMIN = "SELECT count(client_id) FROM clients WHERE admin_id = :admin_id"
 
+    TOUCH = """
+        UPDATE clients
+        SET version = version + 1
+        WHERE client_id = :client_id
+          AND version = :version
+    """
+

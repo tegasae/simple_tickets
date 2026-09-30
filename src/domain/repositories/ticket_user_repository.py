@@ -61,7 +61,25 @@ class TicketUserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_closed_by_user_id(
+    def get_open_by_user_id(
+            self,
+            user_id: int,
+    ) -> list[TicketUser]:
+
+
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_open_by_client_id(
+            self,
+            client_id: int,
+    ) -> list[TicketUser]:
+
+
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_finished_by_user_id(
         self,
         user_id: int,
     ) -> list[TicketUser]:
@@ -76,7 +94,7 @@ class TicketUserRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_closed_by_client_id(
+    def get_finished_by_client_id(
         self,
         client_id: int,
     ) -> list[TicketUser]:

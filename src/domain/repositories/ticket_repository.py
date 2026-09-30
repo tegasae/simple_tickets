@@ -142,7 +142,7 @@ class TicketRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_closed(self) -> list[Ticket]:
+    def get_finished(self) -> list[Ticket]:
         """
         Return all currently closed Tickets.
 

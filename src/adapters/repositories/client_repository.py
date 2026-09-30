@@ -102,3 +102,19 @@ class ClientRepositorySQLite(BaseRepository, ClientRepository):
 
     def has_created_by_admin(self, *, admin_id) -> bool:
         return self._exists(ClientGateway.SELECT_BY_ADMIN,params={'admin_id': admin_id})
+
+    def touch(
+            self,
+            client: Client
+    ) -> None:
+        self._touch_version(
+            ClientGateway.TOUCH,
+            {
+                "client_id": client.client_id,
+                "version": client.version,
+            },
+            entity_name="Client",
+            entity_id=client.client_id,
+        )
+
+        client.version += 1

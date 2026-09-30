@@ -33,3 +33,15 @@ class ClientRepository(ABC):
     def has_created_by_admin(self, *, admin_id) ->bool:
         raise NotImplementedError()
 
+    @abstractmethod
+    def touch(
+            self,
+            client:Client
+    ) -> None:
+        """
+        Verify that Client version is still current and advance it.
+
+        Used when an operation depends on current Client state but does not
+        otherwise modify the Client aggregate.
+        """
+        raise NotImplementedError
