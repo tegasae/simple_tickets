@@ -8,7 +8,7 @@ CREATE TABLE departments (
     date_created TEXT
 );
 INSERT INTO departments VALUES(2,'Суппорт',0,1,'2026-07-27T16:02:50.257132');
-INSERT INTO departments VALUES(3,'1С',1,0,'2026-07-27T16:03:05.569976');
+INSERT INTO departments VALUES(3,'1С',1,1,'2026-07-27T16:03:05.569976');
 INSERT INTO departments VALUES(4,'прочее',0,0,'2026-07-27T16:03:18.429471');
 INSERT INTO departments VALUES(5,'web',1,0,'2026-09-07T17:04:25.825200');
 INSERT INTO departments VALUES(6,'string',1,0,'2026-09-17T15:35:34.192095');
@@ -200,7 +200,7 @@ INSERT INTO clients VALUES(32,181,'Клиент','','','',1,3,'2026-09-08T14:13:
 INSERT INTO clients VALUES(33,181,'Клиент новый','ацукаукапукап','','',1,7,'2026-09-08T14:16:17.964453','');
 INSERT INTO clients VALUES(34,122,'Клиент новый новый','','','',1,1,'2026-09-09T12:45:02.670365','Там нет Новичихина');
 INSERT INTO clients VALUES(35,122,'Клиент 2','','','',1,0,'2026-09-09T13:49:44.420454','');
-INSERT INTO clients VALUES(36,122,'Клиент 2','','','уацукацка',1,0,'2026-09-09T13:50:55.389754','');
+INSERT INTO clients VALUES(36,122,'Клиент 2','','','уацукацка',1,4,'2026-09-09T13:50:55.389754','');
 INSERT INTO clients VALUES(37,122,'Новый клиент','','rtrtgt@dfvefverfgv.rgtgrt','',1,1,'2026-09-16T12:47:42.789949','');
 CREATE TABLE roles (
 	role_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -211,7 +211,7 @@ CREATE TABLE roles (
 	date_created TEXT,
 	is_admin INTEGER DEFAULT (1), 
 	version INTEGER DEFAULT 0);
-INSERT INTO roles VALUES(5,'Super Admin','client.operation, client.view, admin.operation, admin.view, user.operation, user.view, ticket.operation, ticket.view, role.assign, role.revoke','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
+INSERT INTO roles VALUES(5,'Super Admin','client.operation, client.view, admin.operation, admin.view, user.operation, user.view, ticket.operation, ticket.created, ticket.view, ticket.accepted, ticket.at_work, ticket.at_work_remote, ticket.at_work_retrospective, ticket.canceled, ticket.executed, role.assign, role_user.assign','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
 INSERT INTO roles VALUES(60,'Super Admin','client.operation, client.view, admin.operation, admin.view, user.operation, user.view, ticket.operation, ticket.view, role.assign, role.revoke','Full system access',1,'2026-03-23T12:21:42+00:00',1,0);
 INSERT INTO roles VALUES(61,'Ticket Creator','ticket.operation, ticket.operation.all, ticket.view, ticket.view.all','Can create and view own tickets',0,'2026-03-23T12:21:42+00:00',0,0);
 INSERT INTO roles VALUES(62,'Super Admin','role.assign,admin.view','Full system access',1,'2026-03-23T12:22:06+00:00',1,0);
@@ -330,6 +330,8 @@ INSERT INTO ticket_comments VALUES(4,10,122,'Комментарий','2026-09-08
 INSERT INTO ticket_comments VALUES(5,12,122,'На следующие выезд захватить бизнес-тренера','2026-09-09T09:51:27.190503+00:00');
 INSERT INTO ticket_comments VALUES(6,15,122,'comment1','2026-09-15T15:31:58.910575+00:00');
 INSERT INTO ticket_comments VALUES(7,16,122,'jm uil;.','2026-09-16T09:48:49.833694+00:00');
+INSERT INTO ticket_comments VALUES(8,3,181,'fergferg','2026-09-30T19:40:44.861466+00:00');
+INSERT INTO ticket_comments VALUES(9,4,181,'fergferg','2026-09-30T19:41:59.381170+00:00');
 CREATE TABLE user_tickets (
 	user_ticket_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	client_id INTEGER, -- заявки от какого клиента
@@ -375,6 +377,10 @@ CREATE TABLE tickets (
         REFERENCES departments(department_id)
         ON DELETE RESTRICT
 );
+INSERT INTO tickets VALUES(1,36,NULL,NULL,NULL,3,'string',NULL,'2026-09-30T19:14:58.390803+00:00',0,NULL,'normal',0,NULL,0);
+INSERT INTO tickets VALUES(2,36,NULL,NULL,NULL,NULL,'string',NULL,'2026-09-30T19:40:27.310056+00:00',0,'2026-10-01T12:00:00+00:00','normal',0,NULL,0);
+INSERT INTO tickets VALUES(3,36,NULL,NULL,NULL,NULL,'string',NULL,'2026-09-30T19:40:44.861466+00:00',0,'2026-10-01T12:00:00+00:00','normal',0,NULL,0);
+INSERT INTO tickets VALUES(4,36,NULL,NULL,NULL,NULL,'string',NULL,'2026-09-30T19:41:59.381170+00:00',0,'2026-10-01T12:00:00+00:00','normal',0,NULL,0);
 CREATE TABLE ticket_status_records (
     status_id INTEGER PRIMARY KEY AUTOINCREMENT,
     ticket_id INTEGER NOT NULL,
@@ -385,7 +391,7 @@ CREATE TABLE ticket_status_records (
     actual_started_at TEXT NULL,
     actual_finished_at TEXT NULL,
     work_is_remote INTEGER DEFAULT 0 CHECK (work_is_remote IN (0, 1)),
-    comment TEXT NOT NULL DEFAULT '',
+    comment TEXT NOT NULL DEFAULT '', duration INTEGER,
 
     FOREIGN KEY (ticket_id)
         REFERENCES tickets(ticket_id)
@@ -399,6 +405,14 @@ CREATE TABLE ticket_status_records (
         REFERENCES admins(employee_id)
         ON DELETE RESTRICT
 );
+INSERT INTO ticket_status_records VALUES(1,1,181,'created','2026-09-30T19:14:58.390803+00:00',NULL,NULL,NULL,NULL,'',0);
+INSERT INTO ticket_status_records VALUES(2,1,181,'accepted','2026-09-30T19:14:58.390984+00:00',NULL,NULL,NULL,NULL,'',0);
+INSERT INTO ticket_status_records VALUES(3,2,181,'created','2026-09-30T19:40:27.310056+00:00',NULL,NULL,NULL,NULL,'',0);
+INSERT INTO ticket_status_records VALUES(4,2,181,'accepted','2026-09-30T19:40:27.310240+00:00',NULL,NULL,NULL,NULL,'',0);
+INSERT INTO ticket_status_records VALUES(5,3,181,'created','2026-09-30T19:40:44.861466+00:00',NULL,NULL,NULL,NULL,'',0);
+INSERT INTO ticket_status_records VALUES(6,3,181,'accepted','2026-09-30T19:40:44.861684+00:00',NULL,NULL,NULL,NULL,'fergferg',0);
+INSERT INTO ticket_status_records VALUES(7,4,181,'created','2026-09-30T19:41:59.381170+00:00',NULL,NULL,NULL,NULL,'',0);
+INSERT INTO ticket_status_records VALUES(8,4,181,'accepted','2026-09-30T19:41:59.381423+00:00',NULL,NULL,NULL,NULL,'fergferg',0);
 DELETE FROM sqlite_sequence;
 INSERT INTO sqlite_sequence VALUES('employees',209);
 INSERT INTO sqlite_sequence VALUES('accounts',569);
@@ -407,7 +421,9 @@ INSERT INTO sqlite_sequence VALUES('clients',37);
 INSERT INTO sqlite_sequence VALUES('user_tickets_status_record',33);
 INSERT INTO sqlite_sequence VALUES('user_tickets_comment',3);
 INSERT INTO sqlite_sequence VALUES('departments',7);
-INSERT INTO sqlite_sequence VALUES('ticket_comments',7);
+INSERT INTO sqlite_sequence VALUES('ticket_comments',9);
+INSERT INTO sqlite_sequence VALUES('tickets',4);
+INSERT INTO sqlite_sequence VALUES('ticket_status_records',8);
 CREATE UNIQUE INDEX accounts_login_IDX ON accounts (login);
 CREATE UNIQUE INDEX accounts_employee_uq ON accounts(employee_id);
 CREATE UNIQUE INDEX idx_departments_name
