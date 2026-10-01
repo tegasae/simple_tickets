@@ -1483,7 +1483,6 @@ class Ticket:
             status=TicketStatus.AT_WORK,
             actor_employee_id=actor_employee_id,
             work_is_remote=work_is_remote,
-            executor_id=self.current_executor_id()
         )
 
         # Keep an optional status comment if one was supplied.
