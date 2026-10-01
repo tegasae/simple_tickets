@@ -160,6 +160,7 @@ class TicketStatusRule:
     allows_work_data: bool = False
     requires_work_mode:bool = False
     can_change_data: bool = False
+    has_executor:bool=False
 
 TICKET_STATUS_RULES: Final[dict[TicketStatus, TicketStatusRule]] = {
     TicketStatus.CREATED: TicketStatusRule(can_change_data=True),
@@ -183,19 +184,20 @@ TICKET_STATUS_RULES: Final[dict[TicketStatus, TicketStatusRule]] = {
     TicketStatus.SUSPENDED: TicketStatusRule(),
 
     TicketStatus.ASSIGNED: TicketStatusRule(
-        requires_executor=True
+        requires_executor=True,
+        has_executor=True
     ),
 
     TicketStatus.AT_WORK: TicketStatusRule(
         allows_work_data=True,
         requires_work_mode=True,
-        requires_executor=True,
+        has_executor=True
 
     ),
 
-    TicketStatus.PAUSED: TicketStatusRule(requires_executor=True),
+    TicketStatus.PAUSED: TicketStatusRule(has_executor=True),
 
-    TicketStatus.READY_FOR_REVIEW: TicketStatusRule(requires_executor=True),
+    TicketStatus.READY_FOR_REVIEW: TicketStatusRule(has_executor=True),
 
     TicketStatus.CONFIRMED_BY_USER: TicketStatusRule(
         user_action=True,

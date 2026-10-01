@@ -177,7 +177,7 @@ class AdminApplicationService:
                 admin_id=admin_dto.employee_id,
             )
 
-            if admin_dto.department_id <= 0:
+            if admin_dto.department_id < 0:
                 raise DomainOperationError(
                     "Department id must be positive"
                 )
@@ -187,9 +187,12 @@ class AdminApplicationService:
                 != admin_dto.department_id
             )
 
-            department = self.uow.departments.get(
-                department_id=admin_dto.department_id,
-            )
+            if admin_dto.department_id:
+                department = self.uow.departments.get(
+                    department_id=admin_dto.department_id,
+                )
+            else:
+                department=None
 
             has_current_executor_tickets = False
 
@@ -213,7 +216,7 @@ class AdminApplicationService:
                 phone=admin_dto.phone,
             )
 
-            if department_changed:
+            if department_changed and department:
                 # AdminService.update() relied on
                 # target Department.enabled.
                 self.uow.departments.touch(

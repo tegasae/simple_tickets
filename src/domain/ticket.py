@@ -801,41 +801,35 @@ class Ticket:
         """
         Return the currently active executor.
 
-        Executor-active statuses are defined by:
+        If the current workflow state has no active executor,
+        return 0.
 
-            current_status_record().rule.has_executors
+        Otherwise scan workflow history backwards until:
 
-        If the current status does not have an active executor:
+        - the active ASSIGNED record is found;
+        - or an executor-clearing state is reached.
 
-            return 0
+        Executor-active states are defined by:
 
-        When the current status does have an executor, the assignment is
-        resolved from the nearest preceding ASSIGNED record.
+            record.rule.has_executors
 
-        Workflow design guarantees that assignment-clearing states such as:
-
-            ACCEPTED
-            DEFERRED
-            SUSPENDED
-
-        cannot lead directly back into an executor-active state without a
-        new ASSIGNED record.
-
-        Therefore the nearest preceding ASSIGNED is the active assignment.
+        States without has_executors break the current assignment chain.
         """
 
-        if not self.current_status_record().rule.requires_executor:
+        if not self.current_status_record().rule.has_executor:
             return 0
 
         for record in reversed(self.statuses):
             if record.status == TicketStatus.ASSIGNED:
                 return record.executor_id
 
+            if not record.rule.has_executor:
+                return 0
+
         raise DomainOperationError(
             "Ticket is in executor-active status "
             "but has no preceding ASSIGNED record"
         )
-
     def last_executor_id(self) -> int:
         """
         Return the most recently assigned executor.
@@ -921,6 +915,8 @@ class Ticket:
         """
 
         current_record = self.current_status_record()
+
+
 
         if record.status not in TICKET_TRANSITIONS[current_record.status]:
             raise DomainOperationError(
@@ -1487,6 +1483,7 @@ class Ticket:
             status=TicketStatus.AT_WORK,
             actor_employee_id=actor_employee_id,
             work_is_remote=work_is_remote,
+            executor_id=self.current_executor_id()
         )
 
         # Keep an optional status comment if one was supplied.
@@ -1679,7 +1676,6 @@ class Ticket:
             status=TicketStatus.READY_FOR_REVIEW,
             actor_employee_id=actor_employee_id,
             comment=self._make_status_comment(comment),
-            executor_id=self.current_executor_id()
         )
 
         self.append_status(record)
@@ -1894,7 +1890,6 @@ class Ticket:
         at_work_record = TicketStatusRecord(
             status=TicketStatus.AT_WORK,
             actor_employee_id=actor_employee_id,
-            executor_id=executor_id,
             work_is_remote=work_is_remote,
             actual_started_at=started_at,
             actual_finished_at=finished_at,
@@ -1907,7 +1902,6 @@ class Ticket:
             status=TicketStatus.READY_FOR_REVIEW,
             actor_employee_id=actor_employee_id,
             date_created=now,
-            executor_id=executor_id
         )
 
         # --------------------------------------------------------------
@@ -1993,7 +1987,6 @@ class Ticket:
             TicketStatusRecord(
                 status=TicketStatus.AT_WORK,
                 actor_employee_id=actor_employee_id,
-                executor_id=actor_employee_id,
                 work_is_remote=True,
                 comment=self._make_status_comment(comment=comment),
             )

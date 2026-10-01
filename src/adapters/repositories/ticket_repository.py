@@ -249,7 +249,7 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
     ) -> list[Ticket]:
         return self._load_many_tickets(
             TicketGateway.SELECT_BY_EXECUTOR_ID,
-            {"executor_id": executor_id},
+            {"current_executor_id": executor_id},
         )
 
     def get_open(self) -> list[Ticket]:

@@ -648,7 +648,7 @@ class TicketApplicationService:
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
-                executor_id=executor.employee_id,
+                executor=executor,
                 comment=ticket_dto.comment,
             )
 

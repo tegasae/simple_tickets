@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 
+from src.domain.employee import Admin
 from src.domain.exceptions import DomainOperationError
 from src.domain.services.ticket_sync_service import TicketSyncService
 from src.domain.ticket import (
@@ -359,18 +360,20 @@ class TicketService:
         ticket: Ticket,
         ticket_user: TicketUser | None,
         actor_employee_id: int,
-        executor_id: int,
+
         comment: str = "",
         ticket_user_comment: str = "",
+        executor:Admin
     ) -> TicketUser | None:
         linked_ticket_user = self._prepare_workflow_operation(
             ticket=ticket,
             ticket_user=ticket_user,
         )
-
+        if ticket.department_id and ticket.department_id!=executor.department_id:
+            raise DomainOperationError(f"The ticket has department {ticket.department_id}. The executor has department {executor.department_id}")
         ticket.assign(
             actor_employee_id=actor_employee_id,
-            executor_id=executor_id,
+            executor_id=executor.employee_id,
             comment=comment,
         )
 
