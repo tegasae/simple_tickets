@@ -48,13 +48,13 @@ class TicketUserRepositorySQLite(
 
     def _load_statuses(
         self,
-        ticket_id: int,
+        user_ticket_id: int,
     ) -> list[TicketUserStatusRecord]:
         rows = self._get_many(
             TicketUserStatusGateway.SELECT,
             TicketUserMapper.STATUS_FIELDS,
             {
-                "ticket_user_id": ticket_id,
+                "user_ticket_id": user_ticket_id,
             },
         )
 
@@ -84,7 +84,7 @@ class TicketUserRepositorySQLite(
         self,
         row: dict,
     ) -> TicketUser:
-        ticket_id = row["ticket_id"]
+        ticket_id = row["ticket_user_id"]
 
         statuses = self._load_statuses(
             ticket_id,

@@ -5,7 +5,7 @@ This module defines the Client entity for managing customer/client information.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Self
 
 from src.domain.exceptions import ItemValidationError
@@ -36,7 +36,11 @@ class Client:
     description: Description|Empty=field(default_factory=Empty)
     created_by_admin_id: int = 0
     enabled: bool = True
-    date_created: datetime = field(default_factory=datetime.now)
+
+
+    date_created: datetime = field(
+        default_factory=lambda: datetime.now(UTC)
+    )
     version: int = 0
 
     @classmethod

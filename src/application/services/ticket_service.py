@@ -69,12 +69,12 @@ class TicketApplicationService:
     # ==================================================================
 
     def create_ticket(
-        self,
-        *,
-        ticket_dto: TicketDTO,
+            self,
+            *,
+            ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         """
-        Create standalone internal Ticket.
+        Create internal Ticket.
 
         Required permission:
 
@@ -82,9 +82,35 @@ class TicketApplicationService:
                 OR
             TICKET_OPERATION
 
+        If user_id == 0:
+
+            create standalone internal Ticket:
+
+                Ticket.CREATED
+
+        If user_id > 0:
+
+            create TicketUser first:
+
+                TicketUser.CREATED
+
+            then create linked internal Ticket:
+
+                Ticket.CREATED
+
+            Ticket is created by Admin, therefore its initial status
+            is CREATED, not CREATED_FROM_TICKET_USER.
+
         If actor additionally has TICKET_ACCEPTED:
 
-            CREATED -> ACCEPTED
+            standalone Ticket:
+
+                CREATED -> ACCEPTED
+
+            linked Ticket:
+
+                Ticket.CREATED -> ACCEPTED
+                TicketUser.CREATED -> IN_WORK
         """
 
         with self.uow:
@@ -103,163 +129,110 @@ class TicketApplicationService:
 
             if ticket_dto.user_ticket_id != 0:
                 raise DomainOperationError(
-                    "create_ticket cannot link Ticket "
-                    "to an existing TicketUser"
+                    "create_ticket cannot use existing TicketUser"
                 )
 
             self._validate_create_references(
                 ticket_dto=ticket_dto,
             )
 
-            ticket = self.ticket_service.create(
-                client_id=ticket_dto.client_id,
-                admin_id=actor.employee_id,
-                text_of_ticket=ticket_dto.text_of_ticket,
-                user_id=ticket_dto.user_id,
-                contact_user_id=ticket_dto.contact_user_id,
-                department_id=ticket_dto.department_id,
-                description=ticket_dto.description,
-                remote_work_recommended=(
-                    ticket_dto.remote_work_recommended
-                ),
-                urgency=TicketUrgency(ticket_dto.urgency),
-                planned_at=ticket_dto.planned_at,
-                comment=ticket_dto.comment,
-            )
+            ticket_user: TicketUser | None = None
+            user_ticket_id = 0
 
-            if self.actor.has_admin_permission(
-                actor_admin_id=actor.employee_id,
-                permission=AdminPermission.TICKET_ACCEPTED,
-            ):
-                self.ticket_service.accept(
-                    ticket=ticket,
-                    ticket_user=None,
-                    actor_employee_id=actor.employee_id,
+            # --------------------------------------------------------------
+            # If User is specified, create TicketUser first.
+            # --------------------------------------------------------------
+
+            if ticket_dto.user_id > 0:
+                ticket_user = TicketUser.create(
+                    client_id=ticket_dto.client_id,
+                    user_id=ticket_dto.user_id,
+                    contact_user_id=ticket_dto.contact_user_id,
+                    text_of_ticket=ticket_dto.text_of_ticket,
+                    description=ticket_dto.description,
                     comment=ticket_dto.comment,
                 )
 
-            return self._save_and_to_dto(
-                ticket=ticket,
-            )
-
-    def create_ticket_for_user(
-        self,
-        *,
-        ticket_dto: TicketDTO,
-    ) -> TicketResponseDTO:
-        """
-        Admin creates TicketUser and linked internal Ticket.
-
-        Required permission:
-
-            TICKET_CREATED
-                OR
-            TICKET_OPERATION
-
-        Workflow after creation:
-
-            TicketUser:
-                CREATED
-
-            Ticket:
-                CREATED
-
-        If actor additionally has TICKET_ACCEPTED:
-
-            Ticket:
-                CREATED -> ACCEPTED
-
-            TicketUser:
-                CREATED -> IN_WORK
-        """
-
-        with self.uow:
-            actor = self.actor.require_actor_admin_any(
-                actor_admin_id=ticket_dto.actor_admin_id,
-                permissions=(
-                    AdminPermission.TICKET_CREATED,
-                    AdminPermission.TICKET_OPERATION,
-                ),
-            )
-
-            if ticket_dto.ticket_id != 0:
-                raise DomainOperationError(
-                    "create_ticket_for_user requires ticket_id = 0"
+                saved_ticket_user = self.uow.user_tickets.save(
+                    ticket_user
                 )
 
-            if ticket_dto.user_ticket_id != 0:
-                raise DomainOperationError(
-                    "create_ticket_for_user creates "
-                    "TicketUser itself"
-                )
+                if saved_ticket_user is not None:
+                    ticket_user = saved_ticket_user
 
-            if ticket_dto.user_id <= 0:
-                raise DomainOperationError(
-                    "create_ticket_for_user requires user_id > 0"
-                )
+                if ticket_user.ticket_user_id <= 0:
+                    raise DomainOperationError(
+                        "TicketUser repository must assign "
+                        "ticket_user_id before creating linked Ticket"
+                    )
 
-            self._validate_create_references(
-                ticket_dto=ticket_dto,
+                user_ticket_id = ticket_user.ticket_user_id
+
+            # --------------------------------------------------------------
+            # Resolve contact_user_id.
+            #
+            # TicketUser.create() may normalize:
+            #
+            #     contact_user_id == 0
+            #
+            # to:
+            #
+            #     contact_user_id == user_id
+            #
+            # Therefore linked Ticket must use the value from TicketUser.
+            # --------------------------------------------------------------
+
+            contact_user_id = (
+                ticket_user.contact_user_id
+                if ticket_user is not None
+                else ticket_dto.contact_user_id
             )
 
-            # ----------------------------------------------------------
-            # TicketUser must be persisted first because Ticket stores
-            # its generated ticket_user_id.
-            # ----------------------------------------------------------
-
-            ticket_user = TicketUser.create(
-                client_id=ticket_dto.client_id,
-                user_id=ticket_dto.user_id,
-                contact_user_id=ticket_dto.contact_user_id,
-                text_of_ticket=ticket_dto.text_of_ticket,
-                description=ticket_dto.description,
-                comment=ticket_dto.comment,
-            )
-
-            ticket_user = self.uow.user_tickets.save(
-                ticket_user
-            )
-
-            if ticket_user.ticket_user_id <= 0:
-                raise DomainOperationError(
-                    "TicketUser repository must assign "
-                    "ticket_user_id before creating linked Ticket"
-                )
-
-            # ----------------------------------------------------------
-            # Ticket is created by Admin, therefore initial status is
-            # CREATED, not CREATED_FROM_TICKET_USER.
-            # ----------------------------------------------------------
+            # --------------------------------------------------------------
+            # Create internal Ticket.
+            #
+            # In both cases Ticket is created by Admin, therefore its
+            # initial status is CREATED.
+            # --------------------------------------------------------------
 
             ticket = self.ticket_service.create(
                 client_id=ticket_dto.client_id,
                 admin_id=actor.employee_id,
                 text_of_ticket=ticket_dto.text_of_ticket,
-                ticket_user_id=ticket_user.ticket_user_id,
+                ticket_user_id=user_ticket_id,
                 user_id=ticket_dto.user_id,
-                contact_user_id=ticket_dto.contact_user_id,
+                contact_user_id=contact_user_id,
                 department_id=ticket_dto.department_id,
                 description=ticket_dto.description,
                 remote_work_recommended=(
                     ticket_dto.remote_work_recommended
                 ),
-                urgency=TicketUrgency(ticket_dto.urgency),
+                urgency=TicketUrgency(
+                    ticket_dto.urgency
+                ),
                 planned_at=ticket_dto.planned_at,
                 comment=ticket_dto.comment,
             )
 
-            # Validate permanent shared invariants even when no
-            # automatic ACCEPTED transition follows.
-            self.ticket_sync_service.ensure_consistent(
-                ticket,
-                ticket_user,
-            )
+            # --------------------------------------------------------------
+            # Validate linked pair.
+            # --------------------------------------------------------------
+
+            if ticket_user is not None:
+                self.ticket_sync_service.ensure_consistent(
+                    ticket,
+                    ticket_user,
+                )
+
+            # --------------------------------------------------------------
+            # Optional automatic acceptance.
+            # --------------------------------------------------------------
 
             changed_ticket_user: TicketUser | None = None
 
             if self.actor.has_admin_permission(
-                actor_admin_id=actor.employee_id,
-                permission=AdminPermission.TICKET_ACCEPTED,
+                    actor_admin_id=actor.employee_id,
+                    permission=AdminPermission.TICKET_ACCEPTED,
             ):
                 changed_ticket_user = self.ticket_service.accept(
                     ticket=ticket,
@@ -272,7 +245,6 @@ class TicketApplicationService:
                 ticket=ticket,
                 ticket_user=changed_ticket_user,
             )
-
     # ==================================================================
     # Ticket data
     # ==================================================================

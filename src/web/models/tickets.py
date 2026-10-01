@@ -1,6 +1,6 @@
 # src/web/models/tickets.py
 
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, UTC
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -219,9 +219,7 @@ class TicketCompleteWorkRetroactivelyRequest(BaseModel):
     actual_started_at: datetime | None = None
     actual_finished_at: datetime | None = None
 
-    duration: timedelta = Field(
-        default_factory=timedelta,
-    )
+    duration: int=0
 
     comment: str = ""
 

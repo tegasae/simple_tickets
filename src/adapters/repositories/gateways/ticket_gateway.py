@@ -160,11 +160,11 @@ class TicketGateway:
     contact_user_id = :contact_user_id,
     department_id = :department_id,
     description = :description,
-    work_is_remote = :work_is_remote,
     planned_at = :planned_at,
     urgency_level = :urgency_level,
+    remote_work_recommended= :remote_work_recommended,
     current_executor_id = :current_executor_id,
-    date_finished = :date_finished
+    date_finished = :date_finished,
     version = version + 1
     WHERE ticket_id = :ticket_id
     AND version = :version

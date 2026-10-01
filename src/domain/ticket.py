@@ -669,7 +669,7 @@ class Ticket:
         user_ticket_id: int = 0,
         description: str = "",
         remote_work_recommended: bool = False,
-        urgency: str=TicketUrgency.NORMAL.value,
+        urgency: TicketUrgency=TicketUrgency.NORMAL,
         planned_at: datetime | None = None,
         version: int = 0,
     ) -> Self:
@@ -824,7 +824,7 @@ class Ticket:
         Therefore the nearest preceding ASSIGNED is the active assignment.
         """
 
-        if not self.current_status_record().rule.has_executors:
+        if not self.current_status_record().rule.requires_executor:
             return 0
 
         for record in reversed(self.statuses):
@@ -1679,6 +1679,7 @@ class Ticket:
             status=TicketStatus.READY_FOR_REVIEW,
             actor_employee_id=actor_employee_id,
             comment=self._make_status_comment(comment),
+            executor_id=self.current_executor_id()
         )
 
         self.append_status(record)
@@ -1906,6 +1907,7 @@ class Ticket:
             status=TicketStatus.READY_FOR_REVIEW,
             actor_employee_id=actor_employee_id,
             date_created=now,
+            executor_id=executor_id
         )
 
         # --------------------------------------------------------------

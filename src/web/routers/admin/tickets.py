@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, status
 
 from src.application.dto.ticket_dto import TicketDTO
@@ -308,8 +310,7 @@ def ticket_complete_work_retroactively_request_to_dto(
 
         actual_started_at=request.actual_started_at,
         actual_finished_at=request.actual_finished_at,
-        duration=request.duration,
-
+        duration=timedelta(seconds=request.duration),
         comment=request.comment,
     )
 
@@ -351,36 +352,6 @@ def create_ticket(
     )
 
 
-@router.post(
-    "/for-user",
-    response_model=TicketResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Create ticket for user",
-)
-def create_ticket_for_user(
-    ticket_request: TicketCreateForUserRequest,
-    asf=Depends(
-        get_application_service_factory
-    ),
-    actor_admin_id: int = Depends(
-        get_employee_id_from_request
-    ),
-):
-    dto = ticket_create_for_user_request_to_dto(
-        request=ticket_request,
-        actor_admin_id=actor_admin_id,
-    )
-
-    response_dto = (
-        asf.ticket_service()
-        .create_ticket_for_user(
-            ticket_dto=dto,
-        )
-    )
-
-    return to_ticket_response(
-        response_dto
-    )
 
 
 # =====================================================================

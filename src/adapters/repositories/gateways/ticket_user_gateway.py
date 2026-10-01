@@ -10,7 +10,7 @@ class TicketUserGateway:
         text_of_ticket,
         description,
         date_created,
-        version,
+        version 
     FROM user_tickets 
     """
 
@@ -53,7 +53,6 @@ class TicketUserGateway:
         description,
         date_created,
         version,
-        is_closed,
         date_finished
     )
     VALUES (
@@ -64,9 +63,7 @@ class TicketUserGateway:
         :description,
         :date_created,
         :version,
-        :is_closed,
-        :date_finished,
-        
+        :date_finished
     )
     """
 
@@ -77,7 +74,7 @@ class TicketUserGateway:
         description = :description,
         date_finished = :date_finished,
         version = version + 1
-    WHERE user_ticket_id = :ticket_id
+    WHERE user_ticket_id = :user_ticket_id
       AND version = :version
     """
 

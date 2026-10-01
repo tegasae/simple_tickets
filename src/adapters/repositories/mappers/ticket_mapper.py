@@ -72,7 +72,7 @@ class TicketMapper:
             description=row["description"] or "",
             date_created=date_created,
             remote_work_recommended=bool(row["remote_work_recommended"]),
-            urgency=row["urgency_level"],
+            urgency=TicketUrgency(row["urgency_level"]),
             version=row["version"] or 0,
             planned_at=dt_from_sqlite(row["planned_at"]),
             statuses=statuses,

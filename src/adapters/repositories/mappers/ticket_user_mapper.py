@@ -49,7 +49,7 @@ class TicketUserMapper:
         comments: list[Comment],
     ) -> TicketUser:
         return TicketUser.rehydrate(
-            ticket_user_id=row["user_ticket_id"],
+            ticket_user_id=row["ticket_user_id"],
             client_id=row["client_id"],
             user_id=row["user_id"],
             contact_user_id=row["contact_user_id"] or 0,
@@ -68,7 +68,7 @@ class TicketUserMapper:
         row: dict,
     ) -> TicketUserStatusRecord:
         return TicketUserStatusRecord(
-            ticket_user_status_id=row["user_ticket_status_record_id"],
+            ticket_user_status_id=row["ticket_user_status_id"],
             actor_employee_id=row["actor_employee_id"],
             status=TicketUserStatus(row["status"]),
             comment=row["comment"] or "",
@@ -102,16 +102,10 @@ class TicketUserMapper:
             "user_ticket_id": ticket.ticket_user_id,
             "client_id": ticket.client_id,
             "user_id": ticket.user_id,
-            "contact_user_id": (
-                ticket.contact_user_id
-                if ticket.contact_user_id > 0
-                else None
-            ),
+            "contact_user_id": (ticket.contact_user_id if ticket.contact_user_id > 0 else None ),
             "text_of_ticket": ticket.text_of_ticket,
-            "description": ticket.description,
-            "date_created": datetime_to_db(
-                ticket.date_created,
-            ),
+            "description": ticket.description.value,
+            "date_created": datetime_to_db(ticket.date_created),
             "version": ticket.version,
             "date_finished": (
                 datetime_to_db(ticket.date_finished)
@@ -127,10 +121,10 @@ class TicketUserMapper:
         record: TicketUserStatusRecord,
     ) -> dict:
         return {
-            "ticket_user_id": ticket_user_id,
+            "user_ticket_id": ticket_user_id,
             "actor_employee_id": record.actor_employee_id,
             "status": record.status.value,
-            "comment": record.comment,
+            "comment": record.comment.value,
             "date_created": datetime_to_db(
                 record.date_created,
             ),
