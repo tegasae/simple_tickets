@@ -274,8 +274,9 @@ class TicketResponse(BaseModel):
     remote_work_recommended: bool
 
     urgency: TicketUrgency
+    current_executor_id:int=0
+    last_executor_id:int=0
 
-    version: int
     is_closed: bool
 
     time_spent: int = 0

@@ -94,8 +94,9 @@ class TicketAssembler:
             ),
 
             urgency=ticket.urgency,
+            current_executor_id=ticket.current_executor_id(),
+            last_executor_id=ticket.last_executor_id(),
 
-            version=ticket.version,
             is_closed=ticket.is_closed,
 
             time_spent=ticket.working_time(),
@@ -154,7 +155,6 @@ class TicketUserAssembler:
             current_status=str(ticket_user.current_status().value),
             date_created=ticket_user.date_created,
             date_finished=ticket_user.date_finished,
-            version=ticket_user.version,
             is_closed=ticket_user.is_closed,
             statuses=statuses,
             comments=comments,

@@ -79,7 +79,9 @@ class TicketResponseDTO:
 
     urgency: str
 
-    version: int
+    current_executor_id:int=0
+    last_executor_id:int=0
+
     is_closed: bool
 
     time_spent: int = 0
@@ -163,7 +165,6 @@ class TicketUserResponseDTO:
     date_created: datetime
     date_finished: datetime | None
 
-    version: int
     is_closed: bool
 
     statuses: list[dict[str, object]] = field(
