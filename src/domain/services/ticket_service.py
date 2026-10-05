@@ -369,8 +369,13 @@ class TicketService:
             ticket=ticket,
             ticket_user=ticket_user,
         )
+
+        if not ticket.department_id:
+            raise DomainOperationError(f"The ticket has to have the department_id set.")
+
         if ticket.department_id and ticket.department_id!=executor.department_id:
             raise DomainOperationError(f"The ticket has department {ticket.department_id}. The executor has department {executor.department_id}")
+
         ticket.assign(
             actor_employee_id=actor_employee_id,
             executor_id=executor.employee_id,

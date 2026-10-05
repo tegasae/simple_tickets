@@ -1483,16 +1483,17 @@ class Ticket:
             status=TicketStatus.AT_WORK,
             actor_employee_id=actor_employee_id,
             work_is_remote=work_is_remote,
+            comment=CommonComment(comment) if comment.strip() else Empty()
         )
 
         # Keep an optional status comment if one was supplied.
-        if comment.strip():
-            record = TicketStatusRecord(
-                status=TicketStatus.AT_WORK,
-                actor_employee_id=actor_employee_id,
-                work_is_remote=work_is_remote,
-                comment=CommonComment(comment),
-            )
+        #if comment.strip():
+        #    record = TicketStatusRecord(
+        #        status=TicketStatus.AT_WORK,
+        #        actor_employee_id=actor_employee_id,
+        #        work_is_remote=work_is_remote,
+        #        comment=CommonComment(comment),
+        #    )
 
         self.append_status(record)
 
