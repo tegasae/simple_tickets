@@ -1,6 +1,6 @@
 # src/application/services/ticket_application_service.py
 
-from __future__ import annotations
+
 
 from src.application.assemblers.assembler import TicketAssembler
 from src.application.dto.ticket_dto import (
@@ -1183,7 +1183,9 @@ class TicketApplicationService:
     # ==================================================================
     # External reference validation
     # ==================================================================
-
+    # TODO Перенести этот метод в domain сервис
+    # TODO Учесть, что из SUSPENDED, если не client disabled можно заявки перенести только в cancelled. Это тоже делать
+    # в доменном сервисе
     def _validate_create_references(
         self,
         *,
