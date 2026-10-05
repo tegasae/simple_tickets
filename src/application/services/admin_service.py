@@ -11,12 +11,14 @@ from src.application.dto.employee_dto import (
 )
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.application.helper.employee_helper import EmployeeHelper
+from src.domain.department import Department
 
 from src.domain.employee import Admin
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.admin_service import AdminService
 from src.domain.uow.unit_of_work import UnitOfWork
+
 
 
 class AdminApplicationService:
@@ -109,14 +111,16 @@ class AdminApplicationService:
                 login=admin_dto.login,
             )
 
-            if admin_dto.department_id <= 0:
-                raise DomainOperationError(
-                    "Department id must be positive"
+            if admin_dto.department_id:
+                department = self.uow.departments.get(
+                    department_id=admin_dto.department_id,
                 )
-
-            department = self.uow.departments.get(
-                department_id=admin_dto.department_id,
-            )
+                # AdminService.create() relied on Department.enabled.
+                self.uow.departments.touch(
+                    department
+                )
+            else:
+                department=Department.create_empty()
 
             admin = AdminService.create(
                 department=department,
@@ -149,10 +153,7 @@ class AdminApplicationService:
                     ),
                 )
 
-            # AdminService.create() relied on Department.enabled.
-            self.uow.departments.touch(
-                department
-            )
+
 
             return self._save_and_to_dto(
                 admin
@@ -177,10 +178,6 @@ class AdminApplicationService:
                 admin_id=admin_dto.employee_id,
             )
 
-            if admin_dto.department_id < 0:
-                raise DomainOperationError(
-                    "Department id must be positive"
-                )
 
             department_changed = (
                 admin.department_id

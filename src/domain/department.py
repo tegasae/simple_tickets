@@ -97,6 +97,11 @@ class Department:
         if not self.enabled:
             raise DomainOperationError("Department is disabled")
 
+    @classmethod
+    def create_empty(cls) -> Self:
+        department = cls(department_id=0, name=Name("--"), enabled=True)
+        return department
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Department):
             return False

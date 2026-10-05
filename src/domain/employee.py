@@ -195,6 +195,12 @@ class User(_Employee):
 class Admin(_Employee):
     job_title: str=""
     department_id: int =0
+
+    def __post_init__(self):
+        if self.department_id and int(self.department_id) and self.department_id <= 0:
+            raise ItemValidationError("Department ID must be positive")
+
+
     @classmethod
     def create(
             cls,
@@ -234,8 +240,6 @@ class Admin(_Employee):
         Business rule about AT_WORK tickets is checked in application services,
         because Admin does not know all tickets.
         """
-        if department_id and int(department_id) and department_id <= 0:
-            raise ItemValidationError("Department ID must be positive")
         if department_id:
             self.department_id = department_id
         else:
