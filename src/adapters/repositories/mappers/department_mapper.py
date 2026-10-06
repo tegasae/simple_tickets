@@ -6,10 +6,16 @@ from src.domain.department import Department
 
 
 class DepartmentMapper:
-
+    VARS = [
+        "department_id",
+        "name",
+        "enabled",
+        "version",
+        "date_created",
+    ]
     @staticmethod
     def row_to_department(row: dict) -> Department:
-        department = Department.restore(
+        department = Department.rehydrate(
             department_id=row["department_id"],
             name=row["name"],
             enabled=bool(row["enabled"]),

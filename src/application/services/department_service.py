@@ -1,12 +1,13 @@
 # src/application/services/department_service.py
 
-from __future__ import annotations
+
 
 from src.application.assemblers.assembler import DepartmentAssembler
 from src.application.dto.department_dto import (
     DepartmentDTO,
     DepartmentResponseDTO,
 )
+from src.application.exceptions import ApplicationStoreError
 from src.application.helper.actor_helper import EmployeeActorHelper
 
 from src.domain.department import Department
@@ -168,18 +169,19 @@ class DepartmentApplicationService:
                     for ticket in tickets
                 ),
             )
-
+            """Даже если в момент проверки будут заявки и сотрудники в enable, а в момент сохранения уже не будет, 
+            ничего страшного. Так что touch здесь не нужен."""
             # Admins and Tickets participate in the business decision
             # only as read-only aggregates.
-            for admin in admins:
-                self.uow.admins.touch(
-                    admin
-                )
+            #for admin in admins:
+            #    self.uow.admins.touch(
+            #        admin
+            #    )
 
-            for ticket in tickets:
-                self.uow.tickets.touch(
-                    ticket
-                )
+            #for ticket in tickets:
+            #    self.uow.tickets.touch(
+            #        ticket
+            #    )
 
             return self._save_and_to_dto(
                 department=department,
@@ -285,9 +287,9 @@ class DepartmentApplicationService:
         )
 
         self.uow.commit()
-
+        """Нет, это если None, значит не сохранился"""
         if saved_department is None:
-            saved_department = department
+            raise ApplicationStoreError(f"Department {department.department_id} can't save")
 
         return DepartmentAssembler.to_dto(
             saved_department

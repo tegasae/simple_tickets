@@ -16,7 +16,7 @@ def test_department_create_and_restore() -> None:
     assert str(department.name) == "Support"
 
     created = datetime(2025, 1, 1)
-    restored = Department.restore(
+    restored = Department.rehydrate(
         department_id=5,
         name="Support",
         enabled=False,
@@ -33,7 +33,7 @@ def test_department_create_and_restore() -> None:
     "factory,extra",
     [
         (Department.create, {}),
-        (Department.restore, {"enabled": True, "date_created": datetime.now()}),
+        (Department.rehydrate, {"enabled": True, "date_created": datetime.now()}),
     ],
 )
 def test_department_rejects_negative_id(factory, extra) -> None:

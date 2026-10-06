@@ -26,8 +26,7 @@ class ClientDTO:
             raise ApplicationValidateError("The client ID is invalid")
 
         self.name=self.name.strip()
-        if not self.name:
-            raise ApplicationValidateError("The client name cannot be empty")
+
 
         self.admin_id = self.admin_id or self.actor_admin_id
 

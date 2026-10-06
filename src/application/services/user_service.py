@@ -130,7 +130,7 @@ class UserApplicationService:
                 continue
 
             ticket_user = self.uow.user_tickets.get(
-                ticket_id=ticket.user_ticket_id,
+                ticket_user_id=ticket.user_ticket_id,
             )
 
             result[ticket_user.ticket_user_id] = ticket_user

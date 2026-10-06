@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+import src.web.models.mappers.department
 from src.domain.rbac.permissions import AdminPermission, UserPermission
 from src.web.models.admins import (
     AdminAttachAccountRequest, AdminChangePasswordRequest, AdminCreateRequest, AdminRolesRequest, AdminUpdateRequest,
@@ -24,7 +25,6 @@ from src.web.models.users import (
 )
 from src.web.routers.admin import admins as ar
 from src.web.routers.admin import clients as cr
-from src.web.routers.admin import departments as dr
 from src.web.routers.admin import roles as rr
 from src.web.routers.admin import tickets as tr
 from src.web.routers.admin import users as ur
@@ -73,11 +73,11 @@ def test_client_department_role_mappers() -> None:
     updated = cr.client_update_contact_request_to_dto(request=ClientUpdateContactRequest(name="New"), actor_admin_id=99, client_id=5)
     assert updated.client_id == 5 and updated.name == "New"
 
-    dep = dr.create_request_to_dto(request=DepartmentCreateRequest(name="Support"), actor_admin_id=99)
+    dep = src.web.models.mappers.department.create_request_to_dto(request=DepartmentCreateRequest(name="Support"), actor_admin_id=99)
     assert dep.actor_admin_id == 99 and dep.department_id == 0
-    dep_up = dr.update_request_to_dto(department_id=5, request=DepartmentUpdateRequest(name="Infra"), actor_admin_id=99)
+    dep_up = src.web.models.mappers.department.update_request_to_dto(department_id=5, request=DepartmentUpdateRequest(name="Infra"), actor_admin_id=99)
     assert dep_up.department_id == 5 and dep_up.name == "Infra"
-    assert dr.id_to_dto(department_id=5, actor_admin_id=99).department_id == 5
+    assert src.web.models.mappers.department.id_to_dto(department_id=5, actor_admin_id=99).department_id == 5
 
     ar_dto = rr.admin_role_create_request_to_dto(
         request=AdminRoleCreateRequest(name="ticket", permissions=[AdminPermission.TICKET_VIEW]), actor_admin_id=99

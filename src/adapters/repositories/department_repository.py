@@ -16,13 +16,7 @@ from src.domain.repositories.department_repository import DepartmentRepository
 
 class DepartmentRepositorySQLite(BaseRepository, DepartmentRepository):
 
-    VARS = [
-        "department_id",
-        "name",
-        "enabled",
-        "version",
-        "date_created",
-    ]
+
 
     # -------------------------
     # Reads
@@ -31,7 +25,7 @@ class DepartmentRepositorySQLite(BaseRepository, DepartmentRepository):
     def get(self, department_id: int) -> Department:
         row = self._get_one(
             DepartmentGateway.SELECT_BY_ID,
-            var=self.VARS,
+            var=DepartmentMapper.VARS,
             params={"department_id": department_id},
         )
 
@@ -43,7 +37,7 @@ class DepartmentRepositorySQLite(BaseRepository, DepartmentRepository):
     def get_all(self) -> list[Department]:
         rows = self._get_many(
             DepartmentGateway.SELECT_BASE,
-            var=self.VARS,
+            var=DepartmentMapper.VARS,
         )
 
         return [

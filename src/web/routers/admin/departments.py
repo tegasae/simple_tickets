@@ -2,12 +2,11 @@
 
 from fastapi import APIRouter, Depends, status
 
-from src.application.dto.department_dto import DepartmentDTO
-
-
 from src.web.dependencies.auth import get_current_admin, get_employee_id_from_request
 from src.web.dependencies.services import get_application_service_factory
+
 from src.web.models.department import DepartmentCreateRequest, DepartmentUpdateRequest, DepartmentResponse
+from src.web.models.mappers.department import DepartmentMapper
 
 router = APIRouter(
     prefix="/admin/departments",
@@ -32,54 +31,6 @@ router = APIRouter(
 #)
 
 
-# -------------------------
-# Mappers
-# -------------------------
-
-def create_request_to_dto(
-    *,
-    request: DepartmentCreateRequest,
-    actor_admin_id: int,
-) -> DepartmentDTO:
-    return DepartmentDTO(
-        actor_admin_id=actor_admin_id,
-        name=request.name,
-        enabled=request.enabled,
-    )
-
-
-def update_request_to_dto(
-    *,
-    department_id: int,
-    request: DepartmentUpdateRequest,
-    actor_admin_id: int,
-) -> DepartmentDTO:
-    return DepartmentDTO(
-        actor_admin_id=actor_admin_id,
-        department_id=department_id,
-        name=request.name,
-    )
-
-
-def id_to_dto(
-    *,
-    department_id: int,
-    actor_admin_id: int,
-) -> DepartmentDTO:
-    return DepartmentDTO(
-        actor_admin_id=actor_admin_id,
-        department_id=department_id,
-    )
-
-
-def response_dto_to_response(dto) -> DepartmentResponse:
-    return DepartmentResponse(
-        department_id=dto.department_id,
-        name=dto.name,
-        enabled=dto.enabled,
-        date_created=dto.date_created,
-    )
-
 
 # -------------------------
 # Endpoints
@@ -95,7 +46,7 @@ def create_department(
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
-    dto = create_request_to_dto(
+    dto = DepartmentMapper.create_request_to_dto(
         request=request,
         actor_admin_id=actor_admin_id,
     )
@@ -104,7 +55,7 @@ def create_department(
         department_dto=dto,
     )
 
-    return response_dto_to_response(result)
+    return DepartmentMapper.response_dto_to_response(result)
 
 
 @router.get(
@@ -115,7 +66,7 @@ def get_all_departments(
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
-    dto = DepartmentDTO(
+    dto = DepartmentMapper.actor_id_to_dto(
         actor_admin_id=actor_admin_id,
     )
 
@@ -124,7 +75,7 @@ def get_all_departments(
     )
 
     return [
-        response_dto_to_response(department)
+        DepartmentMapper.response_dto_to_response(department)
         for department in result
     ]
 
@@ -138,7 +89,7 @@ def get_department(
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
-    dto = id_to_dto(
+    dto = DepartmentMapper.id_to_dto(
         department_id=department_id,
         actor_admin_id=actor_admin_id,
     )
@@ -147,7 +98,7 @@ def get_department(
         department_dto=dto,
     )
 
-    return response_dto_to_response(result)
+    return DepartmentMapper.response_dto_to_response(result)
 
 
 @router.put(
@@ -160,7 +111,7 @@ def update_department(
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
-    dto = update_request_to_dto(
+    dto = DepartmentMapper.update_request_to_dto(
         department_id=department_id,
         request=request,
         actor_admin_id=actor_admin_id,
@@ -170,7 +121,7 @@ def update_department(
         department_dto=dto,
     )
 
-    return response_dto_to_response(result)
+    return DepartmentMapper.response_dto_to_response(result)
 
 
 @router.patch(
@@ -182,7 +133,7 @@ def enable_department(
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
-    dto = id_to_dto(
+    dto = DepartmentMapper.id_to_dto(
         department_id=department_id,
         actor_admin_id=actor_admin_id,
     )
@@ -191,7 +142,7 @@ def enable_department(
         department_dto=dto,
     )
 
-    return response_dto_to_response(result)
+    return DepartmentMapper.response_dto_to_response(result)
 
 
 @router.patch(
@@ -203,7 +154,7 @@ def disable_department(
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
-    dto = id_to_dto(
+    dto = DepartmentMapper.id_to_dto(
         department_id=department_id,
         actor_admin_id=actor_admin_id,
     )
@@ -212,7 +163,7 @@ def disable_department(
         department_dto=dto,
     )
 
-    return response_dto_to_response(result)
+    return DepartmentMapper.response_dto_to_response(result)
 
 
 @router.delete(
@@ -224,7 +175,7 @@ def delete_department(
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
-    dto = id_to_dto(
+    dto = DepartmentMapper.id_to_dto(
         department_id=department_id,
         actor_admin_id=actor_admin_id,
     )

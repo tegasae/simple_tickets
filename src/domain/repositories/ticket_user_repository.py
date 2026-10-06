@@ -17,7 +17,7 @@ class TicketUserRepository(ABC):
     @abstractmethod
     def get(
         self,
-        ticket_id: int,
+        ticket_user_id: int,
     ) -> TicketUser:
         raise NotImplementedError
 

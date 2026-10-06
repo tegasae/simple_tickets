@@ -540,18 +540,6 @@ class Ticket:
 
 
 
-        if ticket_user_id != 0:
-            raise DomainOperationError(
-                "create_ticket cannot use existing TicketUser"
-            )
-
-
-        if admin_id <= 0:
-            raise ItemValidationError(
-                "Admin id must be positive"
-            )
-
-
         return cls._create_new(
             client_id=client_id,
             text_of_ticket=text_of_ticket,
@@ -635,12 +623,12 @@ class Ticket:
             contact_user_id = user_id
         """
 
-        if user_id <= 0:
+        if user_id < 0:
             raise ItemValidationError(
                 "User id must be positive"
             )
 
-        if user_ticket_id <= 0:
+        if user_ticket_id < 0:
             raise ItemValidationError(
                 "User ticket id must be positive"
             )

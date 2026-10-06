@@ -110,10 +110,6 @@ FIRST_TICKET_STATUSES: Final[
     TicketStatus.CREATED_FROM_TICKET_USER,
 })
 
-DISABLED_TICKET_STATUSES: Final[frozenset[TicketStatus]] = frozenset({
-    TicketStatus.REJECTED,
-    TicketStatus.CANCELLED
-})
 
 
 def _validate_ticket_transitions() -> None:

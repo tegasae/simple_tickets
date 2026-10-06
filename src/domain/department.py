@@ -48,7 +48,7 @@ class Department:
             raise ItemValidationError(f"Department validation failed: {e}") from e
 
     @classmethod
-    def restore(
+    def rehydrate(
         cls,
         *,
         department_id: int,
@@ -62,7 +62,7 @@ class Department:
 
         Repository mapper should use this method.
         """
-        if department_id < 0:
+        if department_id <= 0:
             raise ItemValidationError("Department ID cannot be negative")
 
         try:
@@ -75,6 +75,11 @@ class Department:
             )
         except ValueError as e:
             raise ItemValidationError(f"Department validation failed: {e}") from e
+
+    @classmethod
+    def create_empty(cls) -> Self:
+        department = cls(department_id=0, name=Name("--"), enabled=True)
+        return department
 
     def rename(self, name: str) -> None:
         self._ensure_enabled()
@@ -97,10 +102,6 @@ class Department:
         if not self.enabled:
             raise DomainOperationError("Department is disabled")
 
-    @classmethod
-    def create_empty(cls) -> Self:
-        department = cls(department_id=0, name=Name("--"), enabled=True)
-        return department
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Department):

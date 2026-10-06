@@ -49,7 +49,7 @@ class TicketDTO:
             raise ApplicationValidateError("The actor admin ID is invalid")
         if self.ticket_id < 0:
             raise ApplicationValidateError("The ticket ID is invalid")
-        if self.client_id <= 0:
+        if self.client_id < 0:
             raise ApplicationValidateError("The client ID is invalid")
         if self.user_id < 0:
             raise ApplicationValidateError("The user ID is invalid")
@@ -59,9 +59,9 @@ class TicketDTO:
             raise ApplicationValidateError("The user ticket ID is invalid")
         if self.department_id < 0:
             raise ApplicationValidateError("The department ID is invalid")
+
         self.text_of_ticket=self.text_of_ticket.strip()
-        if not self.text_of_ticket:
-            raise ApplicationValidateError("The text of ticket is invalid")
+
 
 
 
