@@ -197,7 +197,7 @@ class Admin(_Employee):
     department_id: int =0
 
     def __post_init__(self):
-        if self.department_id and int(self.department_id) and self.department_id <= 0:
+        if self.department_id and int(self.department_id) and self.department_id < 0:
             raise ItemValidationError("Department ID must be positive")
 
 

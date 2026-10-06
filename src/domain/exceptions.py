@@ -104,6 +104,8 @@ class ItemValidationError(DomainError):
         super().__init__(f"Validation error: {message}", item_name)
 
 
+
+
 class DomainOperationError(DomainError):
     """Raised when domain operations fail.
 

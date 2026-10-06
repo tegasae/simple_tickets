@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from typing import Self
 
-from src.domain.exceptions import ItemValidationError
+from src.domain.exceptions import ItemValidationError, DomainOperationError
 from src.domain.value_objects import Email, Address, Phone, Name, Empty, Description
 
 
@@ -42,6 +42,15 @@ class Client:
         default_factory=lambda: datetime.now(UTC)
     )
     version: int = 0
+
+    def __post_init__(self):
+        if self.client_id < 0:
+            raise ItemValidationError("Invalid client ID")
+        if not self.name.value:
+            raise ItemValidationError("Invalid client name")
+        if self.created_by_admin_id <= 0:
+            raise ItemValidationError("Invalid created admin ID")
+
 
     @classmethod
     def create(
@@ -85,9 +94,7 @@ class Client:
                 created_by_admin_id=1
             )
         """
-        # Validate admin ID (0 might mean system-generated)
-        if created_by_admin_id < 0:
-            raise ItemValidationError("Admin ID cannot be negative")
+
 
         # Generate client ID (in real app, this would come from database)
         # For now, we'll accept that client_id should be provided separately
@@ -183,6 +190,14 @@ class Client:
             "phone": str(self.phone) if self.phone else "",
             "description": str(self.description) if self.description else ""
         }
+
+
+    def can_do_operation(self):
+        """Check if client can perform operations.
+        """
+        if not self.enabled:
+            raise DomainOperationError("The inactive client can't do any operations")
+
 
     def __eq__(self, other: object) -> bool:
         """Clients are equal if they have the same client_id."""

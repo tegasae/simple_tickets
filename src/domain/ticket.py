@@ -537,6 +537,15 @@ class Ticket:
         text_of_ticket is required and immutable after Ticket creation.
         """
 
+
+
+
+        if ticket_user_id != 0:
+            raise DomainOperationError(
+                "create_ticket cannot use existing TicketUser"
+            )
+
+
         if admin_id <= 0:
             raise ItemValidationError(
                 "Admin id must be positive"
@@ -924,6 +933,7 @@ class Ticket:
                 f"{current_record.status.value} -> "
                 f"{record.status.value}",
             )
+
 
         if record.date_created < current_record.date_created:
             raise DomainOperationError(

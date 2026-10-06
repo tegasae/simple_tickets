@@ -7,6 +7,7 @@ from src.application.dto.ticket_dto import (
     TicketDTO,
     TicketResponseDTO,
 )
+from src.application.exceptions import ApplicationStoreError
 from src.application.helper.actor_helper import EmployeeActorHelper
 
 from src.domain.exceptions import DomainOperationError
@@ -122,15 +123,6 @@ class TicketApplicationService:
                 ),
             )
 
-            if ticket_dto.ticket_id != 0:
-                raise DomainOperationError(
-                    "create_ticket requires ticket_id = 0"
-                )
-
-            if ticket_dto.user_ticket_id != 0:
-                raise DomainOperationError(
-                    "create_ticket cannot use existing TicketUser"
-                )
 
             self._validate_create_references(
                 ticket_dto=ticket_dto,
@@ -161,7 +153,7 @@ class TicketApplicationService:
                     ticket_user = saved_ticket_user
 
                 if ticket_user.ticket_user_id <= 0:
-                    raise DomainOperationError(
+                    raise ApplicationStoreError(
                         "TicketUser repository must assign "
                         "ticket_user_id before creating linked Ticket"
                     )
@@ -182,11 +174,11 @@ class TicketApplicationService:
             # Therefore linked Ticket must use the value from TicketUser.
             # --------------------------------------------------------------
 
-            contact_user_id = (
-                ticket_user.contact_user_id
-                if ticket_user is not None
-                else ticket_dto.contact_user_id
-            )
+            #contact_user_id = (
+            #    ticket_user.contact_user_id
+            #    if ticket_user is not None
+            #    else ticket_dto.contact_user_id
+            #)
 
             # --------------------------------------------------------------
             # Create internal Ticket.
@@ -201,7 +193,7 @@ class TicketApplicationService:
                 text_of_ticket=ticket_dto.text_of_ticket,
                 ticket_user_id=user_ticket_id,
                 user_id=ticket_dto.user_id,
-                contact_user_id=contact_user_id,
+                contact_user_id=ticket_user.contact_user_id,
                 department_id=ticket_dto.department_id,
                 description=ticket_dto.description,
                 remote_work_recommended=(

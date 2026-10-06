@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 
+
 from src.domain.employee import Admin
 from src.domain.exceptions import DomainOperationError
 from src.domain.services.ticket_sync_service import TicketSyncService
@@ -76,6 +77,8 @@ class TicketService:
         planned_at: datetime | None = None,
         comment: str = "",
     ) -> Ticket:
+
+
         return Ticket.create(
             client_id=client_id,
             admin_id=admin_id,
@@ -772,3 +775,5 @@ class TicketService:
             return None
 
         return ticket_user
+
+
