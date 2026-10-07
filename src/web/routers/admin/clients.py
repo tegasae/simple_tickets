@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status
 
-from src.application.dto.client_dto import ClientDTO
+#from src.application.dto.client_dto import ClientDTO
 from src.web.dependencies.auth import (
     get_current_admin,
     get_employee_id_from_request,
@@ -11,7 +11,7 @@ from src.web.models.clients import (
     ClientResponse,
     ClientUpdateContactRequest,
 )
-
+from src.web.models.mappers.client import ClientMapperDTO
 
 router = APIRouter(
     prefix="/admin/clients",
@@ -51,68 +51,7 @@ handlers = {
 # Response mappers
 # -------------------------------
 
-def to_client_response(response_dto) -> ClientResponse:
-    """
-    Convert application-layer ClientResponseDTO to web-layer ClientResponse.
 
-    ClientResponse uses Pydantic.
-    ClientResponseDTO is probably a dataclass.
-
-    model_validate() works if ClientResponse has:
-        model_config = ConfigDict(from_attributes=True)
-    """
-    return ClientResponse.model_validate(response_dto)
-
-
-def to_client_responses(response_dtos) -> list[ClientResponse]:
-    """
-    Convert list[ClientResponseDTO] to list[ClientResponse].
-    """
-    return [
-        to_client_response(response_dto)
-        for response_dto in response_dtos
-    ]
-
-
-# -------------------------------
-# Request -> Application DTO mappers
-# -------------------------------
-
-def client_create_request_to_dto(
-    *,
-    request: ClientCreateRequest,
-    actor_admin_id: int,
-) -> ClientDTO:
-    """
-    Convert web request model to application DTO.
-
-    actor_admin_id comes from authenticated admin.
-    Other fields come from request body.
-    """
-    return ClientDTO(
-        actor_admin_id=actor_admin_id,
-        **request.model_dump(),
-    )
-
-
-def client_update_contact_request_to_dto(
-    *,
-    request: ClientUpdateContactRequest,
-    actor_admin_id: int,
-    client_id: int,
-) -> ClientDTO:
-    """
-    Convert contact update request to ClientDTO.
-
-    client_id comes from path parameter.
-    actor_admin_id comes from authenticated admin.
-    Contact fields come from request body.
-    """
-    return ClientDTO(
-        actor_admin_id=actor_admin_id,
-        client_id=client_id,
-        **request.model_dump(),
-    )
 
 
 # -------------------------------
@@ -131,14 +70,14 @@ def create_client(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    dto = client_create_request_to_dto(
+    dto = ClientMapperDTO.create_request_to_dto(
         request=client_request,
         actor_admin_id=actor_admin_id,
     )
 
     response_dto = asf.client_service().create_client(dto_client=dto)
 
-    return to_client_response(response_dto)
+    return ClientMapperDTO.to_response(response_dto)
 
 
 @router.get(
@@ -152,11 +91,11 @@ def get_all_clients(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    dto = ClientDTO(actor_admin_id=actor_admin_id)
+    dto = ClientMapperDTO.actor_id_to_dto(actor_admin_id=actor_admin_id)
 
     response_dtos = asf.client_service().get_all(dto)
 
-    return to_client_responses(response_dtos)
+    return ClientMapperDTO.to_responses(response_dtos)
 
 
 @router.get(
@@ -171,14 +110,14 @@ def get_client(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    dto = ClientDTO(
+    dto = ClientMapperDTO.id_to_dto(
         actor_admin_id=actor_admin_id,
         client_id=client_id,
     )
 
     response_dto = asf.client_service().get_by_id(dto_client=dto)
 
-    return to_client_response(response_dto)
+    return ClientMapperDTO.to_response(response_dto)
 
 
 @router.put(
@@ -194,7 +133,7 @@ def update_contact(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    dto = client_update_contact_request_to_dto(
+    dto = ClientMapperDTO.update_contact_request_to_dto(
         request=request,
         actor_admin_id=actor_admin_id,
         client_id=client_id,
@@ -202,7 +141,7 @@ def update_contact(
 
     response_dto = asf.client_service().update_contact(dto_client=dto)
 
-    return to_client_response(response_dto)
+    return ClientMapperDTO.to_response(response_dto)
 
 
 @router.patch(
@@ -217,14 +156,14 @@ def disable_client(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    dto = ClientDTO(
+    dto = ClientMapperDTO.id_to_dto(
         actor_admin_id=actor_admin_id,
         client_id=client_id,
     )
 
     response_dto = asf.client_service().disable(dto_client=dto)
 
-    return to_client_response(response_dto)
+    return ClientMapperDTO.to_response(response_dto)
 
 
 @router.patch(
@@ -239,14 +178,14 @@ def enable_client(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    dto = ClientDTO(
+    dto = ClientMapperDTO.id_to_dto(
         actor_admin_id=actor_admin_id,
         client_id=client_id,
     )
 
     response_dto = asf.client_service().enable(dto_client=dto)
 
-    return to_client_response(response_dto)
+    return ClientResponse.to_client_response(response_dto)
 
 
 @router.delete(
@@ -260,7 +199,7 @@ def delete_client(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
 ):
-    dto = ClientDTO(
+    dto = ClientMapperDTO.id_to_dto(
         actor_admin_id=actor_admin_id,
         client_id=client_id,
     )

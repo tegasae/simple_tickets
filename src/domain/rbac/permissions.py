@@ -14,8 +14,12 @@ class PermissionBase(StrEnum):
 class AdminPermission(PermissionBase):
     CLIENT_OPERATION = "client.operation"                           # операции с клиентами
     CLIENT_VIEW = "client.view"                                     # просмотр клиентов
+    CLIENT_DECISION = "client.decision"                             # решения по клиенту
+    CLIENT_CREATE = "client.create"                                 # создание клиента
     ADMIN_OPERATION="admin.operation"                               # операции с admin-ами
     ADMIN_VIEW="admin.view"                                         # просмотр admin-ов
+    DEPARTMENT_OPERATION="department.operation"                     # операции с отделами
+    DEPARTMENT_VIEW="department.view"                               # просмотр отделов
     USER_OPERATION="user.operation"                                 # операции с пользователями
     USER_VIEW="user.view"                                           # просмотр пользователей
     TICKET_OPERATION="ticket.operation"                             # общие операции с заявками

@@ -6,7 +6,7 @@ from src.web.dependencies.auth import get_current_admin, get_employee_id_from_re
 from src.web.dependencies.services import get_application_service_factory
 
 from src.web.models.department import DepartmentCreateRequest, DepartmentUpdateRequest, DepartmentResponse
-from src.web.models.mappers.department import DepartmentMapper
+from src.web.models.mappers.department import DepartmentMapperDTO
 
 router = APIRouter(
     prefix="/admin/departments",
@@ -46,7 +46,7 @@ def create_department(
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
-    dto = DepartmentMapper.create_request_to_dto(
+    dto = DepartmentMapperDTO.create_request_to_dto(
         request=request,
         actor_admin_id=actor_admin_id,
     )
@@ -55,7 +55,7 @@ def create_department(
         department_dto=dto,
     )
 
-    return DepartmentMapper.response_dto_to_response(result)
+    return DepartmentMapperDTO.to_response(result)
 
 
 @router.get(
@@ -66,7 +66,7 @@ def get_all_departments(
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
-    dto = DepartmentMapper.actor_id_to_dto(
+    dto = DepartmentMapperDTO.actor_id_to_dto(
         actor_admin_id=actor_admin_id,
     )
 
@@ -74,10 +74,7 @@ def get_all_departments(
         department_dto=dto,
     )
 
-    return [
-        DepartmentMapper.response_dto_to_response(department)
-        for department in result
-    ]
+    return DepartmentMapperDTO.to_responses(result)
 
 
 @router.get(
@@ -89,7 +86,7 @@ def get_department(
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
-    dto = DepartmentMapper.id_to_dto(
+    dto = DepartmentMapperDTO.id_to_dto(
         department_id=department_id,
         actor_admin_id=actor_admin_id,
     )
@@ -98,7 +95,7 @@ def get_department(
         department_dto=dto,
     )
 
-    return DepartmentMapper.response_dto_to_response(result)
+    return DepartmentMapperDTO.to_response(result)
 
 
 @router.put(
@@ -111,7 +108,7 @@ def update_department(
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
-    dto = DepartmentMapper.update_request_to_dto(
+    dto = DepartmentMapperDTO.update_request_to_dto(
         department_id=department_id,
         request=request,
         actor_admin_id=actor_admin_id,
@@ -121,7 +118,7 @@ def update_department(
         department_dto=dto,
     )
 
-    return DepartmentMapper.response_dto_to_response(result)
+    return DepartmentMapperDTO.to_response(result)
 
 
 @router.patch(
@@ -133,7 +130,7 @@ def enable_department(
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
-    dto = DepartmentMapper.id_to_dto(
+    dto = DepartmentMapperDTO.id_to_dto(
         department_id=department_id,
         actor_admin_id=actor_admin_id,
     )
@@ -142,7 +139,7 @@ def enable_department(
         department_dto=dto,
     )
 
-    return DepartmentMapper.response_dto_to_response(result)
+    return DepartmentMapperDTO.to_response(result)
 
 
 @router.patch(
@@ -154,7 +151,7 @@ def disable_department(
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
-    dto = DepartmentMapper.id_to_dto(
+    dto = DepartmentMapperDTO.id_to_dto(
         department_id=department_id,
         actor_admin_id=actor_admin_id,
     )
@@ -163,7 +160,7 @@ def disable_department(
         department_dto=dto,
     )
 
-    return DepartmentMapper.response_dto_to_response(result)
+    return DepartmentMapperDTO.to_response(result)
 
 
 @router.delete(
@@ -175,7 +172,7 @@ def delete_department(
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
-    dto = DepartmentMapper.id_to_dto(
+    dto = DepartmentMapperDTO.id_to_dto(
         department_id=department_id,
         actor_admin_id=actor_admin_id,
     )

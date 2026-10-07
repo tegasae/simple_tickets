@@ -1,7 +1,7 @@
 from src.application.dto.department_dto import DepartmentDTO
 from src.web.models.department import DepartmentCreateRequest, DepartmentUpdateRequest, DepartmentResponse
 
-class DepartmentMapper:
+class DepartmentMapperDTO:
     @staticmethod
     def create_request_to_dto(
         *,
@@ -48,10 +48,19 @@ class DepartmentMapper:
        )
 
     @staticmethod
-    def response_dto_to_response(dto) -> DepartmentResponse:
+    def to_response(response_dto) -> DepartmentResponse:
         return DepartmentResponse(
-            department_id=dto.department_id,
-            name=dto.name,
-            enabled=dto.enabled,
-            date_created=dto.date_created,
+            department_id=response_dto.department_id,
+            name=response_dto.name,
+            enabled=response_dto.enabled,
+            date_created=response_dto.date_created,
         )
+
+    @staticmethod
+    def to_responses(response_dtos) -> list[DepartmentResponse]:
+        return [
+            DepartmentResponse.model_validate(response_dto)
+            for response_dto in response_dtos
+        ]
+
+

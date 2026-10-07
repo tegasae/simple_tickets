@@ -12,7 +12,7 @@ from src.domain.exceptions import ItemValidationError, DomainOperationError
 from src.domain.value_objects import Email, Address, Phone, Name, Empty, Description
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Client:
     """Client entity representing a customer or client.
 
@@ -28,7 +28,7 @@ class Client:
         date_created: When the client record was created
         version: Optimistic concurrency control version
     """
-    client_id: int
+    client_id:int
     name: Name
     email: Email | Empty = field(default_factory=Empty)
     address: Address | Empty = field(default_factory=Empty)
@@ -56,7 +56,6 @@ class Client:
     def create(
             cls,
             *,
-            client_id: int,
             name: str,
             email: str ="",
             address: str ="",
@@ -68,7 +67,6 @@ class Client:
         """Create a new client.
 
         Args:
-            client_id: Unique identifier for the client
             name: Client's name (required)
             email: Client's email (optional)
             address: Client's address (optional)
@@ -102,23 +100,17 @@ class Client:
 
         try:
             # Create value objects
-            name_obj = Name(name)
-            email_obj = Email(email) if email else Empty()
-            address_obj = Address(address) if address else Empty()
-            phone_obj = Phone(phone) if phone else Empty()
-            description_obj=Description(description) if description else Empty()
-            # Note: client_id is NOT set here - it should be assigned by repository
-            # We raise an error to make this explicit
+
 
 
             # In actual implementation, you might have:
             return cls(
-                client_id=client_id,
-                name=name_obj,
-                email=email_obj,
-                address=address_obj,
-                phone=phone_obj,
-                description=description_obj,
+                client_id=0,
+                name=Name(name),
+                email=Email(email) if email else Empty(),
+                address=Address(address) if address else Empty(),
+                phone=Phone(phone) if phone else Empty(),
+                description=Description(description) if description else Empty(),
                 created_by_admin_id=created_by_admin_id,
                 enabled=enabled
             )
@@ -127,6 +119,30 @@ class Client:
             # Re-raise as domain exception
             raise ItemValidationError(f"Client validation failed: {e}") from e
 
+
+    @classmethod
+    def rehydrate(cls,
+                  *,
+                  client_id: int,
+                  name: str,
+                  email: str = "",
+                  address: str = "",
+                  phone: str = "",
+                  description: str = "",
+                  created_by_admin_id: int = 0,
+                  enabled: bool = True
+                  ):
+
+        return cls(
+            client_id=client_id,
+            name=Name(name),
+            email=Email(email) if email else Empty(),
+            address=Address(address) if address else Empty(),
+            phone=Phone(phone) if phone else Empty(),
+            description=Description(description) if description else Empty(),
+            created_by_admin_id=created_by_admin_id,
+            enabled=enabled
+        )
 
     def disable(self) -> None:
         """Disable the client."""
@@ -138,8 +154,12 @@ class Client:
         self.enabled = True
 
 
+    def ensure_enabled(self) -> None:
+        self._ensure_enabled()
 
-
+    def _ensure_enabled(self) -> None:
+        if not self.enabled:
+            raise DomainOperationError("Client is disabled")
 
 
     def update_contact_info(
@@ -177,26 +197,6 @@ class Client:
         except ValueError as e:
             raise ItemValidationError(f"Invalid contact info: {e}") from e
 
-    def get_contact_summary(self) -> dict[str, str ]:
-        """Get summary of client's contact information.
-
-        Returns:
-            Dictionary with contact details
-        """
-        return {
-            "name": str(self.name),
-            "email": str(self.email) if self.email else "",
-            "address": str(self.address) if self.address else "",
-            "phone": str(self.phone) if self.phone else "",
-            "description": str(self.description) if self.description else ""
-        }
-
-
-    def can_do_operation(self):
-        """Check if client can perform operations.
-        """
-        if not self.enabled:
-            raise DomainOperationError("The inactive client can't do any operations")
 
 
     def __eq__(self, other: object) -> bool:

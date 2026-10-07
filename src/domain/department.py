@@ -31,16 +31,14 @@ class Department:
     def create(
         cls,
         *,
-        department_id: int,
+
         name: str,
         enabled: bool = True,
     ) -> Self:
-        if department_id < 0:
-            raise ItemValidationError("Department ID cannot be negative")
 
         try:
             return cls(
-                department_id=department_id,
+                department_id=0,
                 name=Name(name),
                 enabled=enabled,
             )

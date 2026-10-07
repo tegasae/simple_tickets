@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+import src.web.models.mappers.client
 import src.web.models.mappers.department
 from src.domain.rbac.permissions import AdminPermission, UserPermission
 from src.web.models.admins import (
@@ -68,9 +69,9 @@ def test_user_request_mappers() -> None:
 
 
 def test_client_department_role_mappers() -> None:
-    client = cr.client_create_request_to_dto(request=ClientCreateRequest(name="Acme", email="a@b.com"), actor_admin_id=99)
+    client = src.web.models.mappers.client.client_create_request_to_dto(request=ClientCreateRequest(name="Acme", email="a@b.com"), actor_admin_id=99)
     assert client.actor_admin_id == 99 and client.name == "Acme"
-    updated = cr.client_update_contact_request_to_dto(request=ClientUpdateContactRequest(name="New"), actor_admin_id=99, client_id=5)
+    updated = src.web.models.mappers.client.client_update_contact_request_to_dto(request=ClientUpdateContactRequest(name="New"), actor_admin_id=99, client_id=5)
     assert updated.client_id == 5 and updated.name == "New"
 
     dep = src.web.models.mappers.department.create_request_to_dto(request=DepartmentCreateRequest(name="Support"), actor_admin_id=99)

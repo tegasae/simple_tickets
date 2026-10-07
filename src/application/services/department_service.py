@@ -64,7 +64,7 @@ class DepartmentApplicationService:
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=department_dto.actor_admin_id,
-                permission=AdminPermission.ADMIN_OPERATION,
+                permission=AdminPermission.DEPARTMENT_OPERATION,
             )
 
             department = self.department_service.create(
@@ -85,7 +85,7 @@ class DepartmentApplicationService:
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=department_dto.actor_admin_id,
-                permission=AdminPermission.ADMIN_OPERATION,
+                permission=AdminPermission.DEPARTMENT_OPERATION,
             )
 
             department = self.uow.departments.get(
@@ -109,7 +109,7 @@ class DepartmentApplicationService:
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=department_dto.actor_admin_id,
-                permission=AdminPermission.ADMIN_OPERATION,
+                permission=AdminPermission.DEPARTMENT_OPERATION,
             )
 
             department = self.uow.departments.get(
@@ -143,7 +143,7 @@ class DepartmentApplicationService:
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=department_dto.actor_admin_id,
-                permission=AdminPermission.ADMIN_OPERATION,
+                permission=AdminPermission.DEPARTMENT_OPERATION,
             )
 
             department = self.uow.departments.get(
@@ -203,7 +203,7 @@ class DepartmentApplicationService:
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=department_dto.actor_admin_id,
-                permission=AdminPermission.ADMIN_OPERATION,
+                permission=AdminPermission.DEPARTMENT_OPERATION,
             )
 
             department = self.uow.departments.get(
@@ -242,7 +242,7 @@ class DepartmentApplicationService:
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=department_dto.actor_admin_id,
-                permission=AdminPermission.ADMIN_VIEW,
+                permission=AdminPermission.DEPARTMENT_VIEW,
             )
 
             department = self.uow.departments.get(
@@ -261,7 +261,7 @@ class DepartmentApplicationService:
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=department_dto.actor_admin_id,
-                permission=AdminPermission.ADMIN_VIEW,
+                permission=AdminPermission.DEPARTMENT_VIEW,
             )
 
             departments = self.uow.departments.get_all()

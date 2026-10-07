@@ -5,6 +5,7 @@ from src.application.dto.client_dto import (
     ClientDTO,
     ClientResponseDTO,
 )
+from src.application.exceptions import ApplicationValidateError
 from src.application.helper.actor_helper import EmployeeActorHelper
 
 from src.domain.client import Client
@@ -49,21 +50,6 @@ class ClientApplicationService:
             ticket_sync_service=self.ticket_sync_service,
         )
 
-    # ==================================================================
-    # Helpers
-    # ==================================================================
-
-    def _save_and_to_dto(
-        self,
-        client: Client,
-    ) -> ClientResponseDTO:
-        saved_client = self.uow.clients.save(
-            client
-        )
-
-        return ClientAssembler.to_dto(
-            saved_client
-        )
 
     # ==================================================================
     # Create
@@ -74,9 +60,9 @@ class ClientApplicationService:
         dto_client: ClientDTO,
     ) -> ClientResponseDTO:
         with self.uow:
-            actor = self.actor.require_actor_admin(
+            actor = self.actor.require_actor_admin_any(
                 actor_admin_id=dto_client.actor_admin_id,
-                permission=AdminPermission.CLIENT_OPERATION,
+                permissions=(AdminPermission.CLIENT_OPERATION,AdminPermission.CLIENT_CREATE,AdminPermission.CLIENT_DECISION),
             )
 
             client = self.client_service.create(
@@ -144,7 +130,7 @@ class ClientApplicationService:
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=dto_client.actor_admin_id,
-                permission=AdminPermission.CLIENT_OPERATION,
+                permission=AdminPermission.CLIENT_DECISION,
             )
 
             client = self.uow.clients.get(
@@ -180,7 +166,7 @@ class ClientApplicationService:
         with self.uow:
             actor = self.actor.require_actor_admin(
                 actor_admin_id=dto_client.actor_admin_id,
-                permission=AdminPermission.CLIENT_OPERATION,
+                permission=AdminPermission.CLIENT_DECISION,
             )
 
             client = self.uow.clients.get(
@@ -326,3 +312,20 @@ class ClientApplicationService:
                 ClientAssembler.to_dto(client)
                 for client in clients
             ]
+
+    # ==================================================================
+    # Helpers
+    # ==================================================================
+
+    def _save_and_to_dto(
+        self,
+        client: Client,
+    ) -> ClientResponseDTO:
+        saved_client = self.uow.clients.save(
+            client
+        )
+        if not saved_client:
+            raise ApplicationValidateError(f"The client {client.client_id} cannot be saved")
+        return ClientAssembler.to_dto(
+            saved_client
+        )

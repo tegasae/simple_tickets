@@ -5,10 +5,9 @@ from dataclasses import dataclass
 from src.application.exceptions import ApplicationValidateError
 
 
-@dataclass(kw_only=True)
+@dataclass(frozen=True, kw_only=True)
 class ClientDTO:
     actor_admin_id:int
-    admin_id: int = 0
     client_id:int=0
     name: str=""
     email: str = ""
@@ -18,17 +17,15 @@ class ClientDTO:
     enable: bool = True
 
     def __post_init__(self):
-        if self.actor_admin_id < 0:
-            raise ApplicationValidateError("The actor admin ID is invalid")
-        if self.admin_id < 0:
+        if not self.actor_admin_id < 0:
             raise ApplicationValidateError("The actor admin ID is invalid")
         if self.client_id < 0:
             raise ApplicationValidateError("The client ID is invalid")
+        if not self.name.strip():
+            raise ApplicationValidateError("The client cannot be empty")
 
-        self.name=self.name.strip()
 
 
-        self.admin_id = self.admin_id or self.actor_admin_id
 
 
 
