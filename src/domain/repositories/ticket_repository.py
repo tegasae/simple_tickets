@@ -134,7 +134,7 @@ class TicketRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_open(self) -> list[Ticket]:
+    def get_open(self, client_id:int=0) -> list[Ticket]:
         """
         Return all currently open Tickets.
 
@@ -151,7 +151,7 @@ class TicketRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_finished(self) -> list[Ticket]:
+    def get_finished(self, client_id:int=0) -> list[Ticket]:
         """
         Return all currently closed Tickets.
 

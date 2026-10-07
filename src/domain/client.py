@@ -46,8 +46,6 @@ class Client:
     def __post_init__(self):
         if self.client_id < 0:
             raise ItemValidationError("Invalid client ID")
-        if not self.name.value:
-            raise ItemValidationError("Invalid client name")
         if self.created_by_admin_id <= 0:
             raise ItemValidationError("Invalid created admin ID")
 

@@ -168,8 +168,8 @@ class ClientService:
         *,
         client: Client,
         users: list[User],
-        tickets: list[Ticket],
-        ticket_users: list[TicketUser],
+        open_tickets: list[Ticket],
+        open_ticket_users: list[TicketUser],
         actor_employee_id: int,
     ) -> ClientDisableResult:
         """
@@ -199,20 +199,16 @@ class ClientService:
 
         self._validate_tickets(
             client=client,
-            tickets=tickets,
+            tickets=open_tickets,
         )
 
         self._validate_ticket_users(
             client=client,
-            ticket_users=ticket_users
+            ticket_users=open_ticket_users
         )
 
-        tickets_to_suspend = [
-            ticket
-            for ticket in tickets
-            if self._should_suspend(ticket)
-        ]
-        # TODO решить что делать с TicketUser, в какой статус их отпрвлять
+
+
 
 
         # --------------------------------------------------------------
@@ -228,6 +224,12 @@ class ClientService:
         changed_users: list[User] = []
 
         for user in users:
+            if user.client_id != client.client_id:
+                raise DomainOperationError(
+                    f"User {user.employee_id} does not belong "
+                    f"to client {client.client_id}"
+                )
+
             if not user.enabled:
                 continue
 
@@ -241,14 +243,26 @@ class ClientService:
         changed_tickets: list[Ticket] = []
         changed_ticket_users: list[TicketUser] = []
 
-        for ticket in tickets_to_suspend:
+        for ticket in open_tickets:
+            if ticket.client_id != client.client_id:
+                raise DomainOperationError(
+                    f"Ticket {ticket.ticket_id} does not belong "
+                    f"to client {client.client_id}"
+                )
+
             ticket.suspend(
                 actor_employee_id=actor_employee_id
             )
 
             changed_tickets.append(ticket)
 
-        for ticket_user in ticket_users:
+        for ticket_user in open_ticket_users:
+            if ticket_user.client_id != client.client_id:
+                raise DomainOperationError(
+                    f"TicketUser {ticket_user.ticket_user_id} does not belong "
+                    f"to client {client.client_id}"
+                )
+
             ticket_user.suspend(actor_employee_id=actor_employee_id)
             changed_ticket_users.append(ticket_user)
 
@@ -305,78 +319,4 @@ class ClientService:
     # Disable rules
     # ==================================================================
 
-    @staticmethod
-    def _should_suspend(
-        ticket: Ticket,
-    ) -> bool:
-        """
-        Determine whether Ticket must be automatically suspended
-        when its Client is disabled.
-        """
-        # TODO убрать это, когда будет пget_open в репозиториях возвращающий открытыве заявки по client
-        if ticket.is_terminal():
-            return False
-
-        current_status = ticket.current_status()
-
-        if current_status == TicketStatus.AT_WORK:
-            return False
-
-        # todo убрать это когда SUSPENDED окажется финальным статусом.
-        if current_status == TicketStatus.SUSPENDED:
-            return False
-
-        return True
-
-    # ==================================================================
-    # Context validation
-    # ==================================================================
-
-    @staticmethod
-    def _validate_users(
-        *,
-        client: Client,
-        users: list[User],
-    ) -> None:
-        """
-        Ensure that every supplied User belongs to Client.
-        """
-
-        for user in users:
-            if user.client_id != client.client_id:
-                raise DomainOperationError(
-                    f"User {user.employee_id} does not belong "
-                    f"to client {client.client_id}"
-                )
-
-    @staticmethod
-    def _validate_tickets(
-        *,
-        client: Client,
-        tickets: list[Ticket],
-    ) -> None:
-        """
-        Ensure that every supplied Ticket belongs to Client.
-        """
-
-        for ticket in tickets:
-            if ticket.client_id != client.client_id:
-                raise DomainOperationError(
-                    f"Ticket {ticket.ticket_id} does not belong "
-                    f"to client {client.client_id}"
-                )
-
-    @staticmethod
-    def _validate_ticket_users(
-        *,
-        client: Client,
-        ticket_users: list[TicketUser],
-    ) -> None:
-
-        for ticket_user in ticket_users:
-            if ticket_user.client_id!= client.client_id:
-                raise DomainOperationError(
-                    f"TicketUser {ticket_user.ticket_user_id} does not belong "
-                    f"to client {client.client_id}"
-                )
 

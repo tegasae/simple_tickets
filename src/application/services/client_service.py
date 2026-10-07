@@ -175,8 +175,8 @@ class ClientApplicationService:
             users = self.uow.users.get_all_by_client_id(
                 client_id=client.client_id,
             )
-            # TODO Использовать метода get_open, когда там будет возможность использовать client_id
-            tickets = self.uow.tickets.get_by_client_id(
+
+            open_tickets = self.uow.tickets.get_open(
                 client_id=client.client_id,
             )
 
@@ -186,15 +186,15 @@ class ClientApplicationService:
             #
             # ClientService itself decides which TicketUser
             # aggregates must actually be changed.
-            # TODO Использовать метода get_open, когда там будет возможность использовать client_id
-            ticket_users = self.uow.user_tickets.get_by_client_id(client_id=client.client_id)
+
+            open_ticket_users = self.uow.user_tickets.get_open_by_client_id(client_id=client.client_id)
 
 
             result = self.client_service.disable(
                 client=client,
                 users=users,
-                tickets=tickets,
-                ticket_users=ticket_users,
+                open_tickets=open_tickets,
+                open_ticket_users=open_ticket_users,
                 actor_employee_id=actor.employee_id,
             )
 

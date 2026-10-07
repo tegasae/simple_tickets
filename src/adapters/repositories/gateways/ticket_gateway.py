@@ -64,6 +64,11 @@ class TicketGateway:
     """
 
 
+    SELECT_BY_OPEN_CLIENT_ID = SELECT_BY_OPEN + " AND client_id=:client_id"
+
+    SELECT_BY_FINISHED_CLIENT_ID = SELECT_BY_OPEN + " AND client_id=:client_id"
+
+
 
 
     SELECT_BY_CLIENT_ID_BATCH ="""

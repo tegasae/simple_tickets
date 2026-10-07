@@ -252,14 +252,23 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             {"current_executor_id": executor_id},
         )
 
-    def get_open(self) -> list[Ticket]:
+    def get_open(self,client_id:int=0) -> list[Ticket]:
+        if client_id:
+            sql=TicketGateway.SELECT_BY_OPEN_CLIENT_ID
+        else:
+            sql = TicketGateway.SELECT_BY_OPEN
         return self._load_many_tickets(
-            TicketGateway.SELECT_BY_OPEN,
+            sql
         )
 
-    def get_finished(self) -> list[Ticket]:
+    def get_finished(self,client_id:int=0) -> list[Ticket]:
+        if client_id:
+            sql=TicketGateway.SELECT_BY_FINISHED_CLIENT_ID
+        else:
+            sql = TicketGateway.SELECT_BY_FINISHED
+
         return self._load_many_tickets(
-            TicketGateway.SELECT_BY_FINISHED,
+            sql
         )
 
 
