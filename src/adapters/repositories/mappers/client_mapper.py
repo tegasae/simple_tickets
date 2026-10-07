@@ -19,7 +19,7 @@ class ClientMapper:
     @staticmethod
     def row_to_client(row: dict) -> Client:
 
-        client = Client.create(
+        client = Client.rehydrate(
             client_id=row["client_id"],
             name=row["name"],
             email=row["email"],

@@ -139,7 +139,7 @@ def update_contact(
         client_id=client_id,
     )
 
-    response_dto = asf.client_service().update_contact(dto_client=dto)
+    response_dto = asf.client_service().update(dto_client=dto)
 
     return ClientMapperDTO.to_response(response_dto)
 

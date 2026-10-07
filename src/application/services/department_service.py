@@ -68,7 +68,6 @@ class DepartmentApplicationService:
             )
 
             department = self.department_service.create(
-                department_id=0,
                 name=department_dto.name,
                 enabled=True,
             )

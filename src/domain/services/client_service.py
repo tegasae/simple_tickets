@@ -93,7 +93,6 @@ class ClientService:
     @staticmethod
     def create(
         *,
-        client_id: int,
         name: str,
         email: str,
         address: str,
@@ -106,7 +105,6 @@ class ClientService:
         """
 
         return Client.create(
-            client_id=client_id,
             name=name,
             email=email,
             address=address,
@@ -120,7 +118,7 @@ class ClientService:
     # ==================================================================
 
     @staticmethod
-    def update_contact(
+    def update(
         *,
         client: Client,
         name: str,
@@ -171,7 +169,7 @@ class ClientService:
         client: Client,
         users: list[User],
         tickets: list[Ticket],
-        ticket_users: dict[int, TicketUser],
+        ticket_users: list[TicketUser],
         actor_employee_id: int,
     ) -> ClientDisableResult:
         """
@@ -204,16 +202,18 @@ class ClientService:
             tickets=tickets,
         )
 
+        self._validate_ticket_users(
+            client=client,
+            ticket_users=ticket_users
+        )
+
         tickets_to_suspend = [
             ticket
             for ticket in tickets
             if self._should_suspend(ticket)
         ]
+        # TODO решить что делать с TicketUser, в какой статус их отпрвлять
 
-        self._validate_ticket_users(
-            tickets=tickets_to_suspend,
-            ticket_users=ticket_users,
-        )
 
         # --------------------------------------------------------------
         # Client
@@ -243,29 +243,15 @@ class ClientService:
 
         for ticket in tickets_to_suspend:
             ticket.suspend(
-                actor_employee_id=actor_employee_id,
+                actor_employee_id=actor_employee_id
             )
 
             changed_tickets.append(ticket)
 
-            if ticket.user_ticket_id == 0:
-                continue
+        for ticket_user in ticket_users:
+            ticket_user.suspend(actor_employee_id=actor_employee_id)
+            changed_ticket_users.append(ticket_user)
 
-            ticket_user = ticket_users[
-                ticket.user_ticket_id
-            ]
-
-            status_before = ticket_user.current_status()
-
-            self._ticket_sync_service.sync_from_ticket(
-                ticket,
-                ticket_user,
-            )
-
-            if ticket_user.current_status() != status_before:
-                changed_ticket_users.append(
-                    ticket_user
-                )
 
         return ClientDisableResult(
             users=tuple(changed_users),
@@ -327,7 +313,7 @@ class ClientService:
         Determine whether Ticket must be automatically suspended
         when its Client is disabled.
         """
-
+        # TODO убрать это, когда будет пget_open в репозиториях возвращающий открытыве заявки по client
         if ticket.is_terminal():
             return False
 
@@ -336,6 +322,7 @@ class ClientService:
         if current_status == TicketStatus.AT_WORK:
             return False
 
+        # todo убрать это когда SUSPENDED окажется финальным статусом.
         if current_status == TicketStatus.SUSPENDED:
             return False
 
@@ -379,41 +366,17 @@ class ClientService:
                     f"to client {client.client_id}"
                 )
 
+    @staticmethod
     def _validate_ticket_users(
-        self,
         *,
-        tickets: list[Ticket],
-        ticket_users: dict[int, TicketUser],
+        client: Client,
+        ticket_users: list[TicketUser],
     ) -> None:
-        """
-        Validate TicketUser aggregates required for Tickets
-        that are going to be suspended.
 
-        Standalone Ticket:
-            user_ticket_id == 0
-            -> TicketUser is not required.
-
-        Linked Ticket:
-            Ticket.user_ticket_id must identify supplied TicketUser
-            and linked aggregates must be structurally consistent.
-        """
-
-        for ticket in tickets:
-            if ticket.user_ticket_id == 0:
-                continue
-
-            ticket_user = ticket_users.get(
-                ticket.user_ticket_id
-            )
-
-            if ticket_user is None:
+        for ticket_user in ticket_users:
+            if ticket_user.client_id!= client.client_id:
                 raise DomainOperationError(
-                    f"TicketUser {ticket.user_ticket_id} "
-                    f"required for ticket {ticket.ticket_id} "
-                    f"was not provided"
+                    f"TicketUser {ticket_user.ticket_user_id} does not belong "
+                    f"to client {client.client_id}"
                 )
 
-            self._ticket_sync_service.ensure_consistent(
-                ticket,
-                ticket_user,
-            )

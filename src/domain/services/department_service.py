@@ -33,12 +33,10 @@ class DepartmentService:
     @staticmethod
     def create(
         *,
-        department_id: int,
         name: str,
         enabled: bool = True,
     ) -> Department:
         return Department.create(
-            department_id=department_id,
             name=name,
             enabled=enabled,
         )

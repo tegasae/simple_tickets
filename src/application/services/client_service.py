@@ -66,7 +66,6 @@ class ClientApplicationService:
             )
 
             client = self.client_service.create(
-                client_id=0,
                 name=dto_client.name,
                 email=dto_client.email,
                 address=dto_client.address,
@@ -97,7 +96,7 @@ class ClientApplicationService:
                 client_id=dto_client.client_id,
             )
 
-            self.client_service.update_contact(
+            self.client_service.update(
                 client=client,
                 name=dto_client.name,
                 email=dto_client.email,
@@ -176,7 +175,7 @@ class ClientApplicationService:
             users = self.uow.users.get_all_by_client_id(
                 client_id=client.client_id,
             )
-
+            # TODO Использовать метода get_open, когда там будет возможность использовать client_id
             tickets = self.uow.tickets.get_by_client_id(
                 client_id=client.client_id,
             )
@@ -187,13 +186,9 @@ class ClientApplicationService:
             #
             # ClientService itself decides which TicketUser
             # aggregates must actually be changed.
-            ticket_users = {
-                ticket_user.ticket_user_id: ticket_user
-                for ticket_user
-                in self.uow.user_tickets.get_by_client_id(
-                    client_id=client.client_id,
-                )
-            }
+            # TODO Использовать метода get_open, когда там будет возможность использовать client_id
+            ticket_users = self.uow.user_tickets.get_by_client_id(client_id=client.client_id)
+
 
             result = self.client_service.disable(
                 client=client,
