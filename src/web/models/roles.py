@@ -1,10 +1,10 @@
-# src/web/models/roles.py
+# src/web/models/role.py
 
-from __future__ import annotations
+
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from src.domain.rbac.permissions import AdminPermission, UserPermission
+
 
 
 # ---------------------------------------------------------------------
@@ -15,7 +15,7 @@ class AdminRoleCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    permissions: list[AdminPermission]
+    permissions: list[str]
     description: str = ""
     is_system_role: bool = False
 
@@ -33,8 +33,8 @@ class AdminRoleCreateRequest(BaseModel):
     @classmethod
     def permissions_not_empty(
         cls,
-        value: list[AdminPermission],
-    ) -> list[AdminPermission]:
+        value: list[str],
+    ) -> list[str]:
         if not value:
             raise ValueError("Role must have at least one permission")
 
@@ -51,7 +51,7 @@ class AdminRoleResponse(BaseModel):
 
     role_id: int
     name: str
-    permissions: list[AdminPermission]
+    permissions: list[str]
     description: str = ""
     is_system_role: bool
 
@@ -69,7 +69,7 @@ class UserRoleCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    permissions: list[UserPermission]
+    permissions: list[str]
     description: str = ""
     is_system_role: bool = False
 
@@ -87,8 +87,8 @@ class UserRoleCreateRequest(BaseModel):
     @classmethod
     def permissions_not_empty(
         cls,
-        value: list[UserPermission],
-    ) -> list[UserPermission]:
+        value: list[str],
+    ) -> list[str]:
         if not value:
             raise ValueError("Role must have at least one permission")
 
@@ -105,7 +105,7 @@ class UserRoleResponse(BaseModel):
 
     role_id: int
     name: str
-    permissions: list[UserPermission]
+    permissions: list[str]
     description: str = ""
     is_system_role: bool
 

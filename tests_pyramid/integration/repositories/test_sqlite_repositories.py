@@ -125,7 +125,7 @@ def test_department_repository_crud_and_optimistic_lock(conn: Connection) -> Non
 def test_admin_repository_roundtrip_account_department_roles(conn: Connection) -> None:
     department = DepartmentRepositorySQLite(conn).save(Department.create(department_id=0, name="Support"))
     role_repo = RoleRepositorySQLite(conn=conn, permission_cls=AdminPermission, is_admin=True)
-    role = role_repo.add(Role(role_id=0, name="admin-view", permissions=frozenset({AdminPermission.TICKET_VIEW})))
+    role = role_repo.save(Role(role_id=0, name="admin-view", permissions=frozenset({AdminPermission.TICKET_VIEW})))
     admin = Admin.create(
         employee_id=0,
         first_name="Admin",
@@ -169,7 +169,7 @@ def test_user_repository_roundtrip_account_roles_and_client_filter(conn: Connect
     admin = save_admin(conn)
     client = save_client(conn, admin_id=admin.employee_id)
     role_repo = RoleRepositorySQLite(conn=conn, permission_cls=UserPermission, is_admin=False)
-    role = role_repo.add(Role(role_id=0, name="user-view", permissions=frozenset({UserPermission.TICKET_VIEW})))
+    role = role_repo.save(Role(role_id=0, name="user-view", permissions=frozenset({UserPermission.TICKET_VIEW})))
     user = User.create(
         employee_id=0,
         first_name="User",
@@ -193,8 +193,8 @@ def test_user_repository_roundtrip_account_roles_and_client_filter(conn: Connect
 def test_role_repository_separates_admin_and_user_realms(conn: Connection) -> None:
     admin_repo = RoleRepositorySQLite(conn=conn, permission_cls=AdminPermission, is_admin=True)
     user_repo = RoleRepositorySQLite(conn=conn, permission_cls=UserPermission, is_admin=False)
-    ar = admin_repo.add(Role(role_id=0, name="ar", permissions=frozenset({AdminPermission.TICKET_VIEW})))
-    ur = user_repo.add(Role(role_id=0, name="ur", permissions=frozenset({UserPermission.TICKET_VIEW})))
+    ar = admin_repo.save(Role(role_id=0, name="ar", permissions=frozenset({AdminPermission.TICKET_VIEW})))
+    ur = user_repo.save(Role(role_id=0, name="ur", permissions=frozenset({UserPermission.TICKET_VIEW})))
     assert admin_repo.get(ar.role_id).permissions == frozenset({AdminPermission.TICKET_VIEW})
     assert user_repo.get(ur.role_id).permissions == frozenset({UserPermission.TICKET_VIEW})
     assert {r.role_id for r in admin_repo.all()} == {ar.role_id}

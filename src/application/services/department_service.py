@@ -76,7 +76,7 @@ class DepartmentApplicationService:
                 department=department,
             )
 
-    def update_department(
+    def update(
         self,
         *,
         department_dto: DepartmentDTO,
@@ -91,7 +91,7 @@ class DepartmentApplicationService:
                 department_id=department_dto.department_id,
             )
 
-            self.department_service.rename(
+            self.department_service.update(
                 department=department,
                 name=department_dto.name,
             )

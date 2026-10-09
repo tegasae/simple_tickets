@@ -35,7 +35,7 @@ def test_create_department_assigns_id_and_payload() -> None:
 def test_update_department_renames_only() -> None:
     uow = FakeUnitOfWork(); actor = setup_actor(uow)
     uow.departments.save(Department.create(department_id=100, name="Old", enabled=True))
-    result = DepartmentApplicationService(uow).update_department(
+    result = DepartmentApplicationService(uow).update(
         department_dto=DepartmentDTO(actor_admin_id=actor.employee_id, department_id=100, name="New")
     )
     assert result.name == "New" and result.enabled is True

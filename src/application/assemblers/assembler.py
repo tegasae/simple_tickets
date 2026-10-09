@@ -222,11 +222,11 @@ T = TypeVar("T", bound=PermissionBase)
 
 class RoleAssembler:
     @staticmethod
-    def to_dto(role: Role[T]) -> RoleResponseDTO[T]:
-        return RoleResponseDTO[T](
+    def to_dto(role: Role[T]) -> RoleResponseDTO:
+        return RoleResponseDTO(
             role_id=role.role_id,
-            name=role.name,
-            permissions=role.permissions,
+            name=role.name.value,
+            permissions=frozenset(map(str, role.permissions)),
             description=role.description,
             is_system_role=role.is_system_role,
         )

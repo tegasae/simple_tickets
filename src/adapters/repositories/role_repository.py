@@ -27,20 +27,12 @@ class RoleRepositorySQLite(BaseRepository,RoleRepository[P], Generic[P]):
     # Add
     # -------------------------
 
-    def add(self, role: Role[P]) -> Role[P]:
+    def save(self, role: Role[P]) -> Role[P]:
 
         try:
             er=self._exec(RoleGateway.INSERT_ROLE,RoleMapper.role_params(role,is_admin=self.is_admin))
-            return Role(
-                role_id=er.last_row_id,
-                name=role.name,
-                permissions=role.permissions,
-                description=role.description,
-                is_system_role=role.is_system_role,
-                date_created=role.date_created,
-                version=role.version,
-            )
-
+            role.role_id=er.last_row_id
+            return role
         except Exception as e:
             raise DBOperationError(f"Failed to add role: {e}")
 
@@ -95,10 +87,9 @@ class RoleRepositorySQLite(BaseRepository,RoleRepository[P], Generic[P]):
             raise DBOperationError(f"Failed to delete role {role_id}: {e}")
 
     def is_assigned(self, role_id: int) -> bool:
-        row = self._get_one(
+        row = self._exists(
             RoleGateway.EXIST,
-            ["one"],
             {"role_id": role_id},
         )
 
-        return row is not None
+        return row

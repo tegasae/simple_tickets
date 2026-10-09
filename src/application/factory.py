@@ -4,7 +4,7 @@ from src.application.services.admin_service import AdminApplicationService
 from src.application.services.client_service import ClientApplicationService
 from src.application.services.department_service import DepartmentApplicationService
 
-from src.application.services.role_service import AdminRoleService, UserRoleService
+from src.application.services.role_service import AdminRoleApplicationService, UserRoleApplicationService
 #from src.application.services.ticket_search_service import TicketSearchService
 from src.application.services.ticket_service import TicketApplicationService
 from src.application.services.ticket_user_service import TicketUserApplicationService
@@ -37,8 +37,8 @@ class ApplicationServiceFactory:
     def department_service(self) -> DepartmentApplicationService:
         return DepartmentApplicationService(self.uow)
 
-    def admin_role_service(self) -> AdminRoleService:
-        return AdminRoleService(self.uow)
+    def admin_role_service(self) -> AdminRoleApplicationService:
+        return AdminRoleApplicationService(self.uow)
 
-    def user_role_service(self) -> UserRoleService:
-        return UserRoleService(self.uow)
+    def user_role_service(self) -> UserRoleApplicationService:
+        return UserRoleApplicationService(self.uow)

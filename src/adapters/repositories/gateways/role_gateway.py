@@ -30,13 +30,13 @@ class RoleGateway:
     """
 
     EXIST = """
-    SELECT 1 AS one
+    SELECT count(1) AS one
     FROM admins_roles
     WHERE role_id = :role_id
 
     UNION ALL
 
-    SELECT 1 AS one
+    SELECT count(1) AS one
     FROM users_roles
     WHERE role_id = :role_id
 

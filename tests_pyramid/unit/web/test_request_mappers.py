@@ -6,6 +6,7 @@ import pytest
 
 import src.web.models.mappers.client
 import src.web.models.mappers.department
+import src.web.models.mappers.role
 from src.domain.rbac.permissions import AdminPermission, UserPermission
 from src.web.models.admins import (
     AdminAttachAccountRequest, AdminChangePasswordRequest, AdminCreateRequest, AdminRolesRequest, AdminUpdateRequest,
@@ -80,16 +81,16 @@ def test_client_department_role_mappers() -> None:
     assert dep_up.department_id == 5 and dep_up.name == "Infra"
     assert src.web.models.mappers.department.id_to_dto(department_id=5, actor_admin_id=99).department_id == 5
 
-    ar_dto = rr.admin_role_create_request_to_dto(
+    ar_dto = src.web.models.mappers.roles.admin_role_create_request_to_dto(
         request=AdminRoleCreateRequest(name="ticket", permissions=[AdminPermission.TICKET_VIEW]), actor_admin_id=99
     )
     assert ar_dto.permissions == frozenset({AdminPermission.TICKET_VIEW})
-    ur_dto = rr.user_role_create_request_to_dto(
+    ur_dto = src.web.models.mappers.roles.user_role_create_request_to_dto(
         request=UserRoleCreateRequest(name="ticket", permissions=[UserPermission.TICKET_VIEW]), actor_admin_id=99
     )
     assert ur_dto.permissions == frozenset({UserPermission.TICKET_VIEW})
-    assert rr.admin_role_id_to_dto(role_id=3, actor_admin_id=99).role_id == 3
-    assert rr.user_role_id_to_dto(role_id=4, actor_admin_id=99).role_id == 4
+    assert src.web.models.mappers.roles.admin_role_id_to_dto(role_id=3, actor_admin_id=99).role_id == 3
+    assert src.web.models.mappers.roles.user_role_id_to_dto(role_id=4, actor_admin_id=99).role_id == 4
 
 
 def test_ticket_create_mapper_has_no_command_admin_id() -> None:

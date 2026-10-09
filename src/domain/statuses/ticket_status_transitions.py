@@ -48,6 +48,7 @@ TICKET_TRANSITIONS: Final[
         TicketStatus.ACCEPTED,
         TicketStatus.DEFERRED,
         TicketStatus.CANCELLED,
+        TicketStatus.SUSPENDED
     }),
 
     TicketStatus.ASSIGNED: frozenset({

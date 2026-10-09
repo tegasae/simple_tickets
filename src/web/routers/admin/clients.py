@@ -184,8 +184,8 @@ def enable_client(
     )
 
     response_dto = asf.client_service().enable(dto_client=dto)
-
-    return ClientResponse.to_client_response(response_dto)
+    return ClientMapperDTO.to_response(response_dto)
+    #return ClientResponse.to_client_response(response_dto)
 
 
 @router.delete(

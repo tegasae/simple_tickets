@@ -71,6 +71,7 @@ TICKET_USER_TRANSITIONS: Final[
         TicketUserStatus.WAITING_FOR_CONFIRMATION,
         TicketUserStatus.CONFIRMED_BY_ADMIN,
         TicketUserStatus.CANCELLED_BY_ADMIN,
+        TicketUserStatus.SUSPENDED,
     }),
 
     TicketUserStatus.CONFIRMED_BY_USER: frozenset(),

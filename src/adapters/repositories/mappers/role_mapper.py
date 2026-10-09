@@ -1,11 +1,7 @@
 # src/adapters/repositories/mappers/role_mapper.py
-
-from __future__ import annotations
-
-from datetime import datetime, timezone
 from collections.abc import Iterable
 
-from src.adapters.repositories.mappers.auxiliary import dt_to_sqlite_iso
+from src.adapters.repositories.mappers.auxiliary import dt_to_sqlite_iso, dt_from_sqlite
 from src.domain.rbac.role_new import Role
 from src.domain.rbac.typevar import P
 
@@ -32,7 +28,7 @@ class RoleMapper:
     ) -> dict:
         return {
             "role_id": role.role_id,
-            "name": role.name,
+            "name": role.name.value,
             "permissions": RoleMapper.permissions_to_string(role.permissions),
             "description": role.description,
             "is_system_role": role.is_system_role,
@@ -50,14 +46,14 @@ class RoleMapper:
             row["permissions"],
             permission_cls,
         )
-
-        return Role(
+        date_created = dt_from_sqlite(row["date_created"])
+        return Role.rehydrate(
             role_id=row["role_id"],
             name=row["name"],
             permissions=permissions,
             description=row["description"] or "",
             is_system_role=bool(row["is_system_role"]),
-            date_created=_parse_date(row["date_created"]),
+            date_created=date_created,
             version=row["version"] or 0,
         )
 
@@ -74,13 +70,6 @@ class RoleMapper:
 
         return ",".join(values)
 
-def _parse_date(
-    date_value: str | None,
-) -> datetime:
-    if not date_value:
-        return datetime.now(timezone.utc)
-
-    return datetime.fromisoformat(date_value)
 
 
 def _parse_permissions(

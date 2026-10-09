@@ -11,7 +11,7 @@ class RoleRepository(ABC, Generic[P]):
     """In-memory role registry for ONE realm (Admin OR User)."""
 
     @abstractmethod
-    def add(self, role: Role[P]) -> Role[P]:
+    def save(self, role: Role[P]) -> Role[P]:
         raise NotImplementedError
 
     @abstractmethod

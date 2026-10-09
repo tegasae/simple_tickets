@@ -6,7 +6,7 @@ from src.application.factory import ApplicationServiceFactory
 from src.application.services.admin_service import AdminApplicationService
 from src.application.services.client_service import ClientApplicationService
 from src.application.services.department_service import DepartmentApplicationService
-from src.application.services.role_service import AdminRoleService, UserRoleService
+from src.application.services.role_service import AdminRoleApplicationService, UserRoleApplicationService
 from src.application.services.user_service import UserApplicationService
 from tests_pyramid.support.fakes import FakeUnitOfWork
 from tests_pyramid.support.service_imports import TicketApplicationService, TicketUserApplicationService
@@ -22,6 +22,6 @@ def test_application_service_factory_exposes_only_active_services() -> None:
     assert isinstance(factory.department_service(), DepartmentApplicationService)
     assert isinstance(factory.ticket_service(), TicketApplicationService)
     assert isinstance(factory.ticket_user_service(), TicketUserApplicationService)
-    assert isinstance(factory.admin_role_service(), AdminRoleService)
-    assert isinstance(factory.user_role_service(), UserRoleService)
+    assert isinstance(factory.admin_role_service(), AdminRoleApplicationService)
+    assert isinstance(factory.user_role_service(), UserRoleApplicationService)
     assert not hasattr(factory, "ticket_search_service"), "search service is intentionally postponed"

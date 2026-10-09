@@ -46,7 +46,7 @@ class DepartmentService:
     # ==================================================================
 
     @staticmethod
-    def rename(
+    def update(
         *,
         department: Department,
         name: str,

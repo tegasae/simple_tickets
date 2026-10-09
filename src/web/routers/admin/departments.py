@@ -114,7 +114,7 @@ def update_department(
         actor_admin_id=actor_admin_id,
     )
 
-    result = asf.department_service().update_department(
+    result = asf.department_service().update(
         department_dto=dto,
     )
 

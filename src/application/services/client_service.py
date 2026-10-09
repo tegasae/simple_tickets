@@ -82,7 +82,7 @@ class ClientApplicationService:
     # Update
     # ==================================================================
 
-    def update_contact(
+    def update(
         self,
         dto_client: ClientDTO,
     ) -> ClientResponseDTO:

@@ -258,7 +258,8 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
         else:
             sql = TicketGateway.SELECT_BY_OPEN
         return self._load_many_tickets(
-            sql
+            sql,
+            {"client_id":client_id}
         )
 
     def get_finished(self,client_id:int=0) -> list[Ticket]:

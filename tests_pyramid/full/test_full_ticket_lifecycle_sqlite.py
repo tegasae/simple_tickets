@@ -64,7 +64,7 @@ def _connect(path: Path) -> Connection:
 
 def _seed_admins_and_roles(conn: Connection) -> tuple[Admin, Admin, int]:
     with SQLiteUnitOfWork(conn) as uow:
-        admin_role = uow.roles_admin.add(
+        admin_role = uow.roles_admin.save(
             Role(
                 role_id=0,
                 name="Ticket administrators",
@@ -81,7 +81,7 @@ def _seed_admins_and_roles(conn: Connection) -> tuple[Admin, Admin, int]:
             )
         )
 
-        user_role = uow.roles_user.add(
+        user_role = uow.roles_user.save(
             Role(
                 role_id=0,
                 name="Ticket users",

@@ -1,6 +1,6 @@
 # src/application/role_service.py
 
-from __future__ import annotations
+
 
 from typing import Generic, TypeVar, cast
 
@@ -15,13 +15,14 @@ from src.domain.rbac.permissions import (
 )
 from src.domain.rbac.role_new import Role
 from src.domain.rbac.role_repository import RoleRepository
+from src.domain.services.role_service import RoleAdminService, RoleUserService
 from src.domain.uow.unit_of_work import UnitOfWork
 
 
 T = TypeVar("T", bound=PermissionBase)
 
 
-class RoleService(Generic[T]):
+class RoleApplicationService(Generic[T]):
     """
     Generic role service.
 
@@ -44,13 +45,14 @@ class RoleService(Generic[T]):
         self.actor = EmployeeActorHelper(self.uow)
 
         if self.permission_type is AdminPermission:
-            self.permission_operation = AdminPermission.ADMIN_OPERATION
+            self.permission_operation = AdminPermission.ROLE_ASSIGN
             self.repository = cast(RoleRepository[T], self.uow.roles_admin)
+            self._service=RoleAdminService()
 
         elif self.permission_type is UserPermission:
-            self.permission_operation = AdminPermission.ADMIN_OPERATION
+            self.permission_operation = AdminPermission.ROLE_USER_ASSIGN
             self.repository = cast(RoleRepository[T], self.uow.roles_user)
-
+            self._service = RoleUserService()
         else:
             raise DomainOperationError(
                 f"Unknown permission type: {self.permission_type}"
@@ -59,33 +61,21 @@ class RoleService(Generic[T]):
     def create_role(
         self,
         *,
-        role_dto: RoleDTO[T],
-    ) -> RoleResponseDTO[T]:
-        name = role_dto.name.strip()
-        description = role_dto.description.strip()
+        role_dto: RoleDTO,
+    ) -> RoleResponseDTO:
 
-        if not name:
-            raise DomainOperationError("Role name must not be empty")
 
-        if not role_dto.permissions:
-            raise DomainOperationError("Role must have at least one permission")
 
-        self._ensure_permissions_match_type(
-            permissions=role_dto.permissions,
-        )
 
         with self.uow:
             self._check_actor(
                 actor_admin_id=role_dto.actor_admin_id,
             )
+            role=self._service.create_role(name=role_dto.name,
+                                           permissions=role_dto.permissions,
+                                           description=role_dto.description,
+                                           is_system_role=role_dto.is_system_role)
 
-            role = Role(
-                role_id=0,
-                name=name,
-                permissions=role_dto.permissions,
-                description=description,
-                is_system_role=role_dto.is_system_role,
-            )
 
             return self._save_and_to_dto(
                 role=role,
@@ -94,9 +84,9 @@ class RoleService(Generic[T]):
     def delete_role(
         self,
         *,
-        role_dto: RoleDTO[T],
+        role_dto: RoleDTO,
     ) -> None:
-        self._ensure_role_id_is_valid(role_dto.role_id)
+
 
         with self.uow:
             self._check_actor(
@@ -120,9 +110,9 @@ class RoleService(Generic[T]):
     def get_role(
         self,
         *,
-        role_dto: RoleDTO[T],
-    ) -> RoleResponseDTO[T]:
-        self._ensure_role_id_is_valid(role_dto.role_id)
+        role_dto: RoleDTO,
+    ) -> RoleResponseDTO:
+
 
         with self.uow:
             self._check_actor(
@@ -136,8 +126,8 @@ class RoleService(Generic[T]):
     def get_all_roles(
         self,
         *,
-        role_dto: RoleDTO[T],
-    ) -> list[RoleResponseDTO[T]]:
+        role_dto: RoleDTO,
+    ) -> list[RoleResponseDTO]:
         with self.uow:
             self._check_actor(
                 actor_admin_id=role_dto.actor_admin_id,
@@ -152,8 +142,8 @@ class RoleService(Generic[T]):
         self,
         *,
         role: Role[T],
-    ) -> RoleResponseDTO[T]:
-        saved_role = self.repository.add(role)
+    ) -> RoleResponseDTO:
+        saved_role = self.repository.save(role)
 
         return RoleAssembler.to_dto(saved_role)
 
@@ -167,30 +157,10 @@ class RoleService(Generic[T]):
             permission=self.permission_operation,
         )
 
-    def _ensure_permissions_match_type(
-        self,
-        *,
-        permissions: frozenset[T],
-    ) -> None:
-        for permission in permissions:
-            if type(permission) is not self.permission_type:
-                raise DomainOperationError(
-                    "Cannot mix permission types in a single role. "
-                    f"Expected {self.permission_type.__name__}, "
-                    f"found {type(permission).__name__}"
-                )
-
-    @staticmethod
-    def _ensure_role_id_is_valid(
-        role_id: int,
-    ) -> None:
-        if role_id <= 0:
-            raise DomainOperationError(
-                f"Role id must be positive, got {role_id}"
-            )
 
 
-class AdminRoleService:
+
+class AdminRoleApplicationService:
     """
     Application service for admin roles.
 
@@ -198,7 +168,7 @@ class AdminRoleService:
     """
 
     def __init__(self, uow: UnitOfWork):
-        self._service = RoleService[AdminPermission](
+        self._application_service = RoleApplicationService[AdminPermission](
             uow=uow,
             permission_type=AdminPermission,
         )
@@ -206,41 +176,41 @@ class AdminRoleService:
     def create_role(
         self,
         *,
-        role_dto: RoleDTO[AdminPermission],
-    ) -> RoleResponseDTO[AdminPermission]:
-        return self._service.create_role(
+        role_dto: RoleDTO,
+    ) -> RoleResponseDTO:
+        return self._application_service.create_role(
             role_dto=role_dto,
         )
 
     def delete_role(
         self,
         *,
-        role_dto: RoleDTO[AdminPermission],
+        role_dto: RoleDTO,
     ) -> None:
-        self._service.delete_role(
+        self._application_service.delete_role(
             role_dto=role_dto,
         )
 
     def get_role(
         self,
         *,
-        role_dto: RoleDTO[AdminPermission],
-    ) -> RoleResponseDTO[AdminPermission]:
-        return self._service.get_role(
+        role_dto: RoleDTO,
+    ) -> RoleResponseDTO:
+        return self._application_service.get_role(
             role_dto=role_dto,
         )
 
     def get_all_roles(
         self,
         *,
-        role_dto: RoleDTO[AdminPermission],
-    ) -> list[RoleResponseDTO[AdminPermission]]:
-        return self._service.get_all_roles(
+        role_dto: RoleDTO,
+    ) -> list[RoleResponseDTO]:
+        return self._application_service.get_all_roles(
             role_dto=role_dto,
         )
 
 
-class UserRoleService:
+class UserRoleApplicationService:
     """
     Application service for user roles.
 
@@ -249,7 +219,7 @@ class UserRoleService:
     """
 
     def __init__(self, uow: UnitOfWork):
-        self._service = RoleService[UserPermission](
+        self._application_service = RoleApplicationService[UserPermission](
             uow=uow,
             permission_type=UserPermission,
         )
@@ -257,35 +227,35 @@ class UserRoleService:
     def create_role(
         self,
         *,
-        role_dto: RoleDTO[UserPermission],
-    ) -> RoleResponseDTO[UserPermission]:
-        return self._service.create_role(
+        role_dto: RoleDTO,
+    ) -> RoleResponseDTO:
+        return self._application_service.create_role(
             role_dto=role_dto,
         )
 
     def delete_role(
         self,
         *,
-        role_dto: RoleDTO[UserPermission],
+        role_dto: RoleDTO,
     ) -> None:
-        self._service.delete_role(
+        self._application_service.delete_role(
             role_dto=role_dto,
         )
 
     def get_role(
         self,
         *,
-        role_dto: RoleDTO[UserPermission],
-    ) -> RoleResponseDTO[UserPermission]:
-        return self._service.get_role(
+        role_dto: RoleDTO,
+    ) -> RoleResponseDTO:
+        return self._application_service.get_role(
             role_dto=role_dto,
         )
 
     def get_all_roles(
         self,
         *,
-        role_dto: RoleDTO[UserPermission],
-    ) -> list[RoleResponseDTO[UserPermission]]:
-        return self._service.get_all_roles(
+        role_dto: RoleDTO,
+    ) -> list[RoleResponseDTO]:
+        return self._application_service.get_all_roles(
             role_dto=role_dto,
         )

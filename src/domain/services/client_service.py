@@ -6,7 +6,7 @@ from src.domain.client import Client
 from src.domain.employee import User
 from src.domain.exceptions import DomainOperationError
 from src.domain.services.ticket_sync_service import TicketSyncService
-from src.domain.statuses.ticket_status import TicketStatus
+
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
 
@@ -162,9 +162,8 @@ class ClientService:
     # ==================================================================
     # Disable
     # ==================================================================
-
+    @staticmethod
     def disable(
-        self,
         *,
         client: Client,
         users: list[User],
@@ -192,20 +191,6 @@ class ClientService:
         # Validate complete context before mutation
         # --------------------------------------------------------------
 
-        self._validate_users(
-            client=client,
-            users=users,
-        )
-
-        self._validate_tickets(
-            client=client,
-            tickets=open_tickets,
-        )
-
-        self._validate_ticket_users(
-            client=client,
-            ticket_users=open_ticket_users
-        )
 
 
 

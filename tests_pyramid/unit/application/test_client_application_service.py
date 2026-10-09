@@ -57,7 +57,7 @@ def test_update_contact_mutates_only_contact_fields() -> None:
     actor = setup_actor(uow)
     client = Client.create(client_id=100, name="Old", created_by_admin_id=actor.employee_id)
     uow.clients.save(client)
-    result = ClientApplicationService(uow).update_contact(
+    result = ClientApplicationService(uow).update(
         ClientDTO(
             actor_admin_id=actor.employee_id,
             client_id=100,

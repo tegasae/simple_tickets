@@ -9,6 +9,17 @@ class ClientCreateRequest(BaseModel):
     phone: str = ""
     description:str=""
 
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, value: str) -> str:
+        value = value.strip()
+
+        if not value:
+            raise ValueError("Client name must not be empty")
+
+        return value
+
+
 class ClientUpdateContactRequest(BaseModel):
     name:str=""
     email: str = ""
