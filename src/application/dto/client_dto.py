@@ -17,12 +17,10 @@ class ClientDTO:
     enable: bool = True
 
     def __post_init__(self):
-        if not self.actor_admin_id < 0:
+        if self.actor_admin_id <= 0:
             raise ApplicationValidateError("The actor admin ID is invalid")
         if self.client_id < 0:
             raise ApplicationValidateError("The client ID is invalid")
-        if not self.name.strip():
-            raise ApplicationValidateError("The client cannot be empty")
 
 
 
