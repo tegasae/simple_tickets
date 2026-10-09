@@ -6,8 +6,8 @@ from typing import Generic, TypeVar, cast
 
 from src.application.assemblers.assembler import RoleAssembler
 from src.application.dto.roles_dto import RoleDTO, RoleResponseDTO
+from src.application.exceptions import ApplicationValidateError
 from src.application.helper.actor_helper import EmployeeActorHelper
-from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import (
     AdminPermission,
     PermissionBase,
@@ -54,7 +54,7 @@ class RoleApplicationService(Generic[T]):
             self.repository = cast(RoleRepository[T], self.uow.roles_user)
             self._service = RoleUserService()
         else:
-            raise DomainOperationError(
+            raise ApplicationValidateError(
                 f"Unknown permission type: {self.permission_type}"
             )
 
@@ -96,12 +96,12 @@ class RoleApplicationService(Generic[T]):
             role = self.repository.get(role_dto.role_id)
 
             if role.is_system_role:
-                raise DomainOperationError(
+                raise ApplicationValidateError(
                     f"Cannot delete system role: {role.name}"
                 )
 
             if self.repository.is_assigned(role_id=role_dto.role_id):
-                raise DomainOperationError(
+                raise ApplicationValidateError(
                     f"Role '{role.name}' cannot be deleted because it is assigned"
                 )
 
