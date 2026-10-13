@@ -1,7 +1,7 @@
 
 
 
-from src.adapters.repositories.mappers.auxiliary import dt_from_sqlite, dt_to_sqlite_iso
+from src.adapters.repositories.mappers.auxiliary import dt_from_sqlite, parse_date_created
 from src.domain.account import Account, NoAccount
 from src.domain.employee import Admin
 
@@ -32,19 +32,21 @@ class AdminMapper:
     ]
     @staticmethod
     def row_to_admin(row: dict) -> Admin:
-        admin = Admin.create(
+        admin = Admin.rehydrate(
             employee_id=int(row["employee_id"]),
             job_title=str(row.get("job_title") or ""),
-            first_name=row.get("first_name"),
-            last_name=row.get("last_name"),
-            email=row.get("email"),
-            phone=row.get("phone"),
-            department_id=row.get("department_id",0) or 0
-        )
+            first_name=row["first_name"],
+            last_name=row.get("last_name",""),
+            email=row.get("email",""),
+            phone=row.get("phone",""),
+            department_id=row.get("department_id",0) or 0,
+            enabled = bool(row.get("enabled", False)),
+            date_created = parse_date_created(row.get("date_created","")),
+            )
 
         admin.enabled = bool(row.get("enabled", 1))
         admin.version = int(row.get("version", 0))
-        admin.date_created = dt_from_sqlite(row.get("date_created"))
+
 
         # Optional account: account_id present => build Account
         admin.account = AdminMapper.row_to_account(row)
@@ -53,12 +55,12 @@ class AdminMapper:
 
     @staticmethod
     def row_to_account(row: dict) -> Account|NoAccount:
-        acc_id = row.get("account_id")
+        acc_id = row.get("account_id",0)
         if not acc_id:
             return NoAccount()
 
         # Account.from_database expects hash already stored
-        return Account.from_database(
+        return Account.rehydrate(
             account_id=int(acc_id),
             login=str(row.get("login") or ""),
             password_hash=str(row.get("password") or ""),
@@ -78,7 +80,7 @@ class AdminMapper:
             "last_name": str(admin.last_name) if admin.last_name is not None else "",
             "email": str(admin.email) if admin.email is not None else "",
             "phone": str(admin.phone) if admin.phone is not None else "",
-            "date_created": dt_to_sqlite_iso(admin.date_created),
+            "date_created": dt_from_sqlite(admin.date_created),
             "enabled": 1 if admin.enabled else 0,
             "version": int(admin.version),
             "is_admin":1
@@ -107,6 +109,6 @@ class AdminMapper:
             "login": str(admin.account.login),
             "password": admin.account.password.value,
             "enabled": 1 if admin.account.enabled else 0,
-            "date_created": dt_to_sqlite_iso(admin.account.date_created),
+            "date_created": dt_from_sqlite(admin.account.date_created),
         }
 

@@ -54,8 +54,8 @@ class Account:
         )
 
     @classmethod
-    def from_database(cls, account_id: int, login: str, password_hash: str,
-                      enabled: bool = True, date_created: datetime | None = None) -> Self:
+    def rehydrate(cls, account_id: int, login: str, password_hash: str,
+                  enabled: bool = True, date_created: datetime | None = None) -> Self:
         """Reconstitute an account from database data.
 
         Args:

@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 
 def dt_from_sqlite(
     value: str | int | datetime | None,
-) -> datetime | None:
+) -> datetime:
     """
     Converts SQLite datetime value to timezone-aware UTC datetime.
 
@@ -36,8 +36,8 @@ def dt_from_sqlite(
     Invalid values raise an exception instead of silently
     becoming datetime.now().
     """
-    if value is None:
-        return None
+    #if value is None:
+    #    return None
 
     if isinstance(value, datetime):
         dt = value
@@ -51,8 +51,8 @@ def dt_from_sqlite(
     elif isinstance(value, str):
         value = value.strip()
 
-        if not value:
-            return None
+        #if not value:
+        #    return None
 
         try:
             dt = datetime.fromisoformat(value)
@@ -85,8 +85,17 @@ def dt_from_sqlite(
     )
 
 
-def dt_to_sqlite_iso(dt: datetime) -> str:
-    return dt.isoformat(timespec="seconds")
 
 
+def parse_date_created(value) -> datetime:
+    if not value:
+        return datetime.now()
+
+    if isinstance(value, datetime):
+        return value
+
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return datetime.now()
 

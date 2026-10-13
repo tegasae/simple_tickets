@@ -1,5 +1,6 @@
-from datetime import datetime
 
+
+from src.adapters.repositories.mappers.auxiliary import dt_from_sqlite, parse_date_created
 from src.domain.client import Client
 
 
@@ -28,17 +29,14 @@ class ClientMapper:
             description=row["description"],
             created_by_admin_id=row["admin_id"],
             enabled=bool(row["enabled"]),
+            date_created=dt_from_sqlite(row["date_created"]),
         )
         try:
             client.version = int(row["version"])
         except TypeError:
             client.version=0
 
-        if row["date_created"]:
-            try:
-                client.date_created = datetime.fromisoformat(row["date_created"])
-            except ValueError:
-                client.date_created = datetime.now()
+
 
         return client
 

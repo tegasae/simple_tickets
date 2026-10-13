@@ -1,7 +1,7 @@
 # src/adapters/repositories/mappers/role_mapper.py
 from collections.abc import Iterable
 
-from src.adapters.repositories.mappers.auxiliary import dt_to_sqlite_iso, dt_from_sqlite
+from src.adapters.repositories.mappers.auxiliary import dt_from_sqlite
 from src.domain.rbac.role_new import Role
 from src.domain.rbac.typevar import P
 
@@ -32,7 +32,7 @@ class RoleMapper:
             "permissions": RoleMapper.permissions_to_string(role.permissions),
             "description": role.description,
             "is_system_role": role.is_system_role,
-            "date_created": dt_to_sqlite_iso(role.date_created),
+            "date_created": dt_from_sqlite(role.date_created),
             "version": role.version if role.version is not None else 0,
             "is_admin": is_admin,
         }
@@ -46,14 +46,14 @@ class RoleMapper:
             row["permissions"],
             permission_cls,
         )
-        date_created = dt_from_sqlite(row["date_created"])
+
         return Role.rehydrate(
             role_id=row["role_id"],
             name=row["name"],
             permissions=permissions,
             description=row["description"] or "",
             is_system_role=bool(row["is_system_role"]),
-            date_created=date_created,
+            date_created=dt_from_sqlite(row["date_created"]),
             version=row["version"] or 0,
         )
 

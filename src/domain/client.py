@@ -115,7 +115,7 @@ class Client:
 
         except ValueError as e:
             # Re-raise as domain exception
-            raise ItemValidationError(f"Client validation failed: {e}") from e
+            raise ItemValidationError(f"Client create failed: {e}") from e
 
 
     @classmethod
@@ -128,19 +128,23 @@ class Client:
                   phone: str = "",
                   description: str = "",
                   created_by_admin_id: int = 0,
-                  enabled: bool = True
+                  enabled: bool = True,
+                  date_created: datetime
                   ):
-
-        return cls(
-            client_id=client_id,
-            name=Name(name),
-            email=Email(email) if email else Empty(),
-            address=Address(address) if address else Empty(),
-            phone=Phone(phone) if phone else Empty(),
-            description=Description(description) if description else Empty(),
-            created_by_admin_id=created_by_admin_id,
-            enabled=enabled
-        )
+        try:
+            return cls(
+                client_id=client_id,
+                name=Name(name),
+                email=Email(email) if email else Empty(),
+                address=Address(address) if address else Empty(),
+                phone=Phone(phone) if phone else Empty(),
+                description=Description(description) if description else Empty(),
+                created_by_admin_id=created_by_admin_id,
+                enabled=enabled,
+                date_created=date_created
+            )
+        except ValueError as e:
+            raise ItemValidationError(f"Client rehydrate failed: {e}") from e
 
     def disable(self) -> None:
         """Disable the client."""

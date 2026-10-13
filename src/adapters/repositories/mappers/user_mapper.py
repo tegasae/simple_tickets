@@ -86,7 +86,7 @@ class UserMapper:
             return NoAccount()
 
         # Account.from_database expects hash already stored
-        return Account.from_database(
+        return Account.rehydrate(
             account_id=int(acc_id),
             login=str(row.get("login") or ""),
             password_hash=str(row.get("password") or ""),

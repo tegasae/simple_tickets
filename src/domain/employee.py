@@ -229,13 +229,49 @@ class Admin(_Employee):
             department_id:int=0
     ) -> Self:
         """Create a new Admin."""
+        try:
+            base_data = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
+                                        phone=phone, enabled=enabled, login=login, password=password,
+                                        enabled_account=enable_account, version=version, roles=roles)
 
-        base_data = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
-                                    phone=phone, enabled=enabled, login=login, password=password,
-                                    enabled_account=enable_account, version=version, roles=roles)
+        except ValueError as e:
+            raise ItemValidationError(str(e))
 
         return cls(**base_data, job_title=job_title,department_id=department_id)
 
+
+    @classmethod
+    def rehydrate(
+            cls,
+            employee_id: int,
+            first_name: str,
+            date_created: datetime,
+            last_name: str = "",
+            email: str = "",
+            phone: str = "",
+            enabled: bool = True,
+            login: str = "",
+            password: str = "",
+            enable_account: bool = True,
+            version: int = 0,
+            roles: set[int] | list[int] | None = None,
+            job_title: str = "",
+            department_id: int = 0
+
+    ) -> Self:
+        """Create a new Admin."""
+        try:
+            base_data = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name,
+                                        email=email,
+                                        phone=phone, enabled=enabled, login=login, password=password,
+                                        enabled_account=enable_account, version=version, roles=roles)
+
+        except ValueError as e:
+            raise ItemValidationError(str(e))
+
+        admin=cls(**base_data, job_title=job_title, department_id=department_id)
+        admin.date_created=date_created
+        return admin
 
     def update(self, job_title:str="", first_name: str="", last_name: str="", email: str="", phone: str="",department_id:int=0)->Self:
         self.update_base(first_name, last_name, email, phone)

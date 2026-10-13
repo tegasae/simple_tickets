@@ -51,7 +51,7 @@ class AccountRepositorySQLite(AccountRepository):
             # So raise (recommended) rather than returning a Null object.
             raise DomainOperationError(f"Account {account_id} not found")
 
-        return Account.from_database(
+        return Account.rehydrate(
             account_id=row["account_id"],
             login=row["login"],
             password_hash=row["password"],
@@ -76,7 +76,7 @@ class AccountRepositorySQLite(AccountRepository):
             #raise DomainOperationError(f"Account for employee_id {employee_id} not found")
             return NoAccount()
 
-        return Account.from_database(
+        return Account.rehydrate(
             account_id=row["account_id"],
             login=row["login"],
             password_hash=row["password"],
@@ -97,7 +97,7 @@ class AccountRepositorySQLite(AccountRepository):
         accounts: list[Account] = []
         for row in rows:
             accounts.append(
-                Account.from_database(
+                Account.rehydrate(
                     account_id=row["account_id"],
                     login=row["login"],
                     password_hash=row["password"],
@@ -165,7 +165,7 @@ class AccountRepositorySQLite(AccountRepository):
                 new_id = q.set_result()
 
             # Reconstitute account with the new id
-            return Account.from_database(
+            return Account.rehydrate(
                 account_id=int(new_id),
                 login=str(account.login),
                 password_hash=params["password"],

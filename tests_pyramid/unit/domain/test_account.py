@@ -39,7 +39,7 @@ def test_account_enable_disable() -> None:
 def test_account_from_database_preserves_hash_and_date() -> None:
     original = Account.create(1, "admin", "Strong1!", True)
     created = datetime(2025, 1, 1)
-    restored = Account.from_database(
+    restored = Account.rehydrate(
         account_id=1,
         login="admin",
         password_hash=original.password.value,
