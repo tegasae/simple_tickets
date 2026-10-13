@@ -2,6 +2,7 @@
 
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from src.application.exceptions import ApplicationValidateError
 
@@ -27,3 +28,4 @@ class RoleResponseDTO:
     permissions: frozenset[str] = field(default_factory=frozenset)
     description: str = ""
     is_system_role: bool = False
+    date_created: datetime

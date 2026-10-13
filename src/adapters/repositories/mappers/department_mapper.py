@@ -1,7 +1,7 @@
 # src/adapters/repositories/mappers/department_mapper.py
 
 
-from src.adapters.repositories.mappers.auxiliary import parse_date_created, dt_from_sqlite
+from src.adapters.repositories.mappers.auxiliary import dt_from_sqlite_not_none
 from src.domain.department import Department
 
 
@@ -19,7 +19,7 @@ class DepartmentMapper:
             department_id=row["department_id"],
             name=row["name"],
             enabled=bool(row["enabled"]),
-            date_created=dt_from_sqlite(row["date_created"]),
+            date_created=dt_from_sqlite_not_none(row["date_created"]),
             version=int(row["version"]) or 0,
         )
 

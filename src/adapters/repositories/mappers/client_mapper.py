@@ -1,6 +1,6 @@
 
 
-from src.adapters.repositories.mappers.auxiliary import dt_from_sqlite, parse_date_created
+from src.adapters.repositories.mappers.auxiliary import dt_from_sqlite_not_none
 from src.domain.client import Client
 
 
@@ -29,7 +29,7 @@ class ClientMapper:
             description=row["description"],
             created_by_admin_id=row["admin_id"],
             enabled=bool(row["enabled"]),
-            date_created=dt_from_sqlite(row["date_created"]),
+            date_created=dt_from_sqlite_not_none(row["date_created"]),
         )
         try:
             client.version = int(row["version"])

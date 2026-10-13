@@ -229,4 +229,5 @@ class RoleAssembler:
             permissions=frozenset(map(str, role.permissions)),
             description=role.description,
             is_system_role=role.is_system_role,
+            date_created=role.date_created
         )

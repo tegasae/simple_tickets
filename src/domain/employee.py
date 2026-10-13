@@ -252,19 +252,17 @@ class Admin(_Employee):
             enabled: bool = True,
             login: str = "",
             password: str = "",
-            enable_account: bool = True,
             version: int = 0,
             roles: set[int] | list[int] | None = None,
             job_title: str = "",
-            department_id: int = 0
-
+            department_id: int = 0,
     ) -> Self:
         """Create a new Admin."""
         try:
             base_data = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name,
                                         email=email,
                                         phone=phone, enabled=enabled, login=login, password=password,
-                                        enabled_account=enable_account, version=version, roles=roles)
+                                        version=version, roles=roles)
 
         except ValueError as e:
             raise ItemValidationError(str(e))
