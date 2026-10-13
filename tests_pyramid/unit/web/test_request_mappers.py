@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+import src.web.models.mappers.admin
 import src.web.models.mappers.client
 import src.web.models.mappers.department
 import src.web.models.mappers.role
@@ -37,20 +38,20 @@ NOW = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 
 
 def test_admin_request_mappers_take_actor_from_context() -> None:
-    dto = ar.admin_create_request_to_dto(
+    dto = src.web.models.mappers.admin.admin_create_request_to_dto(
         request=AdminCreateRequest(first_name="New Admin", login="admin", password="Strong1!", department_id=5, roles={1, 2}),
         actor_admin_id=99,
     )
     assert dto.actor_admin_id == 99 and dto.employee_id == 0 and dto.department_id == 5 and dto.roles == {1, 2}
-    update = ar.admin_update_request_to_dto(request=AdminUpdateRequest(first_name="Changed", job_title="Dev"), actor_admin_id=99, employee_id=10)
+    update = src.web.models.mappers.admin.admin_update_request_to_dto(request=AdminUpdateRequest(first_name="Changed", job_title="Dev"), actor_admin_id=99, employee_id=10)
     assert update.employee_id == 10 and update.first_name == "Changed" and update.job_title == "Dev"
-    account = ar.admin_attach_account_request_to_dto(request=AdminAttachAccountRequest(login="x", password="Strong1!"), actor_admin_id=99, employee_id=10)
+    account = src.web.models.mappers.admin.admin_attach_account_request_to_dto(request=AdminAttachAccountRequest(login="x", password="Strong1!"), actor_admin_id=99, employee_id=10)
     assert account.login == "x" and account.actor_admin_id == 99
-    password = ar.admin_change_password_request_to_dto(request=AdminChangePasswordRequest(password="New2!"), actor_admin_id=99, employee_id=10)
+    password = src.web.models.mappers.admin.admin_change_password_request_to_dto(request=AdminChangePasswordRequest(password="New2!"), actor_admin_id=99, employee_id=10)
     assert password.password == "New2!"
-    roles = ar.admin_roles_request_to_dto(request=AdminRolesRequest(roles={4}), actor_admin_id=99, employee_id=10)
+    roles = src.web.models.mappers.admin.admin_roles_request_to_dto(request=AdminRolesRequest(roles={4}), actor_admin_id=99, employee_id=10)
     assert roles.roles == {4}
-    assert ar.admin_id_to_dto(actor_admin_id=99, employee_id=10).employee_id == 10
+    assert src.web.models.mappers.admin.admin_id_to_dto(actor_admin_id=99, employee_id=10).employee_id == 10
 
 
 def test_user_request_mappers() -> None:

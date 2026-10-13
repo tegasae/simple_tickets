@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from src.web.models.base_response import BaseResponse
+
 
 class DepartmentCreateRequest(BaseModel):
     """
@@ -29,7 +31,7 @@ class DepartmentUpdateRequest(BaseModel):
     name: str
 
 
-class DepartmentResponse(BaseModel):
+class DepartmentResponse(BaseResponse):
     """
     Response model for Department.
     """

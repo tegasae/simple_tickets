@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.web.models.base_response import BaseResponse
+
 
 class AdminCreateRequest(BaseModel):
     """
@@ -77,7 +79,7 @@ class AdminChangeDepartmentRequest(BaseModel):
 
     department_id: int = 0
 
-class AdminResponse(BaseModel):
+class AdminResponse(BaseResponse):
     """
     Web response model.
 
@@ -128,7 +130,7 @@ class AdminResponse(BaseModel):
         return value
 
 
-class PermissionsResponse(BaseModel):
+class PermissionsResponse(BaseResponse):
     """
     Request body for password change.
     """

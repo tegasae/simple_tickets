@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, status
 
 from src.application.dto.employee_dto import AdminDTO
+
 from src.web.dependencies.auth import (
     get_current_admin,
     get_employee_id_from_request,
@@ -16,7 +17,6 @@ from src.web.models.admins import (
     AdminRolesRequest,
     AdminUpdateRequest, AdminChangeDepartmentRequest, PermissionsResponse,
 )
-
 
 router = APIRouter(
     prefix="/admin/admins",
@@ -40,130 +40,6 @@ router = APIRouter(
 
 
 
-# ---------------------------------------------------------------------
-# Response mappers
-# ---------------------------------------------------------------------
-
-def to_admin_response(response_dto) -> AdminResponse:
-    """
-    Convert application AdminResponseDTO to web AdminResponse.
-    """
-    return AdminResponse.model_validate(response_dto)
-
-
-def to_admin_responses(response_dtos) -> list[AdminResponse]:
-    """
-    Convert list[AdminResponseDTO] to list[AdminResponse].
-    """
-    return [
-        to_admin_response(response_dto)
-        for response_dto in response_dtos
-    ]
-
-
-# ---------------------------------------------------------------------
-# Request -> Application DTO mappers
-# ---------------------------------------------------------------------
-
-def admin_create_request_to_dto(
-    *,
-    request: AdminCreateRequest,
-    actor_admin_id: int,
-) -> AdminDTO:
-    """
-    Convert create request to application AdminDTO.
-
-    actor_admin_id comes from authenticated admin.
-    Other fields come from request body.
-    """
-    return AdminDTO(
-        actor_admin_id=actor_admin_id,
-        **request.model_dump(),
-    )
-
-
-def admin_update_request_to_dto(
-    *,
-    request: AdminUpdateRequest,
-    actor_admin_id: int,
-    employee_id: int,
-) -> AdminDTO:
-    """
-    Convert update request to application AdminDTO.
-
-    employee_id comes from path.
-    actor_admin_id comes from authenticated admin.
-    """
-    return AdminDTO(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-        **request.model_dump(),
-    )
-
-
-def admin_attach_account_request_to_dto(
-    *,
-    request: AdminAttachAccountRequest,
-    actor_admin_id: int,
-    employee_id: int,
-) -> AdminDTO:
-    """
-    Convert attach-account request to AdminDTO.
-    """
-    return AdminDTO(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-        login=request.login,
-        password=request.password,
-        enable_account=request.enable_account,
-    )
-
-
-def admin_change_password_request_to_dto(
-    *,
-    request: AdminChangePasswordRequest,
-    actor_admin_id: int,
-    employee_id: int,
-) -> AdminDTO:
-    """
-    Convert change-password request to AdminDTO.
-    """
-    return AdminDTO(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-        password=request.password,
-    )
-
-
-def admin_roles_request_to_dto(
-    *,
-    request: AdminRolesRequest,
-    actor_admin_id: int,
-    employee_id: int,
-) -> AdminDTO:
-    """
-    Convert roles request to AdminDTO.
-    """
-    return AdminDTO(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-        roles=request.roles,
-    )
-
-
-def admin_id_to_dto(
-    *,
-    actor_admin_id: int,
-    employee_id: int,
-) -> AdminDTO:
-    """
-    Build AdminDTO for operations that need only target admin id.
-    """
-    return AdminDTO(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-    )
-
 
 # ---------------------------------------------------------------------
 # Endpoints
@@ -180,15 +56,13 @@ def create_admin(
     admin_request: AdminCreateRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = admin_create_request_to_dto(
-        request=admin_request,
-        actor_admin_id=actor_admin_id,
-    )
+)->AdminResponse:
+
+    dto=AdminDTO(actor_admin_id=actor_admin_id,**admin_request.model_dump())
 
     response_dto = asf.admin_service().create_admin(admin_dto=dto)
 
-    return to_admin_response(response_dto)
+    return AdminResponse.from_dto(response_dto)
 
 
 @router.get(
@@ -201,12 +75,12 @@ def create_admin(
 def get_all_admins(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
+)->list[AdminResponse]:
     dto = AdminDTO(actor_admin_id=actor_admin_id)
 
     response_dtos = asf.admin_service().get_all(admin_dto=dto)
 
-    return to_admin_responses(response_dtos)
+    return AdminResponse.from_dtos(response_dtos)
 
 
 @router.get(
@@ -219,7 +93,7 @@ def get_all_admins(
 def get_permissions(
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
+)->PermissionsResponse:
     dto = AdminDTO(
         actor_admin_id=actor_admin_id,
         employee_id=actor_admin_id,
@@ -229,7 +103,7 @@ def get_permissions(
         admin_dto=dto,
     )
 
-    return PermissionsResponse.model_validate(response_dto)
+    return PermissionsResponse.from_dto(response_dto)
 
 
 @router.get(
@@ -243,7 +117,7 @@ def find_admin_by_login(
     login: str,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
+)->AdminResponse:
     dto = AdminDTO(
         actor_admin_id=actor_admin_id,
         login=login,
@@ -251,7 +125,7 @@ def find_admin_by_login(
 
     response_dto = asf.admin_service().find_by_login(admin_dto=dto)
 
-    return to_admin_response(response_dto)
+    return AdminResponse.from_dto(response_dto)
 
 
 @router.get(
@@ -265,15 +139,15 @@ def get_admin(
     employee_id: int,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = admin_id_to_dto(
+)->AdminResponse:
+    dto = AdminDTO(
         actor_admin_id=actor_admin_id,
         employee_id=employee_id,
     )
 
     response_dto = asf.admin_service().get_by_id(admin_dto=dto)
 
-    return to_admin_response(response_dto)
+    return AdminResponse.from_dto(response_dto)
 
 
 @router.put(
@@ -288,16 +162,16 @@ def update_admin(
     admin_request: AdminUpdateRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = admin_update_request_to_dto(
-        request=admin_request,
+)->AdminResponse:
+
+    dto = AdminDTO(
         actor_admin_id=actor_admin_id,
         employee_id=employee_id,
+        **admin_request.model_dump(),
     )
-
     response_dto = asf.admin_service().update_admin(admin_dto=dto)
 
-    return to_admin_response(response_dto)
+    return AdminResponse.from_dto(response_dto)
 
 
 @router.post(
@@ -312,16 +186,16 @@ def attach_account(
     account_request: AdminAttachAccountRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = admin_attach_account_request_to_dto(
-        request=account_request,
+)->AdminResponse:
+    dto = AdminDTO(
         actor_admin_id=actor_admin_id,
         employee_id=employee_id,
+        **account_request.model_dump(),
     )
 
     response_dto = asf.admin_service().attach_account(admin_dto=dto)
 
-    return to_admin_response(response_dto)
+    return AdminResponse.from_dto(response_dto)
 
 
 @router.delete(
@@ -335,15 +209,15 @@ def detach_account(
     employee_id: int,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = admin_id_to_dto(
+)->AdminResponse:
+    dto = AdminDTO(
         actor_admin_id=actor_admin_id,
         employee_id=employee_id,
     )
 
     response_dto = asf.admin_service().detach_account(admin_dto=dto)
 
-    return to_admin_response(response_dto)
+    return AdminResponse.from_dto(response_dto)
 
 
 @router.patch(
@@ -358,16 +232,16 @@ def change_password(
     password_request: AdminChangePasswordRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = admin_change_password_request_to_dto(
-        request=password_request,
+)->AdminResponse:
+    dto = AdminDTO(
         actor_admin_id=actor_admin_id,
         employee_id=employee_id,
+        **password_request.model_dump(),
     )
 
     response_dto = asf.admin_service().change_password(admin_dto=dto)
 
-    return to_admin_response(response_dto)
+    return AdminResponse.from_dto(response_dto)
 
 
 @router.post(
@@ -382,16 +256,16 @@ def grant_roles(
     roles_request: AdminRolesRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = admin_roles_request_to_dto(
-        request=roles_request,
+)->AdminResponse:
+    dto = AdminDTO(
         actor_admin_id=actor_admin_id,
         employee_id=employee_id,
+        **roles_request.model_dump(),
     )
 
     response_dto = asf.admin_service().grant_role(admin_dto=dto)
 
-    return to_admin_response(response_dto)
+    return AdminResponse.from_dto(response_dto)
 
 
 @router.delete(
@@ -406,16 +280,12 @@ def revoke_roles(
     roles_request: AdminRolesRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = admin_roles_request_to_dto(
-        request=roles_request,
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-    )
+)->AdminResponse:
+    dto = AdminDTO(employee_id=employee_id, actor_admin_id=actor_admin_id,**roles_request.model_dump())
 
     response_dto = asf.admin_service().revoke_role(admin_dto=dto)
 
-    return to_admin_response(response_dto)
+    return AdminResponse.from_dto(response_dto)
 
 
 @router.patch(
@@ -429,15 +299,15 @@ def disable_admin(
     employee_id: int,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = admin_id_to_dto(
+)->AdminResponse:
+    dto = AdminDTO(
         actor_admin_id=actor_admin_id,
         employee_id=employee_id,
     )
 
     response_dto = asf.admin_service().disable(admin_dto=dto)
 
-    return to_admin_response(response_dto)
+    return AdminResponse.from_dto(response_dto)
 
 
 @router.patch(
@@ -451,15 +321,15 @@ def enable_admin(
     employee_id: int,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = admin_id_to_dto(
+)->AdminResponse:
+    dto = AdminDTO(
         actor_admin_id=actor_admin_id,
         employee_id=employee_id,
     )
 
     response_dto = asf.admin_service().enable(admin_dto=dto)
 
-    return to_admin_response(response_dto)
+    return AdminResponse.from_dto(response_dto)
 
 
 @router.delete(
@@ -472,8 +342,8 @@ def delete_admin(
     employee_id: int,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = admin_id_to_dto(
+)->None:
+    dto = AdminDTO(
         actor_admin_id=actor_admin_id,
         employee_id=employee_id,
     )
@@ -491,18 +361,18 @@ def change_admin_department(
     request: AdminChangeDepartmentRequest,
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
-):
+)->AdminResponse:
     dto = AdminDTO(
         actor_admin_id=actor_admin_id,
         employee_id=employee_id,
         department_id=request.department_id,
     )
-
+    
     response_dto = asf.admin_service().change_department(
         admin_dto=dto,
     )
 
-    return to_admin_response(response_dto)
+    return AdminResponse.from_dto(response_dto)
 
 @router.delete(
     "/{employee_id}/department",
@@ -512,7 +382,7 @@ def remove_admin_department(
     employee_id: int,
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
-):
+)->AdminResponse:
     dto = AdminDTO(
         actor_admin_id=actor_admin_id,
         employee_id=employee_id,
@@ -523,4 +393,4 @@ def remove_admin_department(
         admin_dto=dto,
     )
 
-    return to_admin_response(response_dto)
+    return AdminResponse.from_dto(response_dto)

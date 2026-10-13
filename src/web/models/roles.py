@@ -4,7 +4,7 @@
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-
+from src.web.models.base_response import BaseResponse
 
 
 # ---------------------------------------------------------------------
@@ -46,7 +46,7 @@ class AdminRoleCreateRequest(BaseModel):
         return "" if value is None else value
 
 
-class AdminRoleResponse(BaseModel):
+class AdminRoleResponse(BaseResponse):
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
     role_id: int
@@ -100,7 +100,7 @@ class UserRoleCreateRequest(BaseModel):
         return "" if value is None else value
 
 
-class UserRoleResponse(BaseModel):
+class UserRoleResponse(BaseResponse):
     model_config = ConfigDict(from_attributes=True, extra="ignore")
 
     role_id: int
