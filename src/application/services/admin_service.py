@@ -1,5 +1,6 @@
 # src/application/services/admin_service.py
 
+
 from src.application.assemblers.assembler import (
     AdminAssembler,
     PermissionAssembler,
@@ -9,12 +10,13 @@ from src.application.dto.employee_dto import (
     AdminResponseDTO,
     PermissionsResponseDTO,
 )
+from src.application.exceptions import ApplicationValidateError
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.application.helper.employee_helper import EmployeeHelper
 from src.domain.department import Department
 
 from src.domain.employee import Admin
-from src.domain.exceptions import DomainOperationError
+
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.admin_service import AdminService
 from src.domain.uow.unit_of_work import UnitOfWork
@@ -57,40 +59,6 @@ class AdminApplicationService:
         self.role_manager = self.helper.get_role_manager_admin()
 
 
-    # ==================================================================
-    # Helpers
-    # ==================================================================
-
-    def _save_and_to_dto(
-        self,
-        admin: Admin,
-    ) -> AdminResponseDTO:
-        saved_admin = self.uow.admins.save(
-            admin
-        )
-
-        return AdminAssembler.to_dto(
-            saved_admin
-        )
-
-    def _has_current_executor_tickets(
-        self,
-        *,
-        admin_id: int,
-    ) -> bool:
-        """
-        Return True when Admin is the current executor
-        of at least one Ticket.
-
-        Application layer obtains the fact.
-        AdminService interprets it.
-        """
-
-        return bool(
-            self.uow.tickets.get_by_current_executor(
-                executor_id=admin_id,
-            )
-        )
 
     # ==================================================================
     # Create
@@ -179,33 +147,21 @@ class AdminApplicationService:
             )
 
 
-            department_changed = (
-                admin.department_id
-                != admin_dto.department_id
-            )
-
             if admin_dto.department_id:
                 department = self.uow.departments.get(
                     department_id=admin_dto.department_id,
                 )
-            else:
-                department=None
-
-            has_current_executor_tickets = False
-
-            if department_changed:
-                has_current_executor_tickets = (
-                    self._has_current_executor_tickets(
-                        admin_id=admin.employee_id,
-                    )
+                self.uow.departments.touch(
+                    department
                 )
+            else:
+                department=Department.create_empty()
+
 
             AdminService.update(
                 admin=admin,
                 department=department,
-                has_current_executor_tickets=(
-                    has_current_executor_tickets
-                ),
+                has_current_executor_tickets=self._has_current_executor_tickets(admin_id=admin.employee_id),
                 job_title=admin_dto.job_title,
                 first_name=admin_dto.first_name,
                 last_name=admin_dto.last_name,
@@ -213,12 +169,6 @@ class AdminApplicationService:
                 phone=admin_dto.phone,
             )
 
-            if department_changed and department:
-                # AdminService.update() relied on
-                # target Department.enabled.
-                self.uow.departments.touch(
-                    department
-                )
 
             return self._save_and_to_dto(
                 admin
@@ -292,10 +242,7 @@ class AdminApplicationService:
                 permission=AdminPermission.ADMIN_OPERATION,
             )
 
-            if not admin_dto.password:
-                raise DomainOperationError(
-                    "Password is required"
-                )
+
 
             admin = self.uow.admins.get(
                 admin_id=admin_dto.employee_id,
@@ -479,10 +426,6 @@ class AdminApplicationService:
                 permission=AdminPermission.ADMIN_OPERATION,
             )
 
-            if admin_dto.department_id <= 0:
-                raise DomainOperationError(
-                    "Department id must be positive"
-                )
 
             admin = self.uow.admins.get(
                 admin_id=admin_dto.employee_id,
@@ -604,7 +547,7 @@ class AdminApplicationService:
             )
 
             if not admin_dto.login:
-                raise DomainOperationError(
+                raise ApplicationValidateError(
                     "Login is required"
                 )
 
@@ -650,3 +593,40 @@ class AdminApplicationService:
                 AdminAssembler.to_dto(admin)
                 for admin in self.uow.admins.get_all()
             ]
+
+    # ==================================================================
+    # Helpers
+    # ==================================================================
+
+    def _save_and_to_dto(
+        self,
+        admin: Admin,
+    ) -> AdminResponseDTO:
+        try:
+            saved_admin = self.uow.admins.save(
+                admin
+            )
+        except:
+            raise ApplicationValidateError(f"The admin {admin.employee_id} was not saved")
+        return AdminAssembler.to_dto(
+            saved_admin
+        )
+
+    def _has_current_executor_tickets(
+        self,
+        *,
+        admin_id: int,
+    ) -> bool:
+        """
+        Return True when Admin is the current executor
+        of at least one Ticket.
+
+        Application layer obtains the fact.
+        AdminService interprets it.
+        """
+
+        return bool(
+            self.uow.tickets.get_by_current_executor(
+                executor_id=admin_id,
+            )
+        )

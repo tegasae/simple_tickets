@@ -1,4 +1,3 @@
-from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.role import Authorizer, RoleManager
 from src.domain.uow.unit_of_work import UnitOfWork
@@ -7,7 +6,7 @@ from src.domain.uow.unit_of_work import UnitOfWork
 class EmployeeHelper:
     def __init__(self, uow: UnitOfWork):
         self.uow = uow
-        self.actor=EmployeeActorHelper(self.uow)
+        #self.actor=EmployeeActorHelper(self.uow)
 
     """def require_actor(
         self,

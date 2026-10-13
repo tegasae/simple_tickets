@@ -5,7 +5,7 @@ from dataclasses import field
 
 from src.domain.rbac.permissions import UserPermission, AdminPermission
 from src.domain.rbac.role_new import AdminRole, UserRole
-from src.domain.value_objects import Name
+
 
 
 class RoleAdminService:

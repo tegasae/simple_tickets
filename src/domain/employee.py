@@ -24,6 +24,9 @@ class _Employee(HasRoleIds):
     _role_ids: set[int] = field(default_factory=set, repr=False)
 
 
+    def __post_init__(self):
+        if self.employee_id<0:
+            raise DomainOperationError(f"The employee {self.employee_id} is invalid")
 
     @classmethod
     def create_empty(cls) -> Self:
@@ -120,7 +123,7 @@ class _Employee(HasRoleIds):
             account = NoAccount()
         return account
 
-    def add_account(self, login:str,password:str,enabled_account) -> Self:
+    def add_account(self, login:str,password:str,enabled_account):
         if self.enabled:
             self.account=_Employee._create_account(login=login,password=password,enabled_account=enabled_account)
         else:
@@ -131,7 +134,7 @@ class _Employee(HasRoleIds):
             self.account=NoAccount()
         return self
 
-    def change_password(self, password:str) -> Self:
+    def change_password(self, password:str):
         if isinstance(self.account,Account):
             self.account.change_password(plain_password=password)
 
@@ -147,8 +150,14 @@ class _Employee(HasRoleIds):
     def revoke_role(self, role_id: int) -> None:
         self._role_ids.discard(role_id)
 
-    def __eq__(self, other) -> bool:
-        return isinstance(other, _Employee) and self.employee_id == other.employee_id
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, _Employee):
+            return False
+
+        return (
+                type(self) is type(other)
+                and self.employee_id == other.employee_id
+        )
 
 @dataclass(kw_only=True,eq=False)
 class User(_Employee):
@@ -169,7 +178,7 @@ class User(_Employee):
             enabled_account: bool = True,
             version: int = 0,
             client_id:int,
-            roles: set=()
+            roles: set[int] | list[int] | None = None
     ) -> Self:
         """Create a new User with client association."""
         base_data = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
@@ -197,6 +206,7 @@ class Admin(_Employee):
     department_id: int =0
 
     def __post_init__(self):
+        super().__post_init__()
         if self.department_id and int(self.department_id) and self.department_id < 0:
             raise ItemValidationError("Department ID must be positive")
 
@@ -214,7 +224,7 @@ class Admin(_Employee):
             password: str ="",
             enable_account: bool = True,
             version: int = 0,
-            roles: set[int]=(),
+            roles: set[int] | list[int] | None = None,
             job_title:str="",
             department_id:int=0
     ) -> Self:

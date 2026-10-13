@@ -4,7 +4,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Generic, Self
+from typing import Generic, Self, cast
 
 from src.domain.exceptions import ItemValidationError, DomainOperationError
 from src.domain.rbac.permissions import AdminPermission, UserPermission
@@ -29,18 +29,18 @@ class Role(Generic[P]):
             raise DomainOperationError("Role must have at least one permission")
 
     @classmethod
-    def create(cls,name:str,
+    def create(cls:type[Self],name:str,
                permissions:frozenset[P],
                description:str="",
                is_system_role:bool=False)->Self:
-        return cls(name=Name(name),
+        return cast(Self,cls(name=Name(name),
                    permissions=permissions,
                    description=description,
-                   is_system_role=is_system_role)
+                   is_system_role=is_system_role))
 
 
     @classmethod
-    def rehydrate(cls, role_id:int,
+    def rehydrate(cls: type[Self], role_id:int,
                   name: str,
                   date_created: datetime,
                   version:int,
@@ -48,13 +48,13 @@ class Role(Generic[P]):
                   description: str = "",
                   is_system_role: bool = False) -> Self:
 
-        return cls(role_id=role_id,
+        return cast(Self,cls(role_id=role_id,
                    name=Name(name),
                    permissions=permissions,
                    description=description,
                    is_system_role=is_system_role,
                    date_created=date_created,
-                   version=version)
+                   version=version))
 
     def has_permission(self, permission: P) -> bool:
         return permission in self.permissions
@@ -71,7 +71,10 @@ class AdminRole(Role[AdminPermission]):
         # Validate at creation time
         for perm in self.permissions:
             if not isinstance(perm, AdminPermission):
-                raise ValueError(f"AdminRole can only contain AdminPermissions, got {type(perm)}")
+                raise ValueError(
+    f"AdminRole can only contain AdminPermissions, "
+    f"got {type(perm).__name__}"
+)
 
 @dataclass
 class UserRole(Role[UserPermission]):
@@ -82,7 +85,11 @@ class UserRole(Role[UserPermission]):
 
         for perm in self.permissions:
             if not isinstance(perm, UserPermission):
-                raise ValueError(f"UserRole can only contain UserPermissions, got {type(perm)}")
+                raise ValueError(
+                    f"UserRole can only contain UserPermissions, "
+                    f"got {type(perm).__name__}"
+                )
+
 @dataclass
 class RoleStore(Generic[P]):
     roles: set[Role[P]] = field(default_factory=set)

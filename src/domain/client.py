@@ -180,8 +180,8 @@ class Client:
             DomainValidationError: If new values are invalid
         """
         try:
-            if name:
-                self.name=Name(name)
+
+            self.name=Name(name)
             if email is not None:
                 self.email = Email(email) if email else Empty()
 

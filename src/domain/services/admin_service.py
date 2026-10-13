@@ -87,7 +87,7 @@ class AdminService:
     def update(
         *,
         admin: Admin,
-        department: Department|None,
+        department: Department,
         has_current_executor_tickets: bool,
         job_title: str = "",
         first_name: str = "",
@@ -105,22 +105,13 @@ class AdminService:
         Ordinary Admin data may be updated without these checks
         when Department is unchanged.
         """
-        if department is not None:
-            department_changed = (
-                admin.department_id != department.department_id
-            )
 
-            if department_changed:
-                AdminService._ensure_not_current_executor(
-                    admin=admin,
-                    has_current_executor_tickets=(
-                        has_current_executor_tickets
-                    ),
-                )
 
-                AdminService._ensure_department_enabled(
-                    department=department,
-                )
+        if admin.department_id != department.department_id:
+            AdminService._ensure_not_current_executor(admin=admin,
+                                                      has_current_executor_tickets=has_current_executor_tickets)
+
+            AdminService._ensure_department_enabled(department=department)
 
         admin.update(
             job_title=job_title,
@@ -128,8 +119,9 @@ class AdminService:
             last_name=last_name,
             email=email,
             phone=phone,
-            department_id=department.department_id if department else 0
+            department_id=department.department_id
         )
+
 
     # ==================================================================
     # Account
@@ -192,9 +184,7 @@ class AdminService:
 
         AdminService._ensure_not_current_executor(
             admin=admin,
-            has_current_executor_tickets=(
-                has_current_executor_tickets
-            ),
+            has_current_executor_tickets=has_current_executor_tickets,
         )
 
         admin.disable()
