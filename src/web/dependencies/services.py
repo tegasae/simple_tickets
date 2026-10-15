@@ -3,8 +3,7 @@ import sqlite3
 from collections.abc import Generator
 
 from fastapi import Depends, Request
-
-from config import Settings
+from src.web.config import Settings
 from src.adapters.uow.sqlite_unit_of_work import SQLiteUnitOfWork
 from src.application.factory import ApplicationServiceFactory
 from src.application.services.ticket_user_service import TicketUserApplicationService
