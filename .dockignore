@@ -1,0 +1,16 @@
+.venv
+.venv*
+.idea
+.git
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+
+.env
+
+simple_tickets_frontend_v2
+tests
+tests_pyramid
+
+*.zip
