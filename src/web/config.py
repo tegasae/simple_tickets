@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS:int = 1
     ENVIRONMENT: str = "production"
+    JWT_ISSUER:str="simple - tickets"
+    JWT_AUDIENCE:str="simple - tickets - api"
 
     class Config:
         env_file = ".env"

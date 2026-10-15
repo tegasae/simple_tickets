@@ -16,7 +16,6 @@ from utils.db.connect import Connection
 
 
 
-
 def get_settings(request: Request) -> Settings:
     return request.app.state.settings
 

@@ -1,20 +1,27 @@
 
+from typing import Any
 
 from src.web.auth.exceptions import (
     TokenError,
-    TokenNotFoundError,
     TokenExpiredError,
+    TokenNotFoundError,
     UserNotValidError,
 )
-from src.web.auth.models import LoginRequest, RefreshRequest, LogoutRequest
+from src.web.auth.models import (
+    LoginRequest,
+    LogoutRequest,
+    RefreshRequest,
+)
 from src.web.auth.services.auth_service import AuthServiceAbstract
 from src.web.auth.storage import TokenStorage
 from src.web.auth.tokens import AccessToken, JWTToken, SubjectType
+from src.web.config import Settings
 
 
 class TokenService:
     """
-    Service responsible for token issuing, verification, refresh and revocation.
+    Service responsible for token issuing, verification,
+    refresh and revocation.
 
     Model:
         - AccessToken is JWT.
@@ -23,8 +30,14 @@ class TokenService:
         - AccessToken.subject_type contains "admin" or "user".
     """
 
-    def __init__(self, token_storage: TokenStorage):
+    def __init__(
+        self,
+        *,
+        token_storage: TokenStorage,
+        settings: Settings,
+    ):
         self.token_storage = token_storage
+        self.settings = settings
 
     def create_token_pair(
         self,
@@ -33,21 +46,12 @@ class TokenService:
         subject_id: int,
         subject_type: SubjectType,
         scope: list[str] | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Create new access + refresh token pair.
-
-        Returns OAuth2-like response:
-
-            {
-                "access_token": "...",
-                "refresh_token": "...",
-                "token_type": "bearer",
-                "expires_in": 3600,
-                "scope": "..."
-            }
         """
         token_pair = JWTToken.create(
+            settings=self.settings,
             subject_id=subject_id,
             subject_type=subject_type,
             username=username,
@@ -56,18 +60,25 @@ class TokenService:
 
         self.token_storage.put(token_pair.refresh_token)
 
-        return token_pair.encode()
+        return token_pair.encode(
+            settings=self.settings,
+        )
 
-    def renew_tokens(self, old_refresh_token_id: str) -> dict:
+    def renew_tokens(
+        self,
+        old_refresh_token_id: str,
+    ) -> dict[str, Any]:
         """
         Create a new token pair using an existing refresh token.
 
-        This implements refresh-token rotation:
+        Refresh-token rotation:
             - validate old refresh token;
-            - delete/revoke old refresh token;
-            - issue new access + refresh token pair.
+            - remove old refresh token;
+            - issue a new access + refresh token pair.
         """
-        old_refresh_token = self.token_storage.get(old_refresh_token_id)
+        old_refresh_token = self.token_storage.get(
+            old_refresh_token_id
+        )
 
         if not old_refresh_token.is_valid():
             raise TokenError("Invalid refresh token")
@@ -82,12 +93,19 @@ class TokenService:
         )
 
     @staticmethod
-    def verify_access_token(token: str) -> AccessToken:
+    def verify_access_token(
+        token: str,
+        *,
+        settings: Settings,
+    ) -> AccessToken:
         """
-        Verify JWT access token and return decoded AccessToken object.
+        Verify JWT access token and return decoded AccessToken.
         """
         try:
-            access_token = AccessToken.decode(token)
+            access_token = AccessToken.decode(
+                token,
+                settings=settings,
+            )
 
             if not access_token.is_valid():
                 raise TokenExpiredError()
@@ -98,54 +116,51 @@ class TokenService:
             raise
 
         except Exception as exc:
-            raise TokenError("Failed to verify access token") from exc
+            raise TokenError(
+                "Failed to verify access token"
+            ) from exc
 
-    def verify_refresh_token(self, refresh_token_id: str) -> bool:
+    def verify_refresh_token(
+        self,
+        refresh_token_id: str,
+    ) -> bool:
         """
         Verify refresh token existence and validity.
         """
         try:
-            refresh_token = self.token_storage.get(refresh_token_id)
+            refresh_token = self.token_storage.get(
+                refresh_token_id
+            )
+
             return refresh_token.is_valid()
 
         except TokenNotFoundError:
             return False
 
-    def revoke_token(self, refresh_token_id: str) -> None:
+    def revoke_token(
+        self,
+        refresh_token_id: str,
+    ) -> None:
         """
         Revoke one refresh token.
         """
         self.token_storage.delete(refresh_token_id)
 
-    def revoke_user_tokens(self, username: str) -> None:
+    def revoke_user_tokens(
+        self,
+        username: str,
+    ) -> None:
         """
         Revoke all refresh tokens belonging to one username.
         """
         self.token_storage.revoke_user_tokens(username)
 
 
-
-
 class AuthManager:
     """
     High-level authentication manager.
 
-    One AuthManager instance should be created for admin realm.
-    Another AuthManager instance should be created for user realm.
-
-    Example:
-
-        admin_auth_manager = AuthManager(
-            auth_service=AdminAuthService(...),
-            token_storage=token_storage,
-            subject_type="admin",
-        )
-
-        user_auth_manager = AuthManager(
-            auth_service=UserAuthService(...),
-            token_storage=token_storage,
-            subject_type="user",
-        )
+    Admin and User authentication are intentionally separate.
     """
 
     def __init__(
@@ -154,23 +169,26 @@ class AuthManager:
         auth_service: AuthServiceAbstract,
         token_storage: TokenStorage,
         subject_type: SubjectType,
+        settings: Settings,
     ):
         self.auth_service = auth_service
         self.token_storage = token_storage
         self.subject_type = subject_type
-        self.token_service = TokenService(token_storage=token_storage)
+
+        self.token_service = TokenService(
+            token_storage=token_storage,
+            settings=settings,
+        )
 
     def login(
         self,
         *,
-        login_request:LoginRequest,
-    ) -> dict:
+        login_request: LoginRequest,
+    ) -> dict[str, Any]:
         """
         Complete login flow.
 
-        Important:
-            Do not blindly issue requested_scope.
-            Issue only scopes allowed for authenticated subject.
+        Issue only scopes allowed for the authenticated subject.
         """
         user_auth = self.auth_service.authenticate_user(
             login_request=login_request
@@ -191,51 +209,67 @@ class AuthManager:
     def refresh(
         self,
         *,
-        refresh_request:RefreshRequest,
-    ) -> dict:
+        refresh_request: RefreshRequest,
+    ) -> dict[str, Any]:
         """
         Complete refresh flow.
 
         Checks:
             - refresh token exists;
             - refresh token is valid;
-            - user/admin still exists;
-            - refresh token belongs to the same subject_type as this AuthManager.
+            - token belongs to this authentication realm;
+            - user/admin still exists.
         """
-        refresh_token = self.token_storage.get(refresh_request.refresh_token)
+        refresh_token = self.token_storage.get(
+            refresh_request.refresh_token
+        )
 
         if refresh_token.subject_type != self.subject_type:
-            raise TokenError("Refresh token subject type mismatch")
+            raise TokenError(
+                "Refresh token subject type mismatch"
+            )
 
         if not refresh_token.is_valid():
             raise TokenError("Invalid refresh token")
 
-        if not self.auth_service.validate_user_exists(login_request=LoginRequest(username=refresh_token.username)):
-            raise UserNotValidError(username=refresh_token.username)
+        login_request = LoginRequest(
+            username=refresh_token.username
+        )
 
-        return self.token_service.renew_tokens(refresh_request.refresh_token)
+        if not self.auth_service.validate_user_exists(
+            login_request=login_request
+        ):
+            raise UserNotValidError(
+                username=refresh_token.username
+            )
+
+        return self.token_service.renew_tokens(
+            refresh_request.refresh_token
+        )
 
     def logout(
         self,
         *,
-        logout_request:LogoutRequest
+        logout_request: LogoutRequest,
     ) -> None:
         """
         Logout by revoking refresh tokens.
-
-        You can revoke:
-            - one refresh token by token id;
-            - all tokens for username.
         """
         if logout_request.refresh_token:
-            self.token_service.revoke_token(logout_request.refresh_token)
+            self.token_service.revoke_token(
+                logout_request.refresh_token
+            )
             return
 
         if logout_request.username:
-            self.token_service.revoke_user_tokens(logout_request.username)
+            self.token_service.revoke_user_tokens(
+                logout_request.username
+            )
             return
 
-        raise TokenError("refresh_token_id or username is required")
+        raise TokenError(
+            "refresh_token or username is required"
+        )
 
     @staticmethod
     def _resolve_scope(
@@ -250,16 +284,13 @@ class AuthManager:
             issue all allowed scopes.
 
         If requested_scope is provided:
-            issue only requested scopes that are allowed.
-
-        If requested_scope contains forbidden scope:
-            raise TokenError.
+            all requested scopes must be allowed.
         """
-        allowed = set(allowed_scope)
-        requested = set(requested_scope or [])
+        if not requested_scope:
+            return list(allowed_scope)
 
-        if not requested:
-            return list(allowed)
+        allowed = set(allowed_scope)
+        requested = set(requested_scope)
 
         forbidden = requested - allowed
 
@@ -268,4 +299,4 @@ class AuthManager:
                 f"Requested forbidden scopes: {sorted(forbidden)}"
             )
 
-        return list(requested)
+        return list(dict.fromkeys(requested_scope))

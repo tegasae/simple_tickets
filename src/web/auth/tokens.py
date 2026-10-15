@@ -7,7 +7,7 @@ import jwt
 from pydantic import BaseModel, Field, ValidationError
 
 from src.web.auth.exceptions import TokenError
-from src.web.config import get_settings1
+from src.web.config import Settings
 
 
 SubjectType = Literal["admin", "user"]
@@ -16,24 +16,6 @@ AccessTokenType = Literal["access"]
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def get_jwt_issuer() -> str:
-    settings = get_settings()
-    return getattr(settings, "JWT_ISSUER", "simple-tickets")
-
-
-def get_jwt_audience() -> str:
-    settings = get_settings()
-    return getattr(settings, "JWT_AUDIENCE", "simple-tickets-api")
-
-
-def get_secret_key() -> str:
-    return get_settings().SECRET_KEY
-
-
-def get_algorithm() -> str:
-    return get_settings().ALGORITHM
 
 
 def hash_token(token: str) -> str:
@@ -68,14 +50,11 @@ class AccessToken(BaseModel):
     subject_type: SubjectType
     token_type: AccessTokenType = "access"
 
-    exp: datetime = Field(
-        default_factory=lambda: utcnow()
-        + timedelta(minutes=get_settings().ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
+    exp: datetime
     iat: datetime = Field(default_factory=utcnow)
 
-    iss: str = Field(default_factory=get_jwt_issuer)
-    aud: str = Field(default_factory=get_jwt_audience)
+    iss: str
+    aud: str
     jti: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
 
     scope: list[str] = Field(default_factory=list)
@@ -84,14 +63,23 @@ class AccessToken(BaseModel):
     def create(
         cls,
         *,
+        settings: Settings,
         subject_id: int,
         subject_type: SubjectType,
         scope: list[str] | None = None,
     ) -> Self:
+        now = utcnow()
+
         return cls(
             sub=str(subject_id),
             subject_type=subject_type,
             scope=scope or [],
+            iat=now,
+            exp=now + timedelta(
+                minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+            ),
+            iss=settings.JWT_ISSUER,
+            aud=settings.JWT_AUDIENCE,
         )
 
     def scope_to_str(self) -> str:
@@ -118,30 +106,40 @@ class AccessToken(BaseModel):
 
         return payload
 
-    def encode(self) -> str:
+    def encode(
+        self,
+        *,
+        settings: Settings,
+    ) -> str:
         return jwt.encode(
             self.to_payload(),
-            get_secret_key(),
-            algorithm=get_algorithm(),
+            settings.SECRET_KEY,
+            algorithm=settings.ALGORITHM,
         )
 
     @classmethod
-    def decode(cls, token: str) -> Self:
-
+    def decode(
+        cls,
+        token: str,
+        *,
+        settings: Settings,
+    ) -> Self:
         try:
             payload = jwt.decode(
                 token,
-                get_secret_key(),
-                algorithms=[get_algorithm()],
-                audience=get_jwt_audience(),
-                issuer=get_jwt_issuer(),
+                settings.SECRET_KEY,
+                algorithms=[settings.ALGORITHM],
+                audience=settings.JWT_AUDIENCE,
+                issuer=settings.JWT_ISSUER,
             )
 
             if payload.get("token_type") != "access":
                 raise TokenError("Invalid token type")
 
             if "scope" in payload:
-                payload["scope"] = cls.scope_from_str(payload.get("scope"))
+                payload["scope"] = cls.scope_from_str(
+                    payload.get("scope")
+                )
 
             return cls(**payload)
 
@@ -149,10 +147,14 @@ class AccessToken(BaseModel):
             raise TokenError("Token has expired") from exc
 
         except jwt.InvalidTokenError as exc:
-            raise TokenError(f"Invalid token: {exc}") from exc
+            raise TokenError(
+                f"Invalid token: {exc}"
+            ) from exc
 
         except ValidationError as exc:
-            raise TokenError(f"Invalid token payload: {exc}") from exc
+            raise TokenError(
+                f"Invalid token payload: {exc}"
+            ) from exc
 
     def is_valid(self) -> bool:
         if not self.sub:
@@ -165,16 +167,17 @@ class AccessToken(BaseModel):
 
         return exp > utcnow()
 
-    def get_admin_id(self)->int:
+    def get_admin_id(self) -> int:
         if self and self.subject_type == "admin":
             return int(self.sub)
+
         raise TokenError("Invalid admin token type")
 
-    def get_user_id(self)->int:
+    def get_user_id(self) -> int:
         if self and self.subject_type == "user":
             return int(self.sub)
-        raise TokenError("Invalid user token type")
 
+        raise TokenError("Invalid user token type")
 
     def __bool__(self) -> bool:
         return self.is_valid()
@@ -190,17 +193,16 @@ class RefreshToken(BaseModel):
     The server should store hash_token(token_id) in DB.
     """
 
-    token_id: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
+    token_id: str = Field(
+        default_factory=lambda: secrets.token_urlsafe(32)
+    )
 
     subject_id: int
     subject_type: SubjectType
     username: str
 
     created_at: datetime = Field(default_factory=utcnow)
-    expires_at: datetime = Field(
-        default_factory=lambda: utcnow()
-        + timedelta(days=get_settings().REFRESH_TOKEN_EXPIRE_DAYS)
-    )
+    expires_at: datetime
 
     used: bool = False
     revoked: bool = False
@@ -215,18 +217,25 @@ class RefreshToken(BaseModel):
     def create(
         cls,
         *,
+        settings: Settings,
         subject_id: int,
         subject_type: SubjectType,
         username: str,
         client_id: str = "",
         scope: list[str] | None = None,
     ) -> Self:
+        now = utcnow()
+
         return cls(
             subject_id=subject_id,
             subject_type=subject_type,
             username=username,
             client_id=client_id,
             scope=scope or [],
+            created_at=now,
+            expires_at=now + timedelta(
+                days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+            ),
         )
 
     @property
@@ -242,15 +251,18 @@ class RefreshToken(BaseModel):
         self.revoked = True
 
     def is_valid(self) -> bool:
-        now = utcnow()
-
         if self.subject_id <= 0:
             return False
 
         if not self.username:
             return False
 
-        if self.expires_at <= now:
+        expires_at = self.expires_at
+
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        if expires_at <= utcnow():
             return False
 
         if self.used:
@@ -280,6 +292,7 @@ class JWTToken(BaseModel):
     def create(
         cls,
         *,
+        settings: Settings,
         subject_id: int,
         subject_type: SubjectType,
         username: str,
@@ -290,11 +303,13 @@ class JWTToken(BaseModel):
 
         return cls(
             access_token=AccessToken.create(
+                settings=settings,
                 subject_id=subject_id,
                 subject_type=subject_type,
                 scope=normalized_scope,
             ),
             refresh_token=RefreshToken.create(
+                settings=settings,
                 subject_id=subject_id,
                 subject_type=subject_type,
                 username=username,
@@ -303,17 +318,26 @@ class JWTToken(BaseModel):
             ),
         )
 
-    def encode(self) -> dict[str, Any]:
+    def encode(
+        self,
+        *,
+        settings: Settings,
+    ) -> dict[str, Any]:
         now = utcnow()
 
         exp = self.access_token.exp
+
         if exp.tzinfo is None:
             exp = exp.replace(tzinfo=timezone.utc)
 
-        expires_in = int((exp - now).total_seconds())
+        expires_in = int(
+            (exp - now).total_seconds()
+        )
 
         return {
-            "access_token": self.access_token.encode(),
+            "access_token": self.access_token.encode(
+                settings=settings
+            ),
             "refresh_token": self.refresh_token.token_id,
             "token_type": "bearer",
             "expires_in": max(expires_in, 0),
@@ -321,7 +345,10 @@ class JWTToken(BaseModel):
         }
 
     def is_valid(self) -> bool:
-        return bool(self.access_token) and bool(self.refresh_token)
+        return (
+            bool(self.access_token)
+            and bool(self.refresh_token)
+        )
 
     def __bool__(self) -> bool:
         return self.is_valid()
