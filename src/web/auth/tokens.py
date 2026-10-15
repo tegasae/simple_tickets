@@ -7,7 +7,7 @@ import jwt
 from pydantic import BaseModel, Field, ValidationError
 
 from src.web.auth.exceptions import TokenError
-from src.web.config import get_settings
+from src.web.config import get_settings1
 
 
 SubjectType = Literal["admin", "user"]

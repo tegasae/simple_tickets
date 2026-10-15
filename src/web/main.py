@@ -21,13 +21,16 @@ from src.web.routers.admin.users import router as admin_users_router
 from src.web.routers.admin.tickets import router as admin_tickets_router
 from src.web.routers.admin.roles import router as admin_roles_router
 
-
+from src.web.config import get_settings
 
 
 
 
 def create_app() -> FastAPI:
-    app1 = FastAPI(title="Simple Tickets API")
+    settings=get_settings()
+
+    app1 = FastAPI(title=settings.APP_NAME)
+    app1.state.settings = settings
 
     app1.include_router(auth_router)
     app1.include_router(admin_clients_router)
