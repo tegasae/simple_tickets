@@ -19,7 +19,7 @@ from src.web.dependencies.auth import (
     get_employee_id_from_request,
 )
 from src.web.dependencies.services import (
-    get_ticket_user_service,
+    get_application_ticket_user_service,
 )
 
 
@@ -315,7 +315,7 @@ def create_ticket(
         get_employee_id_from_request
     ),
     service: TicketUserApplicationService = Depends(
-        get_ticket_user_service
+        get_application_ticket_user_service
     ),
 ):
     try:
@@ -352,7 +352,7 @@ def get_my_tickets(
         get_employee_id_from_request
     ),
     service: TicketUserApplicationService = Depends(
-        get_ticket_user_service
+        get_application_ticket_user_service
     ),
 ):
     try:
@@ -384,7 +384,7 @@ def get_all_tickets(
         get_employee_id_from_request
     ),
     service: TicketUserApplicationService = Depends(
-        get_ticket_user_service
+        get_application_ticket_user_service
     ),
 ):
     try:
@@ -415,7 +415,7 @@ def get_open_tickets(
         get_employee_id_from_request
     ),
     service: TicketUserApplicationService = Depends(
-        get_ticket_user_service
+        get_application_ticket_user_service
     ),
 ):
     try:
@@ -446,7 +446,7 @@ def get_closed_tickets(
         get_employee_id_from_request
     ),
     service: TicketUserApplicationService = Depends(
-        get_ticket_user_service
+        get_application_ticket_user_service
     ),
 ):
     try:
@@ -478,7 +478,7 @@ def get_ticket(
         get_employee_id_from_request
     ),
     service: TicketUserApplicationService = Depends(
-        get_ticket_user_service
+        get_application_ticket_user_service
     ),
 ):
     try:
@@ -517,7 +517,7 @@ def add_comment(
         get_employee_id_from_request
     ),
     service: TicketUserApplicationService = Depends(
-        get_ticket_user_service
+        get_application_ticket_user_service
     ),
 ):
     try:
@@ -552,7 +552,7 @@ def update_description(
         get_employee_id_from_request
     ),
     service: TicketUserApplicationService = Depends(
-        get_ticket_user_service
+        get_application_ticket_user_service
     ),
 ):
     try:
@@ -587,7 +587,7 @@ def change_contact_user(
         get_employee_id_from_request
     ),
     service: TicketUserApplicationService = Depends(
-        get_ticket_user_service
+        get_application_ticket_user_service
     ),
 ):
     try:
@@ -627,7 +627,7 @@ def cancel_ticket(
         get_employee_id_from_request
     ),
     service: TicketUserApplicationService = Depends(
-        get_ticket_user_service
+        get_application_ticket_user_service
     ),
 ):
     try:
@@ -662,7 +662,7 @@ def confirm_ticket(
         get_employee_id_from_request
     ),
     service: TicketUserApplicationService = Depends(
-        get_ticket_user_service
+        get_application_ticket_user_service
     ),
 ):
     try:

@@ -13,7 +13,7 @@ from src.web.dependencies.auth import (
 )
 from src.web.dependencies.services import (
     get_application_service_factory,
-    get_ticket_user_service,
+    get_application_ticket_user_service,
 )
 from src.web.main import create_app
 
@@ -143,7 +143,7 @@ def test_user_ticket_create_wires_authenticated_user_into_command_dto() -> None:
     service = FakeTicketUserService()
     app.dependency_overrides[get_current_user] = lambda: None
     app.dependency_overrides[get_employee_id_from_request] = lambda: 202
-    app.dependency_overrides[get_ticket_user_service] = lambda: service
+    app.dependency_overrides[get_application_ticket_user_service] = lambda: service
     client = TestClient(app)
 
     response = client.post(
