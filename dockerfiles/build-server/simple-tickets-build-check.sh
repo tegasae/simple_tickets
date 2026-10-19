@@ -54,7 +54,7 @@ docker build \
     -t "$COMMIT_IMAGE" \
     -t "$TEST_IMAGE" \
     .
-exit
+
 # Сначала публикуем постоянный tag, затем подвижный.
 docker push "$COMMIT_IMAGE"
 docker push "$TEST_IMAGE"
