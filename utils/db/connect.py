@@ -1,7 +1,8 @@
 import logging
+from typing import Self
+
 from .exceptions import DBConnectError, DBOperationError
 from .query import Query
-
 logger = logging.getLogger(__name__)
 
 
@@ -14,7 +15,7 @@ class Connection:
         self.engine.paramstyle = "named"
 
     @classmethod
-    def create_connection(cls, url="", engine=None, check_same_thread=False) -> 'Connection':
+    def create_connection(cls, url="", engine=None, check_same_thread=False) -> Self:
         if not url or not engine:
             raise DBConnectError("URL and engine must be provided")
 
@@ -23,8 +24,12 @@ class Connection:
         engine.paramstyle = "named"
 
         try:
-            #todo сделвть потом нормальное решение с  check_same_thread=False
+            #todo сделвть потом нормальное решение с  check_same_thread=False и PRAGMA
             connect = engine.connect(url, check_same_thread=check_same_thread)
+            connect.execute("PRAGMA foreign_keys=ON;")
+            #cur=connect.cursor()
+            #cur.execute("PRAGMA foreign_keys=ON;")
+            #cur.close()
             return cls(connect=connect, engine=engine)
         except Exception as e:
             raise DBConnectError(f"Failed to connect to {url}: {str(e)}")

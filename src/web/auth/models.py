@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -8,7 +6,8 @@ class RefreshRequest(BaseModel):
 
 
 class LogoutRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str =""
+    username: str =""
 
 
 class TokenResponse(BaseModel):
@@ -21,11 +20,12 @@ class TokenResponse(BaseModel):
 
 class LoginRequest(BaseModel):
     username: str
-    password: str
-    scope: Optional[list[str]] = None
+    password: str=""
+    scope: list[str] = Field(default_factory=list)
+
 
 
 class UserAuth(BaseModel):
-    id: int = 0
+    id: int
     username: str
-    scope: Optional[list[str]] = Field(default_factory=list)
+    scope: list[str] = Field(default_factory=list)

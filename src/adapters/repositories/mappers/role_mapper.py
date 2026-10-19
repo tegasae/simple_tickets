@@ -1,0 +1,94 @@
+# src/adapters/repositories/mappers/role_mapper.py
+from collections.abc import Iterable
+
+from src.adapters.repositories.mappers.auxiliary import dt_from_sqlite_not_none
+from src.domain.rbac.role_new import Role
+from src.domain.rbac.typevar import P
+
+
+
+
+class RoleMapper:
+    VARS = [
+        "role_id",
+        "name",
+        "permissions",
+        "description",
+        "is_system_role",
+        "date_created",
+        "is_admin",
+        "version",
+    ]
+
+    @staticmethod
+    def role_params(
+        role: Role[P],
+        *,
+        is_admin: bool = False,
+    ) -> dict:
+        return {
+            "role_id": role.role_id,
+            "name": role.name.value,
+            "permissions": RoleMapper.permissions_to_string(role.permissions),
+            "description": role.description,
+            "is_system_role": role.is_system_role,
+            "date_created": dt_from_sqlite_not_none(role.date_created),
+            "version": role.version if role.version is not None else 0,
+            "is_admin": is_admin,
+        }
+
+    @staticmethod
+    def row_to_role(
+        row: dict,
+        permission_cls: type[P],
+    ) -> Role[P]:
+        permissions = _parse_permissions(
+            row["permissions"],
+            permission_cls,
+        )
+
+        return Role.rehydrate(
+            role_id=row["role_id"],
+            name=row["name"],
+            permissions=permissions,
+            description=row["description"] or "",
+            is_system_role=bool(row["is_system_role"]),
+            date_created=dt_from_sqlite_not_none(row["date_created"]),
+            version=row["version"] or 0,
+        )
+
+    @staticmethod
+    def permissions_to_string(
+            permissions: Iterable[P],
+    ) -> str:
+        values: list[str] = [
+            str(permission.value)
+            for permission in permissions
+        ]
+
+        values.sort()
+
+        return ",".join(values)
+
+
+
+def _parse_permissions(
+    value: str | None,
+    permission_cls: type[P],
+) -> frozenset[P]:
+    if not value:
+        return frozenset()
+
+    permissions: set[P] = set()
+
+    for raw_permission in value.split(","):
+        permission_value = raw_permission.strip()
+
+        if not permission_value:
+            continue
+
+        permissions.add(
+            permission_cls(permission_value)
+        )
+
+    return frozenset(permissions)

@@ -1,0 +1,47 @@
+from abc import ABC, abstractmethod
+
+
+from src.domain.client import Client
+
+
+class ClientRepository(ABC):
+
+    @abstractmethod
+    def get(self, client_id: int) -> Client:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_all(self) -> list[Client]:
+        raise NotImplementedError()
+
+
+
+
+    @abstractmethod
+    def exists(self, client_id: int) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def save(self, client: Client) -> Client:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def delete(self, client_id: int) -> None:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def has_created_by_admin(self, *, admin_id) ->bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def touch(
+            self,
+            client:Client
+    ) -> None:
+        """
+        Verify that Client version is still current and advance it.
+
+        Used when an operation depends on current Client state but does not
+        otherwise modify the Client aggregate.
+        """
+        raise NotImplementedError
