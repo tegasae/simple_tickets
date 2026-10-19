@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="https://tegasae@github.com:tegasae/simple_tickets.git"
+REPO="https://github.com/tegasae/simple_tickets.git"
 BRANCH="test-deploy"
 IMAGE="registry.example.lan:5000/simple-tickets-backend"
 STATE_DIR="/var/lib/simple-tickets-builder"
@@ -45,15 +45,16 @@ cd "$WORK_DIR"
 # python -m pytest tests_pyramid
 # -----------------------------------------------------------
 
+
 COMMIT_IMAGE="$IMAGE:$REMOTE_SHA"
 TEST_IMAGE="$IMAGE:test"
 
 docker build \
-    -f docker/backend/Dockerfile \
+    -f dockerfiles/backend/Dockerfile \
     -t "$COMMIT_IMAGE" \
     -t "$TEST_IMAGE" \
     .
-
+exit
 # Сначала публикуем постоянный tag, затем подвижный.
 docker push "$COMMIT_IMAGE"
 docker push "$TEST_IMAGE"
