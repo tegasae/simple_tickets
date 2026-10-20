@@ -128,7 +128,7 @@ class TicketApplicationService:
                 ticket_dto=ticket_dto,
             )
 
-            ticket_user: TicketUser
+            ticket_user: TicketUser|None=None
             user_ticket_id = 0
 
 
@@ -227,9 +227,10 @@ class TicketApplicationService:
                     actor_admin_id=actor.employee_id,
                     permission=AdminPermission.TICKET_ACCEPTED,
             ):
+
                 changed_ticket_user = self.ticket_service.accept(
                     ticket=ticket,
-                    ticket_user=ticket_user,
+                    ticket_user=ticket_user if ticket_user else None,
                     actor_employee_id=actor.employee_id,
                     comment=ticket_dto.comment,
                 )
