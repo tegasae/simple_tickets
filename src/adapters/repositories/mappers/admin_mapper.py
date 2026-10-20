@@ -44,7 +44,7 @@ class AdminMapper:
             date_created = parse_date_created(row.get("date_created","")),
             )
 
-        admin.enabled = bool(row.get("enabled", 1))
+
         admin.version = int(row.get("version", 0))
 
 

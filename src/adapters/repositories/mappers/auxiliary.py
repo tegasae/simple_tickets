@@ -1,6 +1,6 @@
 from datetime import datetime
 
-
+from src.domain.exceptions import ItemValidationError
 
 
 def datetime_to_db(value: datetime | None) -> str | None:
@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 
 def dt_from_sqlite(
     value: str | int | datetime | None,
-) -> datetime:
+) -> datetime|None:
     """
     Converts SQLite datetime value to timezone-aware UTC datetime.
 
@@ -36,8 +36,8 @@ def dt_from_sqlite(
     Invalid values raise an exception instead of silently
     becoming datetime.now().
     """
-    #if value is None:
-    #    return None
+    if value is None:
+        return None
 
     if isinstance(value, datetime):
         dt = value
@@ -51,8 +51,8 @@ def dt_from_sqlite(
     elif isinstance(value, str):
         value = value.strip()
 
-        #if not value:
-        #    return None
+        if not value:
+            return None
 
         try:
             dt = datetime.fromisoformat(value)
@@ -83,8 +83,13 @@ def dt_from_sqlite(
     return dt.astimezone(
         timezone.utc,
     )
-
-
+def dt_from_sqlite_not_none(
+    value: str | int | datetime | None,
+) -> datetime:
+    dt=dt_from_sqlite(value)
+    if dt is None:
+        raise ItemValidationError(f"Invalid SQLite datetime value: {value!r}")
+    return dt
 
 
 def parse_date_created(value) -> datetime:

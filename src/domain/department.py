@@ -73,7 +73,7 @@ class Department:
             raise ItemValidationError(f"Department validation failed: {e}") from e
 
     def __post_init__(self) -> None:
-        if self.department_id <= 0:
+        if self.department_id < 0:
             raise ItemValidationError("Department ID cannot be negative")
 
     @classmethod

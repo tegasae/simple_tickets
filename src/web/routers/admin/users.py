@@ -60,141 +60,6 @@ handlers = {
 }
 
 
-# ---------------------------------------------------------------------
-# Response mappers
-# ---------------------------------------------------------------------
-
-def to_user_response(response_dto) -> UserResponse:
-    """
-    Convert application UserResponseDTO to web UserResponse.
-    """
-    return UserResponse.model_validate(response_dto)
-
-
-def to_user_responses(response_dtos) -> list[UserResponse]:
-    """
-    Convert list[UserResponseDTO] to list[UserResponse].
-    """
-    return [
-        to_user_response(response_dto)
-        for response_dto in response_dtos
-    ]
-
-
-# ---------------------------------------------------------------------
-# Request -> Application DTO mappers
-# ---------------------------------------------------------------------
-
-def user_create_request_to_dto(
-    *,
-    request: UserCreateRequest,
-    actor_admin_id: int,
-) -> UserDTO:
-    """
-    Convert create request to application UserDTO.
-
-    actor_admin_id comes from authenticated admin.
-    Other fields come from request body.
-    """
-    return UserDTO(
-        actor_admin_id=actor_admin_id,
-        client_id=request.client_id,
-        first_name=request.first_name,
-        last_name=request.last_name,
-        email=request.email,
-        phone=request.phone,
-        login=request.login,
-        password=request.password,
-        enable=request.enable,
-        enable_account=request.enable_account,
-        roles=request.roles,
-    )
-
-
-def user_update_request_to_dto(
-    *,
-    request: UserUpdateRequest,
-    actor_admin_id: int,
-    employee_id: int,
-) -> UserDTO:
-    """
-    Convert update request to application UserDTO.
-
-    employee_id comes from path parameter.
-    actor_admin_id comes from authenticated admin.
-    """
-    return UserDTO(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-        first_name=request.first_name,
-        last_name=request.last_name,
-        email=request.email,
-        phone=request.phone,
-    )
-
-
-def user_attach_account_request_to_dto(
-    *,
-    request: UserAttachAccountRequest,
-    actor_admin_id: int,
-    employee_id: int,
-) -> UserDTO:
-    """
-    Convert attach-account request to UserDTO.
-    """
-    return UserDTO(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-        login=request.login,
-        password=request.password,
-        enable_account=request.enable_account,
-    )
-
-
-def user_change_password_request_to_dto(
-    *,
-    request: UserChangePasswordRequest,
-    actor_admin_id: int,
-    employee_id: int,
-) -> UserDTO:
-    """
-    Convert change-password request to UserDTO.
-    """
-    return UserDTO(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-        password=request.password,
-    )
-
-
-def user_roles_request_to_dto(
-    *,
-    request: UserRolesRequest,
-    actor_admin_id: int,
-    employee_id: int,
-) -> UserDTO:
-    """
-    Convert roles request to UserDTO.
-    """
-    return UserDTO(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-        roles=request.roles,
-    )
-
-
-def user_id_to_dto(
-    *,
-    actor_admin_id: int,
-    employee_id: int,
-) -> UserDTO:
-    """
-    Build UserDTO for operations that need only target user id.
-    """
-    return UserDTO(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-    )
 
 
 # ---------------------------------------------------------------------
@@ -212,15 +77,14 @@ def create_user(
     user_request: UserCreateRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = user_create_request_to_dto(
-        request=user_request,
-        actor_admin_id=actor_admin_id,
-    )
+)->UserResponse:
+
+
+    dto = UserDTO(actor_admin_id=actor_admin_id, **user_request.model_dump())
 
     response_dto = asf.user_service().create_user(user_dto=dto)
 
-    return to_user_response(response_dto)
+    return UserResponse.from_dto(response_dto)
 
 
 @router.get(
@@ -234,14 +98,14 @@ def get_all_users(
     client_id:int=0,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
+)->list[UserResponse]:
     dto = UserDTO(actor_admin_id=actor_admin_id,client_id=client_id)
 
     if not client_id:
         response_dtos = asf.user_service().get_all(user_dto=dto)
     else:
         response_dtos = asf.user_service().get_by_client_id(user_dto=dto)
-    return to_user_responses(response_dtos)
+    return UserResponse.from_dtos(response_dtos)
 
 
 
@@ -257,7 +121,7 @@ def find_user_by_login(
     login: str,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
+)->UserResponse:
     dto = UserDTO(
         actor_admin_id=actor_admin_id,
         login=login,
@@ -265,7 +129,7 @@ def find_user_by_login(
 
     response_dto = asf.user_service().find_by_login(user_dto=dto)
 
-    return to_user_response(response_dto)
+    return UserResponse.from_dto(response_dto)
 
 
 
@@ -282,15 +146,14 @@ def get_user(
     employee_id: int,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = user_id_to_dto(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-    )
+)->UserResponse:
 
+    dto=UserDTO(actor_admin_id=actor_admin_id,
+        employee_id=employee_id,)
     response_dto = asf.user_service().get_by_id(user_dto=dto)
 
-    return to_user_response(response_dto)
+    return UserResponse.from_dto(response_dto)
+
 
 
 @router.put(
@@ -305,16 +168,13 @@ def update_user(
     user_request: UserUpdateRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = user_update_request_to_dto(
-        request=user_request,
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-    )
+)->UserResponse:
 
+    dto=UserDTO(actor_admin_id=actor_admin_id,
+        employee_id=employee_id,**user_request.model_dump())
     response_dto = asf.user_service().update_user(user_dto=dto)
 
-    return to_user_response(response_dto)
+    return UserResponse.from_dto(response_dto)
 
 
 @router.post(
@@ -329,16 +189,13 @@ def attach_account(
     account_request: UserAttachAccountRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = user_attach_account_request_to_dto(
-        request=account_request,
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-    )
+)->UserResponse:
 
+    dto=UserDTO(actor_admin_id=actor_admin_id,
+        employee_id=employee_id,**account_request.model_dump())
     response_dto = asf.user_service().attach_account(user_dto=dto)
 
-    return to_user_response(response_dto)
+    return UserResponse.from_dto(response_dto)
 
 
 @router.delete(
@@ -352,15 +209,13 @@ def detach_account(
     employee_id: int,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = user_id_to_dto(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-    )
+)->UserResponse:
+
+    dto=UserDTO(actor_admin_id=actor_admin_id,employee_id=employee_id,)
 
     response_dto = asf.user_service().detach_account(user_dto=dto)
 
-    return to_user_response(response_dto)
+    return UserResponse.from_dto(response_dto)
 
 
 @router.patch(
@@ -375,16 +230,12 @@ def change_password(
     password_request: UserChangePasswordRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = user_change_password_request_to_dto(
-        request=password_request,
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-    )
+)->UserResponse:
 
+    dto=UserDTO(actor_admin_id=actor_admin_id,employee_id=employee_id,**password_request.model_dump())
     response_dto = asf.user_service().change_password(user_dto=dto)
 
-    return to_user_response(response_dto)
+    return UserResponse.from_dto(response_dto)
 
 
 @router.post(
@@ -399,16 +250,14 @@ def grant_roles(
     roles_request: UserRolesRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = user_roles_request_to_dto(
-        request=roles_request,
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-    )
+)->UserResponse:
 
+    dto=UserDTO(actor_admin_id=actor_admin_id,
+        employee_id=employee_id,
+                **roles_request.model_dump())
     response_dto = asf.user_service().grant_role(user_dto=dto)
 
-    return to_user_response(response_dto)
+    return UserResponse.from_dto(response_dto)
 
 
 @router.delete(
@@ -423,16 +272,12 @@ def revoke_roles(
     roles_request: UserRolesRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = user_roles_request_to_dto(
-        request=roles_request,
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-    )
+)->UserResponse:
 
+    dto=UserDTO(actor_admin_id=actor_admin_id, employee_id=employee_id,**roles_request.model_dump())
     response_dto = asf.user_service().revoke_role(user_dto=dto)
 
-    return to_user_response(response_dto)
+    return UserResponse.from_dto(response_dto)
 
 
 @router.patch(
@@ -446,15 +291,14 @@ def disable_user(
     employee_id: int,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = user_id_to_dto(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-    )
+)->UserResponse:
+
+    dto=UserDTO(actor_admin_id=actor_admin_id,
+        employee_id=employee_id,)
 
     response_dto = asf.user_service().disable(user_dto=dto)
 
-    return to_user_response(response_dto)
+    return UserResponse.from_dto(response_dto)
 
 
 @router.patch(
@@ -468,15 +312,13 @@ def enable_user(
     employee_id: int,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = user_id_to_dto(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-    )
+)->UserResponse:
+
+    dto=UserDTO(actor_admin_id=actor_admin_id,employee_id=employee_id,)
 
     response_dto = asf.user_service().enable(user_dto=dto)
 
-    return to_user_response(response_dto)
+    return UserResponse.from_dto(response_dto)
 
 
 @router.delete(
@@ -489,11 +331,9 @@ def delete_user(
     employee_id: int,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-):
-    dto = user_id_to_dto(
-        actor_admin_id=actor_admin_id,
-        employee_id=employee_id,
-    )
+)->None:
+
+    dto=UserDTO(actor_admin_id=actor_admin_id,employee_id=employee_id,)
 
     asf.user_service().delete(user_dto=dto)
 

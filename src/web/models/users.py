@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.web.models.base_response import BaseResponse
+
 
 class UserCreateRequest(BaseModel):
     """
@@ -74,7 +76,7 @@ class UserRolesRequest(BaseModel):
     roles: set[int] = Field(default_factory=set)
 
 
-class UserResponse(BaseModel):
+class UserResponse(BaseResponse):
     """
     Web response model.
 

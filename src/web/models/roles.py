@@ -1,6 +1,5 @@
 # src/web/models/role.py
-
-
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -54,6 +53,7 @@ class AdminRoleResponse(BaseResponse):
     permissions: list[str]
     description: str = ""
     is_system_role: bool
+    date_created: datetime
 
     @field_validator("description", mode="before")
     @classmethod
@@ -72,6 +72,7 @@ class UserRoleCreateRequest(BaseModel):
     permissions: list[str]
     description: str = ""
     is_system_role: bool = False
+    date_created: datetime
 
     @field_validator("name")
     @classmethod
