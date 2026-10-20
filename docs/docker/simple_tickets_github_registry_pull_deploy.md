@@ -390,7 +390,7 @@ WantedBy=timers.target
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now simple-tickets-build-check.timer
-systemctl list-timers | grep simple-tickets
+    systemctl list-timers | grep simple-tickets
 ```
 
 Ручная проверка:
