@@ -1,4 +1,4 @@
-from __future__ import annotations
+
 
 from typing import Generic, Set
 
@@ -8,6 +8,22 @@ from src.domain.rbac.employee_protocol import HasRoleIds
 from src.domain.rbac.typevar import P
 from src.domain.rbac.role_repository import RoleRepository
 
+
+
+class Authorizer(Generic[P]):
+    def __init__(self, roles: RoleRepository[P]) -> None:
+        self._roles = roles
+
+    def permissions_of(self, subject: HasRoleIds) -> Set[P]:
+        perms: Set[P] = set()
+        for rid in subject.role_ids():
+            perms |= set(self._roles.get(rid).permissions)
+        return perms
+
+    def require(self, subject: HasRoleIds, permission: P) -> None:
+        pass
+        if permission not in self.permissions_of(subject):
+            raise PermissionError(f"Subject lacks permission: {permission.value}")
 
 
 
@@ -45,20 +61,6 @@ class RoleManager(Generic[P]):
             target.revoke_role(role_id)
 
 
-class Authorizer(Generic[P]):
-    def __init__(self, roles: RoleRepository[P]) -> None:
-        self._roles = roles
-
-    def permissions_of(self, subject: HasRoleIds) -> Set[P]:
-        perms: Set[P] = set()
-        for rid in subject.role_ids():
-            perms |= set(self._roles.get(rid).permissions)
-        return perms
-
-    def require(self, subject: HasRoleIds, permission: P) -> None:
-        pass
-        if permission not in self.permissions_of(subject):
-            raise PermissionError(f"Subject lacks permission: {permission.value}")
 
 
 

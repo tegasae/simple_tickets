@@ -21,15 +21,15 @@ from src.web.routers.admin.users import router as admin_users_router
 from src.web.routers.admin.tickets import router as admin_tickets_router
 from src.web.routers.admin.roles import router as admin_roles_router
 
-from src.web.config import get_settings
-
-
+from src.web.config import Settings
 
 
 def create_app() -> FastAPI:
-    settings=get_settings()
+    #settings=get_settings()
+    settings = Settings()
 
     app1 = FastAPI(title=settings.APP_NAME)
+    # noinspection PyUnresolvedReferences
     app1.state.settings = settings
 
     app1.include_router(auth_router)
