@@ -128,8 +128,9 @@ class TicketApplicationService:
                 ticket_dto=ticket_dto,
             )
 
-            ticket_user: TicketUser | None = None
+            ticket_user: TicketUser|None=None
             user_ticket_id = 0
+
 
             # --------------------------------------------------------------
             # If User is specified, create TicketUser first.
@@ -193,7 +194,7 @@ class TicketApplicationService:
                 text_of_ticket=ticket_dto.text_of_ticket,
                 ticket_user_id=user_ticket_id,
                 user_id=ticket_dto.user_id,
-                contact_user_id=ticket_user.contact_user_id,
+                contact_user_id=ticket_dto.contact_user_id,
                 department_id=ticket_dto.department_id,
                 description=ticket_dto.description,
                 remote_work_recommended=(
@@ -209,8 +210,8 @@ class TicketApplicationService:
             # --------------------------------------------------------------
             # Validate linked pair.
             # --------------------------------------------------------------
-
-            if ticket_user is not None:
+            changed_ticket_user: TicketUser | None = None
+            if ticket_dto.user_id>0:
                 self.ticket_sync_service.ensure_consistent(
                     ticket,
                     ticket_user,
@@ -220,15 +221,16 @@ class TicketApplicationService:
             # Optional automatic acceptance.
             # --------------------------------------------------------------
 
-            changed_ticket_user: TicketUser | None = None
+
 
             if self.actor.has_admin_permission(
                     actor_admin_id=actor.employee_id,
                     permission=AdminPermission.TICKET_ACCEPTED,
             ):
+
                 changed_ticket_user = self.ticket_service.accept(
                     ticket=ticket,
-                    ticket_user=ticket_user,
+                    ticket_user=ticket_user if ticket_user else None,
                     actor_employee_id=actor.employee_id,
                     comment=ticket_dto.comment,
                 )
@@ -1341,8 +1343,8 @@ class TicketApplicationService:
 
         self.uow.commit()
 
-        if saved_ticket is None:
-            saved_ticket = ticket
+        #if saved_ticket is None:
+        #    saved_ticket = ticket
 
         return TicketAssembler.to_dto(
             saved_ticket
