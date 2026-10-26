@@ -218,9 +218,14 @@ class AdminApplicationService:
                 permission=AdminPermission.ADMIN_OPERATION,
             )
 
+            if admin_dto.actor_admin_id == admin_dto.employee_id:
+                raise ApplicationValidateError(f"The actor can't detach themselves ")
+
             admin = self.uow.admins.get(
                 admin_id=admin_dto.employee_id,
             )
+
+
 
             AdminService.detach_account(
                 admin=admin,
@@ -230,6 +235,38 @@ class AdminApplicationService:
                 admin
             )
 
+    def enable_account(self,*,admin_dto: AdminDTO) -> AdminResponseDTO:
+        with self.uow:
+            self.actor.require_actor_admin(
+                actor_admin_id=admin_dto.actor_admin_id,
+                permission=AdminPermission.ADMIN_OPERATION,
+            )
+
+            admin = self.uow.admins.get(
+                admin_id=admin_dto.employee_id,
+            )
+            AdminService.enable_account(admin=admin)
+            return self._save_and_to_dto(
+                admin
+            )
+
+
+    def disable_account(self,*,admin_dto: AdminDTO) -> AdminResponseDTO:
+        with self.uow:
+            self.actor.require_actor_admin(
+                actor_admin_id=admin_dto.actor_admin_id,
+                permission=AdminPermission.ADMIN_OPERATION,
+            )
+            if admin_dto.actor_admin_id == admin_dto.employee_id:
+                raise ApplicationValidateError(f"The actor can't disable the account themselves ")
+
+            admin = self.uow.admins.get(
+                admin_id=admin_dto.employee_id,
+            )
+            AdminService.disable_account(admin=admin)
+            return self._save_and_to_dto(
+                admin
+            )
     def change_password(
         self,
         *,
@@ -379,7 +416,8 @@ class AdminApplicationService:
                 actor_admin_id=admin_dto.actor_admin_id,
                 permission=AdminPermission.ADMIN_OPERATION,
             )
-
+            if admin_dto.actor_admin_id == admin_dto.employee_id:
+                raise ApplicationValidateError(f"The actor can't disable themselves ")
             admin = self.uow.admins.get(
                 admin_id=admin_dto.employee_id,
             )

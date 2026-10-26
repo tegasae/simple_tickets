@@ -197,7 +197,7 @@ def attach_account(
 
     return UserResponse.from_dto(response_dto)
 
-# todo нужен метод включения и выключения аккаунта, не только его отвзязки, скорее на будущее.
+
 @router.delete(
     "/{employee_id}/account",
     response_model=UserResponse,
@@ -216,6 +216,52 @@ def detach_account(
     response_dto = asf.user_service().detach_account(user_dto=dto)
 
     return UserResponse.from_dto(response_dto)
+
+@router.patch(
+    "/{employee_id}/account/enable",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Enable user account",
+    description="Enable user account.",
+)
+def enable_account(
+    employee_id: int,
+    asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
+)->UserResponse:
+    dto = UserDTO(
+        actor_admin_id=actor_admin_id,
+        employee_id=employee_id,
+    )
+
+    response_dto = asf.user_service().enable_account(user_dto=dto)
+
+    return UserResponse.from_dto(response_dto)
+
+
+@router.patch(
+    "/{employee_id}/account/disable",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Disable user account",
+    description="Disable user account.",
+)
+
+
+def disable_account(
+    employee_id: int,
+    asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
+)->UserResponse:
+    dto = UserDTO(
+        actor_admin_id=actor_admin_id,
+        employee_id=employee_id,
+    )
+
+    response_dto = asf.user_service().disable_account(user_dto=dto)
+
+    return UserResponse.from_dto(response_dto)
+
 
 
 @router.patch(

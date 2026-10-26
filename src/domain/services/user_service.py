@@ -100,7 +100,6 @@ class UserService:
         login: str = "",
         password: str = "",
         enabled_account: bool = True,
-        version: int = 0,
         roles: set[int] | None = None,
     ) -> User:
         """
@@ -228,6 +227,23 @@ class UserService:
         )
 
         user.remove_account()
+
+    @staticmethod
+    def enable_account(*,user:User,client:Client)->None:
+        UserService._ensure_user_belongs_to_client(
+            user=user,
+            client=client,
+        )
+
+        UserService._ensure_client_enabled(
+            client=client,
+        )
+        user.account.enable()
+
+    @staticmethod
+    def disable_account(*, user: User) -> None:
+        user.account.disable()
+
 
     @staticmethod
     def change_password(

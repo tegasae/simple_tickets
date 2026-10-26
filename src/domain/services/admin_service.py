@@ -48,7 +48,6 @@ class AdminService:
         login: str = "",
         password: str = "",
         enable_account: bool = True,
-        version: int = 0,
         roles: set[int] | None = None,
         job_title: str = "",
     ) -> Admin:
@@ -155,6 +154,15 @@ class AdminService:
             password=password,
         )
 
+    @staticmethod
+    def enable_account(*,admin:Admin)->None:
+        if admin.enabled:
+            admin.account.enable()
+
+    @staticmethod
+    def disable_account(*, admin: Admin) -> None:
+        admin.account.disable()
+
     # ==================================================================
     # Enable / disable
     # ==================================================================
@@ -165,6 +173,7 @@ class AdminService:
         admin: Admin,
     ) -> None:
         admin.enable()
+
 
     @staticmethod
     def disable(

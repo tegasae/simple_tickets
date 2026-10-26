@@ -239,6 +239,47 @@ class UserApplicationService:
             return self._save_and_to_dto(
                 user
             )
+    def enable_account(
+        self,
+        *,
+        user_dto:UserDTO
+    )->UserResponseDTO:
+        with self.uow:
+            self.actor.require_actor_admin(
+                actor_admin_id=user_dto.actor_admin_id,
+                permission=AdminPermission.USER_OPERATION,
+            )
+
+            user = self.uow.users.get(
+                user_id=user_dto.employee_id,
+            )
+
+            client = self.uow.clients.get(
+                client_id=user.client_id,
+            )
+        UserService.enable_account(user=user, client=client)
+        return self._save_and_to_dto(
+            user
+        )
+
+    def disable_account(self,*,
+        user_dto: UserDTO
+    )->UserResponseDTO:
+        with self.uow:
+            self.actor.require_actor_admin(
+                actor_admin_id=user_dto.actor_admin_id,
+                permission=AdminPermission.USER_OPERATION,
+            )
+
+            user = self.uow.users.get(
+                user_id=user_dto.employee_id,
+            )
+
+
+        UserService.disable_account(user=user)
+        return self._save_and_to_dto(
+            user
+        )
 
     def change_password(
         self,

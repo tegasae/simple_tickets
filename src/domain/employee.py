@@ -102,15 +102,13 @@ class _Employee(HasRoleIds):
 
     def enable(self):
         self.enabled = True
-        if isinstance(self.account,Account):
-            self.account.enable()
+        self.account.enable()
 
 
 
     def disable(self):
         self.enabled = False
-        if isinstance(self.account,Account):
-            self.account.disable()
+        self.account.disable()
 
     def is_empty(self) -> bool:
         return self._is_empty
@@ -133,13 +131,6 @@ class _Employee(HasRoleIds):
         else:
             raise DomainOperationError(f"The employee {self.employee_id} is disabled")
 
-    def disable_account(self):
-        if self.account:
-            self.account.disable()
-
-    def enable_account(self):
-        if self.account:
-            self.account.enable()
 
     def remove_account(self) -> Self:
         if isinstance(self.account,Account):

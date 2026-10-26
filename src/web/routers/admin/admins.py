@@ -44,7 +44,7 @@ router = APIRouter(
 # ---------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------
-# todo нужны методы включения и отключения аккаунта, а не только его отвязки. Скорее на будущее
+
 @router.post(
     "/",
     response_model=AdminResponse,
@@ -218,6 +218,55 @@ def detach_account(
     response_dto = asf.admin_service().detach_account(admin_dto=dto)
 
     return AdminResponse.from_dto(response_dto)
+
+@router.patch(
+    "/{employee_id}/account/enable",
+    response_model=AdminResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Enable account",
+    description="Enable account.",
+)
+def enable_account(
+    employee_id: int,
+    asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
+)->AdminResponse:
+    dto = AdminDTO(
+        actor_admin_id=actor_admin_id,
+        employee_id=employee_id,
+    )
+
+    response_dto = asf.admin_service().enable_account(admin_dto=dto)
+
+    return AdminResponse.from_dto(response_dto)
+
+
+@router.patch(
+    "/{employee_id}/account/disable",
+    response_model=AdminResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Disable account",
+    description="Disable account.",
+)
+
+
+def disable_account(
+    employee_id: int,
+    asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
+)->AdminResponse:
+    dto = AdminDTO(
+        actor_admin_id=actor_admin_id,
+        employee_id=employee_id,
+    )
+
+    response_dto = asf.admin_service().disable_account(admin_dto=dto)
+
+    return AdminResponse.from_dto(response_dto)
+
+
+
+
 
 
 @router.patch(
