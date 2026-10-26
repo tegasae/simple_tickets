@@ -27,18 +27,19 @@ class UserMapper:
 
     @staticmethod
     def row_to_user(row: dict) -> User:
-        user = User.create(
+        user = User.rehydrate(
             employee_id=row["employee_id"],
             client_id=row["client_id"],
             first_name=row["first_name"],
             last_name=row["last_name"],
             email=row["email"],
             phone=row["phone"],
+            date_created=dt_from_sqlite(row["date_created"]),
+            enabled=bool(row["enabled"]),
+            version=int(row["version"] or 0),
         )
 
-        user.enabled = bool(row["enabled"])
-        user.version = int(row["version"] or 0)
-        user.date_created = dt_from_sqlite(row.get("date_created"))
+
         user.account = UserMapper.row_to_account(row)
         return user
 
@@ -81,7 +82,7 @@ class UserMapper:
 
     @staticmethod
     def row_to_account(row: dict) -> Account | NoAccount:
-        acc_id = row.get("account_id")
+        acc_id = row.get("account_id", 0)
         if not acc_id:
             return NoAccount()
 

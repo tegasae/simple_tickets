@@ -92,7 +92,6 @@ class UserService:
     def create(
         *,
         client: Client,
-        employee_id: int,
         first_name: str,
         last_name: str = "",
         email: str = "",
@@ -115,7 +114,6 @@ class UserService:
         )
 
         return User.create(
-            employee_id=employee_id,
             first_name=first_name,
             last_name=last_name,
             email=email,
@@ -124,7 +122,6 @@ class UserService:
             login=login,
             password=password,
             enabled_account=enabled_account,
-            version=version,
             client_id=client.client_id,
             roles=roles or set(),
         )
@@ -359,7 +356,7 @@ class UserService:
 
         changed_tickets: list[Ticket] = []
         changed_ticket_users: list[TicketUser] = []
-
+        # todo пока оставляемя, но потом надо убрать ticket_user.current_status() != status_before: в ticket_sync_service, пусть он выдает список заявок, которые поменялись
         for ticket in tickets_to_suspend:
             ticket.suspend(
                 actor_employee_id=actor_employee_id,

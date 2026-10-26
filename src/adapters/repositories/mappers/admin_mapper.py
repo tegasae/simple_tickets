@@ -41,11 +41,10 @@ class AdminMapper:
             phone=row.get("phone",""),
             department_id=row.get("department_id",0) or 0,
             enabled = bool(row.get("enabled", False)),
-            date_created = parse_date_created(row.get("date_created","")),
+            date_created = dt_from_sqlite(row.get("date_created","")),
+            version=int(row.get("version", 0))
             )
 
-
-        admin.version = int(row.get("version", 0))
 
 
         # Optional account: account_id present => build Account

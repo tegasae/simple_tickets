@@ -48,6 +48,7 @@ class _Employee(HasRoleIds):
             password: str = "",
             enabled_account: bool = True,
             version: int = 0,
+            date_created: datetime|None = None,
             roles: set[int] | list[int] | None = None,
     ) -> dict[str, Any]:
         """
@@ -61,19 +62,22 @@ class _Employee(HasRoleIds):
 
 
         role_ids = set(roles or [])
-
-        return {
-            "employee_id": employee_id,
-            "first_name": Name(first_name),
-            "last_name": Name(last_name) if last_name else Empty(),
-            "email": Email(email) if email else Empty(),
-            "phone": Phone(phone) if phone else Empty(),
-            "enabled": enabled,
-            "date_created": datetime.now(),
-            "account": _Employee._create_account(login=login,password=password,enabled_account=enabled_account),
-            "version": version,
-            "_role_ids": role_ids,
-        }
+        try:
+            c= {
+                "employee_id": employee_id,
+                "first_name": Name(first_name),
+                "last_name": Name(last_name) if last_name else Empty(),
+                "email": Email(email) if email else Empty(),
+                "phone": Phone(phone) if phone else Empty(),
+                "enabled": enabled,
+                "date_created": date_created if date_created else datetime.now(),
+                "account": _Employee._create_account(login=login,password=password,enabled_account=enabled_account),
+                "version": version,
+                "_role_ids": role_ids,
+            }
+        except ValueError as e:
+            raise ItemValidationError(str(e))
+        return c
     def update_base(self, first_name: str="", last_name: str="", email: str="", phone: str="")->Self:
         self.first_name = Name(first_name)
 
@@ -129,6 +133,14 @@ class _Employee(HasRoleIds):
         else:
             raise DomainOperationError(f"The employee {self.employee_id} is disabled")
 
+    def disable_account(self):
+        if self.account:
+            self.account.disable()
+
+    def enable_account(self):
+        if self.account:
+            self.account.enable()
+
     def remove_account(self) -> Self:
         if isinstance(self.account,Account):
             self.account=NoAccount()
@@ -163,11 +175,18 @@ class _Employee(HasRoleIds):
 class User(_Employee):
     client_id: int
 
+    def __post_init__(self):
+        super().__post_init__()
+        if self.client_id and int(self.client_id) and self.client_id <= 0:
+            raise ItemValidationError("Client ID must be great 0")
+
+
+
+
     @classmethod
     def create(
             cls,
             *,
-            employee_id: int,
             first_name: str,
             last_name: str ="",
             email: str ="",
@@ -176,16 +195,44 @@ class User(_Employee):
             login: str ="",
             password: str ="",
             enabled_account: bool = True,
-            version: int = 0,
             client_id:int,
             roles: set[int] | list[int] | None = None
     ) -> Self:
         """Create a new User with client association."""
-        base_data = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
-                                     phone=phone, enabled=enabled, login=login,password=password,enabled_account=enabled_account,version=version,roles=roles)
+
+
+
+        base_data = cls.create_base(employee_id=0, first_name=first_name, last_name=last_name, email=email,
+                                     phone=phone, enabled=enabled, login=login,password=password,enabled_account=enabled_account,version=0,roles=roles)
 
         return cls(**base_data, client_id=client_id)
 
+    @classmethod
+    def rehydrate(
+            cls,
+            *,
+            employee_id: int,
+            first_name: str,
+            last_name: str = "",
+            email: str = "",
+            phone: str = "",
+            enabled: bool = True,
+            login: str = "",
+            password: str = "",
+            enabled_account: bool = True,
+            version: int = 0,
+            client_id: int,
+            roles: set[int] | list[int] | None = None,
+            date_created: datetime|None,
+    ) -> Self:
+        """Create the User with client association."""
+
+
+        base_data = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
+                                    phone=phone, enabled=enabled, login=login, password=password,
+                                    enabled_account=enabled_account, version=version, roles=roles,date_created=date_created)
+
+        return cls(**base_data, client_id=client_id)
 
     def update(
             self,
@@ -214,7 +261,6 @@ class Admin(_Employee):
     @classmethod
     def create(
             cls,
-            employee_id: int,
             first_name: str,
             last_name: str ="",
             email: str ="",
@@ -223,19 +269,17 @@ class Admin(_Employee):
             login:str ="",
             password: str ="",
             enable_account: bool = True,
-            version: int = 0,
             roles: set[int] | list[int] | None = None,
             job_title:str="",
             department_id:int=0
     ) -> Self:
         """Create a new Admin."""
-        try:
-            base_data = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name, email=email,
-                                        phone=phone, enabled=enabled, login=login, password=password,
-                                        enabled_account=enable_account, version=version, roles=roles)
 
-        except ValueError as e:
-            raise ItemValidationError(str(e))
+        base_data = cls.create_base(employee_id=0, first_name=first_name, last_name=last_name, email=email,
+                                    phone=phone, enabled=enabled, login=login, password=password,
+                                    enabled_account=enable_account, version=0, roles=roles)
+
+
 
         return cls(**base_data, job_title=job_title,department_id=department_id)
 
@@ -245,7 +289,7 @@ class Admin(_Employee):
             cls,
             employee_id: int,
             first_name: str,
-            date_created: datetime,
+            date_created: datetime|None,
             last_name: str = "",
             email: str = "",
             phone: str = "",
@@ -257,18 +301,18 @@ class Admin(_Employee):
             job_title: str = "",
             department_id: int = 0,
     ) -> Self:
-        """Create a new Admin."""
-        try:
-            base_data = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name,
-                                        email=email,
-                                        phone=phone, enabled=enabled, login=login, password=password,
-                                        version=version, roles=roles)
+        """Create the Admin."""
 
-        except ValueError as e:
-            raise ItemValidationError(str(e))
+        base_data = cls.create_base(employee_id=employee_id, first_name=first_name, last_name=last_name,
+                                    email=email,
+                                    phone=phone, enabled=enabled, login=login, password=password,
+                                    version=version, roles=roles,date_created=date_created)
+
+
+
 
         admin=cls(**base_data, job_title=job_title, department_id=department_id)
-        admin.date_created=date_created
+
         return admin
 
     def update(self, job_title:str="", first_name: str="", last_name: str="", email: str="", phone: str="",department_id:int=0)->Self:

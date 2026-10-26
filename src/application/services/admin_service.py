@@ -92,7 +92,6 @@ class AdminApplicationService:
 
             admin = AdminService.create(
                 department=department,
-                employee_id=0,
                 job_title=admin_dto.job_title,
                 first_name=admin_dto.first_name,
                 last_name=admin_dto.last_name,

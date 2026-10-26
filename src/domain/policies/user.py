@@ -11,7 +11,7 @@ class UserPolicy:
 
         if (not isinstance(user,User) or not isinstance(user.account,Account) or not user.enabled
                 or not user.account.enabled or not user.account.verify_password(plain_password=password)
-        or not isinstance(client,Client) or not client.enabled):
+        or not isinstance(client,Client) or not client.enabled or user.client_id!=client.client_id):
             raise DomainOperationError("User cannot login")
 
 
@@ -19,5 +19,5 @@ class UserPolicy:
     def ensure_login_is_still_valid(user: User,client:Client) -> None:
         if (not isinstance(user,User) or not isinstance(user.account, Account) or not user.enabled
                 or not user.account.enabled or
-        not isinstance(client,Client) or not client.enabled):
+        not isinstance(client,Client) or not client.enabled or user.client_id!=client.client_id):
             raise DomainOperationError("User is not valid")

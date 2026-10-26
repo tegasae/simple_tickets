@@ -197,7 +197,7 @@ def attach_account(
 
     return UserResponse.from_dto(response_dto)
 
-
+# todo нужен метод включения и выключения аккаунта, не только его отвзязки, скорее на будущее.
 @router.delete(
     "/{employee_id}/account",
     response_model=UserResponse,

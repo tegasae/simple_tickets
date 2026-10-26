@@ -40,7 +40,6 @@ class AdminService:
     def create(
         *,
         department: Department,
-        employee_id: int,
         first_name: str,
         last_name: str = "",
         email: str = "",
@@ -64,7 +63,6 @@ class AdminService:
         )
 
         return Admin.create(
-            employee_id=employee_id,
             first_name=first_name,
             last_name=last_name,
             email=email,
@@ -73,7 +71,6 @@ class AdminService:
             login=login,
             password=password,
             enable_account=enable_account,
-            version=version,
             roles=roles or set(),
             job_title=job_title,
             department_id=department.department_id,
