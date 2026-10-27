@@ -238,11 +238,11 @@ class UserService:
         UserService._ensure_client_enabled(
             client=client,
         )
-        user.account.enable()
+        user.enable_account()
 
     @staticmethod
     def disable_account(*, user: User) -> None:
-        user.account.disable()
+        user.disable_account()
 
 
     @staticmethod

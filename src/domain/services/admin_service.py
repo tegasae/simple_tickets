@@ -156,12 +156,11 @@ class AdminService:
 
     @staticmethod
     def enable_account(*,admin:Admin)->None:
-        if admin.enabled:
-            admin.account.enable()
+        admin.enable_account()
 
     @staticmethod
     def disable_account(*, admin: Admin) -> None:
-        admin.account.disable()
+        admin.disable_account()
 
     # ==================================================================
     # Enable / disable

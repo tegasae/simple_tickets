@@ -133,9 +133,19 @@ class _Employee(HasRoleIds):
 
 
     def remove_account(self) -> Self:
-        if isinstance(self.account,Account):
-            self.account=NoAccount()
+        self.account = NoAccount()
+
+    def enable_account(self)->Self:
+        if self.enable():
+            self.account.enable()
+        else:
+            raise DomainOperationError(f"The employee id {self.employee_id} is disabled")
         return self
+
+    def disable_account(self)->Self:
+        self.account.disable()
+        return self
+
 
     def change_password(self, password:str):
         if isinstance(self.account,Account):
