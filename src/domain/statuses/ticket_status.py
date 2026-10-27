@@ -32,11 +32,12 @@ class TicketStatus(StrEnum):
     -----
     CREATED
         Ticket was created directly by an Admin.
-
+    CREATED_FROM_USER_REQUEST Пользователь сделал запрос на заявку, по телефону или передал
     CREATED_FROM_TICKET_USER
         Ticket was created from a TicketUser request.
         The action is attributed to the User.
-
+    #CREATED_FROM_SUSPENDED_TICKET
+    #    A ticket was created when the ticket was placed in SUSPENDED status because a client or user was disabled.
     REJECTED
         Ticket was rejected by an Admin.
         A comment explaining the reason is required.
@@ -95,7 +96,9 @@ class TicketStatus(StrEnum):
     """
 
     CREATED = "created"
+    CREATED_FROM_REQUEST_USER = "created_from_ticket_user"
     CREATED_FROM_TICKET_USER = "created_from_ticket_user"
+
 
     REJECTED = "rejected"
     ACCEPTED = "accepted"
@@ -152,6 +155,8 @@ class TicketStatusRule:
         status-record payload validation.
 
      requires_work_mode True if kind of work has to set
+
+
     """
 
     user_action: bool = False
@@ -168,6 +173,10 @@ TICKET_STATUS_RULES: Final[dict[TicketStatus, TicketStatusRule]] = {
     TicketStatus.CREATED_FROM_TICKET_USER: TicketStatusRule(
         user_action=True,
         can_change_data=True
+    ),
+
+    TicketStatus.CREATED_FROM_REQUEST_USER: TicketStatusRule(
+        can_change_data=True,
     ),
 
     TicketStatus.REJECTED: TicketStatusRule(

@@ -240,6 +240,7 @@ class TicketStatusRecord:
         self._validate_comment()
         self._validate_executor()
         self._validate_work_payload()
+        self._validate_work_mode()
 
     @property
     def rule(self) -> TicketStatusRule:
@@ -331,7 +332,7 @@ class TicketStatusRecord:
 
         if (
             self.rule.requires_comment
-            and isinstance(self.comment, Empty)
+            and not isinstance(self.comment, CommonComment)
         ):
             raise ItemValidationError(
                 f"{self.status} requires a comment"
@@ -361,6 +362,7 @@ class TicketStatusRecord:
             raise ItemValidationError(
                 f"{self.status} does not allow executor ID"
             )
+
 
     # ==================================================================
     # Work payload
@@ -409,7 +411,7 @@ class TicketStatusRecord:
 
             return
 
-        self._validate_work_mode()
+
         self._validate_work_time()
 
     def _validate_work_mode(self) -> None:

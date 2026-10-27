@@ -23,7 +23,7 @@ TICKET_TO_TICKET_USER_STATUS: Final[
     #
     # Initial state
     #
-    TicketStatus.CREATED:
+    TicketStatus.CREATED_FROM_REQUEST_USER:
         TicketUserStatus.CREATED,
 
     TicketStatus.CREATED_FROM_TICKET_USER:

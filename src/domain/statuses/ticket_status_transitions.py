@@ -17,15 +17,21 @@ TICKET_TRANSITIONS: Final[
     TicketStatus.CREATED: frozenset({
         TicketStatus.ACCEPTED,
         TicketStatus.REJECTED,
-        TicketStatus.CANCELLED_BY_USER,
-        TicketStatus.SUSPENDED,
+        TicketStatus.SUSPENDED
     }),
 
     TicketStatus.CREATED_FROM_TICKET_USER: frozenset({
         TicketStatus.ACCEPTED,
         TicketStatus.REJECTED,
         TicketStatus.CANCELLED_BY_USER,
-        TicketStatus.SUSPENDED,
+        TicketStatus.SUSPENDED
+    }),
+
+    TicketStatus.CREATED_FROM_REQUEST_USER: frozenset({
+        TicketStatus.ACCEPTED,
+        TicketStatus.REJECTED,
+        TicketStatus.CANCELLED_BY_USER,
+        TicketStatus.SUSPENDED
     }),
 
     TicketStatus.REJECTED: frozenset(),
@@ -44,12 +50,6 @@ TICKET_TRANSITIONS: Final[
         TicketStatus.CANCELLED,
     }),
 
-    TicketStatus.SUSPENDED: frozenset({
-        TicketStatus.ACCEPTED,
-        TicketStatus.DEFERRED,
-        TicketStatus.CANCELLED,
-        TicketStatus.SUSPENDED
-    }),
 
     TicketStatus.ASSIGNED: frozenset({
         TicketStatus.ACCEPTED,
@@ -90,7 +90,19 @@ TICKET_TRANSITIONS: Final[
     TicketStatus.CANCELLED: frozenset(),
 
     TicketStatus.CANCELLED_BY_USER: frozenset(),
+    TicketStatus.SUSPENDED: frozenset({
+    }),
+
 }
+
+FIRST_TICKET_STATUSES: Final[
+    frozenset[TicketStatus]
+] = frozenset({
+    TicketStatus.CREATED,
+    TicketStatus.CREATED_FROM_TICKET_USER,
+    TicketStatus.CREATED_FROM_REQUEST_USER
+})
+
 
 
 TERMINAL_TICKET_STATUSES: Final[
@@ -100,16 +112,11 @@ TERMINAL_TICKET_STATUSES: Final[
     TicketStatus.EXECUTED,
     TicketStatus.CANCELLED,
     TicketStatus.CANCELLED_BY_USER,
-    TicketStatus.CONFIRMED_BY_USER
+    TicketStatus.CONFIRMED_BY_USER,
+    TicketStatus.SUSPENDED
 })
 
 
-FIRST_TICKET_STATUSES: Final[
-    frozenset[TicketStatus]
-] = frozenset({
-    TicketStatus.CREATED,
-    TicketStatus.CREATED_FROM_TICKET_USER,
-})
 
 
 
@@ -146,6 +153,11 @@ def _validate_ticket_transitions() -> None:
                 )
             continue
 
+        if status in FIRST_TICKET_STATUSES and status in TERMINAL_TICKET_STATUSES:
+            raise RuntimeError(
+                f"Initial Ticket status {status} cannot be terminal"
+            )
+
         if not next_statuses:
             raise RuntimeError(
                 f"Non-terminal Ticket status {status} "
@@ -165,21 +177,7 @@ def _validate_ticket_transitions() -> None:
             )
 
 
-def _validate_first_ticket_statuses() -> None:
-    """
-    Validate initial Ticket statuses.
-
-    Initial statuses must be valid TicketStatus values and must not
-    be terminal.
-    """
-
-    for status in FIRST_TICKET_STATUSES:
-        if status in TERMINAL_TICKET_STATUSES:
-            raise RuntimeError(
-                f"Initial Ticket status {status} cannot be terminal"
-            )
 
 
 
 _validate_ticket_transitions()
-_validate_first_ticket_statuses()
