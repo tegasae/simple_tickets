@@ -96,7 +96,7 @@ class TicketStatus(StrEnum):
     """
 
     CREATED = "created"
-    CREATED_FROM_REQUEST_USER = "created_from_ticket_user"
+    CREATED_FROM_REQUEST_USER = "created_from_request_user"
     CREATED_FROM_TICKET_USER = "created_from_ticket_user"
 
 
