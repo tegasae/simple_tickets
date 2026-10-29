@@ -101,14 +101,12 @@ class TicketStatusRecord:
     """
 
     status: TicketStatus
-    actor_employee_id: int
+    actor_employee_id: int =field(metadata={"min": 0})
 
-    status_id: int = 0
-    executor_id: int = 0
+    status_id: int = field(default=0, metadata={"min": 0})
+    executor_id: int = field(default=0, metadata={"min": 0})
 
-    comment: CommonComment | Empty = field(
-        default_factory=Empty,
-    )
+    comment: CommonComment | Empty = field(default_factory=Empty)
 
     actual_started_at: datetime | None = None
     actual_finished_at: datetime | None = None
@@ -125,7 +123,7 @@ class TicketStatusRecord:
 
     def __post_init__(self) -> None:
         self._validate_types()
-        self._validate_identity()
+        self._validate_ranges()
         self._validate_datetimes()
         self._validate_work_data()
 
@@ -166,24 +164,19 @@ class TicketStatusRecord:
     # Identity
     # ==============================================================
 
-    def _validate_identity(self) -> None:
-        """
-        All identifiers must be non-negative.
+    def _validate_ranges(self) -> None:
+        for f in fields(self):
+            value = getattr(self, f.name)
 
-        Requirements for positive actor_employee_id or executor_id
-        belong to Ticket.
-        """
-
-        for name in (
-            "status_id",
-            "actor_employee_id",
-            "executor_id",
-        ):
-            if getattr(self, name) < 0:
+            if "min" in f.metadata and value < f.metadata["min"]:
                 raise ItemValidationError(
-                    f"{name} cannot be negative"
+                    f"{f.name} must be >= {f.metadata['min']}"
                 )
 
+            if "max" in f.metadata and value > f.metadata["max"]:
+                raise ItemValidationError(
+                    f"{f.name} must be <= {f.metadata['max']}"
+                )
     # ==============================================================
     # Datetimes
     # ==============================================================
