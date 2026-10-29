@@ -1,6 +1,4 @@
-
-
-from src.adapters.repositories.mappers.auxiliary import dt_from_sqlite
+from src.domain.datetime_check import datetime_from_db
 from src.domain.account import Account, NoAccount
 from src.domain.employee import User
 
@@ -34,7 +32,7 @@ class UserMapper:
             last_name=row["last_name"],
             email=row["email"],
             phone=row["phone"],
-            date_created=dt_from_sqlite(row["date_created"]),
+            date_created=datetime_from_db(row["date_created"]),
             enabled=bool(row["enabled"]),
             version=int(row["version"] or 0),
         )
@@ -54,7 +52,7 @@ class UserMapper:
             "enabled": int(user.enabled),
             "version": int(user.version),
             # you said you prefer INTEGER for date_created:
-            "date_created":  dt_from_sqlite(user.date_created),
+            "date_created":  datetime_from_db(user.date_created),
             # required by EmployeeGateway.UPDATE
             "is_admin": 0,
         }
@@ -77,7 +75,7 @@ class UserMapper:
             "login": str(user.account.login),
             "password": user.account.password.value,  # hash string
             "enabled": int(user.account.enabled),
-            "date_created": dt_from_sqlite(user.account.date_created),
+            "date_created": datetime_from_db(user.account.date_created),
         }
 
     @staticmethod
@@ -92,5 +90,5 @@ class UserMapper:
             login=str(row.get("login") or ""),
             password_hash=str(row.get("password") or ""),
             enabled=bool(row.get("account_enabled", 1)),
-            date_created=dt_from_sqlite(row.get("account_date_created")),
+            date_created=datetime_from_db(row.get("account_date_created")),
         )

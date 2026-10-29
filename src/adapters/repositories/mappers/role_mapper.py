@@ -1,7 +1,7 @@
 # src/adapters/repositories/mappers/role_mapper.py
 from collections.abc import Iterable
 
-from src.adapters.repositories.mappers.auxiliary import dt_from_sqlite_not_none
+from src.domain.datetime_check import dt_from_sqlite_not_none
 from src.domain.rbac.role_new import Role
 from src.domain.rbac.typevar import P
 

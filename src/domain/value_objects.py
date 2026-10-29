@@ -215,7 +215,7 @@ class Description(ValueObject[str]):
     """
     value: str
     MIN_LENGTH: ClassVar[int] = 2
-    MAX_LENGTH: ClassVar[int] = 1000
+    MAX_LENGTH: ClassVar[int] = 4000
 
     def _validate(self) -> str:
         """Validate description length and content.
@@ -236,6 +236,28 @@ class Description(ValueObject[str]):
             raise ValueError(f"Description cannot exceed {self.MAX_LENGTH} characters")
 
         return new_value
+
+
+@dataclass(frozen=True, order=True)
+class TextOfTicket(ValueObject[str]):
+
+    value: str
+    MIN_LENGTH: ClassVar[int] = 2
+    MAX_LENGTH: ClassVar[int] = 4000
+
+    def _validate(self) -> str:
+
+        new_value = self.value.strip()
+
+
+        if len(new_value) < self.MIN_LENGTH:
+            raise ValueError(f"TextOfTicket must be at least {self.MIN_LENGTH} characters")
+
+        if len(new_value) > self.MAX_LENGTH:
+            raise ValueError(f"TextOfTicket cannot exceed {self.MAX_LENGTH} characters")
+
+        return new_value
+
 
 
 @dataclass(frozen=True, order=True)

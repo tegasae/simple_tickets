@@ -5,7 +5,8 @@ from datetime import UTC, datetime, timedelta, timezone
 import pytest
 
 from src.adapters.repositories.mappers.admin_mapper import AdminMapper
-from src.adapters.repositories.mappers.auxiliary import datetime_to_db, dt_from_sqlite, dt_to_sqlite_iso
+from src.adapters.repositories.mappers.auxiliary import dt_to_sqlite_iso
+from src.domain.datetime_check import datetime_to_db, datetime_from_db
 from src.adapters.repositories.mappers.client_mapper import ClientMapper
 from src.adapters.repositories.mappers.department_mapper import DepartmentMapper
 from src.adapters.repositories.mappers.role_mapper import RoleMapper
@@ -42,20 +43,20 @@ BASE = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
     ],
 )
 def test_dt_from_sqlite_supported_values(value, expected) -> None:
-    assert dt_from_sqlite(value) == expected
+    assert datetime_from_db(value) == expected
 
 
 def test_dt_from_sqlite_normalizes_naive_and_non_utc() -> None:
     naive = datetime(2025, 1, 1, 12, 0)
-    assert dt_from_sqlite(naive).tzinfo is UTC
+    assert datetime_from_db(naive).tzinfo is UTC
     plus3 = datetime(2025, 1, 1, 15, 0, tzinfo=timezone(timedelta(hours=3)))
-    assert dt_from_sqlite(plus3) == BASE
+    assert datetime_from_db(plus3) == BASE
 
 
 @pytest.mark.parametrize("value,exc", [("bad-date", ValueError), (1.2, TypeError)])
 def test_dt_from_sqlite_rejects_invalid(value, exc) -> None:
     with pytest.raises(exc):
-        dt_from_sqlite(value)
+        datetime_from_db(value)
 
 
 def test_datetime_to_db_none_and_utc_normalization() -> None:

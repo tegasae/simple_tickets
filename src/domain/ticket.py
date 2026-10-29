@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Self
 
+from src.domain.datetime_check import validate_utc_datetime
 from src.domain.exceptions import (
     DomainOperationError,
     ItemValidationError,
@@ -15,7 +16,7 @@ from src.domain.statuses.ticket_status_transitions import (
     TICKET_TRANSITIONS,
 )
 from src.domain.ticket_components import Comment
-from src.domain.value_objects import CommonComment, Empty
+from src.domain.value_objects import CommonComment, Empty, Description, TextOfTicket
 
 
 class TicketUrgency(StrEnum):
@@ -247,7 +248,11 @@ class Ticket:
     #
     # text_of_ticket задаётся при создании / rehydrate и после создания
     # не изменяется.
-    text_of_ticket: str
+    text_of_ticket: TextOfTicket
+
+
+    # Editable detailed description.
+    description: Description|Empty = field(default_factory=Empty)
 
     # User related to the Ticket.
     #
@@ -297,8 +302,6 @@ class Ticket:
     # > 0 for a Ticket created from TicketUser.
     user_ticket_id: int = 0
 
-    # Editable detailed description.
-    description: str = ""
 
     # ------------------------------------------------------------------
     # Derived state.
@@ -328,8 +331,7 @@ class Ticket:
         create(), create_from_ticket_user() and rehydrate().
         """
 
-        self.text_of_ticket = self.text_of_ticket.strip()
-        self.description = self.description.strip()
+
 
         if not self.statuses:
             raise DomainOperationError(
@@ -342,7 +344,6 @@ class Ticket:
             )
 
         self._validate_identity()
-        self._validate_content()
         self._validate_datetimes()
         self._validate_creation_origin()
 
@@ -967,7 +968,7 @@ class Ticket:
                 "Comment cannot be empty",
             )
 
-        self._require_utc_datetime(
+        validate_utc_datetime(
             comment.date_created,
             field_name="comment.date_created",
         )
@@ -2057,15 +2058,6 @@ class Ticket:
                 "Ticket user_ticket_id cannot be negative",
             )
 
-    def _validate_content(self) -> None:
-        """
-        Validate immutable Ticket content.
-        """
-
-        if not self.text_of_ticket:
-            raise DomainOperationError(
-                "Ticket text_of_ticket cannot be empty",
-            )
 
     def _validate_datetimes(self) -> None:
         """
@@ -2080,28 +2072,17 @@ class Ticket:
         also checked because they form part of Ticket history.
         """
 
-        self._require_utc_datetime(
+        validate_utc_datetime(
             self.date_created,
             field_name="date_created",
         )
 
         if self.planned_at is not None:
-            self._require_utc_datetime(
+            validate_utc_datetime(
                 self.planned_at,
                 field_name="planned_at",
             )
 
-        for record in self.statuses:
-            self._require_utc_datetime(
-                record.date_created,
-                field_name="status.date_created",
-            )
-
-        for comment in self.comments:
-            self._require_utc_datetime(
-                comment.date_created,
-                field_name="comment.date_created",
-            )
 
     def _validate_creation_origin(self) -> None:
         """
@@ -2143,37 +2124,6 @@ class Ticket:
                     "must have user_id"
                 )
 
-    @staticmethod
-    def _require_utc_datetime(
-        value: datetime,
-        *,
-        field_name: str,
-    ) -> None:
-        """
-        Require an explicitly UTC datetime.
-
-        The domain intentionally does not normalize timezones.
-
-        Valid:
-
-            datetime(..., tzinfo=UTC)
-
-        Invalid:
-
-            datetime(...)
-
-        Invalid:
-
-            datetime(..., tzinfo=<non-UTC timezone>)
-
-        External layers are responsible for converting values to UTC before
-        passing them into domain objects.
-        """
-
-        if value.tzinfo is not UTC:
-            raise DomainOperationError(
-                f"Ticket {field_name} must use UTC timezone"
-            )
 
     @classmethod
     def _validate_new_planned_at(
@@ -2194,12 +2144,12 @@ class Ticket:
         is invalid.
         """
 
-        cls._require_utc_datetime(
+        validate_utc_datetime(
             planned_at,
             field_name="planned_at",
         )
 
-        cls._require_utc_datetime(
+        validate_utc_datetime(
             reference_time,
             field_name="planning reference_time",
         )

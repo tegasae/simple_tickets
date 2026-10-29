@@ -9,8 +9,7 @@ from datetime import datetime, timezone
 
 from typing import TypeVar
 
-
-
+from src.domain.datetime_check import validate_utc_datetime
 from src.domain.value_objects import CommonComment
 
 S = TypeVar("S")  # status enum type
@@ -26,8 +25,16 @@ class Comment:
     comment: CommonComment
     date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
+
+    def __post_init__(self):
+        validate_utc_datetime(
+            value=self.date_created,
+        field_name="date_created",
+        )
+
     def is_new(self) -> bool:
         return not bool(self.comment_id)
+
 
 
 

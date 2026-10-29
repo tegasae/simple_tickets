@@ -1,8 +1,7 @@
 # src/adapters/repositories/mappers/ticket_user_mapper.py
 
 
-
-from src.adapters.repositories.mappers.auxiliary import datetime_to_db, dt_from_sqlite
+from src.domain.datetime_check import datetime_to_db, datetime_from_db
 from src.domain.statuses.ticket_user_status_record import TicketUserStatusRecord
 from src.domain.ticket_components import Comment
 from src.domain.ticket_user import (
@@ -55,7 +54,7 @@ class TicketUserMapper:
             contact_user_id=row["contact_user_id"] or 0,
             text_of_ticket=row["text_of_ticket"],
             description=row["description"] or "",
-            date_created=dt_from_sqlite(
+            date_created=datetime_from_db(
                 row["date_created"],
             ),
             version=row["version"] or 0,
@@ -72,7 +71,7 @@ class TicketUserMapper:
             actor_employee_id=row["actor_employee_id"],
             status=TicketUserStatus(row["status"]),
             comment=row["comment"] or "",
-            date_created=dt_from_sqlite(
+            date_created=datetime_from_db(
                 row["date_created"],
             ),
         )
@@ -85,7 +84,7 @@ class TicketUserMapper:
             comment_id=row["comment_id"],
             employee_id=row["employee_id"],
             comment=row["comment"],
-            date_created=dt_from_sqlite(
+            date_created=datetime_from_db(
                 row["date_created"],
             ),
         )

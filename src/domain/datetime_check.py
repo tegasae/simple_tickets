@@ -1,6 +1,17 @@
-from datetime import datetime
+from datetime import datetime, UTC, timezone
 
 from src.domain.exceptions import ItemValidationError
+
+
+def validate_utc_datetime(
+        value: datetime,
+        *,
+        field_name: str,
+) -> None:
+    if value.tzinfo is not UTC:
+        raise ItemValidationError(
+            f"{field_name} must use UTC timezone"
+        )
 
 
 def datetime_to_db(value: datetime | None) -> str | None:
@@ -18,10 +29,7 @@ def datetime_to_db(value: datetime | None) -> str | None:
     return value.astimezone(timezone.utc).isoformat()
 
 
-from datetime import datetime, timezone
-
-
-def dt_from_sqlite(
+def datetime_from_db(
     value: str | int | datetime | None,
 ) -> datetime|None:
     """
@@ -83,10 +91,12 @@ def dt_from_sqlite(
     return dt.astimezone(
         timezone.utc,
     )
+
+
 def dt_from_sqlite_not_none(
     value: str | int | datetime | None,
 ) -> datetime:
-    dt=dt_from_sqlite(value)
+    dt=datetime_from_db(value)
     if dt is None:
         raise ItemValidationError(f"Invalid SQLite datetime value: {value!r}")
     return dt
@@ -103,4 +113,3 @@ def parse_date_created(value) -> datetime:
         return datetime.fromisoformat(value)
     except ValueError:
         return datetime.now()
-

@@ -3,6 +3,7 @@ from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime, timedelta
 from typing import get_type_hints
 
+from src.domain.datetime_check import validate_utc_datetime
 from src.domain.exceptions import ItemValidationError
 from src.domain.statuses.ticket_status import TicketStatus, TicketStatusRule, TICKET_STATUS_RULES
 from src.domain.value_objects import CommonComment, Empty
@@ -193,33 +194,23 @@ class TicketStatusRecord:
         Require UTC for all present datetime values.
         """
 
-        self._validate_utc_datetime(
+        validate_utc_datetime(
             self.date_created,
             field_name="date_created",
         )
 
         if self.actual_started_at is not None:
-            self._validate_utc_datetime(
+            validate_utc_datetime(
                 self.actual_started_at,
                 field_name="actual_started_at",
             )
 
         if self.actual_finished_at is not None:
-            self._validate_utc_datetime(
+            validate_utc_datetime(
                 self.actual_finished_at,
                 field_name="actual_finished_at",
             )
 
-    @staticmethod
-    def _validate_utc_datetime(
-        value: datetime,
-        *,
-        field_name: str,
-    ) -> None:
-        if value.tzinfo is not UTC:
-            raise ItemValidationError(
-                f"{field_name} must use UTC timezone"
-            )
 
     # ==============================================================
     # Work data

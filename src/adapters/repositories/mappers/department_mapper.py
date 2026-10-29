@@ -1,7 +1,7 @@
 # src/adapters/repositories/mappers/department_mapper.py
 
 
-from src.adapters.repositories.mappers.auxiliary import dt_from_sqlite_not_none
+from src.domain.datetime_check import dt_from_sqlite_not_none
 from src.domain.department import Department
 
 
