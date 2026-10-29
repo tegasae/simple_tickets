@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import get_type_hints
 
 from src.domain.exceptions import ItemValidationError
-from src.domain.statuses.ticket_status import TicketStatus
+from src.domain.statuses.ticket_status import TicketStatus, TicketStatusRule, TICKET_STATUS_RULES
 from src.domain.value_objects import CommonComment, Empty
 
 
@@ -127,8 +127,15 @@ class TicketStatusRecord:
         self._validate_datetimes()
         self._validate_work_data()
 
+
     def is_new(self) -> bool:
         return self.status_id == 0
+
+
+    @property
+    def rule(self)->TicketStatusRule:
+        return TICKET_STATUS_RULES[self.status]
+
 
     # ==============================================================
     # Types

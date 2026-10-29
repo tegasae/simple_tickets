@@ -814,6 +814,7 @@ class Ticket:
         """
 
         if not self.current_status_record().rule.has_executor:
+
             return 0
 
         for record in reversed(self.statuses):
