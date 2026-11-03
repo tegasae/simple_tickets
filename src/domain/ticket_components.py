@@ -6,6 +6,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import StrEnum
 
 from typing import TypeVar
 
@@ -48,3 +49,20 @@ class CommentThread:
         self.comments.append(comment)
 
 
+class TicketUrgency(StrEnum):
+    """
+    Urgency of an internal Ticket.
+
+    NORMAL:
+        Normal request.
+
+    URGENT:
+        Request requiring increased priority.
+
+    MAINTENANCE:
+        Maintenance-related request.
+    """
+
+    NORMAL = "normal"
+    URGENT = "urgent"
+    MAINTENANCE = "maintenance"

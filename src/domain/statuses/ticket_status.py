@@ -22,6 +22,60 @@ from enum import StrEnum
 from typing import Final
 
 
+@dataclass(frozen=True, slots=True)
+class TicketStatusRule:
+    """
+    Intrinsic rules of a Ticket status.
+
+    These rules describe the payload and origin of a status itself.
+    They do not describe allowed transitions between statuses.
+
+    Attributes
+    ----------
+    user_action:
+        ``True`` if the status represents an action performed by a User.
+
+        ``False`` means that the action is performed by an Admin.
+
+        Admin is intentionally the default because most Ticket workflow
+        actions are administrative actions.
+
+    requires_comment:
+        ``True`` if the status record must contain a non-empty comment.
+
+    requires_executor:
+        ``True`` if the status record must contain a valid ``executor_id``.
+
+    allows_work_data:
+        ``True`` if the status record may contain actual work information:
+
+        - ``actual_started_at``;
+        - ``actual_finished_at``;
+        - ``duration``.
+
+        This flag only declares that such data is allowed for the status.
+        Validation of valid combinations of these fields belongs to the
+        status-record payload validation.
+
+     requires_work_mode True if kind of work has to set
+
+    requires_user_id Должен быть установлен пользователь от которог заявка
+
+
+
+    """
+
+    user_action: bool = False
+    requires_comment: bool = False
+    requires_executor: bool = False
+    allows_work_data: bool = False
+    requires_work_mode:bool = False
+    can_change_data: bool = False
+    has_executor:bool=False
+    requires_user_id:bool=False
+    requires_ticket_user_id:bool=False
+
+
 class TicketStatus(StrEnum):
     """
     Status of a Ticket.
@@ -118,65 +172,26 @@ class TicketStatus(StrEnum):
     CANCELLED = "cancelled"
     CANCELLED_BY_USER = "cancelled_by_user"
 
-
-@dataclass(frozen=True, slots=True)
-class TicketStatusRule:
-    """
-    Intrinsic rules of a Ticket status.
-
-    These rules describe the payload and origin of a status itself.
-    They do not describe allowed transitions between statuses.
-
-    Attributes
-    ----------
-    user_action:
-        ``True`` if the status represents an action performed by a User.
-
-        ``False`` means that the action is performed by an Admin.
-
-        Admin is intentionally the default because most Ticket workflow
-        actions are administrative actions.
-
-    requires_comment:
-        ``True`` if the status record must contain a non-empty comment.
-
-    requires_executor:
-        ``True`` if the status record must contain a valid ``executor_id``.
-
-    allows_work_data:
-        ``True`` if the status record may contain actual work information:
-
-        - ``actual_started_at``;
-        - ``actual_finished_at``;
-        - ``duration``.
-
-        This flag only declares that such data is allowed for the status.
-        Validation of valid combinations of these fields belongs to the
-        status-record payload validation.
-
-     requires_work_mode True if kind of work has to set
+    @property
+    def rule(self)->TicketStatusRule:
+        return TICKET_STATUS_RULES[self]
 
 
-    """
 
-    user_action: bool = False
-    requires_comment: bool = False
-    requires_executor: bool = False
-    allows_work_data: bool = False
-    requires_work_mode:bool = False
-    can_change_data: bool = False
-    has_executor:bool=False
 
 TICKET_STATUS_RULES: Final[dict[TicketStatus, TicketStatusRule]] = {
     TicketStatus.CREATED: TicketStatusRule(can_change_data=True),
 
     TicketStatus.CREATED_FROM_TICKET_USER: TicketStatusRule(
         user_action=True,
-        can_change_data=True
+        can_change_data=True,
+        requires_user_id=True,
+        requires_ticket_user_id=True
     ),
 
     TicketStatus.CREATED_FROM_REQUEST_USER: TicketStatusRule(
         can_change_data=True,
+        requires_user_id=True
     ),
 
     TicketStatus.REJECTED: TicketStatusRule(

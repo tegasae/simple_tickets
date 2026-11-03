@@ -13,7 +13,7 @@ from src.application.dto.ticket_dto import (
 from src.application.services.ticket_user_service import TicketUserApplicationService
 
 from src.domain.exceptions import DomainError
-from src.domain.ticket import TicketUrgency
+from src.domain.ticket_components import TicketUrgency
 from src.web.dependencies.auth import (
     get_current_user,
     get_employee_id_from_request,

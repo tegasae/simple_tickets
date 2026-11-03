@@ -8,9 +8,8 @@ from src.domain.exceptions import DomainOperationError
 from src.domain.services.ticket_sync_service import TicketSyncService
 from src.domain.ticket import (
     Ticket,
-    TicketUrgency,
 )
-from src.domain.ticket_components import Comment
+from src.domain.ticket_components import Comment, TicketUrgency
 from src.domain.ticket_user import TicketUser
 from src.domain.value_objects import CommonComment
 

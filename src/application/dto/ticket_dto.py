@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from src.application.exceptions import ApplicationValidateError
-from src.domain.ticket import TicketUrgency
+from src.domain.ticket_components import TicketUrgency
 
 
 @dataclass(kw_only=True)

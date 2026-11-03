@@ -4,9 +4,8 @@ from datetime import timedelta
 from src.domain.datetime_check import datetime_to_db, datetime_from_db
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-from src.domain.ticket import Ticket, TicketUrgency
-from src.domain.ticket_components import Comment
-
+from src.domain.ticket import Ticket
+from src.domain.ticket_components import Comment, TicketUrgency
 
 
 class TicketMapper:

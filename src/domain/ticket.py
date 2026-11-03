@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from enum import StrEnum
 from typing import Self
 
 from src.domain.datetime_check import validate_utc_datetime
@@ -15,27 +14,8 @@ from src.domain.statuses.ticket_status_transitions import (
     TERMINAL_TICKET_STATUSES,
     TICKET_TRANSITIONS,
 )
-from src.domain.ticket_components import Comment
+from src.domain.ticket_components import Comment, TicketUrgency
 from src.domain.value_objects import CommonComment, Empty, Description, TextOfTicket
-
-
-class TicketUrgency(StrEnum):
-    """
-    Urgency of an internal Ticket.
-
-    NORMAL:
-        Normal request.
-
-    URGENT:
-        Request requiring increased priority.
-
-    MAINTENANCE:
-        Maintenance-related request.
-    """
-
-    NORMAL = "normal"
-    URGENT = "urgent"
-    MAINTENANCE = "maintenance"
 
 
 @dataclass(kw_only=True)
@@ -346,7 +326,6 @@ class Ticket:
         self._validate_identity()
         self._validate_datetimes()
         self._validate_creation_origin()
-
         self._recompute_closed_state()
 
     # ==================================================================
@@ -667,7 +646,7 @@ class Ticket:
         user_ticket_id: int = 0,
         description: str = "",
         remote_work_recommended: bool = False,
-        urgency: TicketUrgency=TicketUrgency.NORMAL,
+        urgency: TicketUrgency = TicketUrgency.NORMAL,
         planned_at: datetime | None = None,
         version: int = 0,
     ) -> Self:
@@ -1338,11 +1317,12 @@ class Ticket:
         A non-empty comment is required by TicketStatusRule and validated
         by TicketStatusRecord.
         """
-
+        if TicketStatus.REJECTED.rule.requires_comment:
+            comment=CommonComment(comment)
         record = TicketStatusRecord(
             status=TicketStatus.REJECTED,
             actor_employee_id=actor_employee_id,
-            comment=self._make_status_comment(comment),
+            comment=comment
         )
 
         self.append_status(record)
@@ -1474,16 +1454,16 @@ class Ticket:
         being performed.
         """
 
-        self._require_current_status(
-            TicketStatus.ASSIGNED,
-            operation="start work",
-        )
+        #self._require_current_status(
+        #    TicketStatus.ASSIGNED,
+        #    operation="start work",
+        #)
 
         record = TicketStatusRecord(
             status=TicketStatus.AT_WORK,
             actor_employee_id=actor_employee_id,
             work_is_remote=work_is_remote,
-            comment=CommonComment(comment) if comment.strip() else Empty()
+            comment=self._make_status_comment(comment)
         )
 
         # Keep an optional status comment if one was supplied.
@@ -1573,6 +1553,7 @@ class Ticket:
             )
 
         self.append_status(record)
+        # todo и тут надо добавить переход в ready_for_review
 
     def pause_work(
             self,
@@ -1997,6 +1978,10 @@ class Ticket:
 
     def _validate_identity(self) -> None:
         """
+        Проверяем *_id
+        Проверено
+
+
         Validate identifiers and identity-related aggregate invariants.
 
         This method validates stable Ticket invariants.
@@ -2061,6 +2046,10 @@ class Ticket:
 
     def _validate_datetimes(self) -> None:
         """
+        Проверяем правильность дат соззания и запланированной работы
+        Проверено
+
+
         Validate Ticket datetime contract.
 
         All datetime values directly owned by Ticket must use UTC.
@@ -2086,6 +2075,8 @@ class Ticket:
 
     def _validate_creation_origin(self) -> None:
         """
+        Проверяем валидноть проихсождения заявки
+        Проверено
          Validate Ticket creation origin.
 
          CREATED
@@ -2106,23 +2097,23 @@ class Ticket:
          Such Ticket must be linked to User and TicketUser.
          """
 
-        first_status = self.statuses[0].status
+        #first_status = self.statuses[0].status
+        first_status_record=self.statuses[0]
 
-        if first_status == TicketStatus.CREATED:
-            return
+        if first_status_record.status in FIRST_TICKET_STATUSES:
+            raise DomainOperationError(f"TicketStatus {first_status_record.status} don't belong to FIRST_STATUS")
 
-        if first_status == TicketStatus.CREATED_FROM_TICKET_USER:
-            if self.user_ticket_id <= 0:
-                raise DomainOperationError(
-                    "Ticket created from TicketUser "
-                    "must have user_ticket_id"
-                )
+        if first_status_record.rule.requires_user_id:
+            if not self.user_id:
+                raise DomainOperationError(f"TicketStatus {first_status_record.status} require user_id")
+        else:
+            if self.user_id:
+                raise DomainOperationError(f"TicketStatus {first_status_record.status} doesn't require user_id")
 
-            if self.user_id <= 0:
-                raise DomainOperationError(
-                    "Ticket created from TicketUser "
-                    "must have user_id"
-                )
+        if first_status_record.rule.requires_ticket_user_id and not self.user_ticket_id:
+                raise DomainOperationError(f"TicketStatus {first_status_record.status} require ticket_user_id")
+
+
 
 
     @classmethod
@@ -2133,6 +2124,8 @@ class Ticket:
         reference_time: datetime,
     ) -> None:
         """
+        Проеверят даты запланировнных работ
+        Проеерено
         Validate planned_at when a new planning value is being assigned.
 
         Both planned_at and reference_time must use UTC.
@@ -2143,18 +2136,17 @@ class Ticket:
         Therefore an earlier time today is valid, while any time yesterday
         is invalid.
         """
-
-        validate_utc_datetime(
-            planned_at,
-            field_name="planned_at",
-        )
-
-        validate_utc_datetime(
-            reference_time,
-            field_name="planning reference_time",
-        )
-
-        if planned_at.date() < reference_time.date():
+        if planned_at:
+            validate_utc_datetime(
+                planned_at,
+                field_name="planned_at",
+            )
+        if reference_time:
+            validate_utc_datetime(
+                reference_time,
+                field_name="planning reference_time",
+            )
+        if planned_at.date() and planned_at.date() < reference_time.date():
             raise DomainOperationError(
                 "planned_at cannot be earlier than today"
             )
@@ -2165,6 +2157,8 @@ class Ticket:
 
     def _recompute_closed_state(self) -> None:
         """
+        выставляем статус завершения
+        Проверено
         Recompute derived closing state from current workflow status.
 
         is_closed and date_finished are never authoritative independent
@@ -2197,6 +2191,8 @@ class Ticket:
             new_record: TicketStatusRecord,
     ) -> None:
         """
+        Надо проверить
+
         Validate workflow rules that depend on current Ticket context.
 
         TicketStatusRecord cannot validate these rules because they depend on
@@ -2321,6 +2317,7 @@ class Ticket:
                 record: TicketStatusRecord,
     ) -> bool:
             """
+            Надо проверить
             Return True when AT_WORK explicitly describes retrospective work.
 
             Retrospective work is present when either:
@@ -2342,6 +2339,8 @@ class Ticket:
             record: TicketStatusRecord,
     ) -> None:
         """
+        Только текущий actor_employee_id может выпонять работу и должене совпадать с текушим исполнителем
+        Проверено
         Require workflow action to be performed by the current executor.
 
         The current executor is reconstructed from Ticket workflow history.
@@ -2364,6 +2363,8 @@ class Ticket:
             comment: str,
     ) -> CommonComment | Empty:
         """
+        Созданеие комментария к статусу
+        Проверено
         Convert command comment text to status-record representation.
 
         Empty or whitespace-only string means that no status comment was
@@ -2372,19 +2373,22 @@ class Ticket:
         Whether a comment is mandatory for a particular status is validated
         by TicketStatusRecord through TicketStatusRule.
         """
-
-        if not comment.strip():
+        try:
+            return CommonComment(comment)
+        except ValueError:
             return Empty()
 
-        return CommonComment(comment)
 
-    def _require_current_status(
+
+    def _require_current_status_old(
             self,
             status: TicketStatus,
             *,
             operation: str,
     ) -> None:
         """
+        Надо проверить
+        Надо избавляться
         Require one concrete current status for a semantic workflow command.
 
         This helper is used when different commands lead to the same resulting

@@ -14,7 +14,8 @@ from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.ticket_service import TicketService
 from src.domain.services.ticket_sync_service import TicketSyncService
-from src.domain.ticket import Ticket, TicketUrgency
+from src.domain.ticket import Ticket
+from src.domain.ticket_components import TicketUrgency
 from src.domain.ticket_user import TicketUser
 from src.domain.uow.unit_of_work import UnitOfWork
 
