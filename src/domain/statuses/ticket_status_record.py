@@ -5,7 +5,10 @@ from typing import get_type_hints
 
 from src.domain.datetime_check import validate_utc_datetime
 from src.domain.exceptions import ItemValidationError
-from src.domain.statuses.ticket_status import TicketStatus, TicketStatusRule, TICKET_STATUS_RULES
+from src.domain.statuses.rules.list_rules import TICKET_STATUS_RULES
+from src.domain.statuses.rules.rules import TicketStatusRule
+from src.domain.statuses.ticket_status import TicketStatus
+
 from src.domain.value_objects import CommonComment, Empty
 
 
@@ -107,7 +110,7 @@ class TicketStatusRecord:
     status_id: int = field(default=0, metadata={"min": 0})
     executor_id: int = field(default=0, metadata={"min": 0})
 
-    comment: CommonComment | Empty = field(default_factory=Empty)
+    comment: CommonComment | Empty|str = ""
 
     actual_started_at: datetime | None = None
     actual_finished_at: datetime | None = None
@@ -126,7 +129,7 @@ class TicketStatusRecord:
         self._validate_types()
         self._validate_ranges()
         self._validate_datetimes()
-        self._validate_work_data()
+        self._check_rules()
 
 
     def is_new(self) -> bool:
@@ -137,6 +140,53 @@ class TicketStatusRecord:
     def rule(self)->TicketStatusRule:
         return TICKET_STATUS_RULES[self.status]
 
+    # =====================
+    # check internal rule
+    # =====================
+    def _check_rules(self):
+        if isinstance(self.comment, str):
+            if self.comment:
+                self.comment = CommonComment(self.comment)
+            else:
+                self.comment = Empty()
+
+        if self.rule.requires_comment and isinstance(self.comment, Empty):
+            raise ItemValidationError(
+                f"Comment is required for {self.status}"
+            )
+
+        if self.rule.requires_executor and isinstance(self.executor_id, int):
+            if self.executor_id == 0:
+                raise ItemValidationError(f"The {self.status} executor is required")
+
+        # todo потом переприсать нормальный код
+        if self.rule.allows_work_data:
+            if self.duration < timedelta(0):
+                raise ItemValidationError(
+                    "Work duration cannot be negative"
+                )
+
+            started_at = self.actual_started_at
+            finished_at = self.actual_finished_at
+
+            if (started_at is None) != (finished_at is None):
+                raise ItemValidationError(
+                    "actual_started_at and actual_finished_at "
+                    "must be specified together"
+                )
+
+            if started_at is not None and finished_at is not None:
+                if self.duration > timedelta(0):
+                    raise ItemValidationError(
+                        "Work interval and duration cannot "
+                        "be specified together"
+                    )
+
+                if finished_at <= started_at:
+                    raise ItemValidationError(
+                        "actual_finished_at must be later than "
+                        "actual_started_at"
+                    )
 
     # ==============================================================
     # Types
@@ -212,47 +262,3 @@ class TicketStatusRecord:
             )
 
 
-    # ==============================================================
-    # Work data
-    # ==============================================================
-
-    def _validate_work_data(self) -> None:
-        """
-        Validate work-time consistency.
-
-        - duration cannot be negative;
-        - started and finished timestamps must appear together;
-        - exact interval and explicit duration are mutually exclusive;
-        - finished timestamp must be later than started timestamp.
-
-        Whether work data is allowed for a particular status
-        belongs to Ticket.
-        """
-
-        if self.duration < timedelta(0):
-            raise ItemValidationError(
-                "Work duration cannot be negative"
-            )
-
-        started_at = self.actual_started_at
-        finished_at = self.actual_finished_at
-
-        if (started_at is None) != (finished_at is None):
-            raise ItemValidationError(
-                "actual_started_at and actual_finished_at "
-                "must be specified together"
-            )
-
-        if started_at is not None and finished_at is not None:
-
-            if self.duration > timedelta(0):
-                raise ItemValidationError(
-                    "Work interval and duration cannot "
-                    "be specified together"
-                )
-
-            if finished_at <= started_at:
-                raise ItemValidationError(
-                    "actual_finished_at must be later than "
-                    "actual_started_at"
-                )

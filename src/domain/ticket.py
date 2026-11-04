@@ -1294,7 +1294,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.ACCEPTED,
             actor_employee_id=actor_employee_id,
-            comment=self._make_status_comment(comment),
+            comment=comment
         )
 
         self.append_status(record)
@@ -1317,8 +1317,7 @@ class Ticket:
         A non-empty comment is required by TicketStatusRule and validated
         by TicketStatusRecord.
         """
-        if TicketStatus.REJECTED.rule.requires_comment:
-            comment=CommonComment(comment)
+
         record = TicketStatusRecord(
             status=TicketStatus.REJECTED,
             actor_employee_id=actor_employee_id,
@@ -1354,7 +1353,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.DEFERRED,
             actor_employee_id=actor_employee_id,
-            comment=self._make_status_comment(comment),
+            comment=comment
         )
 
         self.append_status(record)
@@ -1384,7 +1383,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.SUSPENDED,
             actor_employee_id=actor_employee_id,
-            comment=self._make_status_comment(comment),
+            comment=comment
         )
 
         self.append_status(record)
@@ -1418,7 +1417,7 @@ class Ticket:
             status=TicketStatus.ASSIGNED,
             actor_employee_id=actor_employee_id,
             executor_id=executor_id,
-            comment=self._make_status_comment(comment),
+            comment=comment
         )
 
         self.append_status(record)
@@ -1463,7 +1462,7 @@ class Ticket:
             status=TicketStatus.AT_WORK,
             actor_employee_id=actor_employee_id,
             work_is_remote=work_is_remote,
-            comment=self._make_status_comment(comment)
+            comment=comment
         )
 
         # Keep an optional status comment if one was supplied.
@@ -1543,7 +1542,7 @@ class Ticket:
             actual_finished_at=actual_finished_at,
             duration=duration,
             work_is_remote=work_is_remote,
-            comment=self._make_status_comment(comment),
+            comment=comment
         )
 
         if not self._has_retrospective_work_time(record):
@@ -1583,7 +1582,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.PAUSED,
             actor_employee_id=actor_employee_id,
-            comment=self._make_status_comment(comment),
+            comment=comment
         )
 
         self.append_status(record)
@@ -1624,7 +1623,7 @@ class Ticket:
             status=TicketStatus.AT_WORK,
             actor_employee_id=actor_employee_id,
             work_is_remote=work_is_remote,
-            comment=self._make_status_comment(comment),
+            comment=comment
         )
 
         self.append_status(record)
@@ -1656,7 +1655,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.READY_FOR_REVIEW,
             actor_employee_id=actor_employee_id,
-            comment=self._make_status_comment(comment),
+            comment=comment
         )
 
         self.append_status(record)
@@ -1686,7 +1685,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.CONFIRMED_BY_USER,
             actor_employee_id=0,
-            comment=self._make_status_comment(comment),
+            comment=comment
         )
 
         self.append_status(record)
@@ -1710,7 +1709,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.EXECUTED,
             actor_employee_id=actor_employee_id,
-            comment=self._make_status_comment(comment),
+            comment=comment
         )
 
         self.append_status(record)
@@ -1737,7 +1736,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.CANCELLED,
             actor_employee_id=actor_employee_id,
-            comment=self._make_status_comment(comment),
+            comment=comment
         )
 
         self.append_status(record)
@@ -1767,7 +1766,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.CANCELLED_BY_USER,
             actor_employee_id=0,
-            comment=self._make_status_comment(comment),
+            comment=comment
         )
 
         self.append_status(record)
@@ -1876,7 +1875,7 @@ class Ticket:
             actual_finished_at=finished_at,
             duration=duration,
             date_created=now,
-            comment=self._make_status_comment(comment=comment),
+            comment=comment
         )
 
         ready_for_review_record = TicketStatusRecord(
@@ -1969,7 +1968,7 @@ class Ticket:
                 status=TicketStatus.AT_WORK,
                 actor_employee_id=actor_employee_id,
                 work_is_remote=True,
-                comment=self._make_status_comment(comment=comment),
+                comment=comment
             )
         )
     # ==================================================================
@@ -2184,6 +2183,7 @@ class Ticket:
         else:
             self.date_finished = None
 
+    # todo а вот это вынести в проверки для внешних правил
     def _validate_transition_context(
             self,
             *,
@@ -2358,25 +2358,6 @@ class Ticket:
                 f"{record.status.value}"
             )
 
-    @staticmethod
-    def _make_status_comment(
-            comment: str,
-    ) -> CommonComment | Empty:
-        """
-        Созданеие комментария к статусу
-        Проверено
-        Convert command comment text to status-record representation.
-
-        Empty or whitespace-only string means that no status comment was
-        supplied.
-
-        Whether a comment is mandatory for a particular status is validated
-        by TicketStatusRecord through TicketStatusRule.
-        """
-        try:
-            return CommonComment(comment)
-        except ValueError:
-            return Empty()
 
 
 
