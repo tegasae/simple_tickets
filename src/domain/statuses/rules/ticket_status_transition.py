@@ -1,98 +1,127 @@
+
 from typing import Final
 
 from src.domain.statuses.ticket_status import TicketStatus
-"""Правила переходов"""
+from src.domain.statuses.rules.ticket_transition_rule import (
+    TicketTransitionRule,
+)
+from src.domain.statuses.rules.ticket_transition_validators import (
+    validate_current_executor,
+    validate_start_work,
+    validate_no_retrospective_work,
+)
+
+
+# Transition without additional validators.
+DEFAULT_RULE = TicketTransitionRule()
+
 
 TICKET_TRANSITIONS: Final[
-    dict[TicketStatus, frozenset[TicketStatus]]
+    dict[TicketStatus, dict[TicketStatus, TicketTransitionRule]]
 ] = {
-    TicketStatus.CREATED: frozenset({
-        TicketStatus.ACCEPTED,
-        TicketStatus.REJECTED,
-        TicketStatus.SUSPENDED
-    }),
+    TicketStatus.CREATED: {
+        TicketStatus.ACCEPTED: DEFAULT_RULE,
+        TicketStatus.REJECTED: DEFAULT_RULE,
+        TicketStatus.SUSPENDED: DEFAULT_RULE,
+    },
 
-    TicketStatus.CREATED_FROM_TICKET_USER: frozenset({
-        TicketStatus.ACCEPTED,
-        TicketStatus.REJECTED,
-        TicketStatus.CANCELLED_BY_USER,
-        TicketStatus.SUSPENDED
-    }),
+    TicketStatus.CREATED_FROM_TICKET_USER: {
+        TicketStatus.ACCEPTED: DEFAULT_RULE,
+        TicketStatus.REJECTED: DEFAULT_RULE,
+        TicketStatus.CANCELLED_BY_USER: DEFAULT_RULE,
+        TicketStatus.SUSPENDED: DEFAULT_RULE,
+    },
 
-    TicketStatus.CREATED_FROM_REQUEST_USER: frozenset({
-        TicketStatus.ACCEPTED,
-        TicketStatus.REJECTED,
-        TicketStatus.CANCELLED_BY_USER,
-        TicketStatus.SUSPENDED
-    }),
+    TicketStatus.CREATED_FROM_REQUEST_USER: {
+        TicketStatus.ACCEPTED: DEFAULT_RULE,
+        TicketStatus.REJECTED: DEFAULT_RULE,
+        TicketStatus.CANCELLED_BY_USER: DEFAULT_RULE,
+        TicketStatus.SUSPENDED: DEFAULT_RULE,
+    },
 
-    TicketStatus.REJECTED: frozenset(),
+    TicketStatus.REJECTED: {},
 
-    TicketStatus.ACCEPTED: frozenset({
-        TicketStatus.ASSIGNED,
-        TicketStatus.DEFERRED,
-        TicketStatus.SUSPENDED,
-        TicketStatus.CANCELLED,
-    }),
+    TicketStatus.ACCEPTED: {
+        TicketStatus.ASSIGNED: DEFAULT_RULE,
+        TicketStatus.DEFERRED: DEFAULT_RULE,
+        TicketStatus.SUSPENDED: DEFAULT_RULE,
+        TicketStatus.CANCELLED: DEFAULT_RULE,
+    },
 
-    TicketStatus.DEFERRED: frozenset({
-        TicketStatus.ACCEPTED,
-        TicketStatus.ASSIGNED,
-        TicketStatus.SUSPENDED,
-        TicketStatus.CANCELLED,
-    }),
+    TicketStatus.DEFERRED: {
+        TicketStatus.ACCEPTED: DEFAULT_RULE,
+        TicketStatus.ASSIGNED: DEFAULT_RULE,
+        TicketStatus.SUSPENDED: DEFAULT_RULE,
+        TicketStatus.CANCELLED: DEFAULT_RULE,
+    },
 
+    TicketStatus.ASSIGNED: {
+        TicketStatus.ACCEPTED: DEFAULT_RULE,
+        TicketStatus.ASSIGNED: DEFAULT_RULE,
 
-    TicketStatus.ASSIGNED: frozenset({
-        TicketStatus.ACCEPTED,
-        TicketStatus.ASSIGNED,
-        TicketStatus.AT_WORK,
-        TicketStatus.DEFERRED,
-        TicketStatus.SUSPENDED,
-        TicketStatus.CANCELLED,
-    }),
+        TicketStatus.AT_WORK: TicketTransitionRule(
+            validators=(validate_start_work,),
+        ),
 
-    TicketStatus.AT_WORK: frozenset({
-        TicketStatus.ASSIGNED,
-        TicketStatus.PAUSED,
-        TicketStatus.DEFERRED,
-        TicketStatus.READY_FOR_REVIEW,
-        TicketStatus.CANCELLED,
-    }),
+        TicketStatus.DEFERRED: DEFAULT_RULE,
+        TicketStatus.SUSPENDED: DEFAULT_RULE,
+        TicketStatus.CANCELLED: DEFAULT_RULE,
+    },
 
-    TicketStatus.PAUSED: frozenset({
-        TicketStatus.AT_WORK,
-        TicketStatus.ASSIGNED,
-        TicketStatus.DEFERRED,
-        TicketStatus.SUSPENDED,
-        TicketStatus.CANCELLED,
-    }),
+    TicketStatus.AT_WORK: {
+        TicketStatus.ASSIGNED: DEFAULT_RULE,
 
-    TicketStatus.READY_FOR_REVIEW: frozenset({
-        TicketStatus.ASSIGNED,
-        TicketStatus.CONFIRMED_BY_USER,
-        TicketStatus.EXECUTED,
-        TicketStatus.CANCELLED,
-    }),
+        TicketStatus.PAUSED: TicketTransitionRule(
+            validators=(validate_current_executor,),
+        ),
 
-    TicketStatus.CONFIRMED_BY_USER: frozenset(),
+        TicketStatus.DEFERRED: DEFAULT_RULE,
 
-    TicketStatus.EXECUTED: frozenset(),
+        TicketStatus.READY_FOR_REVIEW: TicketTransitionRule(
+            validators=(validate_current_executor,),
+        ),
 
-    TicketStatus.CANCELLED: frozenset(),
+        TicketStatus.CANCELLED: DEFAULT_RULE,
+    },
 
-    TicketStatus.CANCELLED_BY_USER: frozenset(),
-    TicketStatus.SUSPENDED: frozenset({
-    }),
+    TicketStatus.PAUSED: {
+        TicketStatus.AT_WORK: TicketTransitionRule(
+            validators=(
+                validate_no_retrospective_work,
+                validate_current_executor,
+            ),
+        ),
 
+        TicketStatus.ASSIGNED: DEFAULT_RULE,
+        TicketStatus.DEFERRED: DEFAULT_RULE,
+        TicketStatus.SUSPENDED: DEFAULT_RULE,
+        TicketStatus.CANCELLED: DEFAULT_RULE,
+    },
+
+    TicketStatus.READY_FOR_REVIEW: {
+        TicketStatus.ASSIGNED: DEFAULT_RULE,
+        TicketStatus.CONFIRMED_BY_USER: DEFAULT_RULE,
+        TicketStatus.EXECUTED: DEFAULT_RULE,
+        TicketStatus.CANCELLED: DEFAULT_RULE,
+    },
+
+    TicketStatus.CONFIRMED_BY_USER: {},
+    TicketStatus.EXECUTED: {},
+    TicketStatus.CANCELLED: {},
+    TicketStatus.CANCELLED_BY_USER: {},
+    TicketStatus.SUSPENDED: {},
 }
+
+
 FIRST_TICKET_STATUSES: Final[
     frozenset[TicketStatus]
 ] = frozenset({
     TicketStatus.CREATED,
     TicketStatus.CREATED_FROM_TICKET_USER,
-    TicketStatus.CREATED_FROM_REQUEST_USER
+    TicketStatus.CREATED_FROM_REQUEST_USER,
 })
+
+
 TERMINAL_TICKET_STATUSES: Final[
     frozenset[TicketStatus]
 ] = frozenset({
@@ -101,23 +130,16 @@ TERMINAL_TICKET_STATUSES: Final[
     TicketStatus.CANCELLED,
     TicketStatus.CANCELLED_BY_USER,
     TicketStatus.CONFIRMED_BY_USER,
-    TicketStatus.SUSPENDED
+    TicketStatus.SUSPENDED,
 })
 
 
 def _validate_ticket_transitions() -> None:
     """
-    Validate completeness and basic consistency of the workflow graph.
-
-    The validation ensures that:
-
-    - every TicketStatus has a transition definition;
-    - every terminal status has no outgoing transitions;
-    - every non-terminal status has at least one outgoing transition;
-    - every transition target is a valid TicketStatus.
+    Validate completeness and consistency of workflow transitions.
     """
 
-    missing: list[TicketStatus] = [
+    missing = [
         status
         for status in TicketStatus
         if status not in TICKET_TRANSITIONS
@@ -129,34 +151,44 @@ def _validate_ticket_transitions() -> None:
             + ", ".join(map(str, missing))
         )
 
-    for status, next_statuses in TICKET_TRANSITIONS.items():
+    if FIRST_TICKET_STATUSES & TERMINAL_TICKET_STATUSES:
+        raise RuntimeError(
+            "Initial Ticket statuses cannot be terminal"
+        )
+
+    for status, transitions in TICKET_TRANSITIONS.items():
+
+        if not isinstance(status, TicketStatus):
+            raise RuntimeError(
+                f"Invalid Ticket transition source: {status}"
+            )
+
         if status in TERMINAL_TICKET_STATUSES:
-            if next_statuses:
+            if transitions:
                 raise RuntimeError(
                     f"Terminal Ticket status {status} "
                     "cannot have outgoing transitions"
                 )
             continue
 
-        if status in FIRST_TICKET_STATUSES and status in TERMINAL_TICKET_STATUSES:
-            raise RuntimeError(
-                f"Initial Ticket status {status} cannot be terminal"
-            )
-
-        if not next_statuses:
+        if not transitions:
             raise RuntimeError(
                 f"Non-terminal Ticket status {status} "
                 "must have at least one outgoing transition"
             )
 
-        invalid_targets = [
-            next_status
-            for next_status in next_statuses
-            if not isinstance(next_status, TicketStatus)
-        ]
+        for next_status, rule in transitions.items():
 
-        if invalid_targets:
-            raise RuntimeError(
-                f"Ticket status {status} contains invalid "
-                f"transition targets: {invalid_targets}"
-            )
+            if not isinstance(next_status, TicketStatus):
+                raise RuntimeError(
+                    f"Invalid transition target: {next_status}"
+                )
+
+            if not isinstance(rule, TicketTransitionRule):
+                raise RuntimeError(
+                    "Invalid transition rule: "
+                    f"{status} -> {next_status}"
+                )
+
+
+_validate_ticket_transitions()

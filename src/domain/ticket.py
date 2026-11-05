@@ -428,7 +428,7 @@ class Ticket:
             contact_user_id=resolved_contact_user_id,
             user_ticket_id=user_ticket_id,
             department_id=department_id,
-            description=description,
+            description=Description(description) or Empty(),
             remote_work_recommended=remote_work_recommended,
             urgency=urgency,
             planned_at=planned_at,
@@ -879,40 +879,34 @@ class Ticket:
         """
         Append a new workflow status record.
 
-        TicketStatusRecord has already validated its own intrinsic payload.
-
-        Ticket validates context-dependent workflow rules:
-
-        - transition is allowed;
-        - status history remains chronological;
-        - actor is allowed to perform transitions that depend on the
-          currently assigned executor.
+        Validates:
+        - allowed workflow transition;
+        - chronological order of status history;
+        - transition-specific business rules.
         """
 
         current_record = self.current_status_record()
 
+        rule = TICKET_TRANSITIONS[current_record.status].get(
+            record.status
+        )
 
-
-        if record.status not in TICKET_TRANSITIONS[current_record.status]:
+        if rule is None:
             raise DomainOperationError(
                 "Ticket status transition is not allowed: "
                 f"{current_record.status.value} -> "
-                f"{record.status.value}",
+                f"{record.status.value}"
             )
-
 
         if record.date_created < current_record.date_created:
             raise DomainOperationError(
                 "Ticket status history must be chronological"
             )
 
-        self._validate_transition_context(
-            current_record=current_record,
-            new_record=record,
-        )
+        for validator in rule.validators:
+            validator(self, record)
 
         self.statuses.append(record)
-
         self._recompute_closed_state()
 
     # ==================================================================
@@ -1482,74 +1476,47 @@ class Ticket:
             actual_finished_at: datetime | None = None,
             duration: timedelta = timedelta(0),
             comment: str = "",
-    )-> None:
+    ) -> None:
         """
-        Register work retrospectively.
+        Register completed work retrospectively.
 
-        This command represents:
+        Workflow:
+            ASSIGNED -> AT_WORK -> READY_FOR_REVIEW
 
-            ASSIGNED -> AT_WORK
-
-        but differs semantically from start_work().
-
-        start_work()
-            means that the assigned executor starts work now.
-
-        register_work()
-            means that already performed work is being entered into the system.
-
-        Retrospective work must contain either:
-
-        1. an exact interval:
-
-               actual_started_at
-               actual_finished_at
-
-           or
-
-        2. a positive explicit duration:
-
-               duration > timedelta(0)
-
-        The two forms are mutually exclusive.
-
-        actor_employee_id does not have to equal the assigned executor.
-
-        This allows an Admin to register work when the actual executor cannot
-        enter the work record personally.
-
-        TicketStatusRecord validates:
-
-        - completeness of the exact interval;
-        - UTC datetime values;
-        - mutual exclusivity of interval and duration;
-        - positive duration;
-        - work mode.
+        Both transitions must succeed.
         """
 
-        self._require_current_status(
-            TicketStatus.ASSIGNED,
-            operation="register retrospective work",
-        )
+        now = datetime.now(UTC)
 
-        record = TicketStatusRecord(
+        work_record = TicketStatusRecord(
             status=TicketStatus.AT_WORK,
             actor_employee_id=actor_employee_id,
             actual_started_at=actual_started_at,
             actual_finished_at=actual_finished_at,
             duration=duration,
             work_is_remote=work_is_remote,
-            comment=comment
+            comment=comment,
+            date_created=now,
         )
 
-        if not self._has_retrospective_work_time(record):
+        if not work_record.has_retrospective_work_time:
             raise DomainOperationError(
-                "Retrospective work registration requires "
-                "an exact work interval or a positive duration"
+                "Retrospective work requires an interval or duration"
             )
 
-        self.append_status(record)
-        # todo и тут надо добавить переход в ready_for_review
+        review_record = TicketStatusRecord(
+            status=TicketStatus.READY_FOR_REVIEW,
+            actor_employee_id=actor_employee_id,
+            date_created=now,
+        )
+
+        self.append_status(work_record)
+
+        try:
+            self.append_status(review_record)
+        except Exception:
+            self.statuses.pop()
+            raise
 
     def pause_work(
             self,
@@ -2180,134 +2147,6 @@ class Ticket:
         else:
             self.date_finished = None
 
-    # todo а вот это вынести в проверки для внешних правил
-    def _validate_transition_context(
-            self,
-            *,
-            current_record: TicketStatusRecord,
-            new_record: TicketStatusRecord,
-    ) -> None:
-        """
-        Надо проверить
-
-        Validate workflow rules that depend on current Ticket context.
-
-        TicketStatusRecord cannot validate these rules because they depend on
-        previous workflow state and current executor assignment.
-
-
-        ASSIGNED -> AT_WORK
-        ===================
-
-        Normal start of work:
-
-            actual_started_at is None
-            actual_finished_at is None
-            duration == timedelta(0)
-
-        may be performed only by the currently assigned executor.
-
-        Retrospective AT_WORK:
-
-            exact interval is supplied
-
-        or:
-
-            duration > timedelta(0)
-
-        may be created by another Admin.
-
-        This is required for situations where the actual executor cannot enter
-        the work record personally.
-
-
-        AT_WORK -> PAUSED
-        =================
-
-        Only the currently assigned executor may pause work.
-
-
-        PAUSED -> AT_WORK
-        =================
-
-        Only the currently assigned executor may resume work.
-
-        This transition represents resuming work now and therefore must not
-        contain retrospective work-time information.
-
-
-        AT_WORK -> READY_FOR_REVIEW
-        ===========================
-
-        Only the currently assigned executor may submit work for review.
-        """
-
-        current_status = current_record.status
-        next_status = new_record.status
-
-        # --------------------------------------------------------------
-        # ASSIGNED -> AT_WORK
-        # --------------------------------------------------------------
-
-        if (
-                current_status == TicketStatus.ASSIGNED
-                and next_status == TicketStatus.AT_WORK
-        ):
-            # Retrospective work may be entered by another Admin.
-            if self._has_retrospective_work_time(new_record):
-                return
-
-            self._require_current_executor_actor(new_record)
-            return
-
-        # --------------------------------------------------------------
-        # AT_WORK -> PAUSED
-        # --------------------------------------------------------------
-
-        if (
-                current_status == TicketStatus.AT_WORK
-                and next_status == TicketStatus.PAUSED
-        ):
-            self._require_current_executor_actor(new_record)
-            return
-
-        # --------------------------------------------------------------
-        # PAUSED -> AT_WORK
-        # --------------------------------------------------------------
-
-        if (
-                current_status == TicketStatus.PAUSED
-                and next_status == TicketStatus.AT_WORK
-        ):
-            if self._has_retrospective_work_time(new_record):
-                raise DomainOperationError(
-                    "PAUSED -> AT_WORK does not allow "
-                    "retrospective work time"
-                )
-
-            self._require_current_executor_actor(new_record)
-            return
-
-        if (
-                current_status == TicketStatus.CREATED
-                and next_status == TicketStatus.CANCELLED_BY_USER
-        ):
-            if self.user_ticket_id <= 0 or self.user_id <= 0:
-                raise DomainOperationError(
-                    "Standalone Ticket cannot be cancelled by User"
-                )
-
-            return
-
-        # --------------------------------------------------------------
-        # AT_WORK -> READY_FOR_REVIEW
-        # --------------------------------------------------------------
-
-        if (
-                current_status == TicketStatus.AT_WORK
-                and next_status == TicketStatus.READY_FOR_REVIEW
-        ):
-            self._require_current_executor_actor(new_record)
 
     @staticmethod
     def _has_retrospective_work_time(
