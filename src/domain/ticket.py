@@ -9,11 +9,8 @@ from src.domain.exceptions import (
 )
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-from src.domain.statuses.ticket_status_transitions import (
-    FIRST_TICKET_STATUSES,
-    TERMINAL_TICKET_STATUSES,
-    TICKET_TRANSITIONS,
-)
+from src.domain.statuses.rules.ticket_status_transition import TICKET_TRANSITIONS, FIRST_TICKET_STATUSES, \
+    TERMINAL_TICKET_STATUSES
 from src.domain.ticket_components import Comment, TicketUrgency
 from src.domain.value_objects import CommonComment, Empty, Description, TextOfTicket
 

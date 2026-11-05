@@ -1,15 +1,7 @@
-"""
-TICKET_TRANSITIONS
-   Allowed transitions between Ticket statuses.
-
-Payload validation of a concrete TicketStatusRecord belongs to
-TicketStatusRecord and is not implemented here.
-"""
-
-
 from typing import Final
 
 from src.domain.statuses.ticket_status import TicketStatus
+"""Правила переходов"""
 
 TICKET_TRANSITIONS: Final[
     dict[TicketStatus, frozenset[TicketStatus]]
@@ -94,7 +86,6 @@ TICKET_TRANSITIONS: Final[
     }),
 
 }
-
 FIRST_TICKET_STATUSES: Final[
     frozenset[TicketStatus]
 ] = frozenset({
@@ -102,9 +93,6 @@ FIRST_TICKET_STATUSES: Final[
     TicketStatus.CREATED_FROM_TICKET_USER,
     TicketStatus.CREATED_FROM_REQUEST_USER
 })
-
-
-
 TERMINAL_TICKET_STATUSES: Final[
     frozenset[TicketStatus]
 ] = frozenset({
@@ -115,9 +103,6 @@ TERMINAL_TICKET_STATUSES: Final[
     TicketStatus.CONFIRMED_BY_USER,
     TicketStatus.SUSPENDED
 })
-
-
-
 
 
 def _validate_ticket_transitions() -> None:
@@ -175,9 +160,3 @@ def _validate_ticket_transitions() -> None:
                 f"Ticket status {status} contains invalid "
                 f"transition targets: {invalid_targets}"
             )
-
-
-
-
-
-_validate_ticket_transitions()
