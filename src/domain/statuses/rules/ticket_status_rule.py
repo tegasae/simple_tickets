@@ -1,106 +1,103 @@
+
+"""
+Intrinsic rules of Ticket statuses.
+
+These rules describe requirements for TicketStatusRecord.
+They do not define workflow transitions or aggregate-level rules.
+"""
+
 from dataclasses import dataclass
 from typing import Final
 
 from src.domain.statuses.ticket_status import TicketStatus
 
-"""Правила описания статуса"""
 
 @dataclass(frozen=True, slots=True)
 class TicketStatusRule:
     """
     Intrinsic rules of a Ticket status.
 
-    These rules describe the payload and origin of a status itself.
-    They do not describe allowed transitions between statuses.
-
     Attributes
     ----------
-    user_action:
-        ``True`` if the status represents an action performed by a User.
-
-        ``False`` means that the action is performed by an Admin.
-
-        Admin is intentionally the default because most Ticket workflow
-        actions are administrative actions.
-
     requires_comment:
-        ``True`` if the status record must contain a non-empty comment.
+        Whether a valid non-empty comment is required.
 
     requires_executor:
-        ``True`` if the status record must contain a valid ``executor_id``.
+        Whether executor_id must be positive.
 
-    allows_work_data:
-        ``True`` if the status record may contain actual work information:
+    tracks_work_time:
+        Whether this status represents a period of actual work.
 
-        - ``actual_started_at``;
-        - ``actual_finished_at``;
-        - ``duration``.
+        If True, the record contributes to Ticket working time.
 
-        This flag only declares that such data is allowed for the status.
-        Validation of valid combinations of these fields belongs to the
-        status-record payload validation.
+        Work time is determined by exactly one of:
 
-     requires_work_mode True if kind of work has to set
+        - an explicit positive duration;
+        - an explicit start/finish interval;
+        - the workflow interval when no explicit time is provided.
 
-    requires_user_id Должен быть установлен пользователь от которог заявка
+        If False, explicit work-time data is forbidden
+        and the record does not contribute to working time.
 
+    requires_work_mode:
+        True:
+            work_is_remote must be True or False.
 
+        False:
+            work_is_remote must be None.
 
+    user_action:
+        True:
+            The action is performed by a User.
+            actor_employee_id must be 0.
+
+        False:
+            The action is performed by an Admin.
+            actor_employee_id must be positive.
     """
-    requires_comment: bool = False  # internal state
-    requires_executor: bool = False  # internal state
-    allows_work_data: bool = False  # internal state
-    requires_work_mode: bool = False   # internal state елси установлен, то работа делаласб удаленно, если нет, то на месте. Если None то все равно
+
+    requires_comment: bool = False
+    requires_executor: bool = False
+    tracks_work_time: bool = False
+    requires_work_mode: bool = False
     user_action: bool = False
-    can_change_data: bool = False
-    has_executor:bool=False
-    requires_user_id:bool=False
-    requires_ticket_user_id:bool=False
 
 
-TICKET_STATUS_RULES: Final[dict[TicketStatus, TicketStatusRule]] = {
-    TicketStatus.CREATED: TicketStatusRule(can_change_data=True),
+TICKET_STATUS_RULES: Final[
+    dict[TicketStatus, TicketStatusRule]
+] = {
+    TicketStatus.CREATED: TicketStatusRule(),
 
     TicketStatus.CREATED_FROM_TICKET_USER: TicketStatusRule(
         user_action=True,
-        can_change_data=True,
-        requires_user_id=True,
-        requires_ticket_user_id=True
     ),
 
-    TicketStatus.CREATED_FROM_REQUEST_USER: TicketStatusRule(
-        can_change_data=True,
-        requires_user_id=True
-    ),
+    TicketStatus.CREATED_FROM_REQUEST_USER: TicketStatusRule(),
 
     TicketStatus.REJECTED: TicketStatusRule(
         requires_comment=True,
     ),
 
-    TicketStatus.ACCEPTED: TicketStatusRule(can_change_data=True),
+    TicketStatus.ACCEPTED: TicketStatusRule(),
 
     TicketStatus.DEFERRED: TicketStatusRule(
         requires_comment=True,
-        can_change_data=True
     ),
 
     TicketStatus.SUSPENDED: TicketStatusRule(),
 
     TicketStatus.ASSIGNED: TicketStatusRule(
         requires_executor=True,
-        has_executor=True
     ),
 
     TicketStatus.AT_WORK: TicketStatusRule(
-        allows_work_data=True,
+        tracks_work_time=True,
         requires_work_mode=True,
-        has_executor=True
-
     ),
 
-    TicketStatus.PAUSED: TicketStatusRule(has_executor=True),
+    TicketStatus.PAUSED: TicketStatusRule(),
 
-    TicketStatus.READY_FOR_REVIEW: TicketStatusRule(has_executor=True),
+    TicketStatus.READY_FOR_REVIEW: TicketStatusRule(),
 
     TicketStatus.CONFIRMED_BY_USER: TicketStatusRule(
         user_action=True,
@@ -130,3 +127,6 @@ def _validate_ticket_status_rules() -> None:
             "Ticket statuses without rules: "
             + ", ".join(map(str, missing))
         )
+
+
+_validate_ticket_status_rules()

@@ -86,3 +86,6 @@ def _validate_ticket_state_rules() -> None:
             "Ticket statuses without state rules: "
             + ", ".join(map(str, missing))
         )
+
+
+_validate_ticket_state_rules()

@@ -7,6 +7,7 @@ from src.domain.exceptions import (
     DomainOperationError,
     ItemValidationError,
 )
+
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.statuses.rules.ticket_status_transition import TICKET_TRANSITIONS, FIRST_TICKET_STATUSES, \
@@ -1218,7 +1219,7 @@ class Ticket:
         now = datetime.now(UTC)
 
         for index, record in enumerate(self.statuses):
-            if record.status != TicketStatus.AT_WORK:
+            if not record.rule.tracks_work_time:
                 continue
 
             # A non-zero explicit duration has the highest priority.

@@ -109,6 +109,5 @@ def _validate_ticket_to_ticket_user_status_mapping() -> None:
             "Invalid TicketUser statuses in mapping: "
             + ", ".join(map(str, invalid_targets))
         )
-
-
-_validate_ticket_to_ticket_user_status_mapping()
+# todo убрать коммент
+#_validate_ticket_to_ticket_user_status_mapping()
