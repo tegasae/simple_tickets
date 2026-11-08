@@ -105,6 +105,21 @@ class TicketSyncService:
                 "Ticket origin does not support TicketUser synchronization"
             )
 
+    def ensure_workflow_consistent(
+        self,
+        ticket: Ticket,
+        ticket_user: TicketUser,
+    ) -> None:
+        """Validate linked pair and current workflow before a new operation.
+
+        Unlike ensure_consistent(), this method requires both aggregates
+        to represent the same user-facing state. Call it *before* an
+        Admin-side Ticket workflow command, not between that command
+        and its synchronization.
+        """
+        self.ensure_consistent(ticket, ticket_user)
+        self._ensure_workflow_consistent(ticket, ticket_user)
+
     # ==================================================================
     # Ticket -> TicketUser
     # ==================================================================
