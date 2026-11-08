@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
+from src.domain.datetime_check import validate_utc_datetime
 from src.domain.exceptions import ItemValidationError
 from src.domain.statuses.ticket_user_status import (
     TICKET_USER_STATUS_RULES,
@@ -97,13 +98,8 @@ class TicketUserStatusRecord:
     comment is optional unless the corresponding TicketUserStatusRule
     requires one.
 
-    The absence of a comment is represented by Empty.
-
-    For statuses with:
-
-        rule.requires_comment == True
-
-    Empty is not allowed.
+    Strings are normalized to CommonComment. An invalid optional string
+    becomes Empty. A required comment must be a valid CommonComment.
 
 
     Date/time contract
@@ -129,92 +125,40 @@ class TicketUserStatusRecord:
     actor_employee_id: int
 
     # Persistent record identifier.
-    #
     # 0 means that this record has not been persisted yet.
     ticket_user_status_id: int = 0
 
     # Optional status comment.
-    #
     # Empty represents the absence of a comment.
-    comment: CommonComment | Empty = field(
+    comment: str | CommonComment | Empty = field(
         default_factory=Empty,
     )
 
-    # Time when the status record was created.
-    #
-    # Newly created records always use UTC.
-    # Rehydrated records must also already contain UTC datetime.
     date_created: datetime = field(
         default_factory=lambda: datetime.now(UTC),
     )
 
-
-
     def __post_init__(self) -> None:
-        """
-        Validate the complete intrinsic state of the record.
-
-        Validation is intentionally split into small methods:
-
-        - _validate_identity()
-        - _validate_actor()
-        - _validate_comment()
-
-        Transition-related validation does not belong here.
-        """
-
+        """Validate the complete intrinsic state of the record."""
         self._validate_identity()
         self._validate_actor()
         self._validate_comment()
 
     @property
     def rule(self) -> TicketUserStatusRule:
-        """
-        Return intrinsic rules of the current TicketUser status.
-
-        These rules describe properties of the status itself.
-
-        They do not describe allowed workflow transitions.
-        """
-
+        """Return intrinsic rules of the current TicketUser status."""
         return TICKET_USER_STATUS_RULES[self.status]
 
     def is_new(self) -> bool:
-        """
-        Return True when this status record has not been persisted yet.
-
-        New records use:
-
-            status_id == 0
-        """
-
-        return not bool(self.ticket_user_status_id)
-
+        """Return True when ticket_user_status_id == 0."""
+        return self.ticket_user_status_id == 0
 
     def _validate_identity(self) -> None:
-        """
-        Validate record identity, status type and creation time.
-
-        status_id
-        ---------
-
-        Negative persistent identifiers are invalid.
-
-        status
-        ------
-
-        Must be a TicketUserStatus instance.
-
-        date_created
-        ------------
-
-        Must explicitly use UTC.
-
-        The domain deliberately rejects:
-
-        - naive datetime;
-        - timezone-aware datetime in a timezone other than UTC.
-        """
+        """Validate the record ID, status type, and creation time."""
+        if type(self.ticket_user_status_id) is not int:
+            raise ItemValidationError(
+                "TicketUser status record ID must be an integer"
+            )
 
         if self.ticket_user_status_id < 0:
             raise ItemValidationError(
@@ -226,10 +170,15 @@ class TicketUserStatusRecord:
                 "Invalid TicketUser status"
             )
 
-        if self.date_created.tzinfo is not UTC:
+        if not isinstance(self.date_created, datetime):
             raise ItemValidationError(
-                "Status record date_created must use UTC timezone"
+                "date_created must be a datetime"
             )
+
+        validate_utc_datetime(
+            self.date_created,
+            field_name="date_created",
+        )
 
     def _validate_actor(self) -> None:
         """
@@ -240,29 +189,25 @@ class TicketUserStatusRecord:
         The actor may be either User or Admin, but the identifier must
         always be positive.
         """
-
         if self.actor_employee_id <= 0:
             raise ItemValidationError(
                 "Actor employee ID must be positive"
             )
 
     def _validate_comment(self) -> None:
-        """
-        Validate comment requirements of the current status.
+        """Normalize the comment and enforce status-specific requirements."""
+        if isinstance(self.comment, str):
+            try:
+                self.comment = CommonComment(self.comment)
+            except ValueError:
+                self.comment = Empty()
 
-        Most statuses allow an empty comment.
+        if not isinstance(self.comment, (CommonComment, Empty)):
+            raise ItemValidationError(
+                "Invalid TicketUser status comment"
+            )
 
-        If the current TicketUserStatusRule declares:
-
-            requires_comment == True
-
-        the record must contain CommonComment rather than Empty.
-        """
-
-        if (
-            self.rule.requires_comment
-            and isinstance(self.comment, Empty)
-        ):
+        if self.rule.requires_comment and isinstance(self.comment, Empty):
             raise ItemValidationError(
                 f"{self.status} requires a comment"
             )
