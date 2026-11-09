@@ -20,31 +20,21 @@ from src.domain.value_objects import CommonComment, Description, Empty, TextOfTi
 class TicketUser:
     """User-facing request aggregate.
 
-    TicketUser and Ticket are independent aggregates. Their relationship and
-    synchronization are managed by the domain/application services, not here.
+    TicketUser and Ticket are independent aggregates. Coordination between
+    them belongs to domain/application services, not this aggregate.
 
-    A new TicketUser is created with create(); persisted instances are restored
-    with rehydrate(). The last status record determines the current state.
+    The original request text is immutable by business rules. Description
+    and contact User are editable. update_details() replaces both fields.
 
-    The immutable-by-business request text is a TextOfTicket value object.
-    Description and contact User are editable; update_details() replaces both
-    fields, including when their arguments are omitted.
+    TicketUserStatusRecord records the actual actor identifier, which may
+    represent a User or an Admin. This aggregate does not perform RBAC.
 
-    actor_employee_id in TicketUserStatusRecord is a positive identifier;
-    this aggregate does not perform RBAC or lookup of users/employees.
-
-    All stored datetime values must explicitly use datetime.UTC. Terminal
-    states, including SUSPENDED, do not allow further workflow changes.
-
-    For a linked pair, the cross-aggregate identity correspondence is:
-        Ticket.user_ticket_id == TicketUser.ticket_user_id
+    Stored datetime values must explicitly use datetime.UTC.
     """
 
     ticket_user_id: int
     client_id: int
     user_id: int
-
-    # Immutable-by-business original request text. Constructed by factories.
     text_of_ticket: TextOfTicket
 
     description: Description | Empty = field(default_factory=Empty)
@@ -56,12 +46,11 @@ class TicketUser:
     date_created: datetime = field(default_factory=lambda: datetime.now(UTC))
     version: int = 0
 
-    # Derived from workflow; never passed to the constructor.
     is_closed: bool = field(init=False, default=False)
     date_finished: datetime | None = field(init=False, default=None)
 
     def __post_init__(self) -> None:
-        """Check aggregate invariants without changing persisted values."""
+        """Validate invariants without normalizing persisted values."""
         self._validate_identity()
         self._validate_content()
         self._validate_datetimes()
@@ -78,7 +67,7 @@ class TicketUser:
         user_id: int,
         contact_user_id: int,
     ) -> int:
-        """Use user_id when a new request has no explicit contact User."""
+        """Resolve the contact when creating a new request."""
         if type(contact_user_id) is not int or contact_user_id < 0:
             raise ItemValidationError(
                 "Contact user id must be a non-negative integer"
@@ -96,11 +85,7 @@ class TicketUser:
         description: str = "",
         comment: str = "",
     ) -> Self:
-        """Create a request initiated by a User, directly or through staff.
-
-        The initial CREATED record uses the User's identifier. The linked
-        internal Ticket, if registered by staff, records the Admin separately.
-        """
+        """Create a User-originated request, directly or through staff."""
         if type(user_id) is not int or user_id <= 0:
             raise ItemValidationError("User id must be a positive integer")
 
@@ -154,11 +139,7 @@ class TicketUser:
         comments: list[Comment] | None = None,
         version: int = 0,
     ) -> Self:
-        """Restore a persisted request and replay its workflow history.
-
-        Contact User and dates are not normalized. TextOfTicket validates
-        the stored request text in the same way as for internal Ticket.
-        """
+        """Restore persisted fields and replay the workflow history."""
         if type(ticket_user_id) is not int or ticket_user_id <= 0:
             raise DomainOperationError(
                 "Cannot rehydrate TicketUser with non-positive ticket_user_id"
@@ -214,33 +195,31 @@ class TicketUser:
     # Editable data
     # ==================================================================
 
-    def update_details(
-        self,
-        *,
-        actor_employee_id: int,
-        description: str = "",
-        contact_user_id: int = 0,
-    ) -> None:
-        """Replace BOTH description and contact User.
-
-        An omitted description clears it. An omitted or zero contact_user_id
-        resets contact to self.user_id. Only non-terminal requests are editable.
-        """
-        if actor_employee_id <= 0:
-            raise DomainOperationError("actor_employee_id must be positive")
-
-        self._ensure_not_terminal()
-
+    def _resolve_edited_contact_user_id(self, contact_user_id: int) -> int:
+        """Validate and resolve a contact for an existing request."""
         if type(contact_user_id) is not int or contact_user_id < 0:
             raise DomainOperationError(
                 "contact_user_id must be a non-negative integer"
             )
+        return contact_user_id if contact_user_id > 0 else self.user_id
 
-        # Prepare all values before changing either field.
-        new_description = Description(description) if description else Empty()
-        new_contact_user_id = (
-            contact_user_id if contact_user_id > 0 else self.user_id
+    def update_details(
+        self,
+        *,
+        description: str = "",
+        contact_user_id: int = 0,
+    ) -> None:
+        """Replace BOTH description and contact User on a nonterminal request.
+
+        An omitted description clears it; an omitted or zero contact resets
+        the contact to the request's owner.
+        """
+        self._ensure_not_terminal()
+
+        new_contact_user_id = self._resolve_edited_contact_user_id(
+            contact_user_id
         )
+        new_description = Description(description) if description else Empty()
 
         self.description = new_description
         self.contact_user_id = new_contact_user_id
@@ -248,25 +227,16 @@ class TicketUser:
     def change_contact_user(
         self,
         *,
-        actor_employee_id: int,
         contact_user_id: int,
     ) -> None:
-        """Set or reset contact User without changing description.
+        """Set or reset the contact without changing description.
 
-        Linked-pair synchronization is a responsibility of TicketSyncService.
+        Linked-pair synchronization belongs to TicketSyncService.
+        No actor is recorded for a data-only change.
         """
-        if actor_employee_id <= 0:
-            raise DomainOperationError("actor_employee_id must be positive")
-
         self._ensure_not_terminal()
-
-        if type(contact_user_id) is not int or contact_user_id < 0:
-            raise DomainOperationError(
-                "contact_user_id must be a non-negative integer"
-            )
-
-        self.contact_user_id = (
-            contact_user_id if contact_user_id > 0 else self.user_id
+        self.contact_user_id = self._resolve_edited_contact_user_id(
+            contact_user_id
         )
 
     # ==================================================================
@@ -407,7 +377,7 @@ class TicketUser:
         self._recompute_closed_state()
 
     def add_comment(self, comment: Comment) -> None:
-        """Append a nonempty ordinary comment to a non-terminal request."""
+        """Append a nonempty ordinary comment to a nonterminal request."""
         self._ensure_not_terminal()
 
         if not comment.comment:
@@ -424,7 +394,7 @@ class TicketUser:
     # ==================================================================
 
     def _validate_status_history(self) -> None:
-        """Validate first status, transitions and chronological order."""
+        """Validate initial status, transitions and chronological order."""
         if not self.statuses:
             raise DomainOperationError("TicketUser must have status history")
 
@@ -476,7 +446,7 @@ class TicketUser:
                 )
 
     def _validate_content(self) -> None:
-        """Require the request text to be a validated TextOfTicket VO."""
+        """Require request text and description to use their value objects."""
         if not isinstance(self.text_of_ticket, TextOfTicket):
             raise DomainOperationError(
                 "TicketUser text_of_ticket must be TextOfTicket"
@@ -521,7 +491,7 @@ class TicketUser:
         *,
         field_name: str,
     ) -> None:
-        """Require a datetime with exactly the datetime.UTC tzinfo."""
+        """Require a datetime with exactly datetime.UTC as timezone."""
         if not isinstance(value, datetime):
             raise ItemValidationError(f"{field_name} must be datetime")
 
