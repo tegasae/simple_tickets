@@ -71,12 +71,12 @@ class TicketSyncService:
     def sync_from_ticket_user(
         self,
         ticket: Ticket,
-        ticket_user: TicketUser | None,
+        ticket_user: TicketUser,
     ) -> None:
         """Apply user confirmation/cancellation to Ticket; align contact."""
         linked = self._linked_ticket_user(ticket, ticket_user)
         if linked is None:
-            return
+            raise DomainOperationError("TicketUser has to have Ticket")
 
         user_status = linked.current_status()
         expected_status = self._ticket_user_status_for(ticket)
