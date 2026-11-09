@@ -1,3 +1,4 @@
+
 """Domain facade for internal Ticket operations.
 
 The application layer is responsible for loading aggregates, authorization,
@@ -134,7 +135,7 @@ class TicketService:
         ticket_user: TicketUser | None,
         actor_employee_id: int,
         contact_user_id: int,
-    ) -> TicketUser | None:
+    ) -> None:
         """Change contact User on Ticket alone, or on both linked aggregates.
 
         Contact id 0 resets contact to the owner where the aggregate permits it.
@@ -157,20 +158,20 @@ class TicketService:
                 )
 
             ticket.change_contact_user(contact_user_id=contact_user_id)
-            return None
+            return
+        # todo убрать потом это None, сделать TicketUser.empty()
+        if ticket_user is not None:
+            self._require_linked_ticket_user(
+                ticket=ticket,
+                ticket_user=ticket_user,
+            )
 
-        linked_ticket_user = self._require_linked_ticket_user(
-            ticket=ticket,
-            ticket_user=ticket_user,
-        )
-
-        self._ticket_sync_service.change_contact_user(
-            ticket,
-            linked_ticket_user,
-            actor_employee_id=actor_employee_id,
-            contact_user_id=contact_user_id,
-        )
-        return linked_ticket_user
+            self._ticket_sync_service.change_contact_user(
+                ticket,
+                ticket_user,
+                actor_employee_id=actor_employee_id,
+                contact_user_id=contact_user_id,
+            )
 
     # ==================================================================
     # Planning
@@ -196,11 +197,11 @@ class TicketService:
         actor_employee_id: int,
         comment: str = "",
         ticket_user_comment: str = "",
-    ) -> TicketUser | None:
-        linked = self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
+    ) -> None:
+        self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
         ticket.accept(actor_employee_id=actor_employee_id, comment=comment)
-        return self._sync_from_ticket(
-            ticket=ticket, ticket_user=linked, comment=ticket_user_comment
+        self._sync_from_ticket(
+            ticket=ticket, ticket_user=ticket_user, comment=ticket_user_comment
         )
 
     def reject(
@@ -210,17 +211,16 @@ class TicketService:
         ticket_user: TicketUser | None,
         actor_employee_id: int,
         comment: str,
-        ticket_user_comment: str = "",
-    ) -> TicketUser | None:
-        linked = self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
-        if linked is not None:
+    ) -> None:
+        self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
+        if ticket_user is not None:
             self._validate_ticket_user_cancel_comment(
                 actor_employee_id=actor_employee_id,
-                comment=ticket_user_comment,
+                comment=comment,
             )
         ticket.reject(actor_employee_id=actor_employee_id, comment=comment)
-        return self._sync_from_ticket(
-            ticket=ticket, ticket_user=linked, comment=ticket_user_comment
+        self._sync_from_ticket(
+            ticket=ticket, ticket_user=ticket_user, comment=comment
         )
 
     def defer(
@@ -231,10 +231,10 @@ class TicketService:
         actor_employee_id: int,
         comment: str,
         ticket_user_comment: str = "",
-    ) -> TicketUser | None:
+    ) -> None:
         linked = self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
         ticket.defer(actor_employee_id=actor_employee_id, comment=comment)
-        return self._sync_from_ticket(
+        self._sync_from_ticket(
             ticket=ticket, ticket_user=linked, comment=ticket_user_comment
         )
 
@@ -246,10 +246,10 @@ class TicketService:
         actor_employee_id: int,
         comment: str = "",
         ticket_user_comment: str = "",
-    ) -> TicketUser | None:
+    ) -> None:
         linked = self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
         ticket.suspend(actor_employee_id=actor_employee_id, comment=comment)
-        return self._sync_from_ticket(
+        self._sync_from_ticket(
             ticket=ticket, ticket_user=linked, comment=ticket_user_comment
         )
 
@@ -262,7 +262,7 @@ class TicketService:
         executor: Admin,
         comment: str = "",
         ticket_user_comment: str = "",
-    ) -> TicketUser | None:
+    ) -> None:
         linked = self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
 
         if not isinstance(executor, Admin):
@@ -285,7 +285,7 @@ class TicketService:
             executor_id=executor.employee_id,
             comment=comment,
         )
-        return self._sync_from_ticket(
+        self._sync_from_ticket(
             ticket=ticket, ticket_user=linked, comment=ticket_user_comment
         )
 
@@ -302,14 +302,14 @@ class TicketService:
         work_is_remote: bool,
         comment: str = "",
         ticket_user_comment: str = "",
-    ) -> TicketUser | None:
+    ) -> None:
         linked = self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
         ticket.start_work(
             actor_employee_id=actor_employee_id,
             work_is_remote=work_is_remote,
             comment=comment,
         )
-        return self._sync_from_ticket(
+        self._sync_from_ticket(
             ticket=ticket, ticket_user=linked, comment=ticket_user_comment
         )
 
@@ -325,7 +325,7 @@ class TicketService:
         duration: timedelta = timedelta(0),
         comment: str = "",
         ticket_user_comment: str = "",
-    ) -> TicketUser | None:
+    ) -> None:
         linked = self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
         ticket.register_work(
             actor_employee_id=actor_employee_id,
@@ -335,7 +335,7 @@ class TicketService:
             duration=duration,
             comment=comment,
         )
-        return self._sync_from_ticket(
+        self._sync_from_ticket(
             ticket=ticket, ticket_user=linked, comment=ticket_user_comment
         )
 
@@ -347,10 +347,10 @@ class TicketService:
         actor_employee_id: int,
         comment: str = "",
         ticket_user_comment: str = "",
-    ) -> TicketUser | None:
+    ) -> None:
         linked = self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
         ticket.pause_work(actor_employee_id=actor_employee_id, comment=comment)
-        return self._sync_from_ticket(
+        self._sync_from_ticket(
             ticket=ticket, ticket_user=linked, comment=ticket_user_comment
         )
 
@@ -363,14 +363,14 @@ class TicketService:
         work_is_remote: bool,
         comment: str = "",
         ticket_user_comment: str = "",
-    ) -> TicketUser | None:
+    ) -> None:
         linked = self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
         ticket.resume_work(
             actor_employee_id=actor_employee_id,
             work_is_remote=work_is_remote,
             comment=comment,
         )
-        return self._sync_from_ticket(
+        self._sync_from_ticket(
             ticket=ticket, ticket_user=linked, comment=ticket_user_comment
         )
 
@@ -382,10 +382,10 @@ class TicketService:
         actor_employee_id: int,
         comment: str = "",
         ticket_user_comment: str = "",
-    ) -> TicketUser | None:
+    ) -> None:
         linked = self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
         ticket.submit_for_review(actor_employee_id=actor_employee_id, comment=comment)
-        return self._sync_from_ticket(
+        self._sync_from_ticket(
             ticket=ticket, ticket_user=linked, comment=ticket_user_comment
         )
 
@@ -401,11 +401,11 @@ class TicketService:
         actor_employee_id: int,
         comment: str = "",
         ticket_user_comment: str = "",
-    ) -> TicketUser | None:
+    ) -> None:
         """Start recommended remote work through Ticket's composite command."""
         linked = self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
         ticket.start_remote_work(actor_employee_id=actor_employee_id, comment=comment)
-        return self._sync_from_ticket(
+        self._sync_from_ticket(
             ticket=ticket, ticket_user=linked, comment=ticket_user_comment
         )
 
@@ -421,10 +421,10 @@ class TicketService:
         actor_employee_id: int,
         comment: str = "",
         ticket_user_comment: str = "",
-    ) -> TicketUser | None:
+    ) -> None:
         linked = self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
         ticket.execute(actor_employee_id=actor_employee_id, comment=comment)
-        return self._sync_from_ticket(
+        self._sync_from_ticket(
             ticket=ticket, ticket_user=linked, comment=ticket_user_comment
         )
 
@@ -436,7 +436,7 @@ class TicketService:
         actor_employee_id: int,
         comment: str,
         ticket_user_comment: str = "",
-    ) -> TicketUser | None:
+    ) -> None:
         linked = self._prepare_workflow_operation(ticket=ticket, ticket_user=ticket_user)
         if linked is not None:
             self._validate_ticket_user_cancel_comment(
@@ -444,7 +444,7 @@ class TicketService:
                 comment=ticket_user_comment,
             )
         ticket.cancel(actor_employee_id=actor_employee_id, comment=comment)
-        return self._sync_from_ticket(
+        self._sync_from_ticket(
             ticket=ticket, ticket_user=linked, comment=ticket_user_comment
         )
 
@@ -453,33 +453,40 @@ class TicketService:
     # ==================================================================
 
     def _prepare_workflow_operation(
-        self,
-        *,
-        ticket: Ticket,
-        ticket_user: TicketUser | None,
-    ) -> TicketUser | None:
-        """Reject mismatched linked workflow before mutating internal Ticket.
-
-        A standalone Ticket must not have an accompanying TicketUser.
-        The linked pair must be both structurally and workflow-consistent.
+            self,
+            *,
+            ticket: Ticket,
+            ticket_user: TicketUser | None,
+    ) -> None:
         """
+        Validate structural and workflow consistency
+        before modifying Ticket.
+        """
+
         if ticket.user_ticket_id == 0:
             if ticket_user is not None:
                 raise DomainOperationError(
                     "Standalone Ticket must not have TicketUser"
                 )
-            return None
+            return
 
-        linked = self._require_linked_ticket_user(ticket=ticket, ticket_user=ticket_user)
-        self._ticket_sync_service.ensure_workflow_consistent(ticket, linked)
-        return linked
+        if ticket_user is None:
+            raise DomainOperationError(
+                "Linked Ticket requires TicketUser"
+            )
+
+        self._ticket_sync_service.ensure_workflow_consistent(
+            ticket,
+            ticket_user,
+        )
+
 
     def _require_linked_ticket_user(
         self,
         *,
         ticket: Ticket,
         ticket_user: TicketUser | None,
-    ) -> TicketUser:
+    ):
         if ticket_user is None:
             raise DomainOperationError(
                 f"Ticket {ticket.ticket_id} is linked to TicketUser "
@@ -487,7 +494,7 @@ class TicketService:
             )
 
         self._ticket_sync_service.ensure_consistent(ticket, ticket_user)
-        return ticket_user
+
 
     def _sync_from_ticket(
         self,
@@ -495,21 +502,16 @@ class TicketService:
         ticket: Ticket,
         ticket_user: TicketUser | None,
         comment: str = "",
-    ) -> TicketUser | None:
-        """Return the TicketUser only when its workflow status changed."""
+    ) -> None:
+        """Synchronize the supplied TicketUser in place, when present."""
         if ticket_user is None:
-            return None
+            return
 
-        previous_status = ticket_user.current_status()
         self._ticket_sync_service.sync_from_ticket(
             ticket,
             ticket_user,
             comment=comment,
         )
-
-        if ticket_user.current_status() == previous_status:
-            return None
-        return ticket_user
 
     @staticmethod
     def _validate_ticket_user_cancel_comment(
