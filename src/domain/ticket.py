@@ -87,9 +87,9 @@ class Ticket:
 
     @staticmethod
     def _resolve_contact_user_id(
-        *,
-        user_id: int,
-        contact_user_id: int,
+            *,
+            user_id: int,
+            contact_user_id: int,
     ) -> int:
         if contact_user_id < 0:
             raise ItemValidationError("Contact user id cannot be negative")
@@ -101,22 +101,22 @@ class Ticket:
 
     @classmethod
     def _create_new(
-        cls,
-        *,
-        client_id: int,
-        text_of_ticket: str,
-        initial_status: TicketStatus,
-        actor_employee_id: int,
-        comment_employee_id: int,
-        user_id: int = 0,
-        contact_user_id: int = 0,
-        user_ticket_id: int = 0,
-        department_id: int = 0,
-        description: str = "",
-        remote_work_recommended: bool = False,
-        urgency: TicketUrgency = TicketUrgency.NORMAL,
-        planned_at: datetime | None = None,
-        comment: str = "",
+            cls,
+            *,
+            client_id: int,
+            text_of_ticket: str,
+            initial_status: TicketStatus,
+            actor_employee_id: int,
+            comment_employee_id: int,
+            user_id: int = 0,
+            contact_user_id: int = 0,
+            user_ticket_id: int = 0,
+            department_id: int = 0,
+            description: str = "",
+            remote_work_recommended: bool = False,
+            urgency: TicketUrgency = TicketUrgency.NORMAL,
+            planned_at: datetime | None = None,
+            comment: str = "",
     ) -> Self:
         """Shared implementation of the two public creation scenarios."""
         now = datetime.now(UTC)
@@ -165,18 +165,18 @@ class Ticket:
 
     @classmethod
     def create(
-        cls,
-        *,
-        client_id: int,
-        admin_id: int,
-        text_of_ticket: str,
-        contact_user_id: int = 0,
-        department_id: int = 0,
-        description: str = "",
-        remote_work_recommended: bool = False,
-        urgency: TicketUrgency = TicketUrgency.NORMAL,
-        planned_at: datetime | None = None,
-        comment: str = "",
+            cls,
+            *,
+            client_id: int,
+            admin_id: int,
+            text_of_ticket: str,
+            contact_user_id: int = 0,
+            department_id: int = 0,
+            description: str = "",
+            remote_work_recommended: bool = False,
+            urgency: TicketUrgency = TicketUrgency.NORMAL,
+            planned_at: datetime | None = None,
+            comment: str = "",
     ) -> Self:
         """Create a Ticket with initial status CREATED, by an Admin.
 
@@ -201,20 +201,67 @@ class Ticket:
         )
 
     @classmethod
+    def create_from_request_user(
+            cls,
+            *,
+            client_id: int,
+            admin_id: int,
+            user_id: int,
+            user_ticket_id: int,
+            text_of_ticket: str,
+            contact_user_id: int = 0,
+            department_id: int = 0,
+            description: str = "",
+            remote_work_recommended: bool = False,
+            urgency: TicketUrgency = TicketUrgency.NORMAL,
+            planned_at: datetime | None = None,
+            comment: str = "",
+    ) -> Self:
+        """Register a User request entered by an Admin.
+
+      The Admin is the author of the internal Ticket's initial status.
+      A persisted TicketUser must already exist; its ID is required."""
+
+        if type(admin_id) is not int or admin_id <= 0:
+            raise ItemValidationError("Admin id must be positive")
+
+        if type(user_id) is not int or user_id <= 0:
+            raise ItemValidationError("User id must be positive")
+
+        if type(user_ticket_id) is not int or user_ticket_id <= 0:
+            raise ItemValidationError("User ticket id must be positive")
+        return cls._create_new(
+            client_id=client_id,
+            text_of_ticket=text_of_ticket,
+            initial_status=TicketStatus.CREATED_FROM_REQUEST_USER,
+            actor_employee_id=admin_id,
+            comment_employee_id=admin_id,
+            user_id=user_id,
+            contact_user_id=contact_user_id,
+            user_ticket_id=user_ticket_id,
+            department_id=department_id,
+            description=description,
+            remote_work_recommended=remote_work_recommended,
+            urgency=urgency,
+            planned_at=planned_at,
+            comment=comment,
+        )
+
+    @classmethod
     def create_from_ticket_user(
-        cls,
-        *,
-        client_id: int,
-        user_id: int,
-        user_ticket_id: int,
-        text_of_ticket: str,
-        contact_user_id: int = 0,
-        description: str = "",
-        department_id: int = 0,
-        remote_work_recommended: bool = False,
-        urgency: TicketUrgency = TicketUrgency.NORMAL,
-        planned_at: datetime | None = None,
-        comment: str = "",
+            cls,
+            *,
+            client_id: int,
+            user_id: int,
+            user_ticket_id: int,
+            text_of_ticket: str,
+            contact_user_id: int = 0,
+            description: str = "",
+            department_id: int = 0,
+            remote_work_recommended: bool = False,
+            urgency: TicketUrgency = TicketUrgency.NORMAL,
+            planned_at: datetime | None = None,
+            comment: str = "",
     ) -> Self:
         """Create an internal Ticket from an existing TicketUser."""
         if user_id <= 0:
@@ -242,23 +289,23 @@ class Ticket:
 
     @classmethod
     def rehydrate(
-        cls,
-        *,
-        ticket_id: int,
-        client_id: int,
-        text_of_ticket: str,
-        statuses: list[TicketStatusRecord],
-        date_created: datetime,
-        user_id: int = 0,
-        contact_user_id: int = 0,
-        comments: list[Comment] | None = None,
-        department_id: int = 0,
-        user_ticket_id: int = 0,
-        description: str = "",
-        remote_work_recommended: bool = False,
-        urgency: TicketUrgency = TicketUrgency.NORMAL,
-        planned_at: datetime | None = None,
-        version: int = 0,
+            cls,
+            *,
+            ticket_id: int,
+            client_id: int,
+            text_of_ticket: str,
+            statuses: list[TicketStatusRecord],
+            date_created: datetime,
+            user_id: int = 0,
+            contact_user_id: int = 0,
+            comments: list[Comment] | None = None,
+            department_id: int = 0,
+            user_ticket_id: int = 0,
+            description: str = "",
+            remote_work_recommended: bool = False,
+            urgency: TicketUrgency = TicketUrgency.NORMAL,
+            planned_at: datetime | None = None,
+            version: int = 0,
     ) -> Self:
         """Rehydrate using the first status, then replay the remaining history.
 
@@ -509,12 +556,12 @@ class Ticket:
                 continue
 
             if (
-                record.actual_started_at is not None
-                and record.actual_finished_at is not None
+                    record.actual_started_at is not None
+                    and record.actual_finished_at is not None
             ):
                 total_seconds += int(
                     (
-                        record.actual_finished_at - record.actual_started_at
+                            record.actual_finished_at - record.actual_started_at
                     ).total_seconds()
                 )
                 continue
@@ -565,11 +612,11 @@ class Ticket:
         self.append_status(record)
 
     def assign(
-        self,
-        *,
-        actor_employee_id: int,
-        executor_id: int,
-        comment: str = "",
+            self,
+            *,
+            actor_employee_id: int,
+            executor_id: int,
+            comment: str = "",
     ) -> None:
         record = TicketStatusRecord(
             status=TicketStatus.ASSIGNED,
@@ -580,11 +627,11 @@ class Ticket:
         self.append_status(record)
 
     def start_work(
-        self,
-        *,
-        actor_employee_id: int,
-        work_is_remote: bool,
-        comment: str = "",
+            self,
+            *,
+            actor_employee_id: int,
+            work_is_remote: bool,
+            comment: str = "",
     ) -> None:
         """Start live work from ASSIGNED (not a resume operation)."""
         self._require_current_status(
@@ -600,14 +647,14 @@ class Ticket:
         self.append_status(record)
 
     def register_work(
-        self,
-        *,
-        actor_employee_id: int,
-        work_is_remote: bool,
-        actual_started_at: datetime | None = None,
-        actual_finished_at: datetime | None = None,
-        duration: timedelta = timedelta(0),
-        comment: str = "",
+            self,
+            *,
+            actor_employee_id: int,
+            work_is_remote: bool,
+            actual_started_at: datetime | None = None,
+            actual_finished_at: datetime | None = None,
+            duration: timedelta = timedelta(0),
+            comment: str = "",
     ) -> None:
         """Register completed work as ASSIGNED -> AT_WORK -> READY_FOR_REVIEW.
 
@@ -649,10 +696,10 @@ class Ticket:
             raise
 
     def pause_work(
-        self,
-        *,
-        actor_employee_id: int,
-        comment: str = "",
+            self,
+            *,
+            actor_employee_id: int,
+            comment: str = "",
     ) -> None:
         self._require_current_status(
             TicketStatus.AT_WORK,
@@ -666,11 +713,11 @@ class Ticket:
         self.append_status(record)
 
     def resume_work(
-        self,
-        *,
-        actor_employee_id: int,
-        work_is_remote: bool,
-        comment: str = "",
+            self,
+            *,
+            actor_employee_id: int,
+            work_is_remote: bool,
+            comment: str = "",
     ) -> None:
         self._require_current_status(
             TicketStatus.PAUSED,
@@ -685,10 +732,10 @@ class Ticket:
         self.append_status(record)
 
     def submit_for_review(
-        self,
-        *,
-        actor_employee_id: int,
-        comment: str = "",
+            self,
+            *,
+            actor_employee_id: int,
+            comment: str = "",
     ) -> None:
         """Submit work for review, according to the transition validator.
 
@@ -740,10 +787,10 @@ class Ticket:
         self.append_status(record)
 
     def start_remote_work(
-        self,
-        *,
-        actor_employee_id: int,
-        comment: str = "",
+            self,
+            *,
+            actor_employee_id: int,
+            comment: str = "",
     ) -> None:
         """Start recommended remote work from ACCEPTED or ASSIGNED.
 
@@ -869,10 +916,10 @@ class Ticket:
 
     @classmethod
     def _validate_new_planned_at(
-        cls,
-        planned_at: datetime,
-        *,
-        reference_time: datetime,
+            cls,
+            planned_at: datetime,
+            *,
+            reference_time: datetime,
     ) -> None:
         """Validate a newly set planned time against today's UTC date."""
         validate_utc_datetime(planned_at, field_name="planned_at")
@@ -897,10 +944,10 @@ class Ticket:
             self.date_finished = None
 
     def _require_current_status(
-        self,
-        status: TicketStatus,
-        *,
-        operation: str,
+            self,
+            status: TicketStatus,
+            *,
+            operation: str,
     ) -> None:
         """Enforce the meaning of a specific public workflow command."""
         current_status = self.current_status()
