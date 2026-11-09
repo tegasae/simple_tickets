@@ -51,7 +51,7 @@ class TicketStatusRule:
     requires_executor: bool = False  # internal state
     allows_work_data: bool = False  # internal state
     requires_work_mode: bool = False   # internal state елси установлен, то работа делаласб удаленно, если нет, то на месте. Если None то все равно
-    user_action: bool = False
+    user_action: bool = False # internal статус устанваливается пользователем или админом
     can_change_data: bool = False
     has_executor:bool=False
     requires_user_id:bool=False
