@@ -1,324 +1,80 @@
+"""Ticket aggregate and workflow commands."""
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Self
 
 from src.domain.datetime_check import validate_utc_datetime
-from src.domain.exceptions import (
-    DomainOperationError,
-    ItemValidationError,
+from src.domain.exceptions import DomainOperationError, ItemValidationError
+from src.domain.statuses.rules.ticket_origin_rule import TICKET_ORIGIN_RULES
+from src.domain.statuses.rules.ticket_state_rule import (
+    TicketStateRule,
+    TICKET_STATE_RULES,
+)
+from src.domain.statuses.rules.ticket_status_transition import (
+    FIRST_TICKET_STATUSES,
+    TERMINAL_TICKET_STATUSES,
+    TICKET_TRANSITIONS,
 )
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-from src.domain.statuses.rules.ticket_status_transition import TICKET_TRANSITIONS, FIRST_TICKET_STATUSES, \
-    TERMINAL_TICKET_STATUSES
 from src.domain.ticket_components import Comment, TicketUrgency
-from src.domain.value_objects import CommonComment, Empty, Description, TextOfTicket
+from src.domain.value_objects import CommonComment, Description, Empty, TextOfTicket
 
 
 @dataclass(kw_only=True)
 class Ticket:
-    """
-    Aggregate внутренней заявки.
+    """Aggregate of an internal Ticket.
 
-    Public construction API
-    =======================
+    New Tickets are created through create() or create_from_ticket_user().
+    Persisted Tickets are restored through rehydrate().
 
-    Новая Ticket должна создаваться через одну из фабрик:
+    The last TicketStatusRecord determines the current workflow state.
+    TicketStatusRecord validates its own fields; Ticket validates its
+    aggregate invariants, and TICKET_TRANSITIONS defines allowed changes.
 
-        Ticket.create(...)
-        Ticket.create_from_ticket_user(...)
+    Times within the domain are UTC. The registration time of a workflow
+    record is its date_created. An explicit work interval or duration, when
+    present, takes priority over timestamps in workflow history.
 
-    Persisted Ticket восстанавливается только через:
+    planned_at is independent of workflow status. Terminal state and closing
+    time are derived from the status history, not supplied by callers.
 
-        Ticket.rehydrate(...)
-
-    Технически Python позволяет вызвать Ticket(...) напрямую, поскольку
-    aggregate реализован как dataclass. Однако прямой constructor не является
-    публичным способом создания Ticket.
-
-    При этом __post_init__ всё равно защищает основные aggregate invariants,
-    поэтому прямым вызовом конструктора нельзя получить заведомо некорректное
-    базовое состояние.
-
-
-    Workflow
-    ========
-
-    Ticket хранит полную историю workflow в statuses.
-
-    Текущий workflow state определяется исключительно последней
-    TicketStatusRecord.
-
-    Ticket проверяет aggregate-level правила workflow:
-
-    - корректный первый status;
-    - допустимость перехода между status;
-    - хронологический порядок status records.
-
-    Правила payload конкретной TicketStatusRecord находятся внутри
-    TicketStatusRecord и не дублируются в Ticket.
-
-
-    Ticket / TicketUser
-    ===================
-
-    Ticket и TicketUser являются независимыми aggregates.
-
-    Связь с исходной TicketUser хранится через:
-
-        user_ticket_id
-
-    Ticket, созданная непосредственно Admin:
-
-        first status == CREATED
-        user_ticket_id == 0
-
-    Ticket, созданная из TicketUser:
-
-        first status == CREATED_FROM_TICKET_USER
-        user_ticket_id > 0
-        user_id > 0
-
-
-    user_id / contact_user_id
-    =========================
-
-    Допустимые состояния:
-
-        user_id == 0
-        contact_user_id == 0
-
-            Ticket не связана с User и не имеет contact User.
-
-        user_id == 0
-        contact_user_id > 0
-
-            Ticket не имеет связанного User, но имеет contact User.
-
-        user_id > 0
-        contact_user_id > 0
-
-            Ticket связана с User и имеет contact User.
-
-    Если при создании:
-
-        user_id > 0
-        contact_user_id == 0
-
-    contact_user_id автоматически становится равным user_id.
-
-    contact_user_id не обязан совпадать с user_id.
-
-    Если user_id > 0, удалить contact User нельзя.
-
-    Если user_id == 0, contact_user_id может быть очищен установкой в 0.
-
-
-    Actors and comments
-    ===================
-
-    TicketStatusRecord.actor_employee_id:
-
-    - для действий Admin содержит employee id;
-    - для workflow-действий User в текущей модели содержит 0.
-
-    В частности:
-
-        CREATED_FROM_TICKET_USER
-            actor_employee_id == 0
-
-    Comment.employee_id использует общее пространство идентификаторов
-    Admin и User.
-
-    Поэтому комментарий, созданный User, хранит настоящий user_id.
-
-
-    Date/time contract
-    ==================
-
-    Все datetime внутри domain должны использовать UTC.
-
-    Допускается только:
-
-        datetime(..., tzinfo=UTC)
-
-    Не допускаются:
-
-    - naive datetime;
-    - datetime с timezone, отличной от UTC.
-
-    Domain не выполняет автоматическое преобразование timezone.
-    Преобразование внешних значений в UTC должно выполняться до передачи
-    значения в domain.
-
-
-    planned_at
-    ==========
-
-    planned_at является текущей запланированной датой/временем выполнения
-    Ticket и не является workflow status.
-
-    При создании Ticket или вызове schedule():
-
-    - planned_at может быть None;
-    - planned_at должен быть UTC;
-    - календарная UTC-дата planned_at не может быть раньше сегодняшнего дня.
-
-    При этом время внутри сегодняшнего дня может уже пройти.
-
-    Например, если сейчас:
-
-        2026-09-26 17:00 UTC
-
-    допустимо:
-
-        2026-09-26 10:00 UTC
-
-    но недопустимо:
-
-        2026-09-25 23:59 UTC
-
-    При rehydrate persisted planned_at может находиться в прошлом.
-    Это является допустимым persisted state и само по себе не образует
-    отдельного бизнес-состояния.
-
-
-    Derived state
-    =============
-
-    is_closed и date_finished не являются самостоятельным domain state.
-
-    Они полностью вычисляются из текущего workflow status:
-
-        terminal status:
-            is_closed = True
-            date_finished = current status date_created
-
-        non-terminal status:
-            is_closed = False
-            date_finished = None
-
-
-    Ticket intentionally does not know
-    ==================================
-
-    Aggregate не знает:
-
-    - RBAC;
-    - permissions;
-    - роли actor;
-    - существование Admin;
-    - существование User;
-    - существование Client;
-    - существование Department;
-    - enabled/disabled state других aggregates;
-    - cross-aggregate business rules.
-
-    Эти проверки выполняются application/domain services соответствующего
-    уровня.
+    The aggregate does not check external actors' permissions, foreign-key
+    existence, or the state of other aggregates.
     """
 
     ticket_id: int
     client_id: int
-
-    # Immutable business text of the request.
-    #
-    # text_of_ticket задаётся при создании / rehydrate и после создания
-    # не изменяется.
     text_of_ticket: TextOfTicket
 
-
-    # Editable detailed description.
-    description: Description|Empty = field(default_factory=Empty)
-
-    # User related to the Ticket.
-    #
-    # 0 means that there is no related User.
+    description: Description | Empty = field(default_factory=Empty)
     user_id: int = 0
-
-    # Current contact User.
-    #
-    # 0 means that no contact User is assigned.
     contact_user_id: int = 0
-
-    # Complete workflow history.
-    statuses: list[TicketStatusRecord] = field(
-        default_factory=list,
-    )
-
-    # Ordinary comments attached to the Ticket.
-    comments: list[Comment] = field(
-        default_factory=list,
-    )
-
-    # Aggregate creation time.
-    #
-    # For a newly created Ticket this value is generated automatically.
-    # For rehydrate it is restored from persistence.
-    date_created: datetime = field(
-        default_factory=lambda: datetime.now(UTC),
-    )
-
-    # Current independent planning value.
-    #
-    # This field is intentionally independent from workflow statuses.
+    statuses: list[TicketStatusRecord] = field(default_factory=list)
+    comments: list[Comment] = field(default_factory=list)
+    date_created: datetime = field(default_factory=lambda: datetime.now(UTC))
     planned_at: datetime | None = None
-
     department_id: int = 0
-
     remote_work_recommended: bool = False
-
-    # Optimistic locking / persistence version.
     version: int = 0
-
     urgency: TicketUrgency = TicketUrgency.NORMAL
-
-    # Source TicketUser id.
-    #
-    # 0 for an ordinary internally-created Ticket.
-    # > 0 for a Ticket created from TicketUser.
     user_ticket_id: int = 0
 
+    is_closed: bool = field(init=False, default=False)
+    date_finished: datetime | None = field(init=False, default=None)
 
-    # ------------------------------------------------------------------
-    # Derived state.
-    #
-    # These values cannot be passed to the constructor.
-    # They are always reconstructed from workflow history.
-    # ------------------------------------------------------------------
-
-    is_closed: bool = field(
-        init=False,
-        default=False,
-    )
-
-    date_finished: datetime | None = field(
-        init=False,
-        default=None,
-    )
+    @property
+    def rule(self) -> TicketStateRule:
+        """Rules belonging to the current state of the Ticket aggregate."""
+        return TICKET_STATE_RULES[self.current_status()]
 
     def __post_init__(self) -> None:
-        """
-        Normalize and validate aggregate state.
-
-        __post_init__ validates only invariants that must always hold for
-        an existing Ticket.
-
-        Scenario-specific construction remains the responsibility of
-        create(), create_from_ticket_user() and rehydrate().
-        """
-
-
-
         if not self.statuses:
-            raise DomainOperationError(
-                "Ticket must have status history"
-            )
+            raise DomainOperationError("Ticket must have status history")
 
         if self.statuses[0].status not in FIRST_TICKET_STATUSES:
-            raise DomainOperationError(
-                "The first Ticket status is incorrect"
-            )
+            raise DomainOperationError("The first Ticket status is incorrect")
 
         self._validate_identity()
         self._validate_datetimes()
@@ -335,25 +91,8 @@ class Ticket:
         user_id: int,
         contact_user_id: int,
     ) -> int:
-        """
-        Resolve contact_user_id for a newly created Ticket.
-
-        Rules:
-
-        1. Explicit contact_user_id > 0 always wins.
-
-        2. If contact_user_id == 0 and user_id > 0,
-           user_id becomes the contact User.
-
-        3. If both values are 0, Ticket has no contact User.
-
-        Negative contact_user_id is invalid.
-        """
-
         if contact_user_id < 0:
-            raise ItemValidationError(
-                "Contact user id cannot be negative"
-            )
+            raise ItemValidationError("Contact user id cannot be negative")
 
         if contact_user_id > 0:
             return contact_user_id
@@ -379,41 +118,11 @@ class Ticket:
         planned_at: datetime | None = None,
         comment: str = "",
     ) -> Self:
-        """
-        Common implementation used by public creation factories.
-
-        This method does not define a business creation scenario itself.
-
-        The public factory supplies:
-
-        - initial workflow status;
-        - actor_employee_id of the first status;
-        - author id of the optional initial comment;
-        - source TicketUser information when applicable.
-
-        actor_employee_id and comment_employee_id are intentionally
-        independent values.
-
-        For Ticket created by Admin:
-
-            actor_employee_id == admin_id
-            comment_employee_id == admin_id
-
-        For Ticket created from TicketUser:
-
-            actor_employee_id == 0
-            comment_employee_id == user_id
-
-        date_created is always generated automatically here.
-        """
-
+        """Shared implementation of the two public creation scenarios."""
         now = datetime.now(UTC)
 
         if planned_at is not None:
-            cls._validate_new_planned_at(
-                planned_at,
-                reference_time=now,
-            )
+            cls._validate_new_planned_at(planned_at, reference_time=now)
 
         resolved_contact_user_id = cls._resolve_contact_user_id(
             user_id=user_id,
@@ -423,7 +132,7 @@ class Ticket:
         ticket = cls(
             ticket_id=0,
             client_id=client_id,
-            text_of_ticket=text_of_ticket,
+            text_of_ticket=TextOfTicket(text_of_ticket),
             user_id=user_id,
             contact_user_id=resolved_contact_user_id,
             user_ticket_id=user_ticket_id,
@@ -461,8 +170,6 @@ class Ticket:
         client_id: int,
         admin_id: int,
         text_of_ticket: str,
-        ticket_user_id: int=0,
-        user_id: int = 0,
         contact_user_id: int = 0,
         department_id: int = 0,
         description: str = "",
@@ -471,61 +178,20 @@ class Ticket:
         planned_at: datetime | None = None,
         comment: str = "",
     ) -> Self:
+        """Create a Ticket with initial status CREATED, by an Admin.
+
+        The existing ticket_user_id parameter is preserved for API
+        compatibility. It is forwarded to the stored user_ticket_id field.
         """
-        Create a new internal Ticket directly by an Admin.
-
-        Workflow
-        --------
-
-        First status:
-
-            TicketStatus.CREATED
-
-        The Admin who creates the Ticket is stored as:
-
-            TicketStatusRecord.actor_employee_id == admin_id
-
-        If an initial comment is provided:
-
-            Comment.employee_id == admin_id
-
-        TicketUser relation
-        -------------------
-
-        This factory does not create Ticket from TicketUser.
-
-        Therefore:
-
-            user_ticket_id == 0
-
-        user_id may still be specified because an internally-created Ticket
-        may be associated with a User.
-
-        Contact User
-        ------------
-
-        If user_id > 0 and contact_user_id is not specified:
-
-            contact_user_id = user_id
-
-        text_of_ticket
-        --------------
-
-        text_of_ticket is required and immutable after Ticket creation.
-        """
-
-
-
-
         return cls._create_new(
             client_id=client_id,
             text_of_ticket=text_of_ticket,
             initial_status=TicketStatus.CREATED,
             actor_employee_id=admin_id,
             comment_employee_id=admin_id,
-            user_id=user_id,
+            user_id=0,
             contact_user_id=contact_user_id,
-            user_ticket_id=ticket_user_id,
+            user_ticket_id=0,
             department_id=department_id,
             description=description,
             remote_work_recommended=remote_work_recommended,
@@ -550,65 +216,12 @@ class Ticket:
         planned_at: datetime | None = None,
         comment: str = "",
     ) -> Self:
-        """
-        Create an internal Ticket from an existing TicketUser.
+        """Create an internal Ticket from an existing TicketUser."""
+        if user_id <= 0:
+            raise ItemValidationError("User id must be positive")
 
-        Ticket and TicketUser remain independent aggregates.
-        Their linking is coordinated by the application layer.
-
-        Workflow
-        --------
-
-        First status:
-
-            TicketStatus.CREATED_FROM_TICKET_USER
-
-        User workflow actor
-        -------------------
-
-        In the current model TicketStatusRecord.actor_employee_id represents
-        an employee actor.
-
-        A User is not stored in this field.
-
-        Therefore for CREATED_FROM_TICKET_USER:
-
-            actor_employee_id == 0
-
-        The User identity is retained by Ticket.user_id.
-
-        Initial comment
-        ---------------
-
-        Comment.employee_id uses one common identifier space for Admin
-        and User.
-
-        Therefore, if the User supplied an initial comment:
-
-            Comment.employee_id == user_id
-
-        Source TicketUser
-        -----------------
-
-        user_ticket_id must be positive.
-
-        Contact User
-        ------------
-
-        If contact_user_id is not specified:
-
-            contact_user_id = user_id
-        """
-
-        if user_id < 0:
-            raise ItemValidationError(
-                "User id must be positive"
-            )
-
-        if user_ticket_id < 0:
-            raise ItemValidationError(
-                "User ticket id must be positive"
-            )
+        if user_ticket_id <= 0:
+            raise ItemValidationError("User ticket id must be positive")
 
         return cls._create_new(
             client_id=client_id,
@@ -647,60 +260,11 @@ class Ticket:
         planned_at: datetime | None = None,
         version: int = 0,
     ) -> Self:
+        """Rehydrate using the first status, then replay the remaining history.
+
+        Existing planned_at may be in the past. All status records are
+        checked against the *current* workflow transition rules.
         """
-        Rehydrate a persisted Ticket.
-
-        Repository contract
-        -------------------
-
-        Repository must provide:
-
-        - ticket_id > 0;
-        - complete workflow history;
-        - workflow history in persistence order;
-        - UTC datetime values;
-        - persisted aggregate data without normalization.
-
-        Workflow reconstruction
-        -----------------------
-
-        Only the first persisted status is passed to the constructor.
-
-        Remaining records are replayed through append_status():
-
-            statuses[0]
-                -> constructor / __post_init__
-
-            statuses[1:]
-                -> append_status(...)
-
-        Therefore persisted workflow history cannot bypass transition and
-        chronology checks.
-
-        Contact User
-        ------------
-
-        Unlike creation factories, rehydrate does not resolve or substitute
-        contact_user_id.
-
-        Persisted state is restored exactly as stored and then validated.
-
-        planned_at
-        ----------
-
-        Persisted planned_at may be earlier than today's date.
-
-        Rehydrate validates only that it uses UTC.
-
-        Derived state
-        -------------
-
-        is_closed and date_finished are not loaded from persistence as
-        independent domain state.
-
-        They are reconstructed from workflow history.
-        """
-
         if ticket_id <= 0:
             raise DomainOperationError(
                 "Cannot rehydrate Ticket with non-positive ticket_id"
@@ -714,7 +278,7 @@ class Ticket:
         ticket = cls(
             ticket_id=ticket_id,
             client_id=client_id,
-            text_of_ticket=text_of_ticket,
+            text_of_ticket=TextOfTicket(text_of_ticket),
             user_id=user_id,
             contact_user_id=contact_user_id,
             statuses=statuses[:1],
@@ -722,7 +286,7 @@ class Ticket:
             date_created=date_created,
             department_id=department_id,
             user_ticket_id=user_ticket_id,
-            description=description,
+            description=Description(description),
             remote_work_recommended=remote_work_recommended,
             urgency=TicketUrgency(urgency),
             planned_at=planned_at,
@@ -735,100 +299,44 @@ class Ticket:
         return ticket
 
     # ==================================================================
-    # Current state
+    # Current state and executor
     # ==================================================================
 
     def current_status_record(self) -> TicketStatusRecord:
-        """
-        Return the current workflow record.
-
-        Ticket current state is always defined by the last record in the
-        complete workflow history.
-        """
-
         if not self.statuses:
-            raise DomainOperationError(
-                "Ticket has no status history"
-            )
-
+            raise DomainOperationError("Ticket has no status history")
         return self.statuses[-1]
 
     def current_status(self) -> TicketStatus:
-        """
-        Return the current Ticket workflow status.
-        """
-
         return self.current_status_record().status
 
     def is_terminal(self) -> bool:
-        """
-        Return True when Ticket is currently in a terminal workflow state.
-        """
-
         return self.current_status() in TERMINAL_TICKET_STATUSES
 
-    # ==================================================================
-    # Executor
-    # ==================================================================
-
     def current_executor_id(self) -> int:
-        """
-        Return the currently active executor.
-
-        If the current workflow state has no active executor,
-        return 0.
-
-        Otherwise scan workflow history backwards until:
-
-        - the active ASSIGNED record is found;
-        - or an executor-clearing state is reached.
-
-        Executor-active states are defined by:
-
-            record.rule.has_executors
-
-        States without has_executors break the current assignment chain.
-        """
-
-        if not self.current_status_record().rule.has_executor:
-
+        """Return the active executor, or 0 when the state has none."""
+        if not self.rule.has_executor:
             return 0
 
         for record in reversed(self.statuses):
+            if not TICKET_STATE_RULES[record.status].has_executor:
+                raise DomainOperationError(
+                    "Active executor assignment history is broken"
+                )
+
             if record.status == TicketStatus.ASSIGNED:
                 return record.executor_id
-
-            if not record.rule.has_executor:
-                return 0
 
         raise DomainOperationError(
             "Ticket is in executor-active status "
             "but has no preceding ASSIGNED record"
         )
+
     def last_executor_id(self) -> int:
-        """
-        Return the most recently assigned executor.
-
-        Unlike current_executor_id(), this method does not care whether the
-        assignment is still active.
-
-        It is intended for historical/analytical use.
-
-        Returns:
-
-            executor_id of the latest ASSIGNED record
-
-        or:
-
-            0
-
-        when Ticket has never had an executor.
-        """
-
+        """Return the most recently assigned executor, even if inactive."""
         for record in reversed(self.statuses):
             if record.status == TicketStatus.ASSIGNED:
                 return record.executor_id
-
         return 0
 
     # ==================================================================
@@ -836,66 +344,27 @@ class Ticket:
     # ==================================================================
 
     def is_new(self) -> bool:
-        """
-        Return True when Ticket has not yet been persisted.
-
-        New aggregate uses:
-
-            ticket_id == 0
-        """
-
         return self.ticket_id == 0
 
     def new_statuses(self) -> list[TicketStatusRecord]:
-        """
-        Return workflow records not yet persisted.
-        """
-
-        return [
-            record
-            for record in self.statuses
-            if record.is_new()
-        ]
+        return [record for record in self.statuses if record.is_new()]
 
     def new_comments(self) -> list[Comment]:
-        """
-        Return comments not yet persisted.
-        """
-
-        return [
-            comment
-            for comment in self.comments
-            if comment.is_new()
-        ]
+        return [comment for comment in self.comments if comment.is_new()]
 
     # ==================================================================
     # Workflow
     # ==================================================================
 
-    def append_status(
-            self,
-            record: TicketStatusRecord,
-    ) -> None:
-        """
-        Append a new workflow status record.
-
-        Validates:
-        - allowed workflow transition;
-        - chronological order of status history;
-        - transition-specific business rules.
-        """
-
+    def append_status(self, record: TicketStatusRecord) -> None:
+        """Append a validated workflow record for an allowed transition."""
         current_record = self.current_status_record()
-
-        rule = TICKET_TRANSITIONS[current_record.status].get(
-            record.status
-        )
+        rule = TICKET_TRANSITIONS[current_record.status].get(record.status)
 
         if rule is None:
             raise DomainOperationError(
                 "Ticket status transition is not allowed: "
-                f"{current_record.status.value} -> "
-                f"{record.status.value}"
+                f"{current_record.status.value} -> {record.status.value}"
             )
 
         if record.date_created < current_record.date_created:
@@ -913,183 +382,83 @@ class Ticket:
     # Comments
     # ==================================================================
 
-    def add_comment(
-        self,
-        comment: Comment,
-    ) -> None:
-        """
-        Add an ordinary comment to Ticket.
-
-        Comments cannot be added after Ticket reaches a terminal state.
-
-        Comment.employee_id uses the common Admin/User identifier space.
-
-        The comment datetime must use UTC.
-        """
-
+    def add_comment(self, comment: Comment) -> None:
         if self.is_terminal():
             raise DomainOperationError(
-                f"Cannot add comment to terminal Ticket "
-                f"{self.ticket_id}",
+                f"Cannot add comment to terminal Ticket {self.ticket_id}"
             )
 
         if not comment.comment:
-            raise DomainOperationError(
-                "Comment cannot be empty",
-            )
+            raise DomainOperationError("Comment cannot be empty")
 
         validate_utc_datetime(
             comment.date_created,
             field_name="comment.date_created",
         )
-
         self.comments.append(comment)
 
     # ==================================================================
     # Editable Ticket data
     # ==================================================================
 
-    def change_department(
-        self,
-        *,
-        department_id: int,
-    ) -> None:
-        """
-        Change Ticket department.
-
-        department_id == 0 means that department is not assigned.
-
-        Negative department id is invalid.
-
-        Whether Ticket data can currently be modified is determined by the
-        current workflow rule:
-
-            current_status_record().rule.can_change_data
-        """
-
+    def change_department(self, *, department_id: int) -> None:
         if department_id < 0:
             raise DomainOperationError(
-                "Ticket department_id cannot be negative",
+                "Ticket department_id cannot be negative"
             )
 
-        if not self.current_status_record().rule.can_change_data:
+        if not self.rule.can_change_data:
             raise DomainOperationError(
                 "Cannot change Ticket department in current status "
-                f"{self.current_status()}",
+                f"{self.current_status()}"
             )
 
         self.department_id = department_id
 
-    def change_contact_user(
-        self,
-        *,
-        contact_user_id: int,
-    ) -> None:
-        """
-        Change or clear contact User.
-
-        Rules
-        -----
-
-        contact_user_id < 0:
-            invalid.
-
-        contact_user_id == 0:
-            clear contact User.
-
-            This is allowed only when Ticket.user_id == 0.
-
-        contact_user_id > 0:
-            set or replace contact User.
-
-        If Ticket.user_id > 0, contact User is mandatory and therefore
-        cannot be cleared.
-
-        contact_user_id does not have to equal user_id.
-        """
-
-        if not self.current_status_record().rule.can_change_data:
+    def change_contact_user(self, *, contact_user_id: int) -> None:
+        if not self.rule.can_change_data:
             raise DomainOperationError(
                 "Cannot change Ticket contact User in current status "
-                f"{self.current_status()}",
+                f"{self.current_status()}"
             )
 
         if contact_user_id < 0:
             raise DomainOperationError(
-                "Ticket contact_user_id cannot be negative",
+                "Ticket contact_user_id cannot be negative"
             )
 
         if self.user_id > 0 and contact_user_id == 0:
             raise DomainOperationError(
-                "Ticket with user_id must have contact_user_id",
+                "Ticket with user_id must have contact_user_id"
             )
 
         self.contact_user_id = contact_user_id
 
-    def update_description(
-        self,
-        *,
-        description: str,
-    ) -> None:
-        """
-        Update editable Ticket description.
-
-        Leading and trailing whitespace is removed.
-
-        Empty description is allowed.
-        """
-
-        if not self.current_status_record().rule.can_change_data:
+    def update_description(self, *, description: str) -> None:
+        if not self.rule.can_change_data:
             raise DomainOperationError(
                 "Cannot change Ticket description in current status "
-                f"{self.current_status()}",
+                f"{self.current_status()}"
             )
+        self.description = Description(description)
 
-        self.description = description.strip()
-
-    def set_remote_work_recommended(
-        self,
-        *,
-        recommend: bool,
-    ) -> None:
-        """
-        Set recommendation for remote execution.
-
-        This value is Ticket data and is not a workflow state.
-        """
-
-        if not self.current_status_record().rule.can_change_data:
+    def set_remote_work_recommended(self, *, recommend: bool) -> None:
+        if not self.rule.can_change_data:
             raise DomainOperationError(
                 "Cannot change remote work recommendation "
-                f"in current status {self.current_status()}",
+                f"in current status {self.current_status()}"
             )
-
         self.remote_work_recommended = recommend
 
-    def change_urgency(
-        self,
-        *,
-        urgency: TicketUrgency,
-    ) -> None:
-        """
-        Change Ticket urgency.
-
-        Runtime validation is intentional.
-
-        Python type annotations do not guarantee that caller actually passed
-        a TicketUrgency instance.
-        """
-
-        if not self.current_status_record().rule.can_change_data:
+    def change_urgency(self, *, urgency: TicketUrgency) -> None:
+        if not self.rule.can_change_data:
             raise DomainOperationError(
                 "Cannot change Ticket urgency in current status "
-                f"{self.current_status()}",
+                f"{self.current_status()}"
             )
 
         if not isinstance(urgency, TicketUrgency):
-            raise DomainOperationError(
-                "Invalid Ticket urgency"
-            )
+            raise DomainOperationError("Invalid Ticket urgency")
 
         self.urgency = urgency
 
@@ -1097,70 +466,23 @@ class Ticket:
     # Planning
     # ==================================================================
 
-    def schedule(
-        self,
-        *,
-        planned_at: datetime,
-    ) -> None:
-        """
-        Set current planned execution date/time.
-
-        planned_at is independent from workflow state.
-
-        Rules
-        -----
-
-        planned_at must:
-
-        - use UTC;
-        - belong to today's or a future UTC calendar date.
-
-        The clock time may already have passed if the date is today.
-
-        Example:
-
-            current time:
-                2026-09-26 17:00 UTC
-
-            valid:
-                2026-09-26 10:00 UTC
-
-            invalid:
-                2026-09-25 23:59 UTC
-
-        This validation applies only when planning is being changed.
-
-        Rehydrate intentionally does not apply the "not before today"
-        requirement because persisted planning may already refer to a past
-        date.
-        """
-
-        if not self.current_status_record().rule.can_change_data:
+    def schedule(self, *, planned_at: datetime) -> None:
+        if not self.rule.can_change_data:
             raise DomainOperationError(
                 "Cannot set planned_at in current Ticket status"
             )
 
-        now = datetime.now(UTC)
-
         self._validate_new_planned_at(
             planned_at,
-            reference_time=now,
+            reference_time=datetime.now(UTC),
         )
-
         self.planned_at = planned_at
 
     def clear_schedule(self) -> None:
-        """
-        Remove current planning value.
-
-        This does not change workflow status.
-        """
-
-        if not self.current_status_record().rule.can_change_data:
+        if not self.rule.can_change_data:
             raise DomainOperationError(
                 "Cannot clear planned_at in current Ticket status"
             )
-
         self.planned_at = None
 
     # ==================================================================
@@ -1168,91 +490,41 @@ class Ticket:
     # ==================================================================
 
     def working_time(self) -> int:
+        """Return total working time in seconds.
+
+        Status records with rule.tracks_work_time=True contribute time.
+        Their duration is taken from an explicit positive duration,
+        an explicit actual start/finish interval, or the elapsed workflow
+        interval to the next status (or now for a current work record).
         """
-        Return total actual work time in seconds.
-
-        Only AT_WORK records contribute to work time.
-
-        An AT_WORK record can describe work duration in three ways.
-
-        Case 1: explicit non-zero duration
-        ----------------------------------
-
-        If:
-
-            record.duration != 0
-
-        duration is used directly.
-
-        Case 2: retrospective interval
-        ------------------------------
-
-        If duration is zero and both:
-
-            actual_started_at
-            actual_finished_at
-
-        are present, their exact difference is used.
-
-        Case 3: workflow interval
-        -------------------------
-
-        If duration is zero and no complete retrospective interval exists,
-        work is measured from:
-
-            AT_WORK.date_created
-
-        until:
-
-            next status.date_created
-
-        or, if AT_WORK is the current status:
-
-            datetime.now(UTC)
-
-        A zero duration intentionally means that time must be derived from
-        datetime values. It is not treated as an absent value.
-        """
-
         total_seconds = 0
         now = datetime.now(UTC)
 
         for index, record in enumerate(self.statuses):
-            if record.status != TicketStatus.AT_WORK:
+            if not record.rule.tracks_work_time:
                 continue
 
-            # A non-zero explicit duration has the highest priority.
             if record.duration:
-                total_seconds += int(
-                    record.duration.total_seconds()
-                )
+                total_seconds += int(record.duration.total_seconds())
                 continue
 
-            # Retrospective exact work interval.
             if (
                 record.actual_started_at is not None
                 and record.actual_finished_at is not None
             ):
                 total_seconds += int(
                     (
-                        record.actual_finished_at
-                        - record.actual_started_at
+                        record.actual_finished_at - record.actual_started_at
                     ).total_seconds()
                 )
                 continue
 
-            # Normal workflow timing.
             if index + 1 < len(self.statuses):
                 finish_at = self.statuses[index + 1].date_created
             else:
                 finish_at = now
 
-            total_seconds += int(
-                (
-                    finish_at
-                    - record.date_created
-                ).total_seconds()
-            )
+            total_seconds += int((finish_at - record.date_created).total_seconds())
 
         return total_seconds
 
@@ -1260,232 +532,89 @@ class Ticket:
     # Workflow commands
     # ==================================================================
 
-    def accept(
-            self,
-            *,
-            actor_employee_id: int,
-            comment: str = "",
-    )-> None:
-        """
-        Accept Ticket for further processing.
-
-        Resulting status:
-
-            ACCEPTED
-
-        This is an Admin action.
-
-        The exact set of statuses from which ACCEPTED is allowed is defined
-        by TICKET_TRANSITIONS.
-
-        ACCEPTED clears an active executor assignment because this status
-        itself does not have an active executor.
-        """
-
+    def accept(self, *, actor_employee_id: int, comment: str = "") -> None:
         record = TicketStatusRecord(
             status=TicketStatus.ACCEPTED,
             actor_employee_id=actor_employee_id,
-            comment=comment
+            comment=comment,
         )
-
         self.append_status(record)
 
-    def reject(
-            self,
-            *,
-            actor_employee_id: int,
-            comment: str,
-    )-> None:
-        """
-        Reject Ticket.
-
-        Resulting status:
-
-            REJECTED
-
-        REJECTED is a terminal Admin status.
-
-        A non-empty comment is required by TicketStatusRule and validated
-        by TicketStatusRecord.
-        """
-
+    def reject(self, *, actor_employee_id: int, comment: str) -> None:
         record = TicketStatusRecord(
             status=TicketStatus.REJECTED,
             actor_employee_id=actor_employee_id,
-            comment=comment
+            comment=comment,
         )
-
         self.append_status(record)
 
-
-    def defer(
-            self,
-            *,
-            actor_employee_id: int,
-            comment: str,
-    )-> None:
-        """
-        Defer Ticket.
-
-        Resulting status:
-
-            DEFERRED
-
-        DEFERRED represents a normal business decision to postpone work.
-
-        It is different from SUSPENDED, which represents suspension caused
-        by the state of a related Client/User.
-
-        A non-empty comment is required.
-
-        Entering DEFERRED clears the current executor assignment.
-        """
-
+    def defer(self, *, actor_employee_id: int, comment: str) -> None:
         record = TicketStatusRecord(
             status=TicketStatus.DEFERRED,
             actor_employee_id=actor_employee_id,
-            comment=comment
+            comment=comment,
         )
-
         self.append_status(record)
 
-    def suspend(
-            self,
-            *,
-            actor_employee_id: int,
-            comment: str = "",
-    )-> None:
-        """
-        Suspend Ticket.
-
-        Resulting status:
-
-            SUSPENDED
-
-        SUSPENDED is used when normal processing cannot continue because
-        the related Client/User is unavailable or disabled.
-
-        It is not a normal business postponement; DEFERRED represents that
-        scenario.
-
-        Entering SUSPENDED clears the current executor assignment.
-        """
-
+    def suspend(self, *, actor_employee_id: int, comment: str = "") -> None:
         record = TicketStatusRecord(
             status=TicketStatus.SUSPENDED,
             actor_employee_id=actor_employee_id,
-            comment=comment
+            comment=comment,
         )
-
         self.append_status(record)
 
     def assign(
-            self,
-            *,
-            actor_employee_id: int,
-            executor_id: int,
-            comment: str = "",
-    )-> None:
-        """
-        Assign an executor to Ticket.
-
-        Resulting status:
-
-            ASSIGNED
-
-        actor_employee_id identifies the Admin performing the assignment.
-
-        executor_id identifies the employee who will perform the work.
-
-        executor_id must be positive. This requirement is validated by
-        TicketStatusRecord.
-
-        Repeated ASSIGNED transitions are allowed by the workflow and
-        represent reassignment.
-        """
-
+        self,
+        *,
+        actor_employee_id: int,
+        executor_id: int,
+        comment: str = "",
+    ) -> None:
         record = TicketStatusRecord(
             status=TicketStatus.ASSIGNED,
             actor_employee_id=actor_employee_id,
             executor_id=executor_id,
-            comment=comment
+            comment=comment,
         )
-
         self.append_status(record)
 
     def start_work(
-            self,
-            *,
-            actor_employee_id: int,
-            work_is_remote: bool,
-            comment: str = "",
-    )-> None:
-        """
-        Start current work by the assigned executor.
-
-        This command represents:
-
-            ASSIGNED -> AT_WORK
-
-        It is a live workflow action, not retrospective registration.
-
-        Therefore:
-
-            actual_started_at is None
-            actual_finished_at is None
-            duration == timedelta(0)
-
-        actor_employee_id must be equal to the currently assigned executor.
-
-        The executor rule is checked by Ticket because it depends on complete
-        Ticket history and cannot be validated by TicketStatusRecord.
-
-        work_is_remote describes how this concrete work episode is actually
-        being performed.
-        """
-
-        #self._require_current_status(
-        #    TicketStatus.ASSIGNED,
-        #    operation="start work",
-        #)
-
+        self,
+        *,
+        actor_employee_id: int,
+        work_is_remote: bool,
+        comment: str = "",
+    ) -> None:
+        """Start live work from ASSIGNED (not a resume operation)."""
+        self._require_current_status(
+            TicketStatus.ASSIGNED,
+            operation="start work",
+        )
         record = TicketStatusRecord(
             status=TicketStatus.AT_WORK,
             actor_employee_id=actor_employee_id,
             work_is_remote=work_is_remote,
-            comment=comment
+            comment=comment,
         )
-
-        # Keep an optional status comment if one was supplied.
-        #if comment.strip():
-        #    record = TicketStatusRecord(
-        #        status=TicketStatus.AT_WORK,
-        #        actor_employee_id=actor_employee_id,
-        #        work_is_remote=work_is_remote,
-        #        comment=CommonComment(comment),
-        #    )
-
         self.append_status(record)
 
     def register_work(
-            self,
-            *,
-            actor_employee_id: int,
-            work_is_remote: bool,
-            actual_started_at: datetime | None = None,
-            actual_finished_at: datetime | None = None,
-            duration: timedelta = timedelta(0),
-            comment: str = "",
+        self,
+        *,
+        actor_employee_id: int,
+        work_is_remote: bool,
+        actual_started_at: datetime | None = None,
+        actual_finished_at: datetime | None = None,
+        duration: timedelta = timedelta(0),
+        comment: str = "",
     ) -> None:
+        """Register completed work as ASSIGNED -> AT_WORK -> READY_FOR_REVIEW.
+
+        At least one explicit duration or start/finish interval is required.
+        Both records use the same registration timestamp. The operation
+        rolls back its in-memory status changes if either append fails.
         """
-        Register completed work retrospectively.
-
-        Workflow:
-            ASSIGNED -> AT_WORK -> READY_FOR_REVIEW
-
-        Both transitions must succeed.
-        """
-
         now = datetime.now(UTC)
 
         work_record = TicketStatusRecord(
@@ -1510,382 +639,122 @@ class Ticket:
             date_created=now,
         )
 
-        self.append_status(work_record)
-
+        previous_status_count = len(self.statuses)
         try:
+            self.append_status(work_record)
             self.append_status(review_record)
         except Exception:
-            self.statuses.pop()
+            del self.statuses[previous_status_count:]
+            self._recompute_closed_state()
             raise
 
     def pause_work(
-            self,
-            *,
-            actor_employee_id: int,
-            comment: str = "",
-    )-> None:
-        """
-        Pause current work.
-
-        This command represents:
-
-            AT_WORK -> PAUSED
-
-        Only the currently assigned executor may pause work.
-
-        PAUSED itself does not contain work-time payload. The work interval
-        represented by the preceding live AT_WORK record ends at the timestamp
-        of this PAUSED record.
-        """
-
+        self,
+        *,
+        actor_employee_id: int,
+        comment: str = "",
+    ) -> None:
         self._require_current_status(
             TicketStatus.AT_WORK,
             operation="pause work",
         )
-
         record = TicketStatusRecord(
             status=TicketStatus.PAUSED,
             actor_employee_id=actor_employee_id,
-            comment=comment
+            comment=comment,
         )
-
         self.append_status(record)
 
     def resume_work(
-            self,
-            *,
-            actor_employee_id: int,
-            work_is_remote: bool,
-            comment: str = "",
-    )-> None:
-        """
-        Resume work after PAUSED.
-
-        This command represents:
-
-            PAUSED -> AT_WORK
-
-        Only the currently assigned executor may resume work.
-
-        This is a live resume operation. Retrospective work-time fields are
-        intentionally not accepted:
-
-            actual_started_at is None
-            actual_finished_at is None
-            duration == timedelta(0)
-
-        The new live work interval starts from the date_created timestamp of
-        the resulting AT_WORK record.
-        """
-
+        self,
+        *,
+        actor_employee_id: int,
+        work_is_remote: bool,
+        comment: str = "",
+    ) -> None:
         self._require_current_status(
             TicketStatus.PAUSED,
             operation="resume work",
         )
-
         record = TicketStatusRecord(
             status=TicketStatus.AT_WORK,
             actor_employee_id=actor_employee_id,
             work_is_remote=work_is_remote,
-            comment=comment
+            comment=comment,
         )
-
         self.append_status(record)
 
     def submit_for_review(
-            self,
-            *,
-            actor_employee_id: int,
-            comment: str = "",
-    )-> None:
+        self,
+        *,
+        actor_employee_id: int,
+        comment: str = "",
+    ) -> None:
+        """Submit work for review, according to the transition validator.
+
+        Live work requires the current executor; retrospective work may be
+        submitted by another Admin who registered that work.
         """
-        Submit completed work for review.
-
-        This command represents:
-
-            AT_WORK -> READY_FOR_REVIEW
-
-        Only the currently assigned executor may perform this transition.
-
-        READY_FOR_REVIEW means that execution work has finished and the result
-        is waiting for final confirmation.
-        """
-
         self._require_current_status(
             TicketStatus.AT_WORK,
             operation="submit work for review",
         )
-
         record = TicketStatusRecord(
             status=TicketStatus.READY_FOR_REVIEW,
             actor_employee_id=actor_employee_id,
-            comment=comment
+            comment=comment,
         )
-
         self.append_status(record)
 
-    def confirm_by_user(
-            self,
-            *,
-            comment: str = "",
-    )-> None:
-        """
-        Record final confirmation by User.
-
-        This command represents:
-
-            READY_FOR_REVIEW -> CONFIRMED_BY_USER
-
-        CONFIRMED_BY_USER is terminal.
-
-        User actions in internal Ticket history deliberately use:
-
-            actor_employee_id == 0
-
-        The real User identity is handled outside Ticket and is available
-        through the related Ticket/TicketUser context.
-        """
-
+    def confirm_by_user(self, *, comment: str = "") -> None:
         record = TicketStatusRecord(
             status=TicketStatus.CONFIRMED_BY_USER,
             actor_employee_id=0,
-            comment=comment
+            comment=comment,
         )
-
         self.append_status(record)
 
-    def execute(
-            self,
-            *,
-            actor_employee_id: int,
-            comment: str = "",
-    )-> None:
-        """
-        Complete Ticket by Admin.
-
-        This command represents:
-
-            READY_FOR_REVIEW -> EXECUTED
-
-        EXECUTED is a terminal Admin status.
-        """
-
+    def execute(self, *, actor_employee_id: int, comment: str = "") -> None:
         record = TicketStatusRecord(
             status=TicketStatus.EXECUTED,
             actor_employee_id=actor_employee_id,
-            comment=comment
+            comment=comment,
         )
-
         self.append_status(record)
 
-    def cancel(
-            self,
-            *,
-            actor_employee_id: int,
-            comment: str,
-    )-> None:
-        """
-        Cancel Ticket by Admin.
-
-        Resulting status:
-
-            CANCELLED
-
-        CANCELLED is terminal.
-
-        A non-empty comment explaining the cancellation reason is required
-        by TicketStatusRule.
-        """
-
+    def cancel(self, *, actor_employee_id: int, comment: str) -> None:
         record = TicketStatusRecord(
             status=TicketStatus.CANCELLED,
             actor_employee_id=actor_employee_id,
-            comment=comment
+            comment=comment,
         )
-
         self.append_status(record)
 
-    def cancel_by_user(
-            self,
-            *,
-            comment: str = "",
-    ) -> None:
-        """
-        Cancel Ticket by User.
-
-        Resulting status:
-
-            CANCELLED_BY_USER
-
-        CANCELLED_BY_USER is terminal.
-
-        In the current workflow this transition is allowed only from
-        CREATED_FROM_TICKET_USER.
-
-        User actions in internal Ticket history use:
-
-            actor_employee_id == 0
-        """
-
+    def cancel_by_user(self, *, comment: str = "") -> None:
+        """Record user cancellation where allowed by the transition table."""
         record = TicketStatusRecord(
             status=TicketStatus.CANCELLED_BY_USER,
             actor_employee_id=0,
-            comment=comment
+            comment=comment,
         )
-
         self.append_status(record)
 
-
-    def complete_work_retroactively(
-            self,
-            *,
-            actor_employee_id: int,
-            work_is_remote: bool,
-            started_at: datetime | None = None,
-            finished_at: datetime | None = None,
-            duration: timedelta = timedelta(),
-            comment: str = "",
-    ) -> None:
-        """
-        Register already completed work.
-
-        Workflow:
-
-            ASSIGNED
-                -> AT_WORK
-                -> READY_FOR_REVIEW
-
-        Work time must be specified either as:
-
-            started_at + finished_at
-
-        or:
-
-            duration
-
-        Only the current executor may perform the operation.
-        """
-
-        if actor_employee_id <= 0:
-            raise DomainOperationError(
-                "Actor employee id must be positive"
-            )
-
-        if self.current_status() != TicketStatus.ASSIGNED:
-            raise DomainOperationError(
-                "Retroactive work completion is allowed "
-                "only from ASSIGNED status"
-            )
-
-        executor_id = self.current_executor_id()
-
-        if executor_id != actor_employee_id:
-            raise DomainOperationError(
-                "Only current executor can complete ticket work"
-            )
-
-        # --------------------------------------------------------------
-        # Work-time input
-        # --------------------------------------------------------------
-
-        has_started_at = started_at is not None
-        has_finished_at = finished_at is not None
-
-        if has_started_at != has_finished_at:
-            raise DomainOperationError(
-                "started_at and finished_at must be provided together"
-            )
-
-        has_interval = (
-                has_started_at
-                and has_finished_at
-        )
-
-        # timedelta() == zero duration.
-        #
-        # Any non-zero duration is considered supplied here.
-        # Validation of its actual value belongs to TicketStatusRecord.
-        has_duration = duration != timedelta()
-
-        if has_interval and has_duration:
-            raise DomainOperationError(
-                "Specify either started_at/finished_at "
-                "or duration, not both"
-            )
-
-        if not has_interval and not has_duration:
-            raise DomainOperationError(
-                "Either started_at/finished_at "
-                "or duration must be provided"
-            )
-
-        # --------------------------------------------------------------
-        # Create records before mutating Ticket.
-        #
-        # TicketStatusRecord validates:
-        # - work_mode;
-        # - duration;
-        # - actual dates;
-        # - AT_WORK payload.
-        # --------------------------------------------------------------
-
-        now = datetime.now(UTC)
-
-        at_work_record = TicketStatusRecord(
-            status=TicketStatus.AT_WORK,
-            actor_employee_id=actor_employee_id,
-            work_is_remote=work_is_remote,
-            actual_started_at=started_at,
-            actual_finished_at=finished_at,
-            duration=duration,
-            date_created=now,
-            comment=comment
-        )
-
-        ready_for_review_record = TicketStatusRecord(
-            status=TicketStatus.READY_FOR_REVIEW,
-            actor_employee_id=actor_employee_id,
-            date_created=now,
-        )
-
-        # --------------------------------------------------------------
-        # ASSIGNED -> AT_WORK -> READY_FOR_REVIEW
-        # --------------------------------------------------------------
-
-        self.append_status(
-            at_work_record
-        )
-
-        self.append_status(
-            ready_for_review_record
-        )
     def start_remote_work(
-            self,
-            *,
-            actor_employee_id: int,
-            comment: str = "",
+        self,
+        *,
+        actor_employee_id: int,
+        comment: str = "",
     ) -> None:
+        """Start recommended remote work from ACCEPTED or ASSIGNED.
+
+        From ACCEPTED, the actor is first assigned as executor and then
+        begins work. Both status appends are atomic in memory.
+
+        From ASSIGNED, only the current executor can start work and exactly
+        one status record is appended.
         """
-        Start work by executor when remote work is recommended.
-
-        Allowed workflows:
-
-            ACCEPTED
-                -> ASSIGNED
-                -> AT_WORK
-
-            ASSIGNED
-                -> AT_WORK
-
-        From ASSIGNED only the current executor may start work.
-
-        Work is always registered as remote.
-        """
-
         if actor_employee_id <= 0:
-            raise DomainOperationError(
-                "Actor employee id must be positive"
-            )
+            raise DomainOperationError("Actor employee id must be positive")
 
         if not self.remote_work_recommended:
             raise DomainOperationError(
@@ -1893,191 +762,110 @@ class Ticket:
             )
 
         current_status = self.current_status()
-
-        # --------------------------------------------------------------
-        # ACCEPTED -> ASSIGNED
-        # --------------------------------------------------------------
-
-        if current_status == TicketStatus.ACCEPTED:
-            self.append_status(
-                TicketStatusRecord(
-                    status=TicketStatus.ASSIGNED,
-                    actor_employee_id=actor_employee_id,
-                    executor_id=actor_employee_id,
-                )
-            )
-
-        # --------------------------------------------------------------
-        # ASSIGNED
-        # --------------------------------------------------------------
-
-        elif current_status == TicketStatus.ASSIGNED:
+        if current_status == TicketStatus.ASSIGNED:
             if self.current_executor_id() != actor_employee_id:
                 raise DomainOperationError(
                     "Ticket is assigned to another executor"
                 )
-
-        else:
+        elif current_status != TicketStatus.ACCEPTED:
             raise DomainOperationError(
                 "Remote work can be started only from "
                 "ACCEPTED or ASSIGNED status"
             )
 
-        # --------------------------------------------------------------
-        # ASSIGNED -> AT_WORK
-        # --------------------------------------------------------------
-
-        self.append_status(
-            TicketStatusRecord(
-                status=TicketStatus.AT_WORK,
-                actor_employee_id=actor_employee_id,
-                work_is_remote=True,
-                comment=comment
-            )
+        now = datetime.now(UTC)
+        work_record = TicketStatusRecord(
+            status=TicketStatus.AT_WORK,
+            actor_employee_id=actor_employee_id,
+            work_is_remote=True,
+            comment=comment,
+            date_created=now,
         )
+
+        assign_record = None
+        if current_status == TicketStatus.ACCEPTED:
+            assign_record = TicketStatusRecord(
+                status=TicketStatus.ASSIGNED,
+                actor_employee_id=actor_employee_id,
+                executor_id=actor_employee_id,
+                date_created=now,
+            )
+
+        previous_status_count = len(self.statuses)
+        try:
+            if assign_record is not None:
+                self.append_status(assign_record)
+            self.append_status(work_record)
+        except Exception:
+            del self.statuses[previous_status_count:]
+            self._recompute_closed_state()
+            raise
+
     # ==================================================================
     # Validation
     # ==================================================================
 
     def _validate_identity(self) -> None:
-        """
-        Проверяем *_id
-        Проверено
-
-
-        Validate identifiers and identity-related aggregate invariants.
-
-        This method validates stable Ticket invariants.
-
-        It does not verify existence of referenced entities. For example,
-        Ticket does not query whether client_id, user_id or department_id
-        actually exists.
-        """
-
+        """Validate basic identifiers and other stable aggregate fields."""
         if self.ticket_id < 0:
-            raise DomainOperationError(
-                "Ticket ticket_id cannot be negative",
-            )
+            raise DomainOperationError("Ticket ticket_id cannot be negative")
 
         if self.client_id <= 0:
-            raise DomainOperationError(
-                "Ticket client_id must be positive",
-            )
+            raise DomainOperationError("Ticket client_id must be positive")
 
         if self.user_id < 0:
-            raise DomainOperationError(
-                "Ticket user_id cannot be negative",
-            )
+            raise DomainOperationError("Ticket user_id cannot be negative")
 
         if self.contact_user_id < 0:
             raise DomainOperationError(
-                "Ticket contact_user_id cannot be negative",
+                "Ticket contact_user_id cannot be negative"
             )
 
         if self.user_ticket_id > 0 and self.user_id == 0:
             raise DomainOperationError(
                 "Ticket linked to TicketUser must have user_id"
             )
-        # A Ticket associated with a User must always have a contact User.
-        #
-        # The contact User does not have to be the same User.
+
         if self.user_id > 0 and self.contact_user_id == 0:
             raise DomainOperationError(
-                "Ticket with user_id must have contact_user_id",
+                "Ticket with user_id must have contact_user_id"
             )
 
         if self.department_id < 0:
             raise DomainOperationError(
-                "Ticket department_id cannot be negative",
+                "Ticket department_id cannot be negative"
             )
 
         if self.version < 0:
-            raise DomainOperationError(
-                "Ticket version cannot be negative",
-            )
+            raise DomainOperationError("Ticket version cannot be negative")
 
         if not isinstance(self.urgency, TicketUrgency):
-            raise DomainOperationError(
-                "Invalid Ticket urgency"
-            )
+            raise DomainOperationError("Invalid Ticket urgency")
 
         if self.user_ticket_id < 0:
             raise DomainOperationError(
-                "Ticket user_ticket_id cannot be negative",
+                "Ticket user_ticket_id cannot be negative"
             )
-
 
     def _validate_datetimes(self) -> None:
-        """
-        Проверяем правильность дат соззания и запланированной работы
-        Проверено
-
-
-        Validate Ticket datetime contract.
-
-        All datetime values directly owned by Ticket must use UTC.
-
-        Persisted planned_at may be in the past; this method intentionally
-        validates only timezone, not its calendar date.
-
-        Status and comment timestamps currently present in the aggregate are
-        also checked because they form part of Ticket history.
-        """
-
-        validate_utc_datetime(
-            self.date_created,
-            field_name="date_created",
-        )
+        """Validate timestamps owned directly by Ticket (not its records)."""
+        validate_utc_datetime(self.date_created, field_name="date_created")
 
         if self.planned_at is not None:
-            validate_utc_datetime(
-                self.planned_at,
-                field_name="planned_at",
-            )
-
+            validate_utc_datetime(self.planned_at, field_name="planned_at")
 
     def _validate_creation_origin(self) -> None:
-        """
-        Проверяем валидноть проихсождения заявки
-        Проверено
-         Validate Ticket creation origin.
+        """Validate requirements determined by the initial Ticket status."""
+        first_status = self.statuses[0].status
+        rule = TICKET_ORIGIN_RULES[first_status]
 
-         CREATED
-         -------
+        if rule.requires_user_id and self.user_id <= 0:
+            raise DomainOperationError(f"{first_status} requires user_id")
 
-         Internal Ticket was created by Admin.
-
-         It may either:
-
-         - be independent from TicketUser;
-         - be linked to an existing TicketUser.
-
-         CREATED_FROM_TICKET_USER
-         ------------------------
-
-         Internal Ticket was created as a result of a User-side request.
-
-         Such Ticket must be linked to User and TicketUser.
-         """
-
-        #first_status = self.statuses[0].status
-        first_status_record=self.statuses[0]
-
-        if first_status_record.status in FIRST_TICKET_STATUSES:
-            raise DomainOperationError(f"TicketStatus {first_status_record.status} don't belong to FIRST_STATUS")
-
-        if first_status_record.rule.requires_user_id:
-            if not self.user_id:
-                raise DomainOperationError(f"TicketStatus {first_status_record.status} require user_id")
-        else:
-            if self.user_id:
-                raise DomainOperationError(f"TicketStatus {first_status_record.status} doesn't require user_id")
-
-        if first_status_record.rule.requires_ticket_user_id and not self.user_ticket_id:
-                raise DomainOperationError(f"TicketStatus {first_status_record.status} require ticket_user_id")
-
-
-
+        if rule.requires_ticket_user_id and self.user_ticket_id <= 0:
+            raise DomainOperationError(
+                f"{first_status} requires user_ticket_id"
+            )
 
     @classmethod
     def _validate_new_planned_at(
@@ -2086,148 +874,38 @@ class Ticket:
         *,
         reference_time: datetime,
     ) -> None:
-        """
-        Проеверят даты запланировнных работ
-        Проеерено
-        Validate planned_at when a new planning value is being assigned.
-
-        Both planned_at and reference_time must use UTC.
-
-        The comparison intentionally uses calendar dates rather than full
-        datetime values.
-
-        Therefore an earlier time today is valid, while any time yesterday
-        is invalid.
-        """
-        if planned_at:
-            validate_utc_datetime(
-                planned_at,
-                field_name="planned_at",
-            )
-        if reference_time:
-            validate_utc_datetime(
-                reference_time,
-                field_name="planning reference_time",
-            )
-        if planned_at.date() and planned_at.date() < reference_time.date():
+        """Validate a newly set planned time against today's UTC date."""
+        validate_utc_datetime(planned_at, field_name="planned_at")
+        validate_utc_datetime(
+            reference_time,
+            field_name="planning reference_time",
+        )
+        if planned_at.date() < reference_time.date():
             raise DomainOperationError(
                 "planned_at cannot be earlier than today"
             )
 
     # ==================================================================
-    # Derived state
+    # Derived state and semantic command helpers
     # ==================================================================
 
     def _recompute_closed_state(self) -> None:
-        """
-        выставляем статус завершения
-        Проверено
-        Recompute derived closing state from current workflow status.
-
-        is_closed and date_finished are never authoritative independent
-        values.
-
-        For a terminal Ticket:
-
-            is_closed = True
-            date_finished = current_status_record().date_created
-
-        Otherwise:
-
-            is_closed = False
-            date_finished = None
-        """
-
         self.is_closed = self.is_terminal()
-
         if self.is_closed:
-            self.date_finished = (
-                self.current_status_record().date_created
-            )
+            self.date_finished = self.current_status_record().date_created
         else:
             self.date_finished = None
 
-
-    @staticmethod
-    def _has_retrospective_work_time(
-                record: TicketStatusRecord,
-    ) -> bool:
-            """
-            Надо проверить
-            Return True when AT_WORK explicitly describes retrospective work.
-
-            Retrospective work is present when either:
-
-            - exact actual_started_at / actual_finished_at interval is supplied;
-            - positive explicit duration is supplied.
-
-            duration == timedelta(0) means that explicit duration is absent.
-            """
-
-            return (
-                record.actual_started_at is not None
-                or record.actual_finished_at is not None
-                or record.duration > timedelta(0)
-            )
-
-    def _require_current_executor_actor(
-            self,
-            record: TicketStatusRecord,
+    def _require_current_status(
+        self,
+        status: TicketStatus,
+        *,
+        operation: str,
     ) -> None:
-        """
-        Только текущий actor_employee_id может выпонять работу и должене совпадать с текушим исполнителем
-        Проверено
-        Require workflow action to be performed by the current executor.
-
-        The current executor is reconstructed from Ticket workflow history.
-
-        This method is used only for transitions whose business semantics
-        explicitly require executor participation.
-        """
-
-        executor_id = self.current_executor_id()
-
-        if record.actor_employee_id != executor_id:
-            raise DomainOperationError(
-                "Only the current Ticket executor may perform "
-                f"{self.current_status().value} -> "
-                f"{record.status.value}"
-            )
-
-
-
-
-    def _require_current_status_old(
-            self,
-            status: TicketStatus,
-            *,
-            operation: str,
-    ) -> None:
-        """
-        Надо проверить
-        Надо избавляться
-        Require one concrete current status for a semantic workflow command.
-
-        This helper is used when different commands lead to the same resulting
-        status but have different business meanings.
-
-        Example:
-
-            start_work():
-                ASSIGNED -> AT_WORK
-
-            resume_work():
-                PAUSED -> AT_WORK
-
-        TICKET_TRANSITIONS alone cannot distinguish which public command was
-        intended because both transitions result in AT_WORK.
-        """
-
+        """Enforce the meaning of a specific public workflow command."""
         current_status = self.current_status()
-
         if current_status != status:
             raise DomainOperationError(
                 f"Cannot {operation} when Ticket is in status "
                 f"{current_status.value}; expected {status.value}"
             )
-

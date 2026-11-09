@@ -1,14 +1,23 @@
+
 """
 Mapping between TicketStatus and TicketUserStatus.
 
-TicketUser represents a simplified user-facing view of the internal
-Ticket workflow.
+TicketUser is a simplified user-facing representation of
+the Ticket workflow.
 
-Several Ticket statuses may correspond to the same TicketUser status.
+Several Ticket statuses can correspond to the same
+TicketUser status.
 
-The mapping describes state correspondence only.
-It does not define allowed transitions and does not perform
-Ticket/TicketUser synchronization.
+TicketStatus.CREATED is intentionally unmapped:
+it represents an internal Ticket created by an Admin,
+not a user-initiated request.
+
+This mapping describes state correspondence only.
+
+It does not:
+- decide whether a Ticket has a related TicketUser;
+- validate workflow transitions;
+- synchronize the two aggregates.
 """
 
 from typing import Final
@@ -20,18 +29,14 @@ from src.domain.statuses.ticket_user_status import TicketUserStatus
 TICKET_TO_TICKET_USER_STATUS: Final[
     dict[TicketStatus, TicketUserStatus]
 ] = {
-    #
-    # Initial state
-    #
+    # User-initiated requests.
     TicketStatus.CREATED_FROM_REQUEST_USER:
         TicketUserStatus.CREATED,
 
     TicketStatus.CREATED_FROM_TICKET_USER:
         TicketUserStatus.CREATED,
 
-    #
-    # Ticket is being processed by the service.
-    #
+    # Internal processing.
     TicketStatus.ACCEPTED:
         TicketUserStatus.IN_WORK,
 
@@ -47,21 +52,15 @@ TICKET_TO_TICKET_USER_STATUS: Final[
     TicketStatus.PAUSED:
         TicketUserStatus.IN_WORK,
 
-    #
-    # Ticket is suspended because the related Client/User is disabled.
-    #
+    # Suspended processing.
     TicketStatus.SUSPENDED:
         TicketUserStatus.SUSPENDED,
 
-    #
-    # Work is finished and waiting for confirmation.
-    #
+    # Work completed, awaiting confirmation.
     TicketStatus.READY_FOR_REVIEW:
         TicketUserStatus.WAITING_FOR_CONFIRMATION,
 
-    #
-    # Final states.
-    #
+    # Terminal states.
     TicketStatus.CONFIRMED_BY_USER:
         TicketUserStatus.CONFIRMED_BY_USER,
 
@@ -81,33 +80,60 @@ TICKET_TO_TICKET_USER_STATUS: Final[
 
 def _validate_ticket_to_ticket_user_status_mapping() -> None:
     """
-    Validate completeness of the Ticket -> TicketUser status mapping.
+    Validate mapping completeness and type correctness.
 
-    Every TicketStatus must have a corresponding TicketUserStatus.
+    Every TicketStatus except CREATED must have
+    exactly one TicketUserStatus mapping.
+
+    Sources and targets must be actual enum members,
+    not strings containing their values.
     """
 
-    missing: list[TicketStatus] = [
-        status
-        for status in TicketStatus
-        if status not in TICKET_TO_TICKET_USER_STATUS
-    ]
-
-    if missing:
+    if type(TICKET_TO_TICKET_USER_STATUS) is not dict:
         raise RuntimeError(
-            "Ticket statuses without TicketUser status mapping: "
-            + ", ".join(map(str, missing))
+            "TICKET_TO_TICKET_USER_STATUS must be a dict"
         )
 
+    # Validate source types.
+    invalid_sources = [
+        status
+        for status in TICKET_TO_TICKET_USER_STATUS
+        if type(status) is not TicketStatus
+    ]
+
+    if invalid_sources:
+        raise RuntimeError(
+            "Invalid Ticket status mapping sources: "
+            f"{invalid_sources}"
+        )
+
+    # CREATED is intentionally excluded.
+    expected = set(TicketStatus) - {
+        TicketStatus.CREATED,
+    }
+
+    actual = set(TICKET_TO_TICKET_USER_STATUS)
+
+    missing = expected - actual
+    unexpected = actual - expected
+
+    if missing or unexpected:
+        raise RuntimeError(
+            "Invalid Ticket -> TicketUser mapping coverage. "
+            f"Missing: {missing}; unexpected: {unexpected}"
+        )
+
+    # Validate target types.
     invalid_targets = [
-        ticket_user_status
-        for ticket_user_status in TICKET_TO_TICKET_USER_STATUS.values()
-        if not isinstance(ticket_user_status, TicketUserStatus)
+        status
+        for status in TICKET_TO_TICKET_USER_STATUS.values()
+        if type(status) is not TicketUserStatus
     ]
 
     if invalid_targets:
         raise RuntimeError(
-            "Invalid TicketUser statuses in mapping: "
-            + ", ".join(map(str, invalid_targets))
+            "Invalid TicketUser status mapping targets: "
+            f"{invalid_targets}"
         )
 
 

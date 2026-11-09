@@ -49,7 +49,7 @@ class TicketStatusRecord:
     actual_finished_at: datetime | None = None
 
     duration: timedelta = timedelta(0)
-
+    #effective_at: datetime | None = None # спорно, время когда действительно завершилась заявка
     work_is_remote: bool | None = None
 
     date_created: datetime = field(
@@ -57,6 +57,9 @@ class TicketStatusRecord:
     )
 
     def __post_init__(self) -> None:
+        #if self.effective_at is None:
+        #    self.effective_at = self.date_created
+
         self._validate_types()
         self._validate_ranges()
         self._validate_datetimes()
@@ -117,7 +120,7 @@ class TicketStatusRecord:
         # Work data
 
 
-        if not rule.allows_work_data and self.has_retrospective_work_time:
+        if not rule.tracks_work_time and self.has_retrospective_work_time:
             raise ItemValidationError(
                 f"Work data is not allowed for {self.status}"
             )
@@ -178,6 +181,7 @@ class TicketStatusRecord:
     # ==============================================================
 
     def _validate_datetimes(self) -> None:
+
         validate_utc_datetime(
             self.date_created,
             field_name="date_created",
@@ -194,6 +198,16 @@ class TicketStatusRecord:
                 self.actual_finished_at,
                 field_name="actual_finished_at",
             )
+        #if self.effective_at is not None:
+        #    validate_utc_datetime(
+        #        self.effective_at,
+        #        field_name="effective_at",
+        #    )
+
+        #if self.effective_at > self.date_created:
+        #    raise ItemValidationError(
+        #        "effective_at cannot be later than date_created"
+        #    )
 
     # ==============================================================
     # Work data integrity
@@ -221,6 +235,10 @@ class TicketStatusRecord:
                     "be specified together"
                 )
 
+            if finished_at > self.date_created:
+                raise ItemValidationError(
+                    "Actual work cannot finish after registration"
+                )
             if finished_at <= started_at:
                 raise ItemValidationError(
                     "actual_finished_at must be later than "

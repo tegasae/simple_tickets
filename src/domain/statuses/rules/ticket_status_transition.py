@@ -9,6 +9,8 @@ from src.domain.statuses.rules.ticket_transition_validators import (
     validate_current_executor,
     validate_start_work,
     validate_no_retrospective_work,
+    validate_pause_work,
+    validate_submit_for_review, validate_user_cancellation, validate_not_current_executor,
 )
 
 
@@ -25,20 +27,23 @@ TICKET_TRANSITIONS: Final[
         TicketStatus.SUSPENDED: DEFAULT_RULE,
     },
 
-    TicketStatus.CREATED_FROM_TICKET_USER: {
-        TicketStatus.ACCEPTED: DEFAULT_RULE,
-        TicketStatus.REJECTED: DEFAULT_RULE,
-        TicketStatus.CANCELLED_BY_USER: DEFAULT_RULE,
-        TicketStatus.SUSPENDED: DEFAULT_RULE,
-    },
+TicketStatus.CREATED_FROM_TICKET_USER: {
+    TicketStatus.ACCEPTED: DEFAULT_RULE,
+    TicketStatus.REJECTED: DEFAULT_RULE,
+    TicketStatus.CANCELLED_BY_USER: TicketTransitionRule(
+        validators=(validate_user_cancellation,),
+    ),
+    TicketStatus.SUSPENDED: DEFAULT_RULE,
+},
 
-    TicketStatus.CREATED_FROM_REQUEST_USER: {
-        TicketStatus.ACCEPTED: DEFAULT_RULE,
-        TicketStatus.REJECTED: DEFAULT_RULE,
-        TicketStatus.CANCELLED_BY_USER: DEFAULT_RULE,
-        TicketStatus.SUSPENDED: DEFAULT_RULE,
-    },
-
+TicketStatus.CREATED_FROM_REQUEST_USER: {
+    TicketStatus.ACCEPTED: DEFAULT_RULE,
+    TicketStatus.REJECTED: DEFAULT_RULE,
+    TicketStatus.CANCELLED_BY_USER: TicketTransitionRule(
+        validators=(validate_user_cancellation,),
+    ),
+    TicketStatus.SUSPENDED: DEFAULT_RULE,
+},
     TicketStatus.REJECTED: {},
 
     TicketStatus.ACCEPTED: {
@@ -69,20 +74,27 @@ TICKET_TRANSITIONS: Final[
     },
 
     TicketStatus.AT_WORK: {
-        TicketStatus.ASSIGNED: DEFAULT_RULE,
+        TicketStatus.ASSIGNED: TicketTransitionRule(
+        validators=(validate_not_current_executor,),
+    ),
 
-        TicketStatus.PAUSED: TicketTransitionRule(
-            validators=(validate_current_executor,),
-        ),
+    TicketStatus.PAUSED: TicketTransitionRule(
+        validators=(validate_pause_work,),
+    ),
 
-        TicketStatus.DEFERRED: DEFAULT_RULE,
+    TicketStatus.DEFERRED: TicketTransitionRule(
+        validators=(validate_not_current_executor,),
+    ),
 
-        TicketStatus.READY_FOR_REVIEW: TicketTransitionRule(
-            validators=(validate_current_executor,),
-        ),
+    TicketStatus.READY_FOR_REVIEW: TicketTransitionRule(
+        validators=(validate_submit_for_review,),
+    ),
 
-        TicketStatus.CANCELLED: DEFAULT_RULE,
-    },
+    TicketStatus.CANCELLED: TicketTransitionRule(
+        validators=(validate_not_current_executor,),
+    ),
+},
+
 
     TicketStatus.PAUSED: {
         TicketStatus.AT_WORK: TicketTransitionRule(

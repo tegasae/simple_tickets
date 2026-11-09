@@ -47,3 +47,5 @@ def _validate_ticket_origin_rules() -> None:
             "Initial Ticket statuses without origin rules: "
             + ", ".join(map(str, missing))
         )
+
+_validate_ticket_origin_rules()
