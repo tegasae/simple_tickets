@@ -32,14 +32,13 @@ class TicketService:
     # Creation
     # ------------------------------------------------------------------
 
+
     def create(
         self,
         *,
         client_id: int,
         admin_id: int,
         text_of_ticket: str,
-        user_id: int = 0,
-        ticket_user: TicketUser | None = None,
         contact_user_id: int = 0,
         department_id: int = 0,
         description: str = "",
@@ -48,45 +47,52 @@ class TicketService:
         planned_at: datetime | None = None,
         comment: str = "",
     ) -> Ticket:
-        """Create an Admin Ticket or register an existing persisted user request.
 
-        user_id == 0: standalone Ticket, initial CREATED.
-        user_id > 0:  linked Ticket, initial CREATED_FROM_REQUEST_USER.
 
-        A linked request's TicketUser must have been created and saved in the
-        same application transaction before calling this factory; otherwise
-        its ticket_user_id is still 0 and a valid Ticket cannot be created.
-        """
-        if type(user_id) is not int or user_id < 0:
+
+        ticket = Ticket.create(
+            client_id=client_id,
+            admin_id=admin_id,
+            text_of_ticket=text_of_ticket,
+            contact_user_id=contact_user_id,
+            department_id=department_id,
+            description=description,
+            remote_work_recommended=remote_work_recommended,
+            urgency=urgency,
+            planned_at=planned_at,
+            comment=comment,
+            )
+
+        return ticket
+
+
+    def create_from_user_request(
+        self,
+        *,
+        client_id: int,
+        admin_id: int,
+        text_of_ticket: str,
+        user_id: int = 0,
+        ticket_user_id:int=0,
+        contact_user_id: int = 0,
+        department_id: int = 0,
+        description: str = "",
+        remote_work_recommended: bool = False,
+        urgency: TicketUrgency = TicketUrgency.NORMAL,
+        planned_at: datetime | None = None,
+        comment: str = "",
+    ) -> Ticket:
+
+        if type(user_id) is not int or user_id != 0:
             raise DomainOperationError("user_id must be a non-negative integer")
 
-        if user_id == 0:
-            if ticket_user is not None:
-                raise DomainOperationError(
-                    "Standalone Ticket must not have TicketUser"
-                )
-            ticket = Ticket.create(
-                client_id=client_id,
-                admin_id=admin_id,
-                text_of_ticket=text_of_ticket,
-                contact_user_id=contact_user_id,
-                department_id=department_id,
-                description=description,
-                remote_work_recommended=remote_work_recommended,
-                urgency=urgency,
-                planned_at=planned_at,
-                comment=comment,
-            )
-        else:
-            if ticket_user is None:
-                raise DomainOperationError(
-                    "User request requires a previously saved TicketUser"
-                )
-            ticket = Ticket.create_from_request_user(
+
+
+        ticket = Ticket.create_from_request_user(
                 client_id=client_id,
                 admin_id=admin_id,
                 user_id=user_id,
-                user_ticket_id=ticket_user.ticket_user_id,
+                user_ticket_id=ticket_user_id,
                 text_of_ticket=text_of_ticket,
                 contact_user_id=contact_user_id,
                 department_id=department_id,
@@ -97,7 +103,6 @@ class TicketService:
                 comment=comment,
             )
 
-        self._ticket_sync_service.sync_from_ticket(ticket, ticket_user)
         return ticket
 
     @staticmethod

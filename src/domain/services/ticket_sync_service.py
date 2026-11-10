@@ -68,6 +68,7 @@ class TicketSyncService:
             )
 
         self._ensure_synchronized(ticket, linked)
+
     def sync_from_ticket_user(
         self,
         ticket: Ticket,
@@ -91,7 +92,7 @@ class TicketSyncService:
             )
 
         # Contact remains unidirectional even when workflow flows in reverse.
-        self._sync_contact(ticket, linked)
+        #self._sync_contact(ticket, linked)
 
         if user_status != expected_status:
             comment = self._comment_text(linked.current_status_record().comment)
