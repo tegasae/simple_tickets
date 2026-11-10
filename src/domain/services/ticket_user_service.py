@@ -16,7 +16,8 @@ cross-aggregate synchronization after the TicketUser command.
 If an operation fails after mutating an aggregate, the application layer must
 roll back the transaction and discard or restore the in-memory aggregates.
 """
-
+from src.domain.client import Client
+from src.domain.employee import User
 from src.domain.exceptions import DomainOperationError
 from src.domain.services.ticket_sync_service import TicketSyncService
 from src.domain.ticket import Ticket
@@ -38,23 +39,28 @@ class TicketUserService:
     @staticmethod
     def create(
         *,
-        client_id: int,
-        user_id: int,
         text_of_ticket: str,
-        contact_user_id: int = 0,
         description: str = "",
         comment: str = "",
+        client:Client,
+        user:User,
+        contact_user:User
     ) -> TicketUser:
         """Create a User-initiated TicketUser with initial status CREATED.
 
         The application layer coordinates creation and persistence of the
         related internal Ticket after TicketUser receives its identifier.
         """
+        if client.is_empty():
+            DomainOperationError("The client can't be empty when the Ticket is created")
+        client.ensure_enabled()
+        user.can_do_operation()
+        contact_user.can_do_operation()
         return TicketUser.create(
-            client_id=client_id,
-            user_id=user_id,
+            client_id=client.client_id,
+            user_id=user.employee_id,
             text_of_ticket=text_of_ticket,
-            contact_user_id=contact_user_id,
+            contact_user_id=user.employee_id,
             description=description,
             comment=comment,
         )

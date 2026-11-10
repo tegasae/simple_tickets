@@ -372,7 +372,7 @@ class UserService:
 
         changed_tickets: list[Ticket] = []
         changed_ticket_users: list[TicketUser] = []
-        # todo пока оставляемя, но потом надо убрать ticket_user.current_status() != status_before: в ticket_sync_service, пусть он выдает список заявок, которые поменялись
+
         for ticket in tickets_to_suspend:
             ticket.suspend(
                 actor_employee_id=actor_employee_id,
@@ -386,18 +386,11 @@ class UserService:
             ticket_user = ticket_users[
                 ticket.user_ticket_id
             ]
-
-            status_before = ticket_user.current_status()
-
             self._ticket_sync_service.sync_from_ticket(
                 ticket,
                 ticket_user,
             )
 
-            if ticket_user.current_status() != status_before:
-                changed_ticket_users.append(
-                    ticket_user
-                )
 
         return UserDisableResult(
             tickets=tuple(changed_tickets),
@@ -451,8 +444,6 @@ class UserService:
         if current_status == TicketStatus.AT_WORK:
             return False
 
-        if current_status == TicketStatus.SUSPENDED:
-            return False
 
         return True
 
@@ -480,9 +471,8 @@ class UserService:
                     f"Ticket {ticket.ticket_id} is not related "
                     f"to user {user.employee_id}"
                 )
-
+    @staticmethod
     def _validate_ticket_users(
-        self,
         *,
         tickets: list[Ticket],
         ticket_users: dict[int, TicketUser],
@@ -501,11 +491,14 @@ class UserService:
                     f"required for ticket {ticket.ticket_id} "
                     f"was not provided"
                 )
+            if ticket.user_ticket_id!=ticket_user.ticket_user_id:
+                raise DomainOperationError(f"TicketUser {ticket_user.ticket_user_id} doesn't belong to Ticket {ticket.ticket_id}")
 
-            self._ticket_sync_service.ensure_consistent(
-                ticket,
-                ticket_user,
-            )
+            if ticket.user_id!=ticket_user.user_id or ticket.contact_user_id!=ticket_user.contact_user_id:
+                raise DomainOperationError(
+                    f"TicketUser {ticket_user.ticket_user_id} has user_id {ticket_user.user_id} and contact_user_id {ticket_user.contact_user_id}, "
+                    f"but Ticket {ticket.ticket_id} has user_id {ticket.user_id} and contact_user_id {ticket.contact_user_id} ")
+
 
     # ==================================================================
     # Internal rules

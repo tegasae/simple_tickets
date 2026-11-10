@@ -13,7 +13,9 @@ of mutated aggregates on failure belong to the application layer.
 
 from datetime import datetime, timedelta
 
-from src.domain.employee import Admin
+from src.domain.client import Client
+from src.domain.department import Department
+from src.domain.employee import Admin, User
 from src.domain.exceptions import DomainOperationError
 from src.domain.services.ticket_sync_service import TicketSyncService
 from src.domain.ticket import Ticket
@@ -32,10 +34,8 @@ class TicketService:
     # Creation
     # ------------------------------------------------------------------
 
-
+    @staticmethod
     def create(
-        self,
-        *,
         client_id: int,
         admin_id: int,
         text_of_ticket: str,
@@ -65,14 +65,13 @@ class TicketService:
 
         return ticket
 
-
+    @staticmethod
     def create_from_user_request(
-        self,
         *,
-        client_id: int,
-        admin_id: int,
+        client: Client,
+        admin: Admin,
         text_of_ticket: str,
-        user_id: int = 0,
+        user: User,
         ticket_user_id:int=0,
         contact_user_id: int = 0,
         department_id: int = 0,
@@ -83,8 +82,6 @@ class TicketService:
         comment: str = "",
     ) -> Ticket:
 
-        if type(user_id) is not int or user_id != 0:
-            raise DomainOperationError("user_id must be a non-negative integer")
 
 
 
@@ -146,8 +143,9 @@ class TicketService:
         )
 
     @staticmethod
-    def change_department(*, ticket: Ticket, department_id: int) -> None:
-        ticket.change_department(department_id=department_id)
+    def change_department(*, ticket: Ticket, department:Department) -> None:
+        department.ensure_enabled()
+        ticket.change_department(department_id=department.department_id)
 
     @staticmethod
     def update_description(*, ticket: Ticket, description: str) -> None:
@@ -164,29 +162,15 @@ class TicketService:
     def change_contact_user(
         self,
         *,
+        user: User,
         ticket: Ticket,
         ticket_user: TicketUser | None,
-        actor_employee_id: int,
-        contact_user_id: int,
     ) -> None:
-        """Change Ticket contact, then synchronize the linked TicketUser.
+        if user.is_empty():
+            raise DomainOperationError(f"This ticket can't have empty user because Ticket {ticket.ticket_id} has TicketUser {ticket_user.ticket_user_id}")
+        user.can_do_operation()
 
-        The actor parameter is retained in the facade for caller compatibility.
-        No contact-change actor is stored in either aggregate's status history.
-        """
-        if type(actor_employee_id) is not int or actor_employee_id <= 0:
-            raise DomainOperationError(
-                "actor_employee_id must be a positive integer"
-            )
-
-        # Ticket.change_contact_user() does not accept zero when user_id > 0.
-        # Preserve the command's established meaning: zero resets to owner.
-        resolved_contact = (
-            ticket.user_id
-            if contact_user_id == 0 and ticket.user_id > 0
-            else contact_user_id
-        )
-        ticket.change_contact_user(contact_user_id=resolved_contact)
+        ticket.change_contact_user(contact_user_id=user.employee_id)
         self._ticket_sync_service.sync_from_ticket(ticket, ticket_user)
 
     # ------------------------------------------------------------------
@@ -266,6 +250,7 @@ class TicketService:
             )
         if type(ticket.department_id) is not int or ticket.department_id <= 0:
             raise DomainOperationError("Ticket must have a valid department_id")
+        executor.can_do_operation()
         if executor.department_id != ticket.department_id:
             raise DomainOperationError(
                 f"Ticket has department {ticket.department_id}; "

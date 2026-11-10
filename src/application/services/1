@@ -1,0 +1,27 @@
+create +
+create_from_user_request +
+
+
+accept +
+reject +
+add_comment +
+change_department +
+update_description +
+set_remote_work_recommended +
+change_urgency +
+change_contact_user +
+schedule +
+clear_schedule +
+
+
+defer +
+suspend
+assign +
+start_work
+register_work +
+pause_work +
+resume_work +
+submit_for_review +
+start_remote_work +
+execute
+cancel

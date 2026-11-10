@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from src.domain.client import Client
 from src.domain.employee import User
 from src.domain.exceptions import DomainOperationError
-from src.domain.services.ticket_sync_service import TicketSyncService
+
 
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
@@ -80,11 +80,6 @@ class ClientService:
     Enabling Client has no reverse cascade.
     """
 
-    def __init__(
-        self,
-        ticket_sync_service: TicketSyncService,
-    ) -> None:
-        self._ticket_sync_service = ticket_sync_service
 
     # ==================================================================
     # Create

@@ -9,15 +9,20 @@ from src.application.dto.ticket_dto import (
 )
 from src.application.exceptions import ApplicationStoreError
 from src.application.helper.actor_helper import EmployeeActorHelper
+from src.domain.client import Client
+from src.domain.department import Department
+from src.domain.employee import User, Admin
 
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.ticket_service import TicketService
 from src.domain.services.ticket_sync_service import TicketSyncService
+from src.domain.services.ticket_user_service import TicketUserService
 from src.domain.ticket import Ticket
 from src.domain.ticket_components import TicketUrgency
 from src.domain.ticket_user import TicketUser
 from src.domain.uow.unit_of_work import UnitOfWork
+
 
 
 class TicketApplicationService:
@@ -98,7 +103,7 @@ class TicketApplicationService:
 
             then create linked internal Ticket:
 
-                Ticket.CREATED
+                Ticket.CREATED_FROM_USER_REQUEST
 
             Ticket is created by Admin, therefore its initial status
             is CREATED, not CREATED_FROM_TICKET_USER.
@@ -130,21 +135,33 @@ class TicketApplicationService:
             )
 
             ticket_user: TicketUser|None=None
-            user_ticket_id = 0
 
 
-            # --------------------------------------------------------------
-            # If User is specified, create TicketUser first.
-            # --------------------------------------------------------------
+            user=User.create_empty()
+            contact_user=User.create_empty()
+            client=Client.create_empty()
+            department=Department.create_empty()
 
-            if ticket_dto.user_id > 0:
-                ticket_user = TicketUser.create(
-                    client_id=ticket_dto.client_id,
-                    user_id=ticket_dto.user_id,
-                    contact_user_id=ticket_dto.contact_user_id,
+            if ticket_dto.client_id:
+                client=self.uow.clients.get(client_id=ticket_dto.client_id)
+
+            if ticket_dto.user_id:
+                user = self.uow.users.get(user_id=ticket_dto.user_id)
+            if ticket_dto.contact_user_id:
+                contact_user=self.uow.users.get(user_id=ticket_dto.contact_user_id)
+
+            if ticket_dto.department_id:
+                department=self.uow.departments.get(department_id=ticket_dto.department_id)
+
+            if not user.is_empty():
+                ticket_user = TicketUserService.create(
+
                     text_of_ticket=ticket_dto.text_of_ticket,
                     description=ticket_dto.description,
                     comment=ticket_dto.comment,
+                    client=client,
+                    user=user,
+                    contact_user=contact_user
                 )
 
                 saved_ticket_user = self.uow.user_tickets.save(
@@ -160,67 +177,40 @@ class TicketApplicationService:
                         "ticket_user_id before creating linked Ticket"
                     )
 
-                user_ticket_id = ticket_user.ticket_user_id
 
-            # --------------------------------------------------------------
-            # Resolve contact_user_id.
-            #
-            # TicketUser.create() may normalize:
-            #
-            #     contact_user_id == 0
-            #
-            # to:
-            #
-            #     contact_user_id == user_id
-            #
-            # Therefore linked Ticket must use the value from TicketUser.
-            # --------------------------------------------------------------
 
-            #contact_user_id = (
-            #    ticket_user.contact_user_id
-            #    if ticket_user is not None
-            #    else ticket_dto.contact_user_id
-            #)
 
-            # --------------------------------------------------------------
-            # Create internal Ticket.
-            #
-            # In both cases Ticket is created by Admin, therefore its
-            # initial status is CREATED.
-            # --------------------------------------------------------------
 
-            ticket = self.ticket_service.create(
-                client_id=ticket_dto.client_id,
-                admin_id=actor.employee_id,
-                text_of_ticket=ticket_dto.text_of_ticket,
-                ticket_user_id=user_ticket_id,
-                user_id=ticket_dto.user_id,
-                contact_user_id=ticket_dto.contact_user_id,
-                department_id=ticket_dto.department_id,
-                description=ticket_dto.description,
-                remote_work_recommended=(
-                    ticket_dto.remote_work_recommended
-                ),
-                urgency=TicketUrgency(
-                    ticket_dto.urgency
-                ),
-                planned_at=ticket_dto.planned_at,
-                comment=ticket_dto.comment,
-            )
-
-            # --------------------------------------------------------------
-            # Validate linked pair.
-            # --------------------------------------------------------------
-            changed_ticket_user: TicketUser | None = None
-            if ticket_dto.user_id>0:
-                self.ticket_sync_service.ensure_consistent(
-                    ticket,
-                    ticket_user,
+                ticket = self.ticket_service.create_from_user_request(
+                    client=client,
+                    admin=actor,
+                    user=user,
+                    contact_user=contact_user,
+                    department=department,
+                    ticket_user=ticket_user,
+                    description=ticket_dto.description,
+                    remote_work_recommended=ticket_dto.remote_work_recommended,
+                    urgency=TicketUrgency(ticket_dto.urgency),
+                    planned_at=ticket_dto.planned_at,
+                    comment=ticket_dto.comment,
                 )
-
-            # --------------------------------------------------------------
-            # Optional automatic acceptance.
-            # --------------------------------------------------------------
+            else:
+                ticket = self.ticket_service.create(
+                    client=client,
+                    admin=actor,
+                    text_of_ticket=ticket_dto.text_of_ticket,
+                    contact_user=contact_user,
+                    department=department,
+                    description=ticket_dto.description,
+                    remote_work_recommended=(
+                        ticket_dto.remote_work_recommended
+                    ),
+                    urgency=TicketUrgency(
+                        ticket_dto.urgency
+                    ),
+                    planned_at=ticket_dto.planned_at,
+                    comment=ticket_dto.comment,
+                )
 
 
 
@@ -229,7 +219,7 @@ class TicketApplicationService:
                     permission=AdminPermission.TICKET_ACCEPTED,
             ):
 
-                changed_ticket_user = self.ticket_service.accept(
+                self.ticket_service.accept(
                     ticket=ticket,
                     ticket_user=ticket_user if ticket_user else None,
                     actor_employee_id=actor.employee_id,
@@ -238,7 +228,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
     # ==================================================================
     # Ticket data
@@ -317,13 +307,11 @@ class TicketApplicationService:
                 raise DomainOperationError(
                     "department_id cannot be negative"
                 )
-
+            department=Department.create_empty()
             if ticket_dto.department_id > 0:
                 department = self.uow.departments.get(
                     ticket_dto.department_id,
                 )
-
-                department.ensure_enabled()
 
                 # Department is read-only, but its enabled state
                 # participates in the business decision.
@@ -333,7 +321,7 @@ class TicketApplicationService:
 
             self.ticket_service.change_department(
                 ticket=ticket,
-                department_id=ticket_dto.department_id,
+                department=department
             )
 
             return self._save_and_to_dto(
@@ -351,6 +339,11 @@ class TicketApplicationService:
                 permission=AdminPermission.TICKET_OPERATION,
             )
 
+            if ticket_dto.contact_user_id < 0:
+                raise DomainOperationError(
+                    "contact_user_id cannot be negative"
+                )
+
             ticket = self._get_ticket(
                 ticket_dto.ticket_id,
             )
@@ -359,40 +352,28 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            if ticket_dto.contact_user_id < 0:
-                raise DomainOperationError(
-                    "contact_user_id cannot be negative"
-                )
 
+            contact_user=User.create_empty()
             if ticket_dto.contact_user_id > 0:
                 contact_user = self.uow.users.get(
                     ticket_dto.contact_user_id,
                 )
 
-                contact_user.can_do_operation()
-
-                if contact_user.client_id != ticket.client_id:
-                    raise DomainOperationError(
-                        "Contact User does not belong "
-                        "to Ticket Client"
-                    )
 
                 self.uow.users.touch(
                     contact_user
                 )
 
-            changed_ticket_user = (
-                self.ticket_service.change_contact_user(
+            self.ticket_service.change_contact_user(
+                    user=contact_user,
                     ticket=ticket,
-                    ticket_user=ticket_user,
-                    actor_employee_id=actor.employee_id,
-                    contact_user_id=ticket_dto.contact_user_id,
+                    ticket_user=ticket_user
                 )
-            )
+
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def set_remote_work_recommended(
@@ -526,7 +507,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.accept(
+            self.ticket_service.accept(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -535,7 +516,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def reject(
@@ -561,7 +542,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.reject(
+            self.ticket_service.reject(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -570,7 +551,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def defer(
@@ -592,7 +573,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.defer(
+            self.ticket_service.defer(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -601,7 +582,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def assign(
@@ -629,8 +610,6 @@ class TicketApplicationService:
                     ticket_dto.executor_id,
                 )
 
-                executor.can_do_operation()
-
             ticket = self._get_ticket(
                 ticket_dto.ticket_id,
             )
@@ -639,7 +618,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.assign(
+            self.ticket_service.assign(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -654,7 +633,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     # ==================================================================
@@ -686,7 +665,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.start_work(
+            self.ticket_service.start_work(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -696,7 +675,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def start_remote_work(
@@ -766,7 +745,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.pause_work(
+            self.ticket_service.pause_work(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -775,7 +754,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def resume_work(
@@ -797,7 +776,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.resume_work(
+            self.ticket_service.resume_work(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -807,7 +786,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     # ==================================================================
@@ -848,36 +827,22 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = (
-                self.ticket_service.submit_for_review(
+
+            self.ticket_service.submit_for_review(
                     ticket=ticket,
                     ticket_user=ticket_user,
                     actor_employee_id=actor.employee_id,
                     comment=ticket_dto.comment,
                 )
-            )
 
-            if self.actor.has_admin_permission(
-                actor_admin_id=actor.employee_id,
-                permission=AdminPermission.TICKET_EXECUTED,
-            ):
-                executed_ticket_user = (
-                    self.ticket_service.execute(
-                        ticket=ticket,
-                        ticket_user=ticket_user,
-                        actor_employee_id=actor.employee_id,
-                    )
-                )
 
-                if executed_ticket_user is not None:
-                    changed_ticket_user = executed_ticket_user
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
-    def complete_work_retroactively(
+    def register_work(
         self,
         *,
         ticket_dto: TicketDTO,
@@ -891,10 +856,7 @@ class TicketApplicationService:
                 -> AT_WORK
                 -> READY_FOR_REVIEW
 
-        Actor with TICKET_EXECUTED additionally performs:
 
-            READY_FOR_REVIEW
-                -> EXECUTED
         """
 
         with self.uow:
@@ -914,32 +876,18 @@ class TicketApplicationService:
             )
 
             changed_ticket_user = (
-                self.ticket_service.complete_work_retroactively(
+                self.ticket_service.register_work(
                     ticket=ticket,
                     ticket_user=ticket_user,
                     actor_employee_id=actor.employee_id,
                     work_is_remote=ticket_dto.work_is_remote,
-                    started_at=ticket_dto.actual_started_at,
-                    finished_at=ticket_dto.actual_finished_at,
+                    actual_started_at=ticket_dto.actual_started_at,
+                    actual_finished_at=ticket_dto.actual_finished_at,
                     duration=ticket_dto.duration,
                     comment=ticket_dto.comment,
                 )
             )
 
-            if self.actor.has_admin_permission(
-                actor_admin_id=actor.employee_id,
-                permission=AdminPermission.TICKET_EXECUTED,
-            ):
-                executed_ticket_user = (
-                    self.ticket_service.execute(
-                        ticket=ticket,
-                        ticket_user=ticket_user,
-                        actor_employee_id=actor.employee_id,
-                    )
-                )
-
-                if executed_ticket_user is not None:
-                    changed_ticket_user = executed_ticket_user
 
             return self._save_and_to_dto(
                 ticket=ticket,
@@ -975,7 +923,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.execute(
+            self.ticket_service.execute(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -984,7 +932,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def cancel(
@@ -1010,7 +958,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.cancel(
+            self.ticket_service.cancel(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -1019,7 +967,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     # ==================================================================
@@ -1181,7 +1129,7 @@ class TicketApplicationService:
     # TODO Перенести этот метод в domain сервис
     # TODO Учесть, что из SUSPENDED, если не client disabled можно заявки перенести только в cancelled. Это тоже делать
     # в доменном сервисе
-    def _validate_create_references(
+    def _validate_create_referenc1es(
         self,
         *,
         ticket_dto: TicketDTO,

@@ -624,6 +624,7 @@ class Ticket:
             executor_id=executor_id,
             comment=comment,
         )
+
         self.append_status(record)
 
     def start_work(

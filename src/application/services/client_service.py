@@ -46,9 +46,7 @@ class ClientApplicationService:
 
         self.ticket_sync_service = TicketSyncService()
 
-        self.client_service = ClientService(
-            ticket_sync_service=self.ticket_sync_service,
-        )
+        self.client_service = ClientService()
 
 
     # ==================================================================

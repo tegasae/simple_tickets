@@ -84,6 +84,7 @@ class TicketUser:
         contact_user_id: int = 0,
         description: str = "",
         comment: str = "",
+
     ) -> Self:
         """Create a User-originated request, directly or through staff."""
         if type(user_id) is not int or user_id <= 0:

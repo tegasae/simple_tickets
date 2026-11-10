@@ -36,6 +36,7 @@ class Client:
     description: Description|Empty=field(default_factory=Empty)
     created_by_admin_id: int = 0
     enabled: bool = True
+    _is_empty: bool = field(default=False, init=False, repr=False)
 
 
     date_created: datetime = field(
@@ -145,6 +146,17 @@ class Client:
             )
         except ValueError as e:
             raise ItemValidationError(f"Client rehydrate failed: {e}") from e
+
+    @classmethod
+    def create_empty(cls) -> Self:
+        client = cls(client_id=0, name=Name("--"), enabled=True)
+        return client
+
+    @classmethod
+    def is_empty(cls)->Self:
+        client = cls(client_id=0, name=Name("--"), enabled=True)
+        client._is_empty = True
+        return client
 
     def disable(self) -> None:
         """Disable the client."""

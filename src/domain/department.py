@@ -26,6 +26,7 @@ class Department:
     enabled: bool = True
     date_created: datetime = field(default_factory=datetime.now)
     version: int = 0
+    _is_empty: bool = field(default=False, init=False, repr=False)
 
     @classmethod
     def create(
@@ -79,7 +80,13 @@ class Department:
     @classmethod
     def create_empty(cls) -> Self:
         department = cls(department_id=0, name=Name("--"), enabled=True)
+        department._is_empty=True
         return department
+
+
+    def is_empty(self) -> bool:
+        return self._is_empty
+
 
     def rename(self, name: str) -> None:
         self._ensure_enabled()
