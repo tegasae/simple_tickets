@@ -11,7 +11,7 @@ from src.application.exceptions import ApplicationStoreError
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.client import Client
 from src.domain.department import Department
-from src.domain.employee import User, Admin
+from src.domain.employee import User
 
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
@@ -130,11 +130,8 @@ class TicketApplicationService:
             )
 
 
-            self._validate_create_references(
-                ticket_dto=ticket_dto,
-            )
 
-            ticket_user: TicketUser|None=None
+
 
 
             user=User.create_empty()
@@ -144,18 +141,19 @@ class TicketApplicationService:
 
             if ticket_dto.client_id:
                 client=self.uow.clients.get(client_id=ticket_dto.client_id)
-
+                self.uow.clients.touch(client)
             if ticket_dto.user_id:
                 user = self.uow.users.get(user_id=ticket_dto.user_id)
+                self.uow.users.touch(user)
             if ticket_dto.contact_user_id:
                 contact_user=self.uow.users.get(user_id=ticket_dto.contact_user_id)
-
+                self.uow.users.touch(contact_user)
             if ticket_dto.department_id:
                 department=self.uow.departments.get(department_id=ticket_dto.department_id)
+                self.uow.departments.touch(department)
 
             if not user.is_empty():
                 ticket_user = TicketUserService.create(
-
                     text_of_ticket=ticket_dto.text_of_ticket,
                     description=ticket_dto.description,
                     comment=ticket_dto.comment,
@@ -168,8 +166,7 @@ class TicketApplicationService:
                     ticket_user
                 )
 
-                if saved_ticket_user is not None:
-                    ticket_user = saved_ticket_user
+
 
                 if ticket_user.ticket_user_id <= 0:
                     raise ApplicationStoreError(
@@ -178,22 +175,21 @@ class TicketApplicationService:
                     )
 
 
-
-
-
                 ticket = self.ticket_service.create_from_user_request(
                     client=client,
                     admin=actor,
                     user=user,
                     contact_user=contact_user,
                     department=department,
-                    ticket_user=ticket_user,
+                    ticket_user=saved_ticket_user,
+                    text_of_ticket=ticket_dto.text_of_ticket,
                     description=ticket_dto.description,
                     remote_work_recommended=ticket_dto.remote_work_recommended,
                     urgency=TicketUrgency(ticket_dto.urgency),
                     planned_at=ticket_dto.planned_at,
                     comment=ticket_dto.comment,
                 )
+
             else:
                 ticket = self.ticket_service.create(
                     client=client,
@@ -712,18 +708,17 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = (
-                self.ticket_service.start_remote_work(
+            self.ticket_service.start_remote_work(
                     ticket=ticket,
                     ticket_user=ticket_user,
                     actor_employee_id=actor.employee_id,
                     comment=ticket_dto.comment,
                 )
-            )
+
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def pause_work(
@@ -875,8 +870,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = (
-                self.ticket_service.register_work(
+            self.ticket_service.register_work(
                     ticket=ticket,
                     ticket_user=ticket_user,
                     actor_employee_id=actor.employee_id,
@@ -886,12 +880,12 @@ class TicketApplicationService:
                     duration=ticket_dto.duration,
                     comment=ticket_dto.comment,
                 )
-            )
+
 
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     # ==================================================================

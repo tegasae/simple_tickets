@@ -36,11 +36,11 @@ class TicketService:
 
     @staticmethod
     def create(
-        client_id: int,
-        admin_id: int,
+        client: Client,
+        admin: Admin,
+        department: Department,
+        contact_user: User,
         text_of_ticket: str,
-        contact_user_id: int = 0,
-        department_id: int = 0,
         description: str = "",
         remote_work_recommended: bool = False,
         urgency: TicketUrgency = TicketUrgency.NORMAL,
@@ -48,14 +48,14 @@ class TicketService:
         comment: str = "",
     ) -> Ticket:
 
-
-
+        TicketService._check_entities(client=client, user=User.create_empty(), contact_user=contact_user, admin=admin,
+                                      department=department)
         ticket = Ticket.create(
-            client_id=client_id,
-            admin_id=admin_id,
+            client_id=client.client_id,
+            admin_id=admin.employee_id,
             text_of_ticket=text_of_ticket,
-            contact_user_id=contact_user_id,
-            department_id=department_id,
+            contact_user_id=contact_user.employee_id,
+            department_id=department.department_id,
             description=description,
             remote_work_recommended=remote_work_recommended,
             urgency=urgency,
@@ -70,11 +70,11 @@ class TicketService:
         *,
         client: Client,
         admin: Admin,
-        text_of_ticket: str,
+        department: Department,
         user: User,
-        ticket_user_id:int=0,
-        contact_user_id: int = 0,
-        department_id: int = 0,
+        contact_user:User,
+        ticket_user:TicketUser,
+        text_of_ticket: str,
         description: str = "",
         remote_work_recommended: bool = False,
         urgency: TicketUrgency = TicketUrgency.NORMAL,
@@ -82,18 +82,15 @@ class TicketService:
         comment: str = "",
     ) -> Ticket:
 
-        if client.is_empty():
-            raise DomainOperationError("The client can't be empty if the Ticket is created")
-
-
+        TicketService._check_entities(client=client,user=user,contact_user=contact_user,admin=admin,department=department)
         ticket = Ticket.create_from_request_user(
-                client_id=client_id,
-                admin_id=admin_id,
-                user_id=user_id,
-                user_ticket_id=ticket_user_id,
+                client_id=client.client_id,
+                admin_id=admin.employee_id,
+                user_id=user.employee_id,
+                user_ticket_id=ticket_user.ticket_user_id,
                 text_of_ticket=text_of_ticket,
-                contact_user_id=contact_user_id,
-                department_id=department_id,
+                contact_user_id=contact_user.employee_id,
+                department_id=department.department_id,
                 description=description,
                 remote_work_recommended=remote_work_recommended,
                 urgency=urgency,
@@ -106,27 +103,29 @@ class TicketService:
     @staticmethod
     def create_from_ticket_user(
         *,
-        client_id: int,
-        user_id: int,
-        user_ticket_id: int,
+        client: Client,
+        user: User,
+        ticket_user: TicketUser,
+        contact_user: User,
+        department:  Department,
         text_of_ticket: str,
-        contact_user_id: int = 0,
         description: str = "",
-        department_id: int = 0,
         remote_work_recommended: bool = False,
         urgency: TicketUrgency = TicketUrgency.NORMAL,
         planned_at: datetime | None = None,
         comment: str = "",
     ) -> Ticket:
         """Create a Ticket from a TicketUser registered earlier by the user."""
+        TicketService._check_entities(client=client, user=User.create_empty(), contact_user=contact_user, admin=Admin.create_empty(),
+                                      department=department)
         return Ticket.create_from_ticket_user(
-            client_id=client_id,
-            user_id=user_id,
-            user_ticket_id=user_ticket_id,
+            client_id=client.client_id,
+            user_id=user.employee_id,
+            user_ticket_id=ticket_user.ticket_user_id,
             text_of_ticket=text_of_ticket,
-            contact_user_id=contact_user_id,
+            contact_user_id=contact_user.employee_id,
             description=description,
-            department_id=department_id,
+            department_id=department.department_id,
             remote_work_recommended=remote_work_recommended,
             urgency=urgency,
             planned_at=planned_at,
@@ -168,7 +167,7 @@ class TicketService:
         ticket_user: TicketUser | None,
     ) -> None:
         if user.is_empty():
-            raise DomainOperationError(f"This ticket can't have empty user because Ticket {ticket.ticket_id} has TicketUser {ticket_user.ticket_user_id}")
+            raise DomainOperationError(f"This ticket can't have empty user because Ticket {ticket} has TicketUser {ticket_user}")
         user.can_do_operation()
 
         ticket.change_contact_user(contact_user_id=user.employee_id)
@@ -386,3 +385,13 @@ class TicketService:
     ) -> None:
         ticket.cancel(actor_employee_id=actor_employee_id, comment=comment)
         self._ticket_sync_service.sync_from_ticket(ticket, ticket_user)
+
+    @staticmethod
+    def _check_entities(client:Client, admin:Admin, user:User, contact_user:User, department:Department) -> None:
+        if client.is_empty():
+            raise DomainOperationError("The client can't be empty if the Ticket is created")
+        admin.can_do_operation()
+        client.ensure_enabled()
+        user.can_do_operation()
+        contact_user.can_do_operation()
+        department.ensure_enabled()

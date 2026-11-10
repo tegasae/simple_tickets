@@ -88,7 +88,6 @@ class TicketUserService:
     def update_description(
         *,
         ticket_user: TicketUser,
-        actor_employee_id: int,
         description: str,
     ) -> None:
         """Update description without changing the current contact User.
@@ -97,7 +96,6 @@ class TicketUserService:
         existing contact_user_id explicitly.
         """
         ticket_user.update_details(
-            actor_employee_id=actor_employee_id,
             description=description,
             contact_user_id=ticket_user.contact_user_id,
         )
@@ -111,8 +109,6 @@ class TicketUserService:
         *,
         ticket_user: TicketUser,
         ticket: Ticket,
-        actor_employee_id: int,
-        contact_user_id: int,
     ) -> None:
         """Change the shared contact in both linked aggregates in place.
 
@@ -124,11 +120,9 @@ class TicketUserService:
             ticket=ticket,
         )
 
-        self._ticket_sync_service.change_contact_user(
+        self._ticket_sync_service.sync_from_ticket(
             ticket,
-            ticket_user,
-            actor_employee_id=actor_employee_id,
-            contact_user_id=contact_user_id,
+            ticket_user
         )
 
     # ==================================================================
@@ -153,10 +147,7 @@ class TicketUserService:
             ticket=ticket,
         )
 
-        self._ticket_sync_service.ensure_workflow_consistent(
-            ticket,
-            ticket_user,
-        )
+
 
         ticket_user.confirm_by_user(
             actor_employee_id=actor_employee_id,
@@ -166,8 +157,7 @@ class TicketUserService:
         # Preserve the existing comment-handling contract for now.
         self._ticket_sync_service.sync_from_ticket_user(
             ticket,
-            ticket_user,
-            comment=comment,
+            ticket_user
         )
 
     def cancel_by_user(
@@ -189,10 +179,7 @@ class TicketUserService:
             ticket=ticket,
         )
 
-        self._ticket_sync_service.ensure_workflow_consistent(
-            ticket,
-            ticket_user,
-        )
+
 
         ticket_user.cancel_by_user(
             actor_employee_id=actor_employee_id,
@@ -203,15 +190,13 @@ class TicketUserService:
         self._ticket_sync_service.sync_from_ticket_user(
             ticket,
             ticket_user,
-            comment=comment,
         )
 
     # ==================================================================
     # Internal helpers
     # ==================================================================
-
+    @staticmethod
     def _require_linked_ticket(
-        self,
         *,
         ticket_user: TicketUser,
         ticket: Ticket,
@@ -229,7 +214,3 @@ class TicketUserService:
                 "does not have linked internal Ticket"
             )
 
-        self._ticket_sync_service.ensure_consistent(
-            ticket,
-            ticket_user,
-        )

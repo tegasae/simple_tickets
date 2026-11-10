@@ -79,6 +79,7 @@ class AdminApplicationService:
                 login=admin_dto.login,
             )
 
+            department = Department.create_empty()
             if admin_dto.department_id:
                 department = self.uow.departments.get(
                     department_id=admin_dto.department_id,
@@ -87,8 +88,8 @@ class AdminApplicationService:
                 self.uow.departments.touch(
                     department
                 )
-            else:
-                department=Department.create_empty()
+
+
 
             admin = AdminService.create(
                 department=department,
