@@ -82,7 +82,8 @@ class TicketService:
         comment: str = "",
     ) -> Ticket:
 
-
+        if client.is_empty():
+            raise DomainOperationError("The client can't be empty if the Ticket is created")
 
 
         ticket = Ticket.create_from_request_user(
