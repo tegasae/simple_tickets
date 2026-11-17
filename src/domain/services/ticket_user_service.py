@@ -109,19 +109,27 @@ class TicketUserService:
         *,
         ticket_user: TicketUser,
         ticket: Ticket,
-        user:User
+        client:Client,
+        contact_user:User
     ) -> None:
         """Change the shared contact in both linked aggregates in place.
 
         Structural consistency is required before modification. Editing
         contact data does not itself require a workflow transition.
         """
-        user.can_do_operation()
+        contact_user.can_do_operation()
+        if client.is_empty():
+            DomainOperationError(f"The client can't be empty in ticket user {ticket_user.ticket_user_id}")
+        client.ensure_enabled()
+        contact_user.can_do_operation()
+        if client.client_id!=contact_user.client_id:
+            DomainOperationError(f"The ticket user {ticket_user.ticket_user_id} has the cliebt {ticket_user.client_id}  "
+                                 f"and the user has the client {contact_user.client_id}")
         self._require_linked_ticket(
             ticket_user=ticket_user,
             ticket=ticket,
         )
-        ticket_user.change_contact_user(contact_user_id=user.employee_id)
+        ticket_user.change_contact_user(contact_user_id=contact_user.employee_id)
         self._ticket_sync_service.sync_from_ticket(
             ticket,
             ticket_user

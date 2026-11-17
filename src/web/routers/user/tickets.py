@@ -1,10 +1,6 @@
 # src/web/routers/user/tickets.py
 
-from datetime import datetime
-from typing import Any
-
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, ConfigDict, Field
 
 from src.application.dto.ticket_dto import (
     TicketUserDTO,
@@ -13,7 +9,6 @@ from src.application.dto.ticket_dto import (
 from src.application.services.ticket_user_service import TicketUserApplicationService
 
 from src.domain.exceptions import DomainError
-from src.domain.ticket_components import TicketUrgency
 from src.web.dependencies.auth import (
     get_current_user,
     get_employee_id_from_request,
@@ -21,7 +16,8 @@ from src.web.dependencies.auth import (
 from src.web.dependencies.services import (
     get_application_ticket_user_service,
 )
-
+from src.web.models.tikcets_user import UserTicketCreateRequest, UserTicketActionRequest, UserTicketCommentRequest, \
+    UserTicketDescriptionRequest, UserTicketContactUserRequest, TicketUserResponse
 
 router = APIRouter(
     prefix="/user/tickets",
@@ -33,93 +29,8 @@ router = APIRouter(
 
 
 # =====================================================================
-# Request models
-# =====================================================================
-
-
-class UserTicketRequest(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-
-
-class UserTicketCreateRequest(UserTicketRequest):
-    client_id: int = Field(
-        gt=0,
-    )
-
-    text_of_ticket: str = Field(
-        min_length=1,
-    )
-
-    contact_user_id: int = Field(
-        default=0,
-        ge=0,
-    )
-
-    department_id: int = Field(
-        default=0,
-        ge=0,
-    )
-
-    description: str = ""
-
-    remote_work_recommended: bool = False
-
-    urgency: TicketUrgency = TicketUrgency.NORMAL
-
-    comment: str = ""
-
-
-class UserTicketActionRequest(UserTicketRequest):
-    comment: str = ""
-
-
-class UserTicketCommentRequest(UserTicketRequest):
-    comment: str = Field(
-        min_length=1,
-    )
-
-
-class UserTicketDescriptionRequest(UserTicketRequest):
-    description: str = ""
-
-
-class UserTicketContactUserRequest(UserTicketRequest):
-    contact_user_id: int = Field(
-        ge=0,
-    )
-
-
-# =====================================================================
 # Response model
 # =====================================================================
-
-
-class UserTicketResponse(BaseModel):
-    model_config = ConfigDict(
-        from_attributes=True,
-    )
-
-    ticket_user_id: int
-
-    client_id: int
-    user_id: int
-    contact_user_id: int
-
-    text_of_ticket: str
-    description: str
-
-    current_status: str
-
-    date_created: datetime
-    date_finished: datetime | None
-
-    version: int
-    is_closed: bool
-
-    statuses: list[dict[str, Any]]
-    comments: list[dict[str, Any]]
 
 
 # =====================================================================
@@ -173,129 +84,21 @@ def _domain_error(
 
 def to_user_ticket_response(
     response_dto: TicketUserResponseDTO,
-) -> UserTicketResponse:
-    return UserTicketResponse.model_validate(
+) -> TicketUserResponse:
+    return TicketUserResponse.model_validate(
         response_dto
     )
 
 
 def to_user_ticket_responses(
     response_dtos: list[TicketUserResponseDTO],
-) -> list[UserTicketResponse]:
+) -> list[TicketUserResponse]:
     return [
         to_user_ticket_response(response_dto)
         for response_dto in response_dtos
     ]
 
 
-# =====================================================================
-# Request -> Application DTO mappers
-# =====================================================================
-
-
-def create_request_to_dto(
-    *,
-    request: UserTicketCreateRequest,
-    actor_user_id: int,
-) -> TicketUserDTO:
-    return TicketUserDTO(
-        actor_user_id=actor_user_id,
-        ticket_user_id=0,
-        client_id=request.client_id,
-        user_id=actor_user_id,
-        text_of_ticket=request.text_of_ticket,
-        contact_user_id=request.contact_user_id,
-        department_id=request.department_id,
-        description=request.description,
-        remote_work_recommended=(
-            request.remote_work_recommended
-        ),
-        urgency=request.urgency,
-        comment=request.comment,
-    )
-
-
-def actor_to_dto(
-    *,
-    actor_user_id: int,
-) -> TicketUserDTO:
-    return TicketUserDTO(
-        actor_user_id=actor_user_id,
-    )
-
-
-def user_filter_to_dto(
-    *,
-    actor_user_id: int,
-    user_id: int,
-) -> TicketUserDTO:
-    return TicketUserDTO(
-        actor_user_id=actor_user_id,
-        user_id=user_id,
-    )
-
-
-def ticket_user_id_to_dto(
-    *,
-    actor_user_id: int,
-    ticket_user_id: int,
-) -> TicketUserDTO:
-    return TicketUserDTO(
-        actor_user_id=actor_user_id,
-        ticket_user_id=ticket_user_id,
-    )
-
-
-def action_request_to_dto(
-    *,
-    request: UserTicketActionRequest,
-    actor_user_id: int,
-    ticket_user_id: int,
-) -> TicketUserDTO:
-    return TicketUserDTO(
-        actor_user_id=actor_user_id,
-        ticket_user_id=ticket_user_id,
-        comment=request.comment,
-    )
-
-
-def comment_request_to_dto(
-    *,
-    request: UserTicketCommentRequest,
-    actor_user_id: int,
-    ticket_user_id: int,
-) -> TicketUserDTO:
-    return TicketUserDTO(
-        actor_user_id=actor_user_id,
-        ticket_user_id=ticket_user_id,
-        comment=request.comment,
-    )
-
-
-def description_request_to_dto(
-    *,
-    request: UserTicketDescriptionRequest,
-    actor_user_id: int,
-    ticket_user_id: int,
-) -> TicketUserDTO:
-    return TicketUserDTO(
-        actor_user_id=actor_user_id,
-        ticket_user_id=ticket_user_id,
-        description=request.description,
-    )
-
-
-def contact_user_request_to_dto(
-    *,
-    request: UserTicketContactUserRequest,
-    actor_user_id: int,
-    ticket_user_id: int,
-) -> TicketUserDTO:
-    return TicketUserDTO(
-        actor_user_id=actor_user_id,
-        ticket_user_id=ticket_user_id,
-        contact_user_id=request.contact_user_id,
-    )
 
 
 # =====================================================================
@@ -305,7 +108,7 @@ def contact_user_request_to_dto(
 
 @router.post(
     "/",
-    response_model=UserTicketResponse,
+    response_model=TicketUserResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create user ticket",
 )
@@ -317,18 +120,18 @@ def create_ticket(
     service: TicketUserApplicationService = Depends(
         get_application_ticket_user_service
     ),
-):
+)->TicketUserResponse:
     try:
-        dto = create_request_to_dto(
-            request=request,
+        dto = TicketUserDTO(
             actor_user_id=user_id,
+            **request.model_dump(),
         )
 
         response_dto = service.create_from_user(
             ticket_user_dto=dto,
         )
 
-        return to_user_ticket_response(
+        return TicketUserResponse.from_dto(
             response_dto
         )
 
@@ -343,7 +146,7 @@ def create_ticket(
 
 @router.get(
     "/",
-    response_model=list[UserTicketResponse],
+    response_model=list[TicketUserResponse],
     status_code=status.HTTP_200_OK,
     summary="Get current user tickets",
 )
@@ -354,20 +157,17 @@ def get_my_tickets(
     service: TicketUserApplicationService = Depends(
         get_application_ticket_user_service
     ),
-):
+)->list[TicketUserResponse]:
     try:
-        dto = user_filter_to_dto(
-            actor_user_id=user_id,
-            user_id=user_id,
-        )
+
+
+        dto=TicketUserDTO(actor_user_id=user_id,user_id=user_id)
 
         response_dtos = service.get_by_user_id(
             ticket_user_dto=dto,
         )
 
-        return to_user_ticket_responses(
-            response_dtos
-        )
+        return TicketUserResponse.from_dtos(response_dtos)
 
     except (DomainError, PermissionError) as exc:
         raise _domain_error(exc) from exc
@@ -375,7 +175,7 @@ def get_my_tickets(
 
 @router.get(
     "/all",
-    response_model=list[UserTicketResponse],
+    response_model=list[TicketUserResponse],
     status_code=status.HTTP_200_OK,
     summary="Get all client user tickets",
 )
@@ -386,19 +186,18 @@ def get_all_tickets(
     service: TicketUserApplicationService = Depends(
         get_application_ticket_user_service
     ),
-):
+)->list[TicketUserResponse]:
     try:
-        dto = actor_to_dto(
+
+
+        dto = TicketUserDTO(
             actor_user_id=user_id,
         )
-
         response_dtos = service.get_all(
             ticket_user_dto=dto,
         )
 
-        return to_user_ticket_responses(
-            response_dtos
-        )
+        return TicketUserResponse.from_dtos(response_dtos)
 
     except (DomainError, PermissionError) as exc:
         raise _domain_error(exc) from exc
@@ -406,7 +205,7 @@ def get_all_tickets(
 
 @router.get(
     "/open",
-    response_model=list[UserTicketResponse],
+    response_model=list[TicketUserResponse],
     status_code=status.HTTP_200_OK,
     summary="Get open user tickets",
 )
@@ -417,19 +216,17 @@ def get_open_tickets(
     service: TicketUserApplicationService = Depends(
         get_application_ticket_user_service
     ),
-):
+)->list[TicketUserResponse]:
     try:
-        dto = actor_to_dto(
+        dto = TicketUserDTO(
             actor_user_id=user_id,
-        )
 
+        )
         response_dtos = service.get_open(
             ticket_user_dto=dto,
         )
 
-        return to_user_ticket_responses(
-            response_dtos
-        )
+        return TicketUserResponse.from_dtos(response_dtos)
 
     except (DomainError, PermissionError) as exc:
         raise _domain_error(exc) from exc
@@ -437,7 +234,7 @@ def get_open_tickets(
 
 @router.get(
     "/closed",
-    response_model=list[UserTicketResponse],
+    response_model=list[TicketUserResponse],
     status_code=status.HTTP_200_OK,
     summary="Get closed user tickets",
 )
@@ -448,19 +245,17 @@ def get_closed_tickets(
     service: TicketUserApplicationService = Depends(
         get_application_ticket_user_service
     ),
-):
+)->list[TicketUserResponse]:
     try:
-        dto = actor_to_dto(
+
+        dto = TicketUserDTO(
             actor_user_id=user_id,
         )
-
         response_dtos = service.get_closed(
             ticket_user_dto=dto,
         )
 
-        return to_user_ticket_responses(
-            response_dtos
-        )
+        return TicketUserResponse.from_dtos(response_dtos)
 
     except (DomainError, PermissionError) as exc:
         raise _domain_error(exc) from exc
@@ -468,7 +263,7 @@ def get_closed_tickets(
 
 @router.get(
     "/{ticket_user_id}",
-    response_model=UserTicketResponse,
+    response_model=TicketUserResponse,
     status_code=status.HTTP_200_OK,
     summary="Get user ticket by id",
 )
@@ -480,21 +275,17 @@ def get_ticket(
     service: TicketUserApplicationService = Depends(
         get_application_ticket_user_service
     ),
-):
+)->TicketUserResponse:
     try:
-        dto = ticket_user_id_to_dto(
+        dto = TicketUserDTO(
             actor_user_id=user_id,
             ticket_user_id=ticket_user_id,
         )
-
         response_dto = service.get_by_id(
             ticket_user_dto=dto,
         )
 
-        return to_user_ticket_response(
-            response_dto
-        )
-
+        return TicketUserResponse.from_dto(response_dto)
     except (DomainError, PermissionError) as exc:
         raise _domain_error(exc) from exc
 
@@ -506,7 +297,7 @@ def get_ticket(
 
 @router.post(
     "/{ticket_user_id}/comments",
-    response_model=UserTicketResponse,
+    response_model=TicketUserResponse,
     status_code=status.HTTP_200_OK,
     summary="Add comment to user ticket",
 )
@@ -519,21 +310,20 @@ def add_comment(
     service: TicketUserApplicationService = Depends(
         get_application_ticket_user_service
     ),
-):
+)->TicketUserResponse:
     try:
-        dto = comment_request_to_dto(
-            request=request,
+
+        dto = TicketUserDTO(
             actor_user_id=user_id,
             ticket_user_id=ticket_user_id,
+            **request.model_dump()
         )
 
         response_dto = service.add_comment(
             ticket_user_dto=dto,
         )
 
-        return to_user_ticket_response(
-            response_dto
-        )
+        return TicketUserResponse.from_dto(response_dto)
 
     except (DomainError, PermissionError) as exc:
         raise _domain_error(exc) from exc
@@ -541,7 +331,7 @@ def add_comment(
 
 @router.patch(
     "/{ticket_user_id}/description",
-    response_model=UserTicketResponse,
+    response_model=TicketUserResponse,
     status_code=status.HTTP_200_OK,
     summary="Update user ticket description",
 )
@@ -554,21 +344,21 @@ def update_description(
     service: TicketUserApplicationService = Depends(
         get_application_ticket_user_service
     ),
-):
+)->TicketUserResponse:
     try:
-        dto = description_request_to_dto(
-            request=request,
+
+
+        dto = TicketUserDTO(
             actor_user_id=user_id,
             ticket_user_id=ticket_user_id,
+            **request.model_dump()
         )
 
         response_dto = service.update_description(
             ticket_user_dto=dto,
         )
 
-        return to_user_ticket_response(
-            response_dto
-        )
+        return TicketUserResponse.from_dto(response_dto)
 
     except (DomainError, PermissionError) as exc:
         raise _domain_error(exc) from exc
@@ -576,7 +366,7 @@ def update_description(
 
 @router.patch(
     "/{ticket_user_id}/contact-user",
-    response_model=UserTicketResponse,
+    response_model=TicketUserResponse,
     status_code=status.HTTP_200_OK,
     summary="Change user ticket contact user",
 )
@@ -589,22 +379,21 @@ def change_contact_user(
     service: TicketUserApplicationService = Depends(
         get_application_ticket_user_service
     ),
-):
+)->TicketUserResponse:
     try:
-        dto = contact_user_request_to_dto(
-            request=request,
+
+
+        dto = TicketUserDTO(
             actor_user_id=user_id,
             ticket_user_id=ticket_user_id,
+            **request.model_dump()
         )
 
         response_dto = service.change_contact_user(
             ticket_user_dto=dto,
         )
 
-        return to_user_ticket_response(
-            response_dto
-        )
-
+        return TicketUserResponse.from_dto(response_dto)
     except (DomainError, PermissionError) as exc:
         raise _domain_error(exc) from exc
 
@@ -616,7 +405,7 @@ def change_contact_user(
 
 @router.patch(
     "/{ticket_user_id}/cancel",
-    response_model=UserTicketResponse,
+    response_model=TicketUserResponse,
     status_code=status.HTTP_200_OK,
     summary="Cancel user ticket",
 )
@@ -629,21 +418,20 @@ def cancel_ticket(
     service: TicketUserApplicationService = Depends(
         get_application_ticket_user_service
     ),
-):
+)->TicketUserResponse:
     try:
-        dto = action_request_to_dto(
-            request=request,
+
+        dto = TicketUserDTO(
             actor_user_id=user_id,
             ticket_user_id=ticket_user_id,
+            **request.model_dump()
         )
 
         response_dto = service.cancel_by_user(
             ticket_user_dto=dto,
         )
 
-        return to_user_ticket_response(
-            response_dto
-        )
+        return TicketUserResponse.from_dto(response_dto)
 
     except (DomainError, PermissionError) as exc:
         raise _domain_error(exc) from exc
@@ -651,7 +439,7 @@ def cancel_ticket(
 
 @router.patch(
     "/{ticket_user_id}/confirm",
-    response_model=UserTicketResponse,
+    response_model=TicketUserResponse,
     status_code=status.HTTP_200_OK,
     summary="Confirm user ticket completion",
 )
@@ -664,21 +452,19 @@ def confirm_ticket(
     service: TicketUserApplicationService = Depends(
         get_application_ticket_user_service
     ),
-):
+)->TicketUserResponse:
     try:
-        dto = action_request_to_dto(
-            request=request,
+        dto = TicketUserDTO(
             actor_user_id=user_id,
             ticket_user_id=ticket_user_id,
+            **request.model_dump()
         )
 
         response_dto = service.confirm_by_user(
             ticket_user_dto=dto,
         )
 
-        return to_user_ticket_response(
-            response_dto
-        )
+        return TicketUserResponse.from_dto(response_dto)
 
     except (DomainError, PermissionError) as exc:
         raise _domain_error(exc) from exc

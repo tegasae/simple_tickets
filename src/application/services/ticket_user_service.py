@@ -8,6 +8,8 @@ from src.application.dto.ticket_dto import (
     TicketUserResponseDTO,
 )
 from src.application.helper.actor_helper import EmployeeActorHelper
+from src.domain.client import Client
+from src.domain.department import Department
 
 from src.domain.employee import User
 from src.domain.exceptions import DomainOperationError
@@ -18,6 +20,7 @@ from src.domain.services.ticket_user_service import TicketUserService
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
 from src.domain.uow.unit_of_work import UnitOfWork
+
 
 
 class TicketUserApplicationService:
@@ -124,21 +127,34 @@ class TicketUserApplicationService:
                     "User cannot create TicketUser "
                     "for another User"
                 )
-
-            self._validate_create_references(
-                actor=actor,
-                ticket_user_dto=ticket_user_dto,
-            )
-
             # ----------------------------------------------------------
             # Create TicketUser first.
             # ----------------------------------------------------------
 
+            user=User.create_empty()
+            contact_user=User.create_empty()
+            client=Client.create_empty()
+
+
+
+
+            if ticket_user_dto.client_id:
+                client=self.uow.clients.get(client_id=ticket_user_dto.client_id)
+                self.uow.clients.touch(client)
+            if ticket_user_dto.user_id:
+                user = self.uow.users.get(user_id=ticket_user_dto.user_id)
+                self.uow.users.touch(user)
+
+            if ticket_user_dto.contact_user_id:
+                contact_user=self.uow.users.get(user_id=ticket_user_dto.contact_user_id)
+                self.uow.users.touch(contact_user)
+
+
             ticket_user = self.ticket_user_service.create(
-                client_id=ticket_user_dto.client_id,
-                user_id=actor.employee_id,
+                client=client,
+                user=user,
                 text_of_ticket=ticket_user_dto.text_of_ticket,
-                contact_user_id=ticket_user_dto.contact_user_id,
+                contact_user=contact_user,
                 description=ticket_user_dto.description,
                 comment=ticket_user_dto.comment,
             )
@@ -164,32 +180,28 @@ class TicketUserApplicationService:
             # with user_id.
             # ----------------------------------------------------------
 
+            department=Department.create_empty()
+            if ticket_user_dto.department_id:
+                department=self.uow.departments.get(department_id=ticket_user_dto.department_id)
             ticket = self.ticket_service.create_from_ticket_user(
-                client_id=saved_ticket_user.client_id,
-                user_id=saved_ticket_user.user_id,
-                user_ticket_id=saved_ticket_user.ticket_user_id,
-                text_of_ticket=saved_ticket_user.text_of_ticket,
-                contact_user_id=(
-                    saved_ticket_user.contact_user_id
-                ),
+                client=client,
+                user=user,
+                ticket_user=saved_ticket_user,
+                text_of_ticket=saved_ticket_user.text_of_ticket.value,
+                contact_user=contact_user,
                 description=ticket_user_dto.description,
-                department_id=ticket_user_dto.department_id,
+                department=department,
                 remote_work_recommended=(
                     ticket_user_dto.remote_work_recommended
                 ),
                 urgency=ticket_user_dto.urgency,
             )
 
-            self.ticket_sync_service.ensure_consistent(
-                ticket,
-                saved_ticket_user,
-            )
+
 
             self.uow.tickets.save(
                 ticket
             )
-
-            self.uow.commit()
 
             return TicketUserAssembler.to_dto(
                 saved_ticket_user
@@ -245,7 +257,6 @@ class TicketUserApplicationService:
 
             self.ticket_user_service.update_description(
                 ticket_user=ticket_user,
-                actor_employee_id=actor.employee_id,
                 description=ticket_user_dto.description,
             )
 
@@ -276,11 +287,10 @@ class TicketUserApplicationService:
                 ticket_user=ticket_user,
             )
 
-            self._validate_contact_user(
-                contact_user_id=ticket_user_dto.contact_user_id,
-                client_id=ticket_user.client_id,
-                main_user_id=ticket_user.user_id,
-            )
+            contact_user=User.create_empty()
+            client=Client.create_empty()
+
+
 
             ticket = self._get_linked_ticket(
                 ticket_user=ticket_user,
@@ -289,8 +299,8 @@ class TicketUserApplicationService:
             self.ticket_user_service.change_contact_user(
                 ticket_user=ticket_user,
                 ticket=ticket,
-                actor_employee_id=actor.employee_id,
-                contact_user_id=ticket_user_dto.contact_user_id,
+                client=client,
+                contact_user=contact_user,
             )
 
             return self._save_pair(
@@ -347,7 +357,7 @@ class TicketUserApplicationService:
             self.ticket_user_service.confirm_by_user(
                 ticket_user=ticket_user,
                 ticket=ticket,
-                actor_employee_id=actor.employee_id,
+                user=actor,
                 comment=ticket_user_dto.comment,
             )
 
@@ -401,7 +411,7 @@ class TicketUserApplicationService:
             self.ticket_user_service.cancel_by_user(
                 ticket_user=ticket_user,
                 ticket=ticket,
-                actor_employee_id=actor.employee_id,
+                user=actor,
                 comment=ticket_user_dto.comment,
             )
 

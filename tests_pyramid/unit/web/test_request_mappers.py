@@ -8,6 +8,8 @@ import src.web.models.mappers.admin
 import src.web.models.mappers.client
 import src.web.models.mappers.department
 import src.web.models.mappers.role
+
+import src.web.models.tikcets_user
 from src.domain.rbac.permissions import AdminPermission, UserPermission
 from src.web.models.admins import (
     AdminAttachAccountRequest, AdminChangePasswordRequest, AdminCreateRequest, AdminRolesRequest, AdminUpdateRequest,
@@ -157,12 +159,12 @@ def test_ticket_time_payload_mappers() -> None:
 
 def test_user_ticket_mappers() -> None:
     create = utr.create_request_to_dto(
-        request=utr.UserTicketCreateRequest(client_id=1, text_of_ticket="Need help", contact_user_id=2, department_id=3, is_remote=True), actor_user_id=20
+        request=src.web.models.tikcets_user.UserTicketCreateRequest(client_id=1, text_of_ticket="Need help", contact_user_id=2, department_id=3, is_remote=True), actor_user_id=20
     )
     assert create.actor_user_id == 20 and create.ticket_user_id == 0 and create.client_id == 1
     filtered = utr.user_filter_to_dto(actor_user_id=20, client_id=1)
     assert filtered.actor_user_id == 20 and filtered.client_id == 1
     by_id = utr.ticket_user_id_to_dto(actor_user_id=20, ticket_user_id=5)
     assert by_id.ticket_user_id == 5
-    action = utr.action_request_to_dto(request=utr.UserTicketActionRequest(comment="done"), actor_user_id=20, ticket_user_id=5)
+    action = utr.action_request_to_dto(request=src.web.models.tikcets_user.UserTicketActionRequest(comment="done"), actor_user_id=20, ticket_user_id=5)
     assert action.ticket_user_id == 5 and action.comment == "done"

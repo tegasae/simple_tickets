@@ -2,7 +2,7 @@
 
 
 
-from datetime import timedelta
+
 
 from fastapi import APIRouter, Depends, status
 
@@ -22,7 +22,6 @@ from src.web.models.tickets import (
     TicketCommentRequest,
     TicketCompleteWorkRetroactivelyRequest,
     TicketContactUserRequest,
-    TicketCreateForUserRequest,
     TicketCreateRequest,
     TicketDeferRequest,
     TicketDescriptionRequest,
@@ -36,7 +35,7 @@ from src.web.models.tickets import (
     TicketScheduleRequest,
     TicketStartRemoteWorkRequest,
     TicketStartWorkRequest,
-    TicketUrgencyRequest, TicketCommentBaseRequest,
+    TicketUrgencyRequest,
 )
 
 
@@ -54,265 +53,8 @@ router = APIRouter(
 # =====================================================================
 
 
-def to_ticket_response(
-    response_dto,
-) -> TicketResponse:
-    return TicketResponse.model_validate(
-        response_dto
-    )
 
 
-def to_ticket_responses(
-    response_dtos,
-) -> list[TicketResponse]:
-    return [
-        to_ticket_response(response_dto)
-        for response_dto in response_dtos
-    ]
-
-
-# =====================================================================
-# Request -> DTO
-# =====================================================================
-
-
-def ticket_id_to_dto(
-    *,
-    actor_admin_id: int,
-    ticket_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        actor_admin_id=actor_admin_id,
-        ticket_id=ticket_id,
-    )
-
-
-def ticket_create_request_to_dto(
-    *,
-    request: TicketCreateRequest,
-    actor_admin_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        actor_admin_id=actor_admin_id,
-        ticket_id=0,
-
-        client_id=request.client_id,
-
-        user_id=request.user_id,
-        contact_user_id=request.contact_user_id,
-        user_ticket_id=0,
-
-        department_id=request.department_id,
-
-        text_of_ticket=request.text_of_ticket,
-        description=request.description,
-
-        remote_work_recommended=(
-            request.remote_work_recommended
-        ),
-
-        urgency=request.urgency,
-        planned_at=request.planned_at,
-
-        comment=request.comment,
-    )
-
-
-def ticket_create_for_user_request_to_dto(
-    *,
-    request: TicketCreateForUserRequest,
-    actor_admin_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        actor_admin_id=actor_admin_id,
-        ticket_id=0,
-
-        client_id=request.client_id,
-
-        user_id=request.user_id,
-        contact_user_id=request.contact_user_id,
-        user_ticket_id=0,
-
-        department_id=request.department_id,
-
-        text_of_ticket=request.text_of_ticket,
-        description=request.description,
-
-        remote_work_recommended=(
-            request.remote_work_recommended
-        ),
-
-        urgency=request.urgency,
-        planned_at=request.planned_at,
-
-        comment=request.comment,
-    )
-
-
-def ticket_comment_request_to_dto(
-    *,
-    request: TicketCommentBaseRequest,
-    actor_admin_id: int,
-    ticket_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        ticket_id=ticket_id,
-        actor_admin_id=actor_admin_id,
-        comment=request.comment,
-    )
-
-def ticket_description_request_to_dto(
-    *,
-    request: TicketDescriptionRequest,
-    actor_admin_id: int,
-    ticket_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        actor_admin_id=actor_admin_id,
-        ticket_id=ticket_id,
-        description=request.description,
-    )
-
-
-def ticket_contact_user_request_to_dto(
-    *,
-    request: TicketContactUserRequest,
-    actor_admin_id: int,
-    ticket_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        actor_admin_id=actor_admin_id,
-        ticket_id=ticket_id,
-        contact_user_id=request.contact_user_id,
-    )
-
-
-def ticket_department_request_to_dto(
-    *,
-    request: TicketChangeDepartmentRequest,
-    actor_admin_id: int,
-    ticket_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        actor_admin_id=actor_admin_id,
-        ticket_id=ticket_id,
-        department_id=request.department_id,
-    )
-
-
-def ticket_remote_recommendation_request_to_dto(
-    *,
-    request: TicketRemoteWorkRecommendationRequest,
-    actor_admin_id: int,
-    ticket_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        actor_admin_id=actor_admin_id,
-        ticket_id=ticket_id,
-        remote_work_recommended=(
-            request.remote_work_recommended
-        ),
-    )
-
-
-def ticket_urgency_request_to_dto(
-    *,
-    request: TicketUrgencyRequest,
-    actor_admin_id: int,
-    ticket_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        actor_admin_id=actor_admin_id,
-        ticket_id=ticket_id,
-        urgency=request.urgency,
-    )
-
-
-def ticket_schedule_request_to_dto(
-    *,
-    request: TicketScheduleRequest,
-    actor_admin_id: int,
-    ticket_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        actor_admin_id=actor_admin_id,
-        ticket_id=ticket_id,
-        planned_at=request.planned_at,
-    )
-
-
-def ticket_assign_request_to_dto(
-    *,
-    request: TicketAssignRequest,
-    actor_admin_id: int,
-    ticket_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        actor_admin_id=actor_admin_id,
-        ticket_id=ticket_id,
-        executor_id=request.executor_id,
-        comment=request.comment,
-    )
-
-
-def ticket_start_work_request_to_dto(
-    *,
-    request: TicketStartWorkRequest,
-    actor_admin_id: int,
-    ticket_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        actor_admin_id=actor_admin_id,
-        ticket_id=ticket_id,
-        work_is_remote=request.work_is_remote,
-        comment=request.comment,
-    )
-
-
-def ticket_start_remote_work_request_to_dto(
-    *,
-    request: TicketStartRemoteWorkRequest,
-    actor_admin_id: int,
-    ticket_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        actor_admin_id=actor_admin_id,
-        ticket_id=ticket_id,
-        comment=request.comment,
-    )
-
-
-def ticket_resume_work_request_to_dto(
-    *,
-    request: TicketResumeWorkRequest,
-    actor_admin_id: int,
-    ticket_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        actor_admin_id=actor_admin_id,
-        ticket_id=ticket_id,
-        work_is_remote=request.work_is_remote,
-        comment=request.comment,
-    )
-
-
-def ticket_complete_work_retroactively_request_to_dto(
-    *,
-    request: TicketCompleteWorkRetroactivelyRequest,
-    actor_admin_id: int,
-    ticket_id: int,
-) -> TicketDTO:
-    return TicketDTO(
-        actor_admin_id=actor_admin_id,
-        ticket_id=ticket_id,
-
-        work_is_remote=request.work_is_remote,
-
-        actual_started_at=request.actual_started_at,
-        actual_finished_at=request.actual_finished_at,
-        duration=timedelta(seconds=request.duration),
-        comment=request.comment,
-    )
 
 
 # =====================================================================
@@ -334,7 +76,7 @@ def create_ticket(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         **request.model_dump()
@@ -373,7 +115,7 @@ def get_all_tickets(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->list[TicketResponse]:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
     )
@@ -401,7 +143,7 @@ def get_open_tickets(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->list[TicketResponse]:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
     )
@@ -429,7 +171,7 @@ def get_closed_tickets(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->list[TicketResponse]:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
     )
@@ -458,7 +200,7 @@ def get_tickets_by_client(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->list[TicketResponse]:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         client_id=client_id,
@@ -488,7 +230,7 @@ def get_tickets_by_user(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->list[TicketResponse]:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         user_id=user_id,
@@ -518,7 +260,7 @@ def get_tickets_by_contact_user(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->list[TicketResponse]:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         contact_user_id=contact_user_id,
@@ -548,7 +290,7 @@ def get_tickets_by_department(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->list[TicketResponse]:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         department_id=department_id,
@@ -578,7 +320,7 @@ def get_tickets_by_current_executor(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->list[TicketResponse]:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         executor_id=executor_id,
@@ -607,8 +349,8 @@ def get_ticket(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
-    dto = ticket_id_to_dto(
+)->TicketResponse:
+    dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
     )
@@ -643,7 +385,7 @@ def add_comment(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
@@ -674,7 +416,7 @@ def update_description(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
 
 
     dto = TicketDTO(
@@ -708,7 +450,7 @@ def change_contact_user(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
 
 
     dto = TicketDTO(
@@ -743,7 +485,7 @@ def change_department(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
@@ -776,7 +518,7 @@ def set_remote_work_recommended(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
 
 
     dto = TicketDTO(
@@ -810,7 +552,7 @@ def change_urgency(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
 
 
     dto = TicketDTO(
@@ -849,7 +591,7 @@ def schedule_ticket(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
@@ -880,7 +622,7 @@ def clear_ticket_schedule(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
@@ -918,7 +660,7 @@ def accept_ticket(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
 
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
@@ -951,7 +693,7 @@ def reject_ticket(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
 
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
@@ -984,7 +726,7 @@ def defer_ticket(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
@@ -1015,7 +757,7 @@ def assign_ticket(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
@@ -1045,18 +787,18 @@ def assign_ticket(
 )
 def start_work(
     ticket_id: int,
-    ticket_request: TicketStartWorkRequest,
+    request: TicketStartWorkRequest,
     asf=Depends(
         get_application_service_factory
     ),
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
-    dto = ticket_start_work_request_to_dto(
-        request=ticket_request,
+)->TicketResponse:
+    dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
+        **request.model_dump()
     )
 
     response_dto = (
@@ -1084,7 +826,7 @@ def start_remote_work(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
@@ -1116,7 +858,7 @@ def pause_work(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
@@ -1149,7 +891,7 @@ def resume_work(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
@@ -1182,7 +924,7 @@ def finish_work(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
@@ -1214,7 +956,7 @@ def complete_work_retroactively(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
@@ -1252,7 +994,7 @@ def execute_ticket(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
@@ -1284,7 +1026,7 @@ def cancel_ticket(
     actor_admin_id: int = Depends(
         get_employee_id_from_request
     ),
-):
+)->TicketResponse:
     dto = TicketDTO(
         actor_admin_id=actor_admin_id,
         ticket_id=ticket_id,
