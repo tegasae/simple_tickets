@@ -43,6 +43,7 @@ class TicketUserStatusRule:
 
     user_action: bool = False
     requires_comment: bool = False
+    can_change:bool = False
 
 
 TICKET_USER_STATUS_RULES: Final[
@@ -50,6 +51,7 @@ TICKET_USER_STATUS_RULES: Final[
 ] = {
     TicketUserStatus.CREATED: TicketUserStatusRule(
         user_action=True,
+        can_change=True,
     ),
 
     TicketUserStatus.IN_WORK: TicketUserStatusRule(),

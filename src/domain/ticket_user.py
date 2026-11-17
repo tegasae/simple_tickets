@@ -215,7 +215,7 @@ class TicketUser:
         An omitted description clears it; an omitted or zero contact resets
         the contact to the request's owner.
         """
-        self._ensure_not_terminal()
+        self._can_change()
 
         new_contact_user_id = self._resolve_edited_contact_user_id(
             contact_user_id
@@ -235,7 +235,7 @@ class TicketUser:
         Linked-pair synchronization belongs to TicketSyncService.
         No actor is recorded for a data-only change.
         """
-        self._ensure_not_terminal()
+        self._can_change()
         self.contact_user_id = self._resolve_edited_contact_user_id(
             contact_user_id
         )
@@ -425,6 +425,11 @@ class TicketUser:
                     "TicketUser status history must be chronological"
                 )
 
+    def _can_change(self) -> None:
+        self._ensure_not_terminal()
+        if not self.current_status_record().rule.can_change:
+            raise DomainOperationError(
+                f"TicketUser {self.ticket_user_id} can't change status status {self.current_status().value}")
     def _ensure_not_terminal(self) -> None:
         if self.is_terminal():
             raise DomainOperationError(

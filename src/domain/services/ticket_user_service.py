@@ -109,17 +109,19 @@ class TicketUserService:
         *,
         ticket_user: TicketUser,
         ticket: Ticket,
+        user:User
     ) -> None:
         """Change the shared contact in both linked aggregates in place.
 
         Structural consistency is required before modification. Editing
         contact data does not itself require a workflow transition.
         """
+        user.can_do_operation()
         self._require_linked_ticket(
             ticket_user=ticket_user,
             ticket=ticket,
         )
-
+        ticket_user.change_contact_user(contact_user_id=user.employee_id)
         self._ticket_sync_service.sync_from_ticket(
             ticket,
             ticket_user
@@ -134,7 +136,7 @@ class TicketUserService:
         *,
         ticket_user: TicketUser,
         ticket: Ticket,
-        actor_employee_id: int,
+        user:User,
         comment: str = "",
     ) -> None:
         """Synchronize User confirmation to the internal Ticket.
@@ -142,6 +144,7 @@ class TicketUserService:
         TicketUser: WAITING_FOR_CONFIRMATION -> CONFIRMED_BY_USER.
         Ticket: READY_FOR_REVIEW -> CONFIRMED_BY_USER.
         """
+        user.can_do_operation()
         self._require_linked_ticket(
             ticket_user=ticket_user,
             ticket=ticket,
@@ -150,7 +153,7 @@ class TicketUserService:
 
 
         ticket_user.confirm_by_user(
-            actor_employee_id=actor_employee_id,
+            actor_employee_id=user.employee_id,
             comment=comment,
         )
 
@@ -165,7 +168,7 @@ class TicketUserService:
         *,
         ticket_user: TicketUser,
         ticket: Ticket,
-        actor_employee_id: int,
+        user:User,
         comment: str = "",
     ) -> None:
         """Synchronize cancellation of a newly created User request.
@@ -174,6 +177,7 @@ class TicketUserService:
         Ticket: CREATED_FROM_REQUEST_USER or CREATED_FROM_TICKET_USER
                 -> CANCELLED_BY_USER, subject to Ticket's own rules.
         """
+        user.can_do_operation()
         self._require_linked_ticket(
             ticket_user=ticket_user,
             ticket=ticket,
@@ -182,7 +186,7 @@ class TicketUserService:
 
 
         ticket_user.cancel_by_user(
-            actor_employee_id=actor_employee_id,
+            actor_employee_id=user.employee_id,
             comment=comment,
         )
 
