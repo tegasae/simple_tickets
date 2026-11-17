@@ -8,6 +8,8 @@ from src.domain.ticket_user import (
     TicketUser,
 )
 from src.domain.statuses.ticket_user_status import TicketUserStatus
+from src.domain.value_objects import CommonComment
+
 
 class TicketUserMapper:
     TICKET_FIELDS = [
@@ -47,6 +49,12 @@ class TicketUserMapper:
         statuses: list[TicketUserStatusRecord],
         comments: list[Comment],
     ) -> TicketUser:
+        date_created = datetime_from_db(row["date_created"])
+
+        if date_created is None:
+            raise ValueError(
+                f"Ticket {row['ticket_id']} has no date_created"
+            )
         return TicketUser.rehydrate(
             ticket_user_id=row["ticket_user_id"],
             client_id=row["client_id"],
@@ -54,9 +62,7 @@ class TicketUserMapper:
             contact_user_id=row["contact_user_id"] or 0,
             text_of_ticket=row["text_of_ticket"],
             description=row["description"] or "",
-            date_created=datetime_from_db(
-                row["date_created"],
-            ),
+            date_created=date_created,
             version=row["version"] or 0,
             comments=comments,
             statuses=statuses,
@@ -66,27 +72,35 @@ class TicketUserMapper:
     def row_to_status(
         row: dict,
     ) -> TicketUserStatusRecord:
+        date_created = datetime_from_db(row["date_created"])
+
+        if date_created is None:
+            raise ValueError(
+                f"Ticket {row['ticket_id']} has no date_created"
+            )
         return TicketUserStatusRecord(
             ticket_user_status_id=row["ticket_user_status_id"],
             actor_employee_id=row["actor_employee_id"],
             status=TicketUserStatus(row["status"]),
-            comment=row["comment"] or "",
-            date_created=datetime_from_db(
-                row["date_created"],
-            ),
+            comment=CommonComment(row["comment"]),
+            date_created=date_created
         )
 
     @staticmethod
     def row_to_comment(
         row: dict,
     ) -> Comment:
+        date_created = datetime_from_db(row["date_created"])
+
+        if date_created is None:
+            raise ValueError(
+                f"Ticket {row['ticket_id']} has no date_created"
+            )
         return Comment(
             comment_id=row["comment_id"],
             employee_id=row["employee_id"],
             comment=row["comment"],
-            date_created=datetime_from_db(
-                row["date_created"],
-            ),
+            date_created=date_created
         )
 
     # --------------------------------
@@ -102,7 +116,7 @@ class TicketUserMapper:
             "client_id": ticket.client_id,
             "user_id": ticket.user_id,
             "contact_user_id": (ticket.contact_user_id if ticket.contact_user_id > 0 else None ),
-            "text_of_ticket": ticket.text_of_ticket,
+            "text_of_ticket": ticket.text_of_ticket.value,
             "description": ticket.description.value,
             "date_created": datetime_to_db(ticket.date_created),
             "version": ticket.version,

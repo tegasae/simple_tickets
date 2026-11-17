@@ -163,8 +163,7 @@ class TicketUserApplicationService:
                 ticket_user
             )
 
-            if saved_ticket_user is None:
-                saved_ticket_user = ticket_user
+
 
             if saved_ticket_user.ticket_user_id <= 0:
                 raise DomainOperationError(
@@ -903,8 +902,7 @@ class TicketUserApplicationService:
 
         self.uow.commit()
 
-        if saved_ticket_user is None:
-            saved_ticket_user = ticket_user
+
 
         return TicketUserAssembler.to_dto(
             saved_ticket_user
@@ -926,8 +924,6 @@ class TicketUserApplicationService:
 
         self.uow.commit()
 
-        if saved_ticket_user is None:
-            saved_ticket_user = ticket_user
 
         return TicketUserAssembler.to_dto(
             saved_ticket_user

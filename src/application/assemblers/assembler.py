@@ -81,8 +81,8 @@ class TicketAssembler:
 
             department_id=ticket.department_id,
 
-            text_of_ticket=ticket.text_of_ticket,
-            description=ticket.description,
+            text_of_ticket=ticket.text_of_ticket.value,
+            description=ticket.description.value,
 
             date_created=ticket.date_created,
             date_finished=ticket.date_finished,
@@ -150,7 +150,7 @@ class TicketUserAssembler:
             client_id=ticket_user.client_id,
             user_id=ticket_user.user_id,
             contact_user_id=ticket_user.contact_user_id,
-            text_of_ticket=ticket_user.text_of_ticket,
+            text_of_ticket=ticket_user.text_of_ticket.value,
             description=description,
             current_status=str(ticket_user.current_status().value),
             date_created=ticket_user.date_created,

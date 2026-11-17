@@ -11,7 +11,7 @@ from enum import StrEnum
 from typing import TypeVar
 
 from src.domain.datetime_check import validate_utc_datetime
-from src.domain.value_objects import CommonComment
+from src.domain.value_objects import CommonComment, Empty
 
 S = TypeVar("S")  # status enum type
 R = TypeVar("R")  # status record type
@@ -38,7 +38,8 @@ class Comment:
 
 
 
-
+def create_comment(comment:str)->CommonComment|Empty:
+    return CommonComment(comment) if comment.strip() else Empty()
 
 
 @dataclass

@@ -28,6 +28,7 @@ class ClientMapper:
             created_by_admin_id=row["admin_id"],
             enabled=bool(row["enabled"]),
             date_created=dt_from_sqlite_not_none(row["date_created"]),
+            version=row["version"]
         )
         try:
             client.version = int(row["version"])

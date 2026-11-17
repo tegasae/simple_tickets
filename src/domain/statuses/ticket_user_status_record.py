@@ -130,7 +130,7 @@ class TicketUserStatusRecord:
 
     # Optional status comment.
     # Empty represents the absence of a comment.
-    comment: str | CommonComment | Empty = field(
+    comment: CommonComment | Empty = field(
         default_factory=Empty,
     )
 

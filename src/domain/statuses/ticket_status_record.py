@@ -43,7 +43,7 @@ class TicketStatusRecord:
         metadata={"min": 0},
     )
 
-    comment: str | CommonComment | Empty = ""
+    comment: CommonComment | Empty = field(default_factory=Empty)
 
     actual_started_at: datetime | None = None
     actual_finished_at: datetime | None = None

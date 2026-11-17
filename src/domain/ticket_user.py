@@ -12,7 +12,7 @@ from src.domain.statuses.ticket_user_status_transitions import (
     TERMINAL_TICKET_USER_STATUSES,
     TICKET_USER_TRANSITIONS,
 )
-from src.domain.ticket_components import Comment
+from src.domain.ticket_components import Comment, create_comment
 from src.domain.value_objects import CommonComment, Description, Empty, TextOfTicket
 
 
@@ -255,7 +255,7 @@ class TicketUser:
             TicketUserStatusRecord(
                 status=TicketUserStatus.IN_WORK,
                 actor_employee_id=actor_employee_id,
-                comment=comment,
+                comment=create_comment(comment)
             )
         )
 
@@ -270,7 +270,7 @@ class TicketUser:
             TicketUserStatusRecord(
                 status=TicketUserStatus.WAITING_FOR_CONFIRMATION,
                 actor_employee_id=actor_employee_id,
-                comment=comment,
+                comment=create_comment(comment)
             )
         )
 
@@ -285,7 +285,7 @@ class TicketUser:
             TicketUserStatusRecord(
                 status=TicketUserStatus.CONFIRMED_BY_USER,
                 actor_employee_id=actor_employee_id,
-                comment=comment,
+                comment=create_comment(comment)
             )
         )
 
@@ -300,7 +300,7 @@ class TicketUser:
             TicketUserStatusRecord(
                 status=TicketUserStatus.CONFIRMED_BY_ADMIN,
                 actor_employee_id=actor_employee_id,
-                comment=comment,
+                comment=create_comment(comment)
             )
         )
 
@@ -315,7 +315,7 @@ class TicketUser:
             TicketUserStatusRecord(
                 status=TicketUserStatus.SUSPENDED,
                 actor_employee_id=actor_employee_id,
-                comment=comment,
+                comment=create_comment(comment)
             )
         )
 
@@ -330,7 +330,7 @@ class TicketUser:
             TicketUserStatusRecord(
                 status=TicketUserStatus.CANCELLED_BY_USER,
                 actor_employee_id=actor_employee_id,
-                comment=comment,
+                comment=create_comment(comment)
             )
         )
 
@@ -345,7 +345,7 @@ class TicketUser:
             TicketUserStatusRecord(
                 status=TicketUserStatus.CANCELLED_BY_ADMIN,
                 actor_employee_id=actor_employee_id,
-                comment=comment,
+                comment=create_comment(comment)
             )
         )
 

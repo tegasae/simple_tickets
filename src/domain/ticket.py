@@ -18,7 +18,7 @@ from src.domain.statuses.rules.ticket_status_transition import (
 )
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-from src.domain.ticket_components import Comment, TicketUrgency
+from src.domain.ticket_components import Comment, TicketUrgency, create_comment
 from src.domain.value_objects import CommonComment, Description, Empty, TextOfTicket
 
 
@@ -583,7 +583,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.ACCEPTED,
             actor_employee_id=actor_employee_id,
-            comment=comment,
+            comment=create_comment(comment),
         )
         self.append_status(record)
 
@@ -591,7 +591,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.REJECTED,
             actor_employee_id=actor_employee_id,
-            comment=comment,
+            comment=create_comment(comment)
         )
         self.append_status(record)
 
@@ -599,7 +599,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.DEFERRED,
             actor_employee_id=actor_employee_id,
-            comment=comment,
+            comment=create_comment(comment)
         )
         self.append_status(record)
 
@@ -607,7 +607,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.SUSPENDED,
             actor_employee_id=actor_employee_id,
-            comment=comment,
+            comment=create_comment(comment)
         )
         self.append_status(record)
 
@@ -622,7 +622,7 @@ class Ticket:
             status=TicketStatus.ASSIGNED,
             actor_employee_id=actor_employee_id,
             executor_id=executor_id,
-            comment=comment,
+            comment=create_comment(comment)
         )
 
         self.append_status(record)
@@ -643,7 +643,7 @@ class Ticket:
             status=TicketStatus.AT_WORK,
             actor_employee_id=actor_employee_id,
             work_is_remote=work_is_remote,
-            comment=comment,
+            comment=create_comment(comment)
         )
         self.append_status(record)
 
@@ -672,7 +672,7 @@ class Ticket:
             actual_finished_at=actual_finished_at,
             duration=duration,
             work_is_remote=work_is_remote,
-            comment=comment,
+            comment=create_comment(comment),
             date_created=now,
         )
 
@@ -709,7 +709,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.PAUSED,
             actor_employee_id=actor_employee_id,
-            comment=comment,
+            comment=create_comment(comment)
         )
         self.append_status(record)
 
@@ -728,7 +728,7 @@ class Ticket:
             status=TicketStatus.AT_WORK,
             actor_employee_id=actor_employee_id,
             work_is_remote=work_is_remote,
-            comment=comment,
+            comment=create_comment(comment)
         )
         self.append_status(record)
 
@@ -750,7 +750,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.READY_FOR_REVIEW,
             actor_employee_id=actor_employee_id,
-            comment=comment,
+            comment=create_comment(comment)
         )
         self.append_status(record)
 
@@ -758,7 +758,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.CONFIRMED_BY_USER,
             actor_employee_id=0,
-            comment=comment,
+            comment=create_comment(comment)
         )
         self.append_status(record)
 
@@ -766,7 +766,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.EXECUTED,
             actor_employee_id=actor_employee_id,
-            comment=comment,
+            comment=create_comment(comment)
         )
         self.append_status(record)
 
@@ -774,7 +774,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.CANCELLED,
             actor_employee_id=actor_employee_id,
-            comment=comment,
+            comment=create_comment(comment)
         )
         self.append_status(record)
 
@@ -783,7 +783,7 @@ class Ticket:
         record = TicketStatusRecord(
             status=TicketStatus.CANCELLED_BY_USER,
             actor_employee_id=0,
-            comment=comment,
+            comment=create_comment(comment)
         )
         self.append_status(record)
 
@@ -826,7 +826,7 @@ class Ticket:
             status=TicketStatus.AT_WORK,
             actor_employee_id=actor_employee_id,
             work_is_remote=True,
-            comment=comment,
+            comment=create_comment(comment),
             date_created=now,
         )
 

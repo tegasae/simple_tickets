@@ -214,7 +214,7 @@ class Description(ValueObject[str]):
         MAX_LENGTH: Maximum allowed description length
     """
     value: str
-    MIN_LENGTH: ClassVar[int] = 2
+    MIN_LENGTH: ClassVar[int] = 0
     MAX_LENGTH: ClassVar[int] = 4000
 
     def _validate(self) -> str:

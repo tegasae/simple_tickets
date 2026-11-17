@@ -134,7 +134,7 @@ class TicketApplicationService:
             contact_user=User.create_empty()
             client=Client.create_empty()
             department=Department.create_empty()
-
+            ticket_user:TicketUser|None=None
             if ticket_dto.client_id:
                 client=self.uow.clients.get(client_id=ticket_dto.client_id)
                 self.uow.clients.touch(client)
@@ -149,7 +149,7 @@ class TicketApplicationService:
                 self.uow.departments.touch(department)
 
             if not user.is_empty():
-                ticket_user = TicketUserService.create(
+                ticket_user1 = TicketUserService.create(
                     text_of_ticket=ticket_dto.text_of_ticket,
                     description=ticket_dto.description,
                     comment=ticket_dto.comment,
@@ -159,12 +159,12 @@ class TicketApplicationService:
                 )
 
                 saved_ticket_user = self.uow.user_tickets.save(
-                    ticket_user
-                )
+                        ticket_user1
+                    )
 
 
 
-                if ticket_user.ticket_user_id <= 0:
+                if ticket_user1.ticket_user_id <= 0:
                     raise ApplicationStoreError(
                         "TicketUser repository must assign "
                         "ticket_user_id before creating linked Ticket"
@@ -185,7 +185,7 @@ class TicketApplicationService:
                     planned_at=ticket_dto.planned_at,
                     comment=ticket_dto.comment,
                 )
-
+                ticket_user=ticket_user1
             else:
                 ticket = self.ticket_service.create(
                     client=client,

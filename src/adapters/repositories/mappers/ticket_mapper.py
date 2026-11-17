@@ -6,6 +6,7 @@ from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket import Ticket
 from src.domain.ticket_components import Comment, TicketUrgency
+from src.domain.value_objects import CommonComment
 
 
 class TicketMapper:
@@ -91,7 +92,7 @@ class TicketMapper:
         return Comment(
             comment_id=row["ticket_comment_id"],
             employee_id=row["employee_id"],
-            comment=row["comment"] or "",
+            comment=CommonComment(row["comment"]),
             date_created=date_created,
         )
 
@@ -119,7 +120,7 @@ class TicketMapper:
                 row["actual_finished_at"]
             ),
             duration= timedelta(seconds=row["duration"]) or timedelta(seconds=0),
-            comment=row["comment"] or "",
+            comment=CommonComment(row["comment"]),
         )
 
     @staticmethod
@@ -131,8 +132,8 @@ class TicketMapper:
             "contact_user_id": ticket.contact_user_id or None,
             "user_ticket_id": ticket.user_ticket_id or None,
             "department_id": ticket.department_id or None,
-            "text_of_ticket": ticket.text_of_ticket,
-            "description": ticket.description or None,
+            "text_of_ticket": ticket.text_of_ticket.value,
+            "description": ticket.description.value or None,
             "date_created": datetime_to_db(ticket.date_created),
             "remote_work_recommended": int(ticket.remote_work_recommended),
             "planned_at":  datetime_to_db(ticket.planned_at),

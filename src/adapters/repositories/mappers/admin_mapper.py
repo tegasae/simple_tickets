@@ -1,4 +1,4 @@
-from src.domain.datetime_check import datetime_from_db, parse_date_created
+from src.domain.datetime_check import datetime_from_db
 from src.domain.account import Account, NoAccount
 from src.domain.employee import Admin
 
@@ -39,7 +39,8 @@ class AdminMapper:
             department_id=row.get("department_id",0) or 0,
             enabled = bool(row.get("enabled", False)),
             date_created = datetime_from_db(row.get("date_created", "")),
-            version=int(row.get("version", 0))
+            version=int(row.get("version", 0)),
+            enabled_account=bool(row.get("account_enabled", True))
             )
 
 
