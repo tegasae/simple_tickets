@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.domain.ticket_components import TicketUrgency
+from src.web.models.base_response import BaseResponse
 
 
 # =====================================================================
@@ -242,7 +243,7 @@ class TicketCancelRequest(TicketRequiredCommentRequest):
 # =====================================================================
 
 
-class TicketResponse(BaseModel):
+class TicketResponse(BaseResponse):
     """
     Web representation of internal Ticket.
 

@@ -130,10 +130,6 @@ class TicketApplicationService:
             )
 
 
-
-
-
-
             user=User.create_empty()
             contact_user=User.create_empty()
             client=Client.create_empty()
@@ -330,7 +326,7 @@ class TicketApplicationService:
         ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         with self.uow:
-            actor = self.actor.require_actor_admin(
+            self.actor.require_actor_admin(
                 actor_admin_id=ticket_dto.actor_admin_id,
                 permission=AdminPermission.TICKET_OPERATION,
             )
@@ -1117,115 +1113,7 @@ class TicketApplicationService:
                 self.uow.tickets.get_finished()
             )
 
-    # ==================================================================
-    # External reference validation
-    # ==================================================================
-    # TODO Перенести этот метод в domain сервис
-    # TODO Учесть, что из SUSPENDED, если не client disabled можно заявки перенести только в cancelled. Это тоже делать
-    # в доменном сервисе
-    def _validate_create_referenc1es(
-        self,
-        *,
-        ticket_dto: TicketDTO,
-    ) -> None:
-        """
-        Validate external aggregates referenced by a new Ticket.
-
-        Referenced aggregates are read-only in this use case,
-        therefore touch() protects the decision from concurrent change.
-        """
-
-        if ticket_dto.client_id <= 0:
-            raise DomainOperationError(
-                "client_id must be positive"
-            )
-
-        client = self.uow.clients.get(
-            ticket_dto.client_id,
-        )
-
-        if not client.enabled:
-            raise DomainOperationError(
-                "Cannot create Ticket for disabled Client"
-            )
-
-        user = None
-
-        if ticket_dto.user_id > 0:
-            user = self.uow.users.get(
-                ticket_dto.user_id,
-            )
-
-            user.can_do_operation()
-
-            if user.client_id != client.client_id:
-                raise DomainOperationError(
-                    "User does not belong to Ticket Client"
-                )
-
-        contact_user = None
-
-        if ticket_dto.contact_user_id > 0:
-            if (
-                user is not None
-                and user.employee_id
-                == ticket_dto.contact_user_id
-            ):
-                contact_user = user
-
-            else:
-                contact_user = self.uow.users.get(
-                    ticket_dto.contact_user_id,
-                )
-
-                contact_user.can_do_operation()
-
-                if contact_user.client_id != client.client_id:
-                    raise DomainOperationError(
-                        "Contact User does not belong "
-                        "to Ticket Client"
-                    )
-
-        department = None
-
-        if ticket_dto.department_id > 0:
-            department = self.uow.departments.get(
-                ticket_dto.department_id,
-            )
-
-            department.ensure_enabled()
-
-        # --------------------------------------------------------------
-        # Optimistic concurrency guards
-        # --------------------------------------------------------------
-
-        self.uow.clients.touch(
-            client
-        )
-
-        if user is not None:
-            self.uow.users.touch(
-                user
-            )
-
-        if (
-            contact_user is not None
-            and (
-                user is None
-                or contact_user.employee_id
-                != user.employee_id
-            )
-        ):
-            self.uow.users.touch(
-                contact_user
-            )
-
-        if department is not None:
-            self.uow.departments.touch(
-                department
-            )
-
-    # ==================================================================
+        # ==================================================================
     # Loading
     # ==================================================================
 
