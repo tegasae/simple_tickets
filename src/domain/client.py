@@ -45,10 +45,11 @@ class Client:
     version: int = 0
 
     def __post_init__(self):
-        if self.client_id < 0:
-            raise ItemValidationError("Invalid client ID")
-        if self.created_by_admin_id <= 0:
-            raise ItemValidationError("Invalid created admin ID")
+        if not self._is_empty:
+            if self.client_id < 0:
+                raise ItemValidationError("Invalid client ID")
+            if self.created_by_admin_id <= 0:
+                raise ItemValidationError("Invalid created admin ID")
 
 
     @classmethod
@@ -149,14 +150,15 @@ class Client:
 
     @classmethod
     def create_empty(cls) -> Self:
-        client = cls(client_id=0, name=Name("--"), enabled=True)
+        client = cls(client_id=0, name=Name("--"), enabled=True,created_by_admin_id=0)
+        client._is_empty=True
+
         return client
 
-    @classmethod
-    def is_empty(cls)->Self:
-        client = cls(client_id=0, name=Name("--"), enabled=True)
-        client._is_empty = True
-        return client
+
+    def is_empty(self)->Self:
+        return self._is_empty
+
 
     def disable(self) -> None:
         """Disable the client."""

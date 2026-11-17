@@ -47,27 +47,27 @@ def create_app() -> FastAPI:
         expose_traceback=False,
         expose_error_type=True,
     )
-    registry.add_all_standard_handlers(
-        exceptions={
-            TokenError: 401,
-            TokenNotFoundError: 401,
-            TokenExpiredError: 401,
-            UserNotValidError: 401,
-            InvalidCredentialsError: 401,
-            ItemValidationError: 400,
-            PermissionError: 403,
-            ValueError: 400,
-            ItemAlreadyExistsError: 400,
-            DomainOperationError:400,
-            OptimisticLockError:500,
-            ItemNotFoundError: 404
-        }
-    )
-    registry.add_all_handlers_from_module(
-        module_name="src.domain.exceptions",
-        exceptions=admin.clients.handlers,
-    )
 
+#    registry.add_all_standard_handlers(
+#        exceptions={
+#            TokenError: 401,
+#            TokenNotFoundError: 401,
+#            TokenExpiredError: 401,
+#            UserNotValidError: 401,
+#            InvalidCredentialsError: 401,
+#            ItemValidationError: 400,
+#            PermissionError: 403,
+#            ValueError: 400,
+#            ItemAlreadyExistsError: 400,
+#            DomainOperationError:400,
+#            OptimisticLockError:500,
+#            ItemNotFoundError: 404
+#        }
+#    )
+#    registry.add_all_handlers_from_module(
+#        module_name="src.domain.exceptions",
+#        exceptions=admin.clients.handlers,
+#    )
 
 
     registry.add_standard_handler(

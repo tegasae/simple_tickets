@@ -30,9 +30,9 @@ class _Employee(HasRoleIds):
 
     @classmethod
     def create_empty(cls) -> Self:
-        admin = cls(employee_id=0, first_name=Name("--"), last_name=Empty(), email=Empty(),phone=Empty(), account=NoAccount())
-        admin._is_empty = True
-        return admin
+        employee = cls(employee_id=0, first_name=Name("--"), last_name=Empty(), email=Empty(),phone=Empty(), account=NoAccount())
+        employee._is_empty = True
+        return employee
 
     @classmethod
     def create_base(
@@ -178,7 +178,7 @@ class User(_Employee):
 
     def __post_init__(self):
         super().__post_init__()
-        if self.client_id and int(self.client_id) and self.client_id <= 0:
+        if not self.is_empty() and self.client_id and int(self.client_id) and self.client_id <= 0:
             raise ItemValidationError("Client ID must be great 0")
 
 
@@ -234,6 +234,13 @@ class User(_Employee):
                                     enabled_account=enabled_account, version=version, roles=roles,date_created=date_created)
 
         return cls(**base_data, client_id=client_id)
+
+    @classmethod
+    def create_empty(cls) -> Self:
+        emp=_Employee.create_empty()
+        emp.client_id=0
+        return emp
+
 
     def update(
             self,
