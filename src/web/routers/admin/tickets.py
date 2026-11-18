@@ -1041,3 +1041,31 @@ def cancel_ticket(
     )
 
     return TicketResponse.from_dto(response_dto)
+
+
+@router.delete(
+    "/{ticket_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete ticket",
+)
+def delete_ticket(
+    ticket_id: int,
+    asf=Depends(
+        get_application_service_factory
+    ),
+    actor_admin_id: int = Depends(
+        get_employee_id_from_request
+    ),
+)->None:
+    dto = TicketDTO(
+        actor_admin_id=actor_admin_id,
+        ticket_id=ticket_id,
+
+    )
+
+
+
+    asf.ticket_service().delete(ticket_dto=dto)
+
+
+

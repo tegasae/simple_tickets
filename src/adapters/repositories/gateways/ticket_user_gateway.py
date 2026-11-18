@@ -80,7 +80,7 @@ class TicketUserGateway:
 
     DELETE = """
     DELETE FROM user_tickets
-    WHERE user_ticket_id = :ticket_id
+    WHERE user_ticket_id = :user_ticket_id
     """
 
     COUNT_BY_CLIENT_ID = """
@@ -134,7 +134,7 @@ class TicketUserCommentGateway:
 
     DELETE_ALL = """
     DELETE FROM user_tickets_comment
-    WHERE ticket_user_id = :ticket_user_id
+    WHERE user_ticket_id = :user_ticket_id
     """
 
     EXISTS_BY_EMPLOYEE_ID = """

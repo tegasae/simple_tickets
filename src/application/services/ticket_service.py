@@ -960,6 +960,26 @@ class TicketApplicationService:
                 ticket_user=ticket_user,
             )
 
+
+    def delete(self,*,ticket_dto: TicketDTO)->None:
+        with self.uow:
+            self.actor.require_actor_admin(
+                actor_admin_id=ticket_dto.actor_admin_id,
+                permission=AdminPermission.TICKET_CANCELLED,
+            )
+
+            ticket = self._get_ticket(
+                ticket_dto.ticket_id,
+            )
+
+            ticket_user = self._load_linked_ticket_user(
+                ticket=ticket,
+            )
+
+            self.uow.tickets.delete(ticket_id=ticket_dto.ticket_id)
+            self.uow.user_tickets.delete(ticket_id=ticket_user.ticket_user_id)
+            self.uow.commit()
+
     # ==================================================================
     # Queries
     # ==================================================================
@@ -993,9 +1013,9 @@ class TicketApplicationService:
                 actor_admin_id=ticket_dto.actor_admin_id,
                 permission=AdminPermission.TICKET_VIEW,
             )
-
+            n=self.uow.tickets.get_all()
             return self._to_dto_list(
-                self.uow.tickets.get_all()
+                n
             )
 
     def get_by_client_id(

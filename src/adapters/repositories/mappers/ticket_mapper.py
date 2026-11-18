@@ -5,7 +5,7 @@ from src.domain.datetime_check import datetime_to_db, datetime_from_db
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
 from src.domain.ticket import Ticket
-from src.domain.ticket_components import Comment, TicketUrgency
+from src.domain.ticket_components import Comment, TicketUrgency, create_comment
 from src.domain.value_objects import CommonComment
 
 
@@ -120,7 +120,7 @@ class TicketMapper:
                 row["actual_finished_at"]
             ),
             duration= timedelta(seconds=row["duration"]) or timedelta(seconds=0),
-            comment=CommonComment(row["comment"]),
+            comment=create_comment(row["comment"]),
         )
 
     @staticmethod

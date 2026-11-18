@@ -131,10 +131,10 @@ class TicketStatusRecord:
                 raise ItemValidationError(
                     f"Work mode is required for {self.status}"
                 )
-        elif self.work_is_remote is not None:
-            raise ItemValidationError(
-                f"Work mode is not allowed for {self} {self.status}"
-            )
+        #elif self.work_is_remote is not None:
+        #    raise ItemValidationError(
+        #        f"Work mode is not allowed for {self} {self.status}"
+        #    )
 
     # ==============================================================
     # Types

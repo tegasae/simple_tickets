@@ -3,12 +3,12 @@
 
 from src.domain.datetime_check import datetime_to_db, datetime_from_db
 from src.domain.statuses.ticket_user_status_record import TicketUserStatusRecord
-from src.domain.ticket_components import Comment
+from src.domain.ticket_components import Comment, create_comment
 from src.domain.ticket_user import (
     TicketUser,
 )
 from src.domain.statuses.ticket_user_status import TicketUserStatus
-from src.domain.value_objects import CommonComment
+
 
 
 class TicketUserMapper:
@@ -37,6 +37,7 @@ class TicketUserMapper:
         "comment",
         "date_created",
     ]
+
 
     # --------------------------------
     # DB -> domain
@@ -82,7 +83,7 @@ class TicketUserMapper:
             ticket_user_status_id=row["ticket_user_status_id"],
             actor_employee_id=row["actor_employee_id"],
             status=TicketUserStatus(row["status"]),
-            comment=CommonComment(row["comment"]),
+            comment=create_comment(row["comment"]),
             date_created=date_created
         )
 

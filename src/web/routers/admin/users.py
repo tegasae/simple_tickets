@@ -155,6 +155,27 @@ def get_user(
     return UserResponse.from_dto(response_dto)
 
 
+@router.get(
+    "/client/{client_id}",
+    response_model=list[UserResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Get users by client",
+    description="Get users by client.",
+)
+def get_by_client(
+    client_id: int,
+    asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
+)->list[UserResponse]:
+
+    dto=UserDTO(actor_admin_id=actor_admin_id,
+        client_id=client_id)
+    response_dtos = asf.user_service().get_by_client_id(user_dto=dto)
+
+    return UserResponse.from_dtos(response_dtos)
+
+
+
 
 @router.put(
     "/{employee_id}",

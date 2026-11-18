@@ -436,8 +436,8 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
         )
         r=[]
         for row in rows:
-            self._load_ticket(row)
-            r.append(row)
+            t=self._load_ticket(row)
+            r.append(t)
 
         return r
 
