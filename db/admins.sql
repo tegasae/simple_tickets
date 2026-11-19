@@ -185,6 +185,12 @@ INSERT INTO roles VALUES(75,'Менеджер','client.view,ticket.accepted,tick
 INSERT INTO roles VALUES(76,'Инженер с право удаленки','admin.view,client.view,ticket.at_work,ticket.at_work_remote,ticket.at_work_retrospective,ticket.created,ticket.operation,ticket.view,user.view','Инженер с правом удаленки',1,'2026-10-05T12:16:24+00:00',1,0);
 INSERT INTO roles VALUES(77,'Инженер','admin.view,client.view,ticket.at_work,ticket.at_work_remote,ticket.at_work_retrospective,ticket.created,ticket.view,user.view','Инженер',1,'2026-10-05T12:16:45+00:00',1,0);
 INSERT INTO roles VALUES(78,'string','client.view','efrf',0,'2026-10-09T15:07:29+00:00',1,0);
+INSERT INTO roles VALUES(80,'Обычный пользователь','admin.view,client.view,department.view,ticket.created,ticket.view','Базовая роль, все остальные основаны на ней',0,'2026-11-19 13:14:10.653809+00:00',1,0);
+INSERT INTO roles VALUES(81,'Обычный инженер','ticket.at_work,ticket.at_work_retrospective,ticket.created,ticket.view','Обычный инженер, может выполнять заявки, основывается на базовой роли',0,'2026-11-19 13:18:04.438066+00:00',1,0);
+INSERT INTO roles VALUES(82,'Опытный инженер','ticket.accepted,ticket.executed','Опытный инженер, может подтверждать заявки и подтверждать выполнение, основывается на роли обычного инженера',0,'2026-11-19 13:21:06.478717+00:00',1,0);
+INSERT INTO roles VALUES(83,'Удаленщик','ticket.at_work_remote','Работа на горячей линии, добавляется к ролям инженеров',0,'2026-11-19 13:38:31.616620+00:00',1,0);
+INSERT INTO roles VALUES(84,'Менеджер','client.create,client.decision,client.operation,ticket.accepted,ticket.canceled,ticket.executed,ticket.operation,user.operation','Роль менеджера, базируется на роли обычного пользователя',0,'2026-11-19 13:44:04.617319+00:00',1,0);
+INSERT INTO roles VALUES(85,'Управление админстраторами','admin.operation,department.operation,department.view,role.assign,role_user.assign','Роль управления админстраторами, базируется на роли обычного пользователя',0,'2026-11-19 13:46:58.249169+00:00',1,0);
 CREATE TABLE admins_roles (
   employee_id INTEGER NOT NULL,
   role_id INTEGER NOT NULL,
@@ -621,7 +627,7 @@ INSERT INTO ticket_status_records VALUES(206,40,181,'assigned','2026-11-18T15:36
 DELETE FROM sqlite_sequence;
 INSERT INTO sqlite_sequence VALUES('employees',219);
 INSERT INTO sqlite_sequence VALUES('accounts',594);
-INSERT INTO sqlite_sequence VALUES('roles',79);
+INSERT INTO sqlite_sequence VALUES('roles',85);
 INSERT INTO sqlite_sequence VALUES('clients',39);
 INSERT INTO sqlite_sequence VALUES('user_tickets_status_record',94);
 INSERT INTO sqlite_sequence VALUES('user_tickets_comment',3);
