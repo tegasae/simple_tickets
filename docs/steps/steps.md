@@ -226,29 +226,195 @@
 
 
 ## Администраторы
-### Опытный инженер
-**Роль:** опытный инженер
+### Обычный сотрудник
+**Роль:** Базовая роль
+```json
+{
+  "employee_id": 220,
+  "first_name": "Обычный пользователь",
+  "last_name": "",
+  "enabled": true,
+  "email": "",
+  "phone": "",
+  "login": "standard_user",
+  "enabled_login": true,
+  "date_created": "2026-11-20 19:14:51.730199+00:00",
+  "roles": [
+    80
+  ],
+  "job_title": "",
+  "department_id": 0
+}
+```
 
 ### Обычный инженер
-**Роль:** обычный инженер
+**Роль:** Базовая роль, Роль обычного инженера
+```json
+{
+  "employee_id": 221,
+  "first_name": "Обычный инженер",
+  "last_name": "",
+  "enabled": true,
+  "email": "",
+  "phone": "",
+  "login": "standard_engineer",
+  "enabled_login": true,
+  "date_created": "2026-11-20 19:37:57.089254+00:00",
+  "roles": [
+    80,
+    81
+  ],
+  "job_title": "",
+  "department_id": 2
+}
+```
+### Опытный инженер
+**Роль:** Базовая роль, Роль обычного инженера, Роль опытного инженера
+```json
+{
+  "employee_id": 222,
+  "first_name": "Опытный инженер",
+  "last_name": "",
+  "enabled": true,
+  "email": "",
+  "phone": "",
+  "login": "chief_engineer",
+  "enabled_login": true,
+  "date_created": "2026-11-20 19:40:21.912237+00:00",
+  "roles": [
+    80,
+    81,
+    82
+  ],
+  "job_title": "",
+  "department_id": 2
+}
+```
 ### Удаленщик
-Роль: обычный инженер, удаленщик
-### Менеджер
-**Роль:**  менеджер
-### Обычный сотрудник
-**Роль:** обычный сотрудник
-### Руководитель отдела
-**Роль:** опытный инженер, удаленщик, менеджер, управления админстраторами
+Роль: Роль удаленщика
+```json
+{
+  "employee_id": 223,
+  "first_name": "Обычный инженер с работой на удаленке",
+  "last_name": "",
+  "enabled": true,
+  "email": "",
+  "phone": "",
+  "login": "remote_engineer",
+  "enabled_login": true,
+  "date_created": "2026-11-20 19:43:49.300517",
+  "roles": [
+    80,
+    81,
+    83
+  ],
+  "job_title": "",
+  "department_id": 2
+}
 
+```
+### Менеджер
+**Роль:**  Базовая роль, Роль менеджера
+```json
+{
+  "employee_id": 224,
+  "first_name": "Менеджер",
+  "last_name": "",
+  "enabled": true,
+  "email": "",
+  "phone": "",
+  "login": "manager",
+  "enabled_login": true,
+  "date_created": "2026-11-20 19:45:17.195260+00:00",
+  "roles": [
+    80,
+    84
+  ],
+  "job_title": "",
+  "department_id": 0
+}
+```
+### Руководитель отдела
+**Роль:** Базовая роль, Роль менеджера, Роль управления адмнистраторами
+```json
+{
+  "employee_id": 225,
+  "first_name": "Руководитель отдела",
+  "last_name": "",
+  "enabled": true,
+  "email": "",
+  "phone": "",
+  "login": "chief_department",
+  "enabled_login": true,
+  "date_created": "2026-11-20 19:47:26.660021",
+  "roles": [
+    80,
+    84,
+    85
+  ],
+  "job_title": "",
+  "department_id": 0
+}
+```
 
 ## Клиенты
 ### Клиент
-### Пользователи клиента
-#### Главный пользователь
-**Роль:**  Главный пользователь
-#### Обычный пользователь
-**Роль:**  обычный пользователь
+```json
+{
+  "client_id": 40,
+  "name": "Клиент для заявок",
+  "email": "",
+  "address": "",
+  "phone": "",
+  "description": "",
+  "enabled": true,
+  "date_created": "2026-11-20 16:49:57.811433+00:00",
+  "created_by_admin": 181
+}
+```
 
+
+### Пользователи клиента
+#### Обычный пользователь
+**Роль:**  Обычный пользователь
+```json
+{
+  "employee_id": 226,
+  "first_name": "Обычный пользователь клиента",
+  "last_name": "",
+  "enabled": true,
+  "email": "",
+  "phone": "",
+  "login": "standard_client_user",
+  "enabled_login": true,
+  "date_created": "2026-11-20 19:53:56.816347",
+  "roles": [
+    87
+  ],
+  "client_id": 40
+}
+
+```
+#### Главный пользователь
+**Роль:**  Обычный пользователь, Главный пользователь
+```json
+{
+  "employee_id": 227,
+  "first_name": "Главный пользователь клиента",
+  "last_name": "",
+  "enabled": true,
+  "email": "",
+  "phone": "",
+  "login": "chief_client_user",
+  "enabled_login": true,
+  "date_created": "2026-11-20 19:54:58.990940",
+  "roles": [
+    88,
+    87
+  ],
+  "client_id": 40
+}
+```
 ## Заявки
 ### Заявки без участия пользователей
 
