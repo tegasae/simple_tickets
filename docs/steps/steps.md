@@ -124,7 +124,7 @@
     TICKET_EXECUTED = "ticket.executed"                             # имеет право переводить в executed
 
 ```
-```jaon
+```json
 {
   "role_id": 84,
   "name": "Менеджер",
