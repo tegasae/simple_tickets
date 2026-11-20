@@ -72,7 +72,7 @@ class UserRoleCreateRequest(BaseModel):
     permissions: list[str]
     description: str = ""
     is_system_role: bool = False
-    date_created: datetime
+
 
     @field_validator("name")
     @classmethod

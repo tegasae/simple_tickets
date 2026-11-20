@@ -118,9 +118,7 @@
     CLIENT_DECISION = "client.decision"                             # решения по клиенту
     CLIENT_CREATE = "client.create"                                 # создание клиента
     USER_OPERATION="user.operation"                                 # операции с пользователями
-    USER_VIEW="user.view"                                           # просмотр пользователей
     TICKET_OPERATION="ticket.operation"                             # общие операции с заявками
-    TICKET_CREATED="ticket.created"                                 # может создавать заявки
     TICKET_ACCEPTED = "ticket.accepted"                             # имеет право подтверждать заявки
     TICKET_CANCELLED="ticket.canceled"                              # имеет право снимать заявки cancel или reject
     TICKET_EXECUTED = "ticket.executed"                             # имеет право переводить в executed
@@ -177,15 +175,8 @@
 }
 ```
 
+
 ### Роли пользователей клиентов
-#### Роль главного пользователя
-1) Может создавать заявки 
-2) Может просматривать все заявки
-3) Может снимать все заявки
-```
-    TICKET_OPERATION_ALL="ticket.operation.all"                     # имеет право работать со всеми заявками организации
-    TICKET_VIEW_ALL = "ticket.view.all"                             # имеет право смотреть заявки организации
-```
 #### Роль обычного пользователя
 1) Может создавать заявки
 2) Может просматривать свои заявки
@@ -194,6 +185,43 @@
     TICKET_OPERATION = "ticket.operation"                           # имеет право работать со своим заявками
     TICKET_VIEW = "ticket.view"                                     # имеет право смотреть свои заявки
 ```
+```json
+ {
+    "role_id": 87,
+    "name": "Обычный пользователь",
+    "permissions": [
+      "ticket.view",
+      "ticket.operation"
+    ],
+    "description": "Обычный пользователь клиент",
+    "is_system_role": false
+  }
+```
+
+
+#### Роль главного пользователя
+1) Может создавать заявки 
+2) Может просматривать все заявки
+3) Может снимать все заявки
+```
+    TICKET_OPERATION_ALL="ticket.operation.all"                     # имеет право работать со всеми заявками организации
+    TICKET_VIEW_ALL = "ticket.view.all"                             # имеет право смотреть заявки организации
+```
+```json
+{
+  "role_id": 88,
+  "name": "Главный пользователь",
+  "permissions": [
+    "ticket.operation.all",
+    "ticket.view.all"
+  ],
+  "description": "Роль главного пользователя клиента, добавляется к роли обычного пользователя",
+  "is_system_role": false
+}
+
+```
+
+
 
 
 
