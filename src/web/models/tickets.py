@@ -1,9 +1,9 @@
 # src/web/models/tickets.py
 
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, AwareDatetime
 
 from src.domain.ticket_components import TicketUrgency
 from src.web.models.base_response import BaseResponse
@@ -213,17 +213,19 @@ class TicketCompleteWorkRetroactivelyRequest(BaseModel):
     is supplied.
     """
 
+
     model_config = ConfigDict(extra="forbid")
 
     work_is_remote: bool = False
 
-    actual_started_at: datetime | None = None
-    actual_finished_at: datetime | None = None
+    actual_started_at: AwareDatetime | None = None
+    actual_finished_at: AwareDatetime | None = None
 
-    duration: int=0
+    duration: timedelta = Field(
+            default_factory=timedelta
+        )
 
     comment: str = ""
-
 
 # =====================================================================
 # Finalization

@@ -115,6 +115,7 @@ TicketStatus.CREATED_FROM_REQUEST_USER: {
         TicketStatus.CONFIRMED_BY_USER: DEFAULT_RULE,
         TicketStatus.EXECUTED: DEFAULT_RULE,
         TicketStatus.CANCELLED: DEFAULT_RULE,
+        TicketStatus.ACCEPTED:DEFAULT_RULE
     },
 
     TicketStatus.CONFIRMED_BY_USER: {},

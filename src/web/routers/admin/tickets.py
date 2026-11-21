@@ -966,7 +966,7 @@ def complete_work_retroactively(
 
     response_dto = (
         asf.ticket_service()
-        .complete_work_retroactively(
+        .register_work(
             ticket_dto=dto,
         )
     )

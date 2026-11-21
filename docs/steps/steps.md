@@ -884,8 +884,934 @@
 6) Менеджер переводит в принято
 7) Менеджер назначает нового исполнителя
 8) Менеджер назначает нового исполнителя
+```json
+{
+  "ticket_id": 41,
+  "client_id": 40,
+  "user_id": 0,
+  "contact_user_id": 0,
+  "user_ticket_id": 0,
+  "department_id": 2,
+  "text_of_ticket": "Заявка созданная опытным инженером, без участи пользователей клиента. Например, для наших задач",
+  "description": "Описание заявки",
+  "date_created": "2026-11-21T08:13:03.516555Z",
+  "date_finished": null,
+  "planned_at": "2026-11-22T08:13:03.516555Z",
+  "remote_work_recommended": false,
+  "urgency": "normal",
+  "current_executor_id": 223,
+  "last_executor_id": 223,
+  "is_closed": false,
+  "time_spent": 73,
+  "statuses": [
+    {
+      "id": 207,
+      "status": "created",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-21T08:13:03.516555Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 208,
+      "status": "accepted",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-21T08:13:03.516772Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Комментарий"
+      }
+    },
+    {
+      "id": 209,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T09:46:54.896572Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 210,
+      "status": "at_work",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T09:49:19.630391Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 211,
+      "status": "ready_for_review",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T09:50:20.684026Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Не успел доделать"
+      }
+    },
+    {
+      "id": 212,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T09:53:53.365609Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 213,
+      "status": "accepted",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-21T09:58:19.082913Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 214,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T10:00:32.689797Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 215,
+      "status": "at_work",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:01:30.688610Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 216,
+      "status": "ready_for_review",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:01:38.530648Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Не успел доделать"
+      }
+    },
+    {
+      "id": 217,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T10:05:08.986762Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 218,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T10:06:32.641874Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 219,
+      "status": "at_work",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:08:13.764857Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 220,
+      "status": "ready_for_review",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:08:19.221327Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Не успел доделать"
+      }
+    },
+    {
+      "id": 221,
+      "status": "accepted",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:35:23.713850Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "не хватило времени"
+      }
+    },
+    {
+      "id": 222,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 223,
+      "date_created": "2026-11-21T10:37:09.410523Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": null,
+      "comment": {
+        "value": "теперь попробуем инженера с ролью удаленщика"
+      }
+    }
+  ],
+  "comments": [
+    {
+      "id": 15,
+      "actor_id": 222,
+      "comment": {
+        "value": "Комментарий"
+      },
+      "date_created": "2026-11-21T08:13:03.516555Z"
+    }
+  ]
+}
+
+```
 9) Исполнитель закрывает работу задним числом
+```json
+{
+  "ticket_id": 41,
+  "client_id": 40,
+  "user_id": 0,
+  "contact_user_id": 0,
+  "user_ticket_id": 0,
+  "department_id": 2,
+  "text_of_ticket": "Заявка созданная опытным инженером, без участи пользователей клиента. Например, для наших задач",
+  "description": "Описание заявки",
+  "date_created": "2026-11-21T08:13:03.516555Z",
+  "date_finished": null,
+  "planned_at": "2026-11-22T08:13:03.516555Z",
+  "remote_work_recommended": false,
+  "urgency": "normal",
+  "current_executor_id": 223,
+  "last_executor_id": 223,
+  "is_closed": false,
+  "time_spent": 653,
+  "statuses": [
+    {
+      "id": 207,
+      "status": "created",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-21T08:13:03.516555Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 208,
+      "status": "accepted",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-21T08:13:03.516772Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Комментарий"
+      }
+    },
+    {
+      "id": 209,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T09:46:54.896572Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 210,
+      "status": "at_work",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T09:49:19.630391Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 211,
+      "status": "ready_for_review",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T09:50:20.684026Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Не успел доделать"
+      }
+    },
+    {
+      "id": 212,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T09:53:53.365609Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 213,
+      "status": "accepted",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-21T09:58:19.082913Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 214,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T10:00:32.689797Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 215,
+      "status": "at_work",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:01:30.688610Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 216,
+      "status": "ready_for_review",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:01:38.530648Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Не успел доделать"
+      }
+    },
+    {
+      "id": 217,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T10:05:08.986762Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 218,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T10:06:32.641874Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 219,
+      "status": "at_work",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:08:13.764857Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 220,
+      "status": "ready_for_review",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:08:19.221327Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Не успел доделать"
+      }
+    },
+    {
+      "id": 221,
+      "status": "accepted",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:35:23.713850Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "не хватило времени"
+      }
+    },
+    {
+      "id": 222,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 223,
+      "date_created": "2026-11-21T10:37:09.410523Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "теперь попробуем инженера с ролью удаленщика"
+      }
+    },
+    {
+      "id": 223,
+      "status": "at_work",
+      "actor_id": 223,
+      "executor_id": 0,
+      "date_created": "2026-11-21T11:02:12.532173Z",
+      "actual_started_at": "2026-11-21T09:50:27.175000Z",
+      "actual_finished_at": "2026-11-21T09:58:27.175000Z",
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 224,
+      "status": "ready_for_review",
+      "actor_id": 223,
+      "executor_id": 0,
+      "date_created": "2026-11-21T11:02:12.532173Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 225,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 223,
+      "date_created": "2026-11-21T11:03:50.586964Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 226,
+      "status": "at_work",
+      "actor_id": 223,
+      "executor_id": 0,
+      "date_created": "2026-11-21T11:06:15.687489Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT1M40S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 227,
+      "status": "ready_for_review",
+      "actor_id": 223,
+      "executor_id": 0,
+      "date_created": "2026-11-21T11:06:15.687489Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": null,
+      "comment": {
+        "value": ""
+      }
+    }
+  ],
+  "comments": [
+    {
+      "id": 15,
+      "actor_id": 222,
+      "comment": {
+        "value": "Комментарий"
+      },
+      "date_created": "2026-11-21T08:13:03.516555Z"
+    }
+  ]
+}
+```
 10) Опытный инженер подтверждает работу
+```json
+{
+  "ticket_id": 41,
+  "client_id": 40,
+  "user_id": 0,
+  "contact_user_id": 0,
+  "user_ticket_id": 0,
+  "department_id": 2,
+  "text_of_ticket": "Заявка созданная опытным инженером, без участи пользователей клиента. Например, для наших задач",
+  "description": "Описание заявки",
+  "date_created": "2026-11-21T08:13:03.516555Z",
+  "date_finished": "2026-11-21T11:08:19.755078Z",
+  "planned_at": "2026-11-22T08:13:03.516555Z",
+  "remote_work_recommended": false,
+  "urgency": "normal",
+  "current_executor_id": 0,
+  "last_executor_id": 223,
+  "is_closed": true,
+  "time_spent": 653,
+  "statuses": [
+    {
+      "id": 207,
+      "status": "created",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-21T08:13:03.516555Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 208,
+      "status": "accepted",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-21T08:13:03.516772Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Комментарий"
+      }
+    },
+    {
+      "id": 209,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T09:46:54.896572Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 210,
+      "status": "at_work",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T09:49:19.630391Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 211,
+      "status": "ready_for_review",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T09:50:20.684026Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Не успел доделать"
+      }
+    },
+    {
+      "id": 212,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T09:53:53.365609Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 213,
+      "status": "accepted",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-21T09:58:19.082913Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 214,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T10:00:32.689797Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 215,
+      "status": "at_work",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:01:30.688610Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 216,
+      "status": "ready_for_review",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:01:38.530648Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Не успел доделать"
+      }
+    },
+    {
+      "id": 217,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T10:05:08.986762Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 218,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 221,
+      "date_created": "2026-11-21T10:06:32.641874Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 219,
+      "status": "at_work",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:08:13.764857Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 220,
+      "status": "ready_for_review",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:08:19.221327Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Не успел доделать"
+      }
+    },
+    {
+      "id": 221,
+      "status": "accepted",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-21T10:35:23.713850Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "не хватило времени"
+      }
+    },
+    {
+      "id": 222,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 223,
+      "date_created": "2026-11-21T10:37:09.410523Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "теперь попробуем инженера с ролью удаленщика"
+      }
+    },
+    {
+      "id": 223,
+      "status": "at_work",
+      "actor_id": 223,
+      "executor_id": 0,
+      "date_created": "2026-11-21T11:02:12.532173Z",
+      "actual_started_at": "2026-11-21T09:50:27.175000Z",
+      "actual_finished_at": "2026-11-21T09:58:27.175000Z",
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 224,
+      "status": "ready_for_review",
+      "actor_id": 223,
+      "executor_id": 0,
+      "date_created": "2026-11-21T11:02:12.532173Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 225,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 223,
+      "date_created": "2026-11-21T11:03:50.586964Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 226,
+      "status": "at_work",
+      "actor_id": 223,
+      "executor_id": 0,
+      "date_created": "2026-11-21T11:06:15.687489Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT1M40S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 227,
+      "status": "ready_for_review",
+      "actor_id": 223,
+      "executor_id": 0,
+      "date_created": "2026-11-21T11:06:15.687489Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 228,
+      "status": "executed",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-21T11:08:19.755078Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": null,
+      "comment": {
+        "value": "Сделали заявку"
+      }
+    }
+  ],
+  "comments": [
+    {
+      "id": 15,
+      "actor_id": 222,
+      "comment": {
+        "value": "Комментарий"
+      },
+      "date_created": "2026-11-21T08:13:03.516555Z"
+    }
+  ]
+}
+```
 ##### Заявка снятая
 1) Заявка создается
 2) Менеджер назначает исполнителя
