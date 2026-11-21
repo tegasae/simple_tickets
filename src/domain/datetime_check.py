@@ -3,17 +3,17 @@ from datetime import datetime, UTC, timezone
 from src.domain.exceptions import ItemValidationError
 
 
+from datetime import datetime, timedelta
+
 def validate_utc_datetime(
-        value: datetime,
-        *,
-        field_name: str,
+    value: datetime,
+    *,
+    field_name: str,
 ) -> None:
-    if value.tzinfo is not UTC:
+    if value.utcoffset() != timedelta(0):
         raise ItemValidationError(
             f"{field_name} must use UTC timezone"
         )
-
-
 def datetime_to_db(value: datetime | None) -> str | None:
     """
     Converts domain datetime to SQLite TEXT.
