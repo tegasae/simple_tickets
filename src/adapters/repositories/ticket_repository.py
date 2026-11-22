@@ -13,7 +13,7 @@ from src.adapters.repositories.gateways.ticket_gateway import (
     TicketStatusGateway,
 )
 from src.adapters.repositories.mappers.ticket_mapper import TicketMapper
-from src.domain.exceptions import ItemNotFoundError, DomainError
+from src.domain.exceptions import ItemNotFoundError
 from src.domain.repositories.ticket_repository import TicketRepository
 
 from src.domain.statuses.ticket_status_record import TicketStatusRecord

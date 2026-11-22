@@ -131,19 +131,18 @@ class TicketUserApplicationService:
             # Create TicketUser first.
             # ----------------------------------------------------------
 
-            user=User.create_empty()
+
             contact_user=User.create_empty()
-            client=Client.create_empty()
 
 
 
 
-            if ticket_user_dto.client_id:
-                client=self.uow.clients.get(client_id=ticket_user_dto.client_id)
-                self.uow.clients.touch(client)
-            if ticket_user_dto.user_id:
-                user = self.uow.users.get(user_id=ticket_user_dto.user_id)
-                self.uow.users.touch(user)
+
+            client=self.uow.clients.get_by_user_id(user_id=actor.employee_id)
+
+            self.uow.clients.touch(client)
+
+            self.uow.users.touch(actor)
 
             if ticket_user_dto.contact_user_id:
                 contact_user=self.uow.users.get(user_id=ticket_user_dto.contact_user_id)
@@ -152,7 +151,7 @@ class TicketUserApplicationService:
 
             ticket_user = self.ticket_user_service.create(
                 client=client,
-                user=user,
+                user=actor,
                 text_of_ticket=ticket_user_dto.text_of_ticket,
                 contact_user=contact_user,
                 description=ticket_user_dto.description,
@@ -184,7 +183,7 @@ class TicketUserApplicationService:
                 department=self.uow.departments.get(department_id=ticket_user_dto.department_id)
             ticket = self.ticket_service.create_from_ticket_user(
                 client=client,
-                user=user,
+                user=actor,
                 ticket_user=saved_ticket_user,
                 text_of_ticket=saved_ticket_user.text_of_ticket.value,
                 contact_user=contact_user,

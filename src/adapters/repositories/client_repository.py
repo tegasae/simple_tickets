@@ -19,6 +19,7 @@ class ClientRepositorySQLite(BaseRepository, ClientRepository):
 
 
 
+
     # -------------------------
     # Reads
     # -------------------------
@@ -44,6 +45,18 @@ class ClientRepositorySQLite(BaseRepository, ClientRepository):
         )
 
         return [ClientMapper.row_to_client(r) for r in rows]
+
+    def get_by_user_id(self,user_id) ->Client:
+        row = self._get_one(
+            ClientGateway.SELECT_BY_USER_ID,
+            var=ClientMapper.VARS,
+            params={"employee_id": user_id},
+        )
+
+        if not row:
+            raise ItemNotFoundError(f"User {user_id}")
+
+        return ClientMapper.row_to_client(row)
 
     def exists(self, client_id: int) -> bool:
 

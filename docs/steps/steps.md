@@ -2493,6 +2493,164 @@
 6) Исполнитель берет заявку в работу
 7) Исполнитель завершает
 8) Менеджер подтверждает
+```json
+{
+  "ticket_user_id": 19,
+  "client_id": 40,
+  "user_id": 226,
+  "contact_user_id": 226,
+  "text_of_ticket": "Нам позвонил пользователь клиента",
+  "description": "",
+  "current_status": "confirmed_by_admin",
+  "date_created": "2026-11-22T12:46:09.703393Z",
+  "date_finished": "2026-11-22T17:47:10.082114Z",
+  "is_closed": true,
+  "statuses": [
+    {
+      "id": 95,
+      "status": "created",
+      "actor_id": 226,
+      "comment": "",
+      "date_created": "2026-11-22T12:46:09.703393Z"
+    },
+    {
+      "id": 96,
+      "status": "in_work",
+      "actor_id": 222,
+      "comment": "",
+      "date_created": "2026-11-22T12:46:14.070439Z"
+    },
+    {
+      "id": 103,
+      "status": "waiting_for_confirmation",
+      "actor_id": 223,
+      "comment": "",
+      "date_created": "2026-11-22T17:45:59.932497Z"
+    },
+    {
+      "id": 104,
+      "status": "confirmed_by_admin",
+      "actor_id": 224,
+      "comment": "",
+      "date_created": "2026-11-22T17:47:10.082114Z"
+    }
+  ],
+  "comments": []
+}
+
+```
+
+```json
+{
+  "ticket_id": 47,
+  "client_id": 40,
+  "user_id": 226,
+  "contact_user_id": 226,
+  "user_ticket_id": 19,
+  "department_id": 2,
+  "text_of_ticket": "Нам позвонил пользователь клиента",
+  "description": "",
+  "date_created": "2026-11-22T12:46:09.704317Z",
+  "date_finished": "2026-11-22T17:47:10.081904Z",
+  "planned_at": "2026-11-22T12:44:11.813000Z",
+  "remote_work_recommended": true,
+  "urgency": "normal",
+  "current_executor_id": 0,
+  "last_executor_id": 223,
+  "is_closed": true,
+  "time_spent": 10,
+  "statuses": [
+    {
+      "id": 265,
+      "status": "created_from_request_user",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:46:09.704317Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 266,
+      "status": "accepted",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:46:14.070085Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 279,
+      "status": "assigned",
+      "actor_id": 223,
+      "executor_id": 223,
+      "date_created": "2026-11-22T17:45:49.184380Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 280,
+      "status": "at_work",
+      "actor_id": 223,
+      "executor_id": 0,
+      "date_created": "2026-11-22T17:45:49.184380Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": true,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 281,
+      "status": "ready_for_review",
+      "actor_id": 223,
+      "executor_id": 0,
+      "date_created": "2026-11-22T17:45:59.932344Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 282,
+      "status": "executed",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T17:47:10.081904Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": null,
+      "comment": {
+        "value": ""
+      }
+    }
+  ],
+  "comments": []
+}
+
+```
+
+
 #### Заявка записанная обычным инженером
 1) Инженер принимает заявку
 2) Менеджер отказывает
@@ -2514,16 +2672,185 @@
 ##### Заявка снятая пользователем
 1) Пользователь делает заявку
 2) Пользователь ее снимает
+```json
+{
+  "ticket_user_id": 22,
+  "client_id": 40,
+  "user_id": 227,
+  "contact_user_id": 227,
+  "text_of_ticket": "Эту заявку нужно снять",
+  "description": "",
+  "current_status": "cancelled_by_admin",
+  "date_created": "2026-11-22T17:50:53.731051Z",
+  "date_finished": "2026-11-22T17:53:34.628188Z",
+  "is_closed": true,
+  "statuses": [
+    {
+      "id": 105,
+      "status": "created",
+      "actor_id": 227,
+      "comment": "",
+      "date_created": "2026-11-22T17:50:53.731051Z"
+    },
+    {
+      "id": 107,
+      "status": "cancelled_by_admin",
+      "actor_id": 224,
+      "comment": "Отказали",
+      "date_created": "2026-11-22T17:53:34.628188Z"
+    }
+  ],
+  "comments": []
+}
+```
+
+```json
+{
+  "ticket_id": 50,
+  "client_id": 40,
+  "user_id": 227,
+  "contact_user_id": 227,
+  "user_ticket_id": 22,
+  "department_id": 0,
+  "text_of_ticket": "Эту заявку нужно снять",
+  "description": "",
+  "date_created": "2026-11-22T17:50:53.731378Z",
+  "date_finished": "2026-11-22T17:53:34.628046Z",
+  "planned_at": null,
+  "remote_work_recommended": false,
+  "urgency": "normal",
+  "current_executor_id": 0,
+  "last_executor_id": 0,
+  "is_closed": true,
+  "time_spent": 0,
+  "statuses": [
+    {
+      "id": 283,
+      "status": "created_from_ticket_user",
+      "actor_id": 0,
+      "executor_id": 0,
+      "date_created": "2026-11-22T17:50:53.731378Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 285,
+      "status": "rejected",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T17:53:34.628046Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": null,
+      "comment": {
+        "value": "Отказали"
+      }
+    }
+  ],
+  "comments": []
+}
+```
 ##### Заявка сделанная пользователем взятая в работу
 1) Пользователь делает заявку
 2) Менеджер ее подтверждает
-3) Пользователь снимает ее
-4) Менеджер снимает ее
+3) Менеджер снимает ее
 
 #### Заявка сделанная обычным пользователем
 ##### Заявка снятая главным пользователем
 1) Пользователь делает заявку
 2) Главный пользователь снимает ее
+```json
+{
+  "ticket_user_id": 20,
+  "client_id": 40,
+  "user_id": 226,
+  "contact_user_id": 226,
+  "text_of_ticket": "Пользователь клиента делает заявку",
+  "description": "",
+  "current_status": "cancelled_by_user",
+  "date_created": "2026-11-22T17:06:02.665139Z",
+  "date_finished": "2026-11-22T17:37:33.927695Z",
+  "is_closed": true,
+  "statuses": [
+    {
+      "id": 97,
+      "status": "created",
+      "actor_id": 226,
+      "comment": "",
+      "date_created": "2026-11-22T17:06:02.665139Z"
+    },
+    {
+      "id": 102,
+      "status": "cancelled_by_user",
+      "actor_id": 227,
+      "comment": "",
+      "date_created": "2026-11-22T17:37:33.927695Z"
+    }
+  ],
+  "comments": []
+}
+
+
+```
+```json
+{
+  "ticket_id": 48,
+  "client_id": 40,
+  "user_id": 226,
+  "contact_user_id": 226,
+  "user_ticket_id": 20,
+  "department_id": 0,
+  "text_of_ticket": "Пользователь клиента делает заявку",
+  "description": "",
+  "date_created": "2026-11-22T17:06:02.665451Z",
+  "date_finished": "2026-11-22T17:37:33.927763Z",
+  "planned_at": null,
+  "remote_work_recommended": false,
+  "urgency": "normal",
+  "current_executor_id": 0,
+  "last_executor_id": 0,
+  "is_closed": true,
+  "time_spent": 0,
+  "statuses": [
+    {
+      "id": 271,
+      "status": "created_from_ticket_user",
+      "actor_id": 0,
+      "executor_id": 0,
+      "date_created": "2026-11-22T17:06:02.665451Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 278,
+      "status": "cancelled_by_user",
+      "actor_id": 0,
+      "executor_id": 0,
+      "date_created": "2026-11-22T17:37:33.927763Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    }
+  ],
+  "comments": []
+}
+
+```
 
 ##### Заявка подтвержденная пользователем
 1) Пользователь делает заявку
@@ -2532,6 +2859,161 @@
 4) Исполнитель берет в работу
 5) Исполнитель завершает
 6) Пользователь подтверждает
+```json
+{
+  "ticket_user_id": 21,
+  "client_id": 40,
+  "user_id": 226,
+  "contact_user_id": 226,
+  "text_of_ticket": "Пользователь клиента делает заявку еще раз",
+  "description": "",
+  "current_status": "confirmed_by_user",
+  "date_created": "2026-11-22T17:09:18.210078Z",
+  "date_finished": "2026-11-22T17:26:21.326405Z",
+  "is_closed": true,
+  "statuses": [
+    {
+      "id": 98,
+      "status": "created",
+      "actor_id": 226,
+      "comment": "",
+      "date_created": "2026-11-22T17:09:18.210078Z"
+    },
+    {
+      "id": 99,
+      "status": "in_work",
+      "actor_id": 224,
+      "comment": "",
+      "date_created": "2026-11-22T17:14:58.826561Z"
+    },
+    {
+      "id": 100,
+      "status": "waiting_for_confirmation",
+      "actor_id": 223,
+      "comment": "",
+      "date_created": "2026-11-22T17:21:40.275445Z"
+    },
+    {
+      "id": 101,
+      "status": "confirmed_by_user",
+      "actor_id": 226,
+      "comment": "",
+      "date_created": "2026-11-22T17:26:21.326405Z"
+    }
+  ],
+  "comments": []
+}
+```
+
+```json
+{
+  "ticket_id": 49,
+  "client_id": 40,
+  "user_id": 226,
+  "contact_user_id": 226,
+  "user_ticket_id": 21,
+  "department_id": 2,
+  "text_of_ticket": "Пользователь клиента делает заявку еще раз",
+  "description": "",
+  "date_created": "2026-11-22T17:09:18.211010Z",
+  "date_finished": "2026-11-22T17:26:22.203609Z",
+  "planned_at": null,
+  "remote_work_recommended": true,
+  "urgency": "normal",
+  "current_executor_id": 0,
+  "last_executor_id": 223,
+  "is_closed": true,
+  "time_spent": 85,
+  "statuses": [
+    {
+      "id": 272,
+      "status": "created_from_ticket_user",
+      "actor_id": 0,
+      "executor_id": 0,
+      "date_created": "2026-11-22T17:09:18.211010Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 273,
+      "status": "accepted",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T17:14:58.826220Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 274,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 223,
+      "date_created": "2026-11-22T17:17:21.572011Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 275,
+      "status": "at_work",
+      "actor_id": 223,
+      "executor_id": 0,
+      "date_created": "2026-11-22T17:20:15.126673Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": true,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 276,
+      "status": "ready_for_review",
+      "actor_id": 223,
+      "executor_id": 0,
+      "date_created": "2026-11-22T17:21:40.275342Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 277,
+      "status": "confirmed_by_user",
+      "actor_id": 0,
+      "executor_id": 0,
+      "date_created": "2026-11-22T17:26:22.203609Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    }
+  ],
+  "comments": []
+}
+```
+
 
 ##### Заявка подтвержденная менеджером
 1) Пользователь делает заявку

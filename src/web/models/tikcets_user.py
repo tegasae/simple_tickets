@@ -14,10 +14,6 @@ class UserTicketRequest(BaseModel):
 
 
 class UserTicketCreateRequest(UserTicketRequest):
-    client_id: int = Field(
-        gt=0,
-    )
-
     text_of_ticket: str = Field(
         min_length=1,
     )
@@ -27,10 +23,6 @@ class UserTicketCreateRequest(UserTicketRequest):
         ge=0,
     )
 
-    department_id: int = Field(
-        default=0,
-        ge=0,
-    )
 
     description: str = ""
 
