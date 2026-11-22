@@ -36,8 +36,8 @@ router = APIRouter(
 # =====================================================================
 # Error mapping
 # =====================================================================
-
-
+ERROR_STATUS_CODES = {}
+"""
 ERROR_STATUS_CODES = {
     "DomainOperationError": status.HTTP_400_BAD_REQUEST,
     "DomainSecurityError": status.HTTP_403_FORBIDDEN,
@@ -55,26 +55,28 @@ ERROR_STATUS_CODES = {
     "UserValidationError": status.HTTP_400_BAD_REQUEST,
     "ClientValidationError": status.HTTP_400_BAD_REQUEST,
 }
-
+"""
 
 def _domain_error(
     exc: Exception,
 ) -> HTTPException:
-    if isinstance(exc, PermissionError):
-        return HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(exc),
-        )
+    raise exc
+    #if isinstance(exc, PermissionError):
+    #    return HTTPException(
+    #        status_code=status.HTTP_403_FORBIDDEN,
+    #        detail=str(exc),
+    #    )
 
-    status_code = ERROR_STATUS_CODES.get(
-        type(exc).__name__,
-        status.HTTP_400_BAD_REQUEST,
-    )
+    #status_code = ERROR_STATUS_CODES.get(
+    #    type(exc).__name__,
+    #    status.HTTP_400_BAD_REQUEST,
+    #)
 
-    return HTTPException(
-        status_code=status_code,
-        detail=str(exc),
-    )
+
+    #return HTTPException(
+    #    status_code=status_code,
+    #    detail=str(exc),
+    #)
 
 
 # =====================================================================

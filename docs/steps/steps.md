@@ -1816,6 +1816,115 @@
 1) Заявка создается
 2) Менеджер назначает исполнителя
 3) Менеджер снимает заявку
+```json
+{
+  "ticket_id": 42,
+  "client_id": 40,
+  "user_id": 0,
+  "contact_user_id": 0,
+  "user_ticket_id": 0,
+  "department_id": 2,
+  "text_of_ticket": "Заявка которую надо будет снять",
+  "description": "",
+  "date_created": "2026-11-22T10:57:21.313425Z",
+  "date_finished": "2026-11-22T11:02:21.531313Z",
+  "planned_at": "2026-11-22T10:56:19.404000Z",
+  "remote_work_recommended": false,
+  "urgency": "normal",
+  "current_executor_id": 0,
+  "last_executor_id": 223,
+  "is_closed": true,
+  "time_spent": 0,
+  "statuses": [
+    {
+      "id": 229,
+      "status": "created",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T10:57:21.313425Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 230,
+      "status": "accepted",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T10:57:26.721422Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 231,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 223,
+      "date_created": "2026-11-22T10:59:58.878514Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 232,
+      "status": "deferred",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T11:00:43.031517Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Пока отложим"
+      }
+    },
+    {
+      "id": 233,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 223,
+      "date_created": "2026-11-22T11:00:53.611424Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 234,
+      "status": "cancelled",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T11:02:21.531313Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": null,
+      "comment": {
+        "value": "Заявку снимаем"
+      }
+    }
+  ],
+  "comments": []
+}
+```
+
 #### Заявка сделанная обычным инженером
 1) Заявка создается
 2) Менеджер подтверждает
@@ -1829,18 +1938,374 @@
 10) Исполнитель продолжает
 11) Исполнитель завершает работу
 12) Менеджер подтверждает работу
+```json
+{
+  "ticket_id": 43,
+  "client_id": 40,
+  "user_id": 0,
+  "contact_user_id": 0,
+  "user_ticket_id": 0,
+  "department_id": 2,
+  "text_of_ticket": "Заявка созданная инженером",
+  "description": "",
+  "date_created": "2026-11-22T11:24:51.293828Z",
+  "date_finished": "2026-11-22T11:36:24.640813Z",
+  "planned_at": "2026-11-22T10:56:19.404000Z",
+  "remote_work_recommended": false,
+  "urgency": "normal",
+  "current_executor_id": 0,
+  "last_executor_id": 223,
+  "is_closed": true,
+  "time_spent": 3500,
+  "statuses": [
+    {
+      "id": 235,
+      "status": "created",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-22T11:24:51.293828Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 236,
+      "status": "accepted",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T11:30:53.367165Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 237,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 223,
+      "date_created": "2026-11-22T11:31:20.671847Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 238,
+      "status": "at_work",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-22T11:33:02.891017Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT58M20S",
+      "work_is_remote": true,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 239,
+      "status": "ready_for_review",
+      "actor_id": 221,
+      "executor_id": 0,
+      "date_created": "2026-11-22T11:33:02.891017Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 240,
+      "status": "executed",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T11:36:24.640813Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": null,
+      "comment": {
+        "value": ""
+      }
+    }
+  ],
+  "comments": []
+} 
+```
+
+
 #### Заявка сделанная менеджером
 1) Заявка создается 
 2) Указывается отдел
 3) Менеджер назначает исполнителя
 4) Исполнитель завершает работу
 5) Опытный инженер подтверждает
+```json
+{
+  "ticket_id": 44,
+  "client_id": 40,
+  "user_id": 0,
+  "contact_user_id": 0,
+  "user_ticket_id": 0,
+  "department_id": 2,
+  "text_of_ticket": "Заявка созданная менеджером",
+  "description": "",
+  "date_created": "2026-11-22T12:00:26.135715Z",
+  "date_finished": "2026-11-22T12:06:10.358214Z",
+  "planned_at": "2026-11-22T10:56:19.404000Z",
+  "remote_work_recommended": false,
+  "urgency": "normal",
+  "current_executor_id": 0,
+  "last_executor_id": 222,
+  "is_closed": true,
+  "time_spent": 46,
+  "statuses": [
+    {
+      "id": 241,
+      "status": "created",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:00:26.135715Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 242,
+      "status": "accepted",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:00:29.019513Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 243,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 222,
+      "date_created": "2026-11-22T12:02:40.155294Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Будет выполнять опытный инженер"
+      }
+    },
+    {
+      "id": 244,
+      "status": "at_work",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:03:33.191280Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 245,
+      "status": "paused",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:04:07.042305Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "на паузу"
+      }
+    },
+    {
+      "id": 246,
+      "status": "at_work",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:04:46.814998Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Возвращаем в работу"
+      }
+    },
+    {
+      "id": 247,
+      "status": "ready_for_review",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:05:00.121206Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 248,
+      "status": "executed",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:06:10.358214Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": null,
+      "comment": {
+        "value": "Сам подтвердил свою работу"
+      }
+    }
+  ],
+  "comments": []
+}
+```
+
+
 #### Заявка сделанная менеджером с рекомендацией удаленной работы
 1) Заявка создается
 2) Менеджер подтверждает
 3) Исполнитель берет в работу горячей линии
 4) Исполнитель завершает работу
 5) Опытный инженер подтверждает
+```json
+{
+  "ticket_id": 45,
+  "client_id": 40,
+  "user_id": 0,
+  "contact_user_id": 0,
+  "user_ticket_id": 0,
+  "department_id": 2,
+  "text_of_ticket": "Заявка для горячей линии",
+  "description": "",
+  "date_created": "2026-11-22T12:08:30.666317Z",
+  "date_finished": "2026-11-22T12:13:59.148023Z",
+  "planned_at": "2026-11-22T10:56:19.404000Z",
+  "remote_work_recommended": true,
+  "urgency": "normal",
+  "current_executor_id": 0,
+  "last_executor_id": 223,
+  "is_closed": true,
+  "time_spent": 112,
+  "statuses": [
+    {
+      "id": 249,
+      "status": "created",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:08:30.666317Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 250,
+      "status": "accepted",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:08:34.795039Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 251,
+      "status": "assigned",
+      "actor_id": 223,
+      "executor_id": 223,
+      "date_created": "2026-11-22T12:10:35.151404Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 252,
+      "status": "at_work",
+      "actor_id": 223,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:10:35.151404Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": true,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 253,
+      "status": "ready_for_review",
+      "actor_id": 223,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:12:27.265240Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Завершаем заявку на горячей линии"
+      }
+    },
+    {
+      "id": 254,
+      "status": "executed",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:13:59.148023Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": null,
+      "comment": {
+        "value": "Подтверждение заявки на горячей линнии"
+      }
+    }
+  ],
+  "comments": []
+}
+```
 #### Заявка сделанная обычным сотрудником
 1) Заявка создается без отдела
 2) Менеджер подтверждает
@@ -1852,7 +2317,170 @@
 8) Исполнитель берет в работу
 9) Исполнитель завершает
 10) Опытный инженер подтверждает
-
+```json
+{
+  "ticket_id": 46,
+  "client_id": 40,
+  "user_id": 0,
+  "contact_user_id": 0,
+  "user_ticket_id": 0,
+  "department_id": 5,
+  "text_of_ticket": "Заявка созданная обычным пользователем",
+  "description": "Я не знаю, позвонили, я внес",
+  "date_created": "2026-11-22T12:17:00.532461Z",
+  "date_finished": "2026-11-22T12:42:24.977757Z",
+  "planned_at": "2026-11-22T10:56:19.404000Z",
+  "remote_work_recommended": true,
+  "urgency": "normal",
+  "current_executor_id": 0,
+  "last_executor_id": 228,
+  "is_closed": true,
+  "time_spent": 3611,
+  "statuses": [
+    {
+      "id": 255,
+      "status": "created",
+      "actor_id": 220,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:17:00.532461Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 256,
+      "status": "accepted",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:18:08.811201Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 257,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 222,
+      "date_created": "2026-11-22T12:31:16.825126Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": "Будет выполнять опытный инженер"
+      }
+    },
+    {
+      "id": 258,
+      "status": "at_work",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:36:52.227833Z",
+      "actual_started_at": "2026-11-22T11:36:32.780000Z",
+      "actual_finished_at": "2026-11-22T12:36:32.780000Z",
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 259,
+      "status": "ready_for_review",
+      "actor_id": 222,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:36:52.227833Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 260,
+      "status": "accepted",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:39:14.077503Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 261,
+      "status": "assigned",
+      "actor_id": 224,
+      "executor_id": 228,
+      "date_created": "2026-11-22T12:40:02.520113Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 262,
+      "status": "at_work",
+      "actor_id": 228,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:41:17.367461Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 263,
+      "status": "ready_for_review",
+      "actor_id": 228,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:41:29.220774Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": false,
+      "comment": {
+        "value": ""
+      }
+    },
+    {
+      "id": 264,
+      "status": "executed",
+      "actor_id": 224,
+      "executor_id": 0,
+      "date_created": "2026-11-22T12:42:24.977757Z",
+      "actual_started_at": null,
+      "actual_finished_at": null,
+      "duration": "PT0S",
+      "work_is_remote": null,
+      "comment": {
+        "value": ""
+      }
+    }
+  ],
+  "comments": []
+}
+```
 ### Заявка сделанная по запросу пользователя
 
 

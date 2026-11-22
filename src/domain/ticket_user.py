@@ -365,7 +365,7 @@ class TicketUser:
 
         if record.status not in TICKET_USER_TRANSITIONS[current_record.status]:
             raise DomainOperationError(
-                "TicketUser status transition is not allowed: "
+                f"TicketUser status transition is not allowed: f{record}"
                 f"{current_record.status.value} -> {record.status.value}"
             )
 
