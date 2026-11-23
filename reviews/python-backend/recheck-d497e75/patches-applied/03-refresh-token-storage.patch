@@ -1,0 +1,425 @@
+diff --git a/src/web/auth/storage.py b/src/web/auth/storage.py
+--- a/src/web/auth/storage.py
++++ b/src/web/auth/storage.py
+@@ -5,5 +5,5 @@
+ from threading import Lock
+ 
+-from src.web.auth.exceptions import TokenNotFoundError
++from src.web.auth.exceptions import TokenError, TokenNotFoundError
+ from src.web.auth.tokens import RefreshToken, SubjectType, hash_token
+ 
+@@ -20,4 +20,9 @@
+     @abstractmethod
+     def delete(self, token_id: str) -> None:
++        raise NotImplementedError
++
++    @abstractmethod
++    def replace(self, token_id: str, successor: RefreshToken) -> None:
++        """Atomically replace a valid refresh token with its successor."""
+         raise NotImplementedError
+ 
+@@ -66,25 +71,7 @@
+     """
+ 
+-    _instance: "TokenStorageMemory | None" = None
+-    _instance_lock = Lock()
+-
+-    def __new__(cls, *args, **kwargs):
+-        with cls._instance_lock:
+-            if cls._instance is None:
+-                cls._instance = super().__new__(cls)
+-
+-        return cls._instance
+-
+     def __init__(self) -> None:
+-        if getattr(self, "_initialized", False):
+-            return
+-
+         self._lock = Lock()
+-
+-        # Key: sha256(raw refresh token)
+-        # Value: RefreshToken object
+         self._refresh_tokens: dict[str, RefreshToken] = {}
+-
+-        self._initialized = True
+ 
+     def put(self, refresh_token: RefreshToken) -> None:
+@@ -93,5 +80,7 @@
+         """
+         with self._lock:
+-            self._refresh_tokens[refresh_token.token_hash] = refresh_token
++            if refresh_token.token_hash in self._refresh_tokens:
++                raise RuntimeError("Generated duplicate refresh token")
++            self._refresh_tokens[refresh_token.token_hash] = refresh_token.model_copy(deep=True)
+ 
+     def get(self, token_id: str) -> RefreshToken:
+@@ -109,5 +98,5 @@
+                 raise TokenNotFoundError()
+ 
+-            return token
++            return token.model_copy(deep=True)
+ 
+     def delete(self, token_id: str) -> None:
+@@ -122,4 +111,17 @@
+ 
+             del self._refresh_tokens[token_hash]
++
++    def replace(self, token_id: str, successor: RefreshToken) -> None:
++        old_hash = hash_token(token_id)
++        with self._lock:
++            old = self._refresh_tokens.get(old_hash)
++            if old is None:
++                raise TokenNotFoundError()
++            if not old.is_valid():
++                raise TokenError("Invalid refresh token")
++            if successor.token_hash in self._refresh_tokens:
++                raise RuntimeError("Generated duplicate refresh token")
++            self._refresh_tokens[successor.token_hash] = successor.model_copy(deep=True)
++            del self._refresh_tokens[old_hash]
+ 
+     def cleanup_expired_tokens(self) -> int:
+@@ -149,5 +151,5 @@
+         with self._lock:
+             return [
+-                token
++                token.model_copy(deep=True)
+                 for token in self._refresh_tokens.values()
+                 if token.username == username
+diff --git a/src/web/auth/services/services.py b/src/web/auth/services/services.py
+--- a/src/web/auth/services/services.py
++++ b/src/web/auth/services/services.py
+@@ -59,9 +59,8 @@
+         )
+ 
++        response = token_pair.encode(settings=self.settings)
++        self.token_storage.cleanup_expired_tokens()
+         self.token_storage.put(token_pair.refresh_token)
+-
+-        return token_pair.encode(
+-            settings=self.settings,
+-        )
++        return response
+ 
+     def renew_tokens(
+@@ -74,6 +73,6 @@
+         Refresh-token rotation:
+             - validate old refresh token;
+-            - remove old refresh token;
+-            - issue a new access + refresh token pair.
++            - build and encode a new token pair;
++            - atomically replace the old refresh token.
+         """
+         old_refresh_token = self.token_storage.get(
+@@ -84,12 +83,15 @@
+             raise TokenError("Invalid refresh token")
+ 
+-        self.token_storage.delete(old_refresh_token_id)
+-
+-        return self.create_token_pair(
++        token_pair = JWTToken.create(
++            settings=self.settings,
+             username=old_refresh_token.username,
+             subject_id=old_refresh_token.subject_id,
+             subject_type=old_refresh_token.subject_type,
++            client_id=old_refresh_token.client_id,
+             scope=old_refresh_token.scope,
+         )
++        response = token_pair.encode(settings=self.settings)
++        self.token_storage.replace(old_refresh_token_id, token_pair.refresh_token)
++        return response
+ 
+     @staticmethod
+diff --git a/src/web/auth/tokens.py b/src/web/auth/tokens.py
+--- a/src/web/auth/tokens.py
++++ b/src/web/auth/tokens.py
+@@ -198,4 +198,5 @@
+     )
+ 
++    stored_hash: str | None = Field(default=None, exclude=True, repr=False)
+     subject_id: int
+     subject_type: SubjectType
+@@ -241,5 +242,5 @@
+     @property
+     def token_hash(self) -> str:
+-        return hash_token(self.token_id)
++        return self.stored_hash or hash_token(self.token_id)
+ 
+     def mark_used(self) -> None:
+diff --git a/src/web/config.py b/src/web/config.py
+--- a/src/web/config.py
++++ b/src/web/config.py
+@@ -4,4 +4,6 @@
+ 
+ from functools import lru_cache
++from pathlib import Path
++from typing import Literal
+ 
+ 
+@@ -19,4 +21,13 @@
+     JWT_ISSUER:str="simple - tickets"
+     JWT_AUDIENCE:str="simple - tickets - api"
++
++    REFRESH_TOKEN_BACKEND: Literal["memory", "sqlite"] = "memory"
++    REFRESH_TOKEN_SQLITE_PATH: Path | None = None
++
++    @model_validator(mode="after")
++    def require_refresh_storage_path(self):
++        if self.REFRESH_TOKEN_BACKEND == "sqlite" and self.REFRESH_TOKEN_SQLITE_PATH is None:
++            raise ValueError("Configure REFRESH_TOKEN_SQLITE_PATH for persistent refresh sessions")
++        return self
+ 
+     @model_validator(mode="after")
+diff --git a/src/web/dependencies/auth.py b/src/web/dependencies/auth.py
+--- a/src/web/dependencies/auth.py
++++ b/src/web/dependencies/auth.py
+@@ -14,5 +14,5 @@
+ )
+ from src.web.auth.services.services import AuthManager, TokenService
+-from src.web.auth.storage import TokenStorageMemory
++from src.web.auth.storage import TokenStorage
+ from src.web.auth.tokens import AccessToken
+ from src.web.config import Settings
+@@ -27,16 +27,6 @@
+ 
+ 
+-# ---------------------------------------------------------------------
+-# Token storages
+-# ---------------------------------------------------------------------
+-#
+-# Storage must not be created inside get_auth_manager_*(),
+-# otherwise every request receives a new empty storage.
+-#
+-# Admin and User authentication are intentionally separate.
+-#
+-
+-_admin_token_storage = TokenStorageMemory()
+-_user_token_storage = TokenStorageMemory()
++def get_refresh_token_storage(request: Request) -> TokenStorage:
++    return request.app.state.refresh_token_storage
+ 
+ 
+@@ -100,8 +90,9 @@
+     uow: UnitOfWork = Depends(get_uow),
+     settings: Settings = Depends(get_settings),
++    storage: TokenStorage = Depends(get_refresh_token_storage),
+ ) -> AuthManager:
+     return AuthManager(
+         auth_service=AdminAuthService(uow=uow),
+-        token_storage=_admin_token_storage,
++        token_storage=storage,
+         subject_type="admin",
+         settings=settings
+@@ -113,8 +104,9 @@
+     uow: UnitOfWork = Depends(get_uow),
+     settings: Settings = Depends(get_settings),
++    storage: TokenStorage = Depends(get_refresh_token_storage),
+ ) -> AuthManager:
+     return AuthManager(
+         auth_service=UserAuthService(uow=uow),
+-        token_storage=_user_token_storage,
++        token_storage=storage,
+         subject_type="user",
+         settings = settings
+diff --git a/src/web/main.py b/src/web/main.py
+--- a/src/web/main.py
++++ b/src/web/main.py
+@@ -30,4 +30,6 @@
+ from src.web.routers.admin.roles import router as admin_roles_router
+ 
++from src.web.auth.storage import TokenStorageMemory
++from src.web.auth.storage_sqlite import TokenStorageSQLite
+ from src.web.config import Settings
+ 
+@@ -40,4 +42,11 @@
+     # noinspection PyUnresolvedReferences
+     app1.state.settings = settings
++    if settings.REFRESH_TOKEN_BACKEND == "sqlite":
++        path = settings.REFRESH_TOKEN_SQLITE_PATH
++        if path is None:
++            raise ValueError("Configure REFRESH_TOKEN_SQLITE_PATH")
++        app1.state.refresh_token_storage = TokenStorageSQLite(path)
++    else:
++        app1.state.refresh_token_storage = TokenStorageMemory()
+ 
+     app1.include_router(auth_router)
+diff --git a/src/web/routers/auth.py b/src/web/routers/auth.py
+--- a/src/web/routers/auth.py
++++ b/src/web/routers/auth.py
+@@ -71,5 +71,5 @@
+ ####
+ @router.post("/admin/login")
+-async def login(
++def login(
+         form_data: OAuth2PasswordRequestForm = Depends(),
+         auth_manager: AuthManager = Depends(get_auth_manager_admin)
+@@ -82,5 +82,5 @@
+ 
+ @router.post("/admin/refresh")
+-async def refresh(
++def refresh(
+         refresh_request: RefreshRequest,
+         auth_manager: AuthManager = Depends(get_auth_manager_admin)
+@@ -92,5 +92,5 @@
+ 
+ @router.post("/admin/logout")
+-async def logout(
++def logout(
+     logout_request: LogoutRequest,
+     auth_manager: AuthManager = Depends(get_auth_manager_admin),
+@@ -106,5 +106,5 @@
+ 
+ @router.post("/user/login")
+-async def login_user(
++def login_user(
+         form_data: OAuth2PasswordRequestForm = Depends(),
+         auth_manager: AuthManager = Depends(get_auth_manager_user)
+@@ -117,5 +117,5 @@
+ 
+ @router.post("/user/refresh")
+-async def refresh_user(
++def refresh_user(
+         refresh_request: RefreshRequest,
+         auth_manager: AuthManager = Depends(get_auth_manager_user)
+@@ -126,5 +126,5 @@
+ 
+ @router.post("/user/logout")
+-async def logout_user(
++def logout_user(
+     logout_request: LogoutRequest,
+     auth_manager: AuthManager = Depends(get_auth_manager_user),
+diff --git a/src/web/auth/storage_sqlite.py b/src/web/auth/storage_sqlite.py
+new file mode 100644
+--- /dev/null
++++ b/src/web/auth/storage_sqlite.py
+@@ -0,0 +1,131 @@
++import sqlite3
++from collections.abc import Iterator
++from contextlib import closing, contextmanager
++from datetime import datetime, timezone
++from pathlib import Path
++
++from src.web.auth.exceptions import TokenError, TokenNotFoundError
++from src.web.auth.storage import TokenStorage
++from src.web.auth.tokens import RefreshToken, SubjectType, hash_token
++
++
++class TokenStorageSQLite(TokenStorage):
++    """Store refresh session metadata by hash in a shared SQLite file."""
++
++    def __init__(self, path: Path) -> None:
++        if str(path) == ":memory:":
++            raise ValueError("Use the memory backend for process-local sessions")
++        self.path = path
++        with self._connection() as db:
++            db.executescript("""
++                CREATE TABLE IF NOT EXISTS refresh_sessions (
++                    token_hash TEXT PRIMARY KEY,
++                    subject_id INTEGER NOT NULL,
++                    subject_type TEXT NOT NULL,
++                    username TEXT NOT NULL,
++                    expires_at REAL NOT NULL,
++                    used INTEGER NOT NULL,
++                    revoked INTEGER NOT NULL,
++                    payload TEXT NOT NULL
++                );
++                CREATE INDEX IF NOT EXISTS refresh_sessions_by_identity
++                    ON refresh_sessions(username, subject_type, subject_id);
++                CREATE INDEX IF NOT EXISTS refresh_sessions_by_expiry
++                    ON refresh_sessions(expires_at);
++            """)
++
++    @contextmanager
++    def _connection(self) -> Iterator[sqlite3.Connection]:
++        with closing(sqlite3.connect(self.path)) as db, db:
++            yield db
++
++    @staticmethod
++    def _insert(db: sqlite3.Connection, token: RefreshToken) -> None:
++        expires = token.expires_at
++        if expires.tzinfo is None:
++            expires = expires.replace(tzinfo=timezone.utc)
++        db.execute(
++            """INSERT INTO refresh_sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
++            (token.token_hash, token.subject_id, token.subject_type, token.username,
++             expires.timestamp(), token.used, token.revoked,
++             token.model_dump_json(exclude={"token_id"})),
++        )
++
++    @staticmethod
++    def _decode(row, token_id: str = "") -> RefreshToken:
++        token_hash, payload, revoked = row
++        token = RefreshToken.model_validate_json(payload)
++        return token.model_copy(update={
++            "token_id": token_id, "stored_hash": token_hash, "revoked": bool(revoked),
++        })
++
++    @staticmethod
++    def _find(db: sqlite3.Connection, token_hash: str):
++        row = db.execute(
++            """SELECT token_hash, payload, revoked
++               FROM refresh_sessions WHERE token_hash = ?""",
++            (token_hash,),
++        ).fetchone()
++        if row is None:
++            raise TokenNotFoundError()
++        return row
++
++    def put(self, refresh_token: RefreshToken) -> None:
++        with self._connection() as db:
++            self._insert(db, refresh_token)
++
++    def get(self, token_id: str) -> RefreshToken:
++        with self._connection() as db:
++            return self._decode(self._find(db, hash_token(token_id)), token_id)
++
++    def delete(self, token_id: str) -> None:
++        with self._connection() as db:
++            removed = db.execute(
++                "DELETE FROM refresh_sessions WHERE token_hash = ?", (hash_token(token_id),),
++            )
++            if removed.rowcount == 0:
++                raise TokenNotFoundError()
++
++    def replace(self, token_id: str, successor: RefreshToken) -> None:
++        old_hash = hash_token(token_id)
++        with self._connection() as db:
++            db.execute("BEGIN IMMEDIATE")
++            if not self._decode(self._find(db, old_hash), token_id).is_valid():
++                raise TokenError("Invalid refresh token")
++            self._insert(db, successor)
++            db.execute("DELETE FROM refresh_sessions WHERE token_hash = ?", (old_hash,))
++
++    def cleanup_expired_tokens(self) -> int:
++        with self._connection() as db:
++            return db.execute(
++                "DELETE FROM refresh_sessions WHERE expires_at <= ? OR used = 1 OR revoked = 1",
++                (datetime.now(timezone.utc).timestamp(),),
++            ).rowcount
++
++    def get_user_tokens(self, username: str) -> list[RefreshToken]:
++        with self._connection() as db:
++            rows = db.execute(
++                "SELECT token_hash, payload, revoked FROM refresh_sessions WHERE username = ?",
++                (username,),
++            )
++            return [self._decode(row) for row in rows]
++
++    def revoke_user_tokens(
++        self, username: str, *, subject_id: int | None = None,
++        subject_type: SubjectType | None = None,
++    ) -> int:
++        with self._connection() as db:
++            return db.execute(
++                """UPDATE refresh_sessions SET revoked = 1
++                   WHERE username = ? AND (? IS NULL OR subject_id = ?)
++                   AND (? IS NULL OR subject_type = ?)""",
++                (username, subject_id, subject_id, subject_type, subject_type),
++            ).rowcount
++
++    def count(self) -> int:
++        with self._connection() as db:
++            return db.execute("SELECT COUNT(*) FROM refresh_sessions").fetchone()[0]
++
++    def clear(self) -> None:
++        with self._connection() as db:
++            db.execute("DELETE FROM refresh_sessions")

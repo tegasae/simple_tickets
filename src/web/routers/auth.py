@@ -70,7 +70,7 @@ def _verify_account_password(entity, plain_password: str) -> None:
 
 ####
 @router.post("/admin/login")
-async def login(
+def login(
         form_data: OAuth2PasswordRequestForm = Depends(),
         auth_manager: AuthManager = Depends(get_auth_manager_admin)
 ):
@@ -81,7 +81,7 @@ async def login(
 
 
 @router.post("/admin/refresh")
-async def refresh(
+def refresh(
         refresh_request: RefreshRequest,
         auth_manager: AuthManager = Depends(get_auth_manager_admin)
 ):
@@ -91,7 +91,7 @@ async def refresh(
 
 
 @router.post("/admin/logout")
-async def logout(
+def logout(
     logout_request: LogoutRequest,
     auth_manager: AuthManager = Depends(get_auth_manager_admin),
     bearer: HTTPAuthorizationCredentials | None = Depends(logout_bearer),
@@ -105,7 +105,7 @@ async def logout(
 
 
 @router.post("/user/login")
-async def login_user(
+def login_user(
         form_data: OAuth2PasswordRequestForm = Depends(),
         auth_manager: AuthManager = Depends(get_auth_manager_user)
 ):
@@ -116,7 +116,7 @@ async def login_user(
 
 
 @router.post("/user/refresh")
-async def refresh_user(
+def refresh_user(
         refresh_request: RefreshRequest,
         auth_manager: AuthManager = Depends(get_auth_manager_user)
 ):
@@ -125,7 +125,7 @@ async def refresh_user(
 
 
 @router.post("/user/logout")
-async def logout_user(
+def logout_user(
     logout_request: LogoutRequest,
     auth_manager: AuthManager = Depends(get_auth_manager_user),
     bearer: HTTPAuthorizationCredentials | None = Depends(logout_bearer),

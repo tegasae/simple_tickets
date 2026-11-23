@@ -58,11 +58,10 @@ class TokenService:
             scope=scope or [],
         )
 
+        response = token_pair.encode(settings=self.settings)
+        self.token_storage.cleanup_expired_tokens()
         self.token_storage.put(token_pair.refresh_token)
-
-        return token_pair.encode(
-            settings=self.settings,
-        )
+        return response
 
     def renew_tokens(
         self,
@@ -73,8 +72,8 @@ class TokenService:
 
         Refresh-token rotation:
             - validate old refresh token;
-            - remove old refresh token;
-            - issue a new access + refresh token pair.
+            - build and encode a new token pair;
+            - atomically replace the old refresh token.
         """
         old_refresh_token = self.token_storage.get(
             old_refresh_token_id
@@ -83,14 +82,17 @@ class TokenService:
         if not old_refresh_token.is_valid():
             raise TokenError("Invalid refresh token")
 
-        self.token_storage.delete(old_refresh_token_id)
-
-        return self.create_token_pair(
+        token_pair = JWTToken.create(
+            settings=self.settings,
             username=old_refresh_token.username,
             subject_id=old_refresh_token.subject_id,
             subject_type=old_refresh_token.subject_type,
+            client_id=old_refresh_token.client_id,
             scope=old_refresh_token.scope,
         )
+        response = token_pair.encode(settings=self.settings)
+        self.token_storage.replace(old_refresh_token_id, token_pair.refresh_token)
+        return response
 
     @staticmethod
     def verify_access_token(

@@ -1,0 +1,246 @@
+diff --git a/src/web/models/ticket_input.py b/src/web/models/ticket_input.py
+new file mode 100644
+--- /dev/null
++++ b/src/web/models/ticket_input.py
+@@ -0,0 +1,25 @@
++from typing import Annotated
++
++from pydantic import StringConstraints
++
++from src.domain.value_objects import CommonComment, TextOfTicket
++
++
++TicketText = Annotated[
++    str,
++    StringConstraints(
++        strip_whitespace=True,
++        min_length=TextOfTicket.MIN_LENGTH,
++        max_length=TextOfTicket.MAX_LENGTH,
++    ),
++]
++
++TicketCommentText = Annotated[
++    str, StringConstraints(strip_whitespace=True, max_length=CommonComment.MAX_LENGTH),
++]
++RequiredTicketCommentText = Annotated[
++    str, StringConstraints(
++        strip_whitespace=True, min_length=CommonComment.MIN_LENGTH,
++        max_length=CommonComment.MAX_LENGTH,
++    ),
++]
+diff --git a/src/web/models/tickets.py b/src/web/models/tickets.py
+--- a/src/web/models/tickets.py
++++ b/src/web/models/tickets.py
+@@ -7,6 +7,9 @@
+ 
+ from src.domain.ticket_components import TicketUrgency
+ from src.web.models.base_response import BaseResponse
++from src.web.models.ticket_input import (
++    RequiredTicketCommentText, TicketCommentText, TicketText,
++)
+ 
+ 
+ def _to_utc(value: datetime) -> datetime:
+@@ -25,7 +28,7 @@
+     model_config = ConfigDict(extra="forbid")
+ 
+     client_id: int
+-    text_of_ticket: str
++    text_of_ticket: TicketText
+     description: str = ""
+ 
+     user_id: int = 0
+@@ -37,7 +40,7 @@
+ 
+     planned_at: UtcDatetime | None = None
+ 
+-    comment: str = ""
++    comment: TicketCommentText = ""
+ 
+ class TicketCreateForUserRequest(TicketCreateRequest):
+     """
+@@ -59,7 +62,7 @@
+ class TicketCommentBaseRequest(BaseModel):
+     model_config = ConfigDict(extra="forbid")
+ 
+-    comment: str = ""
++    comment: TicketCommentText = ""
+ 
+ 
+ class TicketCommentRequest(TicketCommentBaseRequest):
+@@ -67,7 +70,7 @@
+ 
+ 
+ class TicketRequiredCommentRequest(TicketCommentBaseRequest):
+-    comment: str = Field(min_length=1)
++    comment: RequiredTicketCommentText
+ 
+ 
+ class TicketAcceptRequest(TicketCommentRequest):
+@@ -134,7 +137,7 @@
+     model_config = ConfigDict(extra="forbid")
+ 
+     executor_id: int = Field(gt=0)
+-    comment: str = ""
++    comment: TicketCommentText = ""
+ 
+ 
+ # =====================================================================
+@@ -152,7 +155,7 @@
+     model_config = ConfigDict(extra="forbid")
+ 
+     work_is_remote: bool = False
+-    comment: str = ""
++    comment: TicketCommentText = ""
+ 
+ 
+ class TicketStartRemoteWorkRequest(BaseModel):
+@@ -164,7 +167,7 @@
+ 
+     model_config = ConfigDict(extra="forbid")
+ 
+-    comment: str = ""
++    comment: TicketCommentText = ""
+ 
+ 
+ class TicketPauseWorkRequest(TicketCommentRequest):
+@@ -175,7 +178,7 @@
+     model_config = ConfigDict(extra="forbid")
+ 
+     work_is_remote: bool = False
+-    comment: str = ""
++    comment: TicketCommentText = ""
+ 
+ 
+ class TicketFinishWorkRequest(TicketCommentRequest):
+@@ -216,7 +219,7 @@
+             default_factory=timedelta
+         )
+ 
+-    comment: str = ""
++    comment: TicketCommentText = ""
+ 
+ # =====================================================================
+ # Finalization
+diff --git a/src/web/models/tikcets_user.py b/src/web/models/tikcets_user.py
+--- a/src/web/models/tikcets_user.py
++++ b/src/web/models/tikcets_user.py
+@@ -5,6 +5,9 @@
+ 
+ from src.domain.ticket_components import TicketUrgency
+ from src.web.models.base_response import BaseResponse
++from src.web.models.ticket_input import (
++    RequiredTicketCommentText, TicketCommentText, TicketText,
++)
+ 
+ 
+ class UserTicketRequest(BaseModel):
+@@ -14,9 +17,7 @@
+ 
+ 
+ class UserTicketCreateRequest(UserTicketRequest):
+-    text_of_ticket: str = Field(
+-        min_length=1,
+-    )
++    text_of_ticket: TicketText
+ 
+     contact_user_id: int = Field(
+         default=0,
+@@ -30,17 +31,15 @@
+ 
+     urgency: TicketUrgency = TicketUrgency.NORMAL
+ 
+-    comment: str = ""
++    comment: TicketCommentText = ""
+ 
+ 
+ class UserTicketActionRequest(UserTicketRequest):
+-    comment: str = ""
++    comment: TicketCommentText = ""
+ 
+ 
+ class UserTicketCommentRequest(UserTicketRequest):
+-    comment: str = Field(
+-        min_length=1,
+-    )
++    comment: RequiredTicketCommentText
+ 
+ 
+ class UserTicketDescriptionRequest(UserTicketRequest):
+diff --git a/src/web/routers/admin/departments.py b/src/web/routers/admin/departments.py
+--- a/src/web/routers/admin/departments.py
++++ b/src/web/routers/admin/departments.py
+@@ -1,3 +1,7 @@
++from typing import Annotated
++
++from fastapi import Path
++
+ # src/web/routers/admin/departments.py
+ 
+ from fastapi import APIRouter, Depends, status
+@@ -84,7 +88,7 @@
+     response_model=DepartmentResponse,
+ )
+ def get_department(
+-    department_id: int,
++    department_id: Annotated[int, Path(gt=0)],
+     actor_admin_id: int = Depends(get_employee_id_from_request),
+     asf=Depends(get_application_service_factory),
+ )->DepartmentResponse:
+@@ -105,7 +109,7 @@
+     response_model=DepartmentResponse,
+ )
+ def update_department(
+-    department_id: int,
++    department_id: Annotated[int, Path(gt=0)],
+     request: DepartmentUpdateRequest,
+     actor_admin_id: int = Depends(get_employee_id_from_request),
+     asf=Depends(get_application_service_factory),
+@@ -130,7 +134,7 @@
+     response_model=DepartmentResponse,
+ )
+ def enable_department(
+-    department_id: int,
++    department_id: Annotated[int, Path(gt=0)],
+     actor_admin_id: int = Depends(get_employee_id_from_request),
+     asf=Depends(get_application_service_factory),
+ )->DepartmentResponse:
+@@ -151,7 +155,7 @@
+     response_model=DepartmentResponse,
+ )
+ def disable_department(
+-    department_id: int,
++    department_id: Annotated[int, Path(gt=0)],
+     actor_admin_id: int = Depends(get_employee_id_from_request),
+     asf=Depends(get_application_service_factory),
+ )->DepartmentResponse:
+@@ -173,7 +177,7 @@
+     status_code=status.HTTP_204_NO_CONTENT,
+ )
+ def delete_department(
+-    department_id: int,
++    department_id: Annotated[int, Path(gt=0)],
+     actor_admin_id: int = Depends(get_employee_id_from_request),
+     asf=Depends(get_application_service_factory),
+ ):
+diff --git a/src/web/routers/admin/tickets.py b/src/web/routers/admin/tickets.py
+--- a/src/web/routers/admin/tickets.py
++++ b/src/web/routers/admin/tickets.py
+@@ -19,7 +19,7 @@
+     TicketAssignRequest,
+     TicketCancelRequest,
+     TicketChangeDepartmentRequest,
+-    TicketCommentRequest,
++    TicketRequiredCommentRequest,
+     TicketCompleteWorkRetroactivelyRequest,
+     TicketContactUserRequest,
+     TicketCreateRequest,
+@@ -378,7 +378,7 @@
+ )
+ def add_comment(
+     ticket_id: int,
+-    request: TicketCommentRequest,
++    request: TicketRequiredCommentRequest,
+     asf=Depends(
+         get_application_service_factory
+     ),

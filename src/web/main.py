@@ -29,6 +29,8 @@ from src.web.routers.admin.users import router as admin_users_router
 from src.web.routers.admin.tickets import router as admin_tickets_router
 from src.web.routers.admin.roles import router as admin_roles_router
 
+from src.web.auth.storage import TokenStorageMemory
+from src.web.auth.storage_sqlite import TokenStorageSQLite
 from src.web.config import Settings
 
 
@@ -39,6 +41,13 @@ def create_app() -> FastAPI:
     app1 = FastAPI(title=settings.APP_NAME)
     # noinspection PyUnresolvedReferences
     app1.state.settings = settings
+    if settings.REFRESH_TOKEN_BACKEND == "sqlite":
+        path = settings.REFRESH_TOKEN_SQLITE_PATH
+        if path is None:
+            raise ValueError("Configure REFRESH_TOKEN_SQLITE_PATH")
+        app1.state.refresh_token_storage = TokenStorageSQLite(path)
+    else:
+        app1.state.refresh_token_storage = TokenStorageMemory()
 
     app1.include_router(auth_router)
     app1.include_router(admin_clients_router)

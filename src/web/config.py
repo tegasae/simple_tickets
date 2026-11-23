@@ -3,6 +3,8 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 from functools import lru_cache
+from pathlib import Path
+from typing import Literal
 
 
 #
@@ -18,6 +20,15 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "production"
     JWT_ISSUER:str="simple - tickets"
     JWT_AUDIENCE:str="simple - tickets - api"
+
+    REFRESH_TOKEN_BACKEND: Literal["memory", "sqlite"] = "memory"
+    REFRESH_TOKEN_SQLITE_PATH: Path | None = None
+
+    @model_validator(mode="after")
+    def require_refresh_storage_path(self):
+        if self.REFRESH_TOKEN_BACKEND == "sqlite" and self.REFRESH_TOKEN_SQLITE_PATH is None:
+            raise ValueError("Configure REFRESH_TOKEN_SQLITE_PATH for persistent refresh sessions")
+        return self
 
     @model_validator(mode="after")
     def require_configured_signing_key(self):

@@ -13,7 +13,7 @@ from src.web.auth.services.auth_service import (
     UserAuthService,
 )
 from src.web.auth.services.services import AuthManager, TokenService
-from src.web.auth.storage import TokenStorageMemory
+from src.web.auth.storage import TokenStorage
 from src.web.auth.tokens import AccessToken
 from src.web.config import Settings
 from src.web.dependencies.scheme import (
@@ -26,18 +26,8 @@ from src.web.dependencies.services import (
 )
 
 
-# ---------------------------------------------------------------------
-# Token storages
-# ---------------------------------------------------------------------
-#
-# Storage must not be created inside get_auth_manager_*(),
-# otherwise every request receives a new empty storage.
-#
-# Admin and User authentication are intentionally separate.
-#
-
-_admin_token_storage = TokenStorageMemory()
-_user_token_storage = TokenStorageMemory()
+def get_refresh_token_storage(request: Request) -> TokenStorage:
+    return request.app.state.refresh_token_storage
 
 
 # ---------------------------------------------------------------------
@@ -99,10 +89,11 @@ def require_current_user(
 def get_auth_manager_admin(
     uow: UnitOfWork = Depends(get_uow),
     settings: Settings = Depends(get_settings),
+    storage: TokenStorage = Depends(get_refresh_token_storage),
 ) -> AuthManager:
     return AuthManager(
         auth_service=AdminAuthService(uow=uow),
-        token_storage=_admin_token_storage,
+        token_storage=storage,
         subject_type="admin",
         settings=settings
 
@@ -112,10 +103,11 @@ def get_auth_manager_admin(
 def get_auth_manager_user(
     uow: UnitOfWork = Depends(get_uow),
     settings: Settings = Depends(get_settings),
+    storage: TokenStorage = Depends(get_refresh_token_storage),
 ) -> AuthManager:
     return AuthManager(
         auth_service=UserAuthService(uow=uow),
-        token_storage=_user_token_storage,
+        token_storage=storage,
         subject_type="user",
         settings = settings
     )
