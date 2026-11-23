@@ -21,9 +21,11 @@ class TicketUserGateway:
 
     SELECT_BY_USER_ID = BASE_SELECT + """
         WHERE user_id = :user_id
+        ORDER BY user_ticket_id
         """
     SELECT_BY_CLIENT_ID=BASE_SELECT+ """
-    WHERE client_id = :client_id"""
+    WHERE client_id = :client_id
+    ORDER BY user_ticket_id"""
 
     SELECT_BY_OPEN_USER_ID=BASE_SELECT +   """ 
     WHERE user_id=:user_id AND date_finished is NULL"""

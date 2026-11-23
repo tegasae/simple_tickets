@@ -1,12 +1,19 @@
 # src/web/models/tickets.py
 
 from datetime import datetime, UTC, timedelta
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, AwareDatetime
+from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, Field
 
 from src.domain.ticket_components import TicketUrgency
 from src.web.models.base_response import BaseResponse
+
+
+def _to_utc(value: datetime) -> datetime:
+    return value.astimezone(UTC)
+
+
+UtcDatetime = Annotated[AwareDatetime, AfterValidator(_to_utc)]
 
 
 # =====================================================================
@@ -26,27 +33,11 @@ class TicketCreateRequest(BaseModel):
     department_id: int = 0
 
     remote_work_recommended: bool = False
-    urgency: str = "normal"
+    urgency: TicketUrgency = TicketUrgency.NORMAL
 
-    planned_at: datetime | None = None
+    planned_at: UtcDatetime | None = None
 
     comment: str = ""
-
-    @field_validator("planned_at")
-    @classmethod
-    def normalize_planned_at(
-        cls,
-        value: datetime | None,
-    ) -> datetime | None:
-        if value is None:
-            return None
-
-        if value.tzinfo is None:
-            raise ValueError(
-                "planned_at must contain timezone"
-            )
-
-        return value.astimezone(UTC)
 
 class TicketCreateForUserRequest(TicketCreateRequest):
     """
@@ -129,7 +120,7 @@ class TicketUrgencyRequest(BaseModel):
 class TicketScheduleRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    planned_at: datetime
+    planned_at: UtcDatetime
 
 
 # =====================================================================
@@ -218,8 +209,8 @@ class TicketCompleteWorkRetroactivelyRequest(BaseModel):
 
     work_is_remote: bool = False
 
-    actual_started_at: AwareDatetime | None = None
-    actual_finished_at: AwareDatetime | None = None
+    actual_started_at: UtcDatetime | None = None
+    actual_finished_at: UtcDatetime | None = None
 
     duration: timedelta = Field(
             default_factory=timedelta

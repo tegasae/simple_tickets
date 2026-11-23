@@ -977,7 +977,8 @@ class TicketApplicationService:
             )
 
             self.uow.tickets.delete(ticket_id=ticket_dto.ticket_id)
-            self.uow.user_tickets.delete(ticket_id=ticket_user.ticket_user_id)
+            if ticket_user is not None:
+                self.uow.user_tickets.delete(ticket_id=ticket_user.ticket_user_id)
             self.uow.commit()
 
     # ==================================================================
@@ -1192,14 +1193,9 @@ class TicketApplicationService:
             ticket
         )
 
+        response = TicketAssembler.to_dto(saved_ticket)
         self.uow.commit()
-
-        #if saved_ticket is None:
-        #    saved_ticket = ticket
-
-        return TicketAssembler.to_dto(
-            saved_ticket
-        )
+        return response
 
     @staticmethod
     def _to_dto_list(
