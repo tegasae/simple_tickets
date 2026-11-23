@@ -1,0 +1,29 @@
+diff --git a/src/application/services/user_service.py b/src/application/services/user_service.py
+--- a/src/application/services/user_service.py
++++ b/src/application/services/user_service.py
+@@ -257,10 +257,8 @@
+             client = self.uow.clients.get(
+                 client_id=user.client_id,
+             )
+-        UserService.enable_account(user=user, client=client)
+-        return self._save_and_to_dto(
+-            user
+-        )
++            UserService.enable_account(user=user, client=client)
++            return self._save_and_to_dto(user)
+ 
+     def disable_account(self,*,
+         user_dto: UserDTO
+@@ -276,10 +274,8 @@
+             )
+ 
+ 
+-        UserService.disable_account(user=user)
+-        return self._save_and_to_dto(
+-            user
+-        )
++            UserService.disable_account(user=user)
++            return self._save_and_to_dto(user)
+ 
+     def change_password(
+         self,

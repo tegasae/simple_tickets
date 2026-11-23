@@ -257,10 +257,8 @@ class UserApplicationService:
             client = self.uow.clients.get(
                 client_id=user.client_id,
             )
-        UserService.enable_account(user=user, client=client)
-        return self._save_and_to_dto(
-            user
-        )
+            UserService.enable_account(user=user, client=client)
+            return self._save_and_to_dto(user)
 
     def disable_account(self,*,
         user_dto: UserDTO
@@ -276,10 +274,8 @@ class UserApplicationService:
             )
 
 
-        UserService.disable_account(user=user)
-        return self._save_and_to_dto(
-            user
-        )
+            UserService.disable_account(user=user)
+            return self._save_and_to_dto(user)
 
     def change_password(
         self,
