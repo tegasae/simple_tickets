@@ -280,15 +280,17 @@ class TicketUserApplicationService:
                 ticket_user_dto.ticket_user_id,
             )
 
-            actor = self._require_operation_access(
+            self._require_operation_access(
                 actor_user_id=ticket_user_dto.actor_user_id,
                 ticket_user=ticket_user,
             )
+            contact_user_id = ticket_user_dto.contact_user_id
+            if contact_user_id < 0:
+                raise DomainOperationError("contact_user_id cannot be negative")
 
-            contact_user=User.create_empty()
-            client=Client.create_empty()
-
-
+            client = self.uow.clients.get(ticket_user.client_id)
+            contact_user = self.uow.users.get(contact_user_id or ticket_user.user_id)
+            self.uow.users.touch(contact_user)
 
             ticket = self._get_linked_ticket(
                 ticket_user=ticket_user,

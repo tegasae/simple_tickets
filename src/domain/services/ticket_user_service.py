@@ -52,15 +52,19 @@ class TicketUserService:
         related internal Ticket after TicketUser receives its identifier.
         """
         if client.is_empty():
-            DomainOperationError("The client can't be empty when the Ticket is created")
+            raise DomainOperationError("The client can't be empty when the Ticket is created")
         client.ensure_enabled()
         user.can_do_operation()
         contact_user.can_do_operation()
+        if user.client_id != client.client_id or (
+            not contact_user.is_empty() and contact_user.client_id != client.client_id
+        ):
+            raise DomainOperationError("TicketUser and its users must belong to the same Client")
         return TicketUser.create(
             client_id=client.client_id,
             user_id=user.employee_id,
             text_of_ticket=text_of_ticket,
-            contact_user_id=user.employee_id,
+            contact_user_id=contact_user.employee_id,
             description=description,
             comment=comment,
         )
@@ -117,23 +121,19 @@ class TicketUserService:
         Structural consistency is required before modification. Editing
         contact data does not itself require a workflow transition.
         """
-        contact_user.can_do_operation()
-        if client.is_empty():
-            DomainOperationError(f"The client can't be empty in ticket user {ticket_user.ticket_user_id}")
+        if client.is_empty() or client.client_id != ticket_user.client_id:
+            raise DomainOperationError("Client does not match TicketUser")
         client.ensure_enabled()
         contact_user.can_do_operation()
-        if client.client_id!=contact_user.client_id:
-            DomainOperationError(f"The ticket user {ticket_user.ticket_user_id} has the cliebt {ticket_user.client_id}  "
-                                 f"and the user has the client {contact_user.client_id}")
+        if contact_user.client_id != client.client_id:
+            raise DomainOperationError("Contact User does not belong to TicketUser Client")
         self._require_linked_ticket(
             ticket_user=ticket_user,
             ticket=ticket,
         )
+        ticket.change_contact_user(contact_user_id=contact_user.employee_id)
         ticket_user.change_contact_user(contact_user_id=contact_user.employee_id)
-        self._ticket_sync_service.sync_from_ticket(
-            ticket,
-            ticket_user
-        )
+        self._ticket_sync_service.sync_from_ticket(ticket, ticket_user)
 
     # ==================================================================
     # User workflow

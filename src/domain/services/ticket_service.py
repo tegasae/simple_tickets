@@ -166,9 +166,10 @@ class TicketService:
         ticket: Ticket,
         ticket_user: TicketUser | None,
     ) -> None:
-        if user.is_empty():
-            raise DomainOperationError(f"This ticket can't have empty user because Ticket {ticket} has TicketUser {ticket_user}")
-        user.can_do_operation()
+        if not user.is_empty():
+            user.can_do_operation()
+            if user.client_id != ticket.client_id:
+                raise DomainOperationError("Contact User does not belong to Ticket Client")
 
         ticket.change_contact_user(contact_user_id=user.employee_id)
         self._ticket_sync_service.sync_from_ticket(ticket, ticket_user)
@@ -398,4 +399,6 @@ class TicketService:
         client.ensure_enabled()
         user.can_do_operation()
         contact_user.can_do_operation()
+        if not contact_user.is_empty() and contact_user.client_id != client.client_id:
+            raise DomainOperationError("Contact User does not belong to Ticket Client")
         department.ensure_enabled()
