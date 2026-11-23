@@ -242,6 +242,16 @@ class TicketService:
         executor: Admin,
         comment: str = "",
     ) -> None:
+        self.ensure_can_assign(ticket=ticket, executor=executor)
+        ticket.assign(
+            actor_employee_id=actor_employee_id,
+            executor_id=executor.employee_id,
+            comment=comment,
+        )
+        self._ticket_sync_service.sync_from_ticket(ticket, ticket_user)
+
+    @staticmethod
+    def ensure_can_assign(*, ticket: Ticket, executor: Admin) -> None:
         if not isinstance(executor, Admin):
             raise DomainOperationError("executor must be an Admin")
         if type(executor.employee_id) is not int or executor.employee_id <= 0:
@@ -256,12 +266,6 @@ class TicketService:
                 f"Ticket has department {ticket.department_id}; "
                 f"executor has department {executor.department_id}"
             )
-        ticket.assign(
-            actor_employee_id=actor_employee_id,
-            executor_id=executor.employee_id,
-            comment=comment,
-        )
-        self._ticket_sync_service.sync_from_ticket(ticket, ticket_user)
 
     # ------------------------------------------------------------------
     # Work

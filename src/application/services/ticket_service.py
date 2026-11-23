@@ -18,6 +18,7 @@ from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.ticket_service import TicketService
 from src.domain.services.ticket_sync_service import TicketSyncService
 from src.domain.services.ticket_user_service import TicketUserService
+from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.ticket import Ticket
 from src.domain.ticket_components import TicketUrgency
 from src.domain.ticket_user import TicketUser
@@ -703,6 +704,9 @@ class TicketApplicationService:
             ticket_user = self._load_linked_ticket_user(
                 ticket=ticket,
             )
+
+            if ticket.current_status() == TicketStatus.ACCEPTED:
+                self.ticket_service.ensure_can_assign(ticket=ticket, executor=actor)
 
             self.ticket_service.start_remote_work(
                     ticket=ticket,
