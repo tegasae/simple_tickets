@@ -1,0 +1,30 @@
+diff --git a/src/web/models/tickets.py b/src/web/models/tickets.py
+--- a/src/web/models/tickets.py
++++ b/src/web/models/tickets.py
+@@ -182,8 +182,8 @@
+     """
+     Finish current work.
+ 
+-    Application layer may additionally perform EXECUTED when actor
+-    has TICKET_EXECUTED.
++    Work moves to READY_FOR_REVIEW. A separate execute request
++    performs administrative finalization.
+     """
+ 
+     pass
+diff --git a/src/application/services/ticket_service.py b/src/application/services/ticket_service.py
+--- a/src/application/services/ticket_service.py
++++ b/src/application/services/ticket_service.py
+@@ -801,11 +801,7 @@
+             AT_WORK
+                 -> READY_FOR_REVIEW
+ 
+-        Actor with TICKET_EXECUTED:
+-
+-            AT_WORK
+-                -> READY_FOR_REVIEW
+-                -> EXECUTED
++        Completing review is a separate operation.
+         """
+ 
+         with self.uow:

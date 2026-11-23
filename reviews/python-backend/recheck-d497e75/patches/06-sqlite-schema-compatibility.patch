@@ -1,0 +1,45 @@
+diff --git a/db/schema.sql b/db/schema.sql
+--- a/db/schema.sql
++++ b/db/schema.sql
+@@ -132,7 +132,7 @@
+     date_created TEXT NOT NULL,
+     remote_work_recommended INTEGER NOT NULL DEFAULT 0 CHECK (remote_work_recommended IN (0, 1)),
+ 	planned_at TEXT,
+-    urgency_level INTEGER NOT NULL DEFAULT 0,
++    urgency_level TEXT NOT NULL DEFAULT 'normal',
+ 	current_executor_id INTEGER DEFAULT 0,
+ 	date_finished TEXT NULL,
+     version INTEGER DEFAULT 0,
+diff --git a/src/adapters/repositories/mappers/ticket_mapper.py b/src/adapters/repositories/mappers/ticket_mapper.py
+--- a/src/adapters/repositories/mappers/ticket_mapper.py
++++ b/src/adapters/repositories/mappers/ticket_mapper.py
+@@ -72,7 +72,10 @@
+             description=row["description"] or "",
+             date_created=date_created,
+             remote_work_recommended=bool(row["remote_work_recommended"]),
+-            urgency=TicketUrgency(row["urgency_level"]),
++            urgency=(
++                TicketUrgency.NORMAL if row["urgency_level"] in (0, "0")
++                else TicketUrgency(row["urgency_level"])
++            ),
+             version=row["version"] or 0,
+             planned_at=datetime_from_db(row["planned_at"]),
+             statuses=statuses,
+diff --git a/src/adapters/repositories/gateways/ticket_gateway.py b/src/adapters/repositories/gateways/ticket_gateway.py
+--- a/src/adapters/repositories/gateways/ticket_gateway.py
++++ b/src/adapters/repositories/gateways/ticket_gateway.py
+@@ -159,14 +159,6 @@
+     WHERE user_ticket_id = :user_ticket_id
+     """
+ 
+-    #
+-    EXISTS_BY_ADMIN_ID = """
+-    SELECT 1 AS one
+-    FROM tickets
+-    WHERE admin_id = :admin_id
+-    LIMIT 1
+-    """
+-
+     EXISTS_BY_EXECUTOR_ID = """
+     SELECT 1 AS one
+     FROM tickets
