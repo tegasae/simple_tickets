@@ -1,0 +1,41 @@
+diff --git a/src/web/config.py b/src/web/config.py
+--- a/src/web/config.py
++++ b/src/web/config.py
+@@ -1,3 +1,4 @@
+ 
++from pydantic import model_validator
+ from pydantic_settings import BaseSettings
+ 
+@@ -19,7 +20,18 @@
+     JWT_AUDIENCE:str="simple - tickets - api"
+ 
++    @model_validator(mode="after")
++    def require_configured_signing_key(self):
++        if (
++            "SECRET_KEY" not in self.model_fields_set
++            or len(self.SECRET_KEY.encode()) < 32
++            or self.SECRET_KEY == Settings.model_fields["SECRET_KEY"].default
++        ):
++            raise ValueError("Configure SECRET_KEY with a new, random key of at least 32 bytes")
++        return self
++
+     class Config:
+         env_file = ".env"
+         case_sensitive = False
++        hide_input_in_errors = True
+ 
+ 
+@@ -30,7 +42,13 @@
+     ENVIRONMENT: str = "testing"
+ 
++    @model_validator(mode="after")
++    def require_configured_signing_key(self):
++        # Explicit test configuration can use the built-in test fixture key.
++        return self
++
+     class Config:
+         env_file = ".env.test"
+         case_sensitive = False
++        hide_input_in_errors = True
+ 
+ 

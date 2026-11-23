@@ -1,0 +1,65 @@
+diff --git a/src/web/dependencies/auth.py b/src/web/dependencies/auth.py
+--- a/src/web/dependencies/auth.py
++++ b/src/web/dependencies/auth.py
+@@ -3,7 +3,11 @@
+ 
+ from fastapi import Depends, HTTPException, Request, status
+ 
++from src.domain.exceptions import DomainError
++from src.domain.policies.admin import AdminPolicy
++from src.domain.policies.user import UserPolicy
+ from src.domain.uow.unit_of_work import UnitOfWork
++from src.web.auth.exceptions import InvalidCredentialsError
+ from src.web.auth.services.auth_service import (
+     AdminAuthService,
+     UserAuthService,
+@@ -130,30 +134,43 @@
+     request: Request,
+     token: str = Depends(admin_oauth2_scheme),
+     settings: Settings = Depends(get_settings),
++    uow: UnitOfWork = Depends(get_uow),
+ ) -> None:
+     access_token = TokenService.verify_access_token(
+         token,
+         settings=settings,
+     )
+ 
+-    request.state.employee = EmployeeID(
+-        employee_id=access_token.get_admin_id(),
+-    )
++    employee_id = access_token.get_admin_id()
++    with uow:
++        try:
++            admin = uow.admins.get(admin_id=employee_id)
++            AdminPolicy.ensure_login_is_still_valid(admin)
++        except DomainError as exc:
++            raise InvalidCredentialsError() from exc
++    request.state.employee = EmployeeID(employee_id=employee_id)
+ 
+ 
+ def get_current_user(
+     request: Request,
+     token: str = Depends(user_oauth2_scheme),
+     settings: Settings = Depends(get_settings),
++    uow: UnitOfWork = Depends(get_uow),
+ ) -> None:
+     access_token = TokenService.verify_access_token(
+         token,
+         settings=settings,
+     )
+ 
+-    request.state.employee = EmployeeID(
+-        employee_id=access_token.get_user_id(),
+-    )
++    employee_id = access_token.get_user_id()
++    with uow:
++        try:
++            user = uow.users.get(user_id=employee_id)
++            client = uow.clients.get(client_id=user.client_id)
++            UserPolicy.ensure_login_is_still_valid(user=user, client=client)
++        except DomainError as exc:
++            raise InvalidCredentialsError() from exc
++    request.state.employee = EmployeeID(employee_id=employee_id)
+ 
+ 
+ def get_employee_id_from_request(
