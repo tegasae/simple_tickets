@@ -19,7 +19,7 @@ from src.web.models.tickets import (
     TicketAssignRequest,
     TicketCancelRequest,
     TicketChangeDepartmentRequest,
-    TicketCommentRequest,
+    TicketRequiredCommentRequest,
     TicketCompleteWorkRetroactivelyRequest,
     TicketContactUserRequest,
     TicketCreateRequest,
@@ -378,7 +378,7 @@ def get_ticket(
 )
 def add_comment(
     ticket_id: int,
-    request: TicketCommentRequest,
+    request: TicketRequiredCommentRequest,
     asf=Depends(
         get_application_service_factory
     ),

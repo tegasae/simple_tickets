@@ -390,7 +390,7 @@ class UserService:
                 ticket,
                 ticket_user,
             )
-
+            changed_ticket_users.append(ticket_user)
 
         return UserDisableResult(
             tickets=tuple(changed_tickets),

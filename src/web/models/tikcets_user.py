@@ -5,6 +5,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src.domain.ticket_components import TicketUrgency
 from src.web.models.base_response import BaseResponse
+from src.web.models.ticket_input import (
+    RequiredTicketCommentText, TicketCommentText, TicketText,
+)
 
 
 class UserTicketRequest(BaseModel):
@@ -14,9 +17,7 @@ class UserTicketRequest(BaseModel):
 
 
 class UserTicketCreateRequest(UserTicketRequest):
-    text_of_ticket: str = Field(
-        min_length=1,
-    )
+    text_of_ticket: TicketText
 
     contact_user_id: int = Field(
         default=0,
@@ -30,17 +31,15 @@ class UserTicketCreateRequest(UserTicketRequest):
 
     urgency: TicketUrgency = TicketUrgency.NORMAL
 
-    comment: str = ""
+    comment: TicketCommentText = ""
 
 
 class UserTicketActionRequest(UserTicketRequest):
-    comment: str = ""
+    comment: TicketCommentText = ""
 
 
 class UserTicketCommentRequest(UserTicketRequest):
-    comment: str = Field(
-        min_length=1,
-    )
+    comment: RequiredTicketCommentText
 
 
 class UserTicketDescriptionRequest(UserTicketRequest):

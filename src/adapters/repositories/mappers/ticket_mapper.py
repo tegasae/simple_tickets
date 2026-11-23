@@ -72,7 +72,10 @@ class TicketMapper:
             description=row["description"] or "",
             date_created=date_created,
             remote_work_recommended=bool(row["remote_work_recommended"]),
-            urgency=TicketUrgency(row["urgency_level"]),
+            urgency=(
+                TicketUrgency.NORMAL if row["urgency_level"] in (0, "0")
+                else TicketUrgency(row["urgency_level"])
+            ),
             version=row["version"] or 0,
             planned_at=datetime_from_db(row["planned_at"]),
             statuses=statuses,

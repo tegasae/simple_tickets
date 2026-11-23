@@ -801,11 +801,7 @@ class TicketApplicationService:
             AT_WORK
                 -> READY_FOR_REVIEW
 
-        Actor with TICKET_EXECUTED:
-
-            AT_WORK
-                -> READY_FOR_REVIEW
-                -> EXECUTED
+        Completing review is a separate operation.
         """
 
         with self.uow:

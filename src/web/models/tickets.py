@@ -7,6 +7,9 @@ from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, Field
 
 from src.domain.ticket_components import TicketUrgency
 from src.web.models.base_response import BaseResponse
+from src.web.models.ticket_input import (
+    RequiredTicketCommentText, TicketCommentText, TicketText,
+)
 
 
 def _to_utc(value: datetime) -> datetime:
@@ -25,7 +28,7 @@ class TicketCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     client_id: int
-    text_of_ticket: str
+    text_of_ticket: TicketText
     description: str = ""
 
     user_id: int = 0
@@ -37,7 +40,7 @@ class TicketCreateRequest(BaseModel):
 
     planned_at: UtcDatetime | None = None
 
-    comment: str = ""
+    comment: TicketCommentText = ""
 
 class TicketCreateForUserRequest(TicketCreateRequest):
     """
@@ -59,7 +62,7 @@ class TicketCreateForUserRequest(TicketCreateRequest):
 class TicketCommentBaseRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    comment: str = ""
+    comment: TicketCommentText = ""
 
 
 class TicketCommentRequest(TicketCommentBaseRequest):
@@ -67,7 +70,7 @@ class TicketCommentRequest(TicketCommentBaseRequest):
 
 
 class TicketRequiredCommentRequest(TicketCommentBaseRequest):
-    comment: str = Field(min_length=1)
+    comment: RequiredTicketCommentText
 
 
 class TicketAcceptRequest(TicketCommentRequest):
@@ -134,7 +137,7 @@ class TicketAssignRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     executor_id: int = Field(gt=0)
-    comment: str = ""
+    comment: TicketCommentText = ""
 
 
 # =====================================================================
@@ -152,7 +155,7 @@ class TicketStartWorkRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     work_is_remote: bool = False
-    comment: str = ""
+    comment: TicketCommentText = ""
 
 
 class TicketStartRemoteWorkRequest(BaseModel):
@@ -164,7 +167,7 @@ class TicketStartRemoteWorkRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    comment: str = ""
+    comment: TicketCommentText = ""
 
 
 class TicketPauseWorkRequest(TicketCommentRequest):
@@ -175,15 +178,15 @@ class TicketResumeWorkRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     work_is_remote: bool = False
-    comment: str = ""
+    comment: TicketCommentText = ""
 
 
 class TicketFinishWorkRequest(TicketCommentRequest):
     """
     Finish current work.
 
-    Application layer may additionally perform EXECUTED when actor
-    has TICKET_EXECUTED.
+    Work moves to READY_FOR_REVIEW. A separate execute request
+    performs administrative finalization.
     """
 
     pass
@@ -216,7 +219,7 @@ class TicketCompleteWorkRetroactivelyRequest(BaseModel):
             default_factory=timedelta
         )
 
-    comment: str = ""
+    comment: TicketCommentText = ""
 
 # =====================================================================
 # Finalization

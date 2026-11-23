@@ -111,6 +111,7 @@ TicketStatus.CREATED_FROM_REQUEST_USER: {
     },
 
     TicketStatus.READY_FOR_REVIEW: {
+        TicketStatus.SUSPENDED: DEFAULT_RULE,
         TicketStatus.ASSIGNED: DEFAULT_RULE,
         TicketStatus.CONFIRMED_BY_USER: DEFAULT_RULE,
         TicketStatus.EXECUTED: DEFAULT_RULE,

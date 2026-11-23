@@ -132,7 +132,7 @@ CREATE TABLE tickets (
     date_created TEXT NOT NULL,
     remote_work_recommended INTEGER NOT NULL DEFAULT 0 CHECK (remote_work_recommended IN (0, 1)),
 	planned_at TEXT,
-    urgency_level INTEGER NOT NULL DEFAULT 0,
+    urgency_level TEXT NOT NULL DEFAULT 'normal',
 	current_executor_id INTEGER DEFAULT 0,
 	date_finished TEXT NULL,
     version INTEGER DEFAULT 0,

@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from src.domain.client import Client
 from src.domain.employee import User
 from src.domain.exceptions import DomainOperationError
-
-
+from src.domain.services.ticket_sync_service import TicketSyncService
+from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
 
@@ -222,6 +222,10 @@ class ClientService:
 
         changed_tickets: list[Ticket] = []
         changed_ticket_users: list[TicketUser] = []
+        remaining_ticket_users = {
+            item.ticket_user_id: item for item in open_ticket_users
+        }
+        sync_service = TicketSyncService()
 
         for ticket in open_tickets:
             if ticket.client_id != client.client_id:
@@ -230,21 +234,28 @@ class ClientService:
                     f"to client {client.client_id}"
                 )
 
-            ticket.suspend(
-                actor_employee_id=actor_employee_id
-            )
+            ticket_user = remaining_ticket_users.pop(ticket.user_ticket_id, None)
+            if ticket.is_terminal() or ticket.current_status() == TicketStatus.AT_WORK:
+                continue
 
+            ticket.suspend(actor_employee_id=actor_employee_id)
             changed_tickets.append(ticket)
+            if ticket.user_ticket_id:
+                if ticket_user is None:
+                    raise DomainOperationError("Open Ticket requires an open linked TicketUser")
+                sync_service.sync_from_ticket(ticket, ticket_user)
+                changed_ticket_users.append(ticket_user)
 
-        for ticket_user in open_ticket_users:
+        for ticket_user in remaining_ticket_users.values():
             if ticket_user.client_id != client.client_id:
                 raise DomainOperationError(
                     f"TicketUser {ticket_user.ticket_user_id} does not belong "
                     f"to client {client.client_id}"
                 )
 
-            ticket_user.suspend(actor_employee_id=actor_employee_id)
-            changed_ticket_users.append(ticket_user)
+            if not ticket_user.is_terminal():
+                ticket_user.suspend(actor_employee_id=actor_employee_id)
+                changed_ticket_users.append(ticket_user)
 
 
         return ClientDisableResult(

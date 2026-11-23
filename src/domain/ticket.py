@@ -410,7 +410,7 @@ class Ticket:
 
         if rule is None:
             raise DomainOperationError(
-                f"Ticket {self} status transition is not allowed: "
+                "Ticket status transition is not allowed: "
                 f"{current_record.status.value} -> {record.status.value}"
             )
 

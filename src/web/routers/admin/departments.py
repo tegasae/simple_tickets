@@ -1,3 +1,7 @@
+from typing import Annotated
+
+from fastapi import Path
+
 # src/web/routers/admin/departments.py
 
 from fastapi import APIRouter, Depends, status
@@ -84,7 +88,7 @@ def get_all_departments(
     response_model=DepartmentResponse,
 )
 def get_department(
-    department_id: int,
+    department_id: Annotated[int, Path(gt=0)],
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 )->DepartmentResponse:
@@ -105,7 +109,7 @@ def get_department(
     response_model=DepartmentResponse,
 )
 def update_department(
-    department_id: int,
+    department_id: Annotated[int, Path(gt=0)],
     request: DepartmentUpdateRequest,
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
@@ -130,7 +134,7 @@ def update_department(
     response_model=DepartmentResponse,
 )
 def enable_department(
-    department_id: int,
+    department_id: Annotated[int, Path(gt=0)],
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 )->DepartmentResponse:
@@ -151,7 +155,7 @@ def enable_department(
     response_model=DepartmentResponse,
 )
 def disable_department(
-    department_id: int,
+    department_id: Annotated[int, Path(gt=0)],
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 )->DepartmentResponse:
@@ -173,7 +177,7 @@ def disable_department(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 def delete_department(
-    department_id: int,
+    department_id: Annotated[int, Path(gt=0)],
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):

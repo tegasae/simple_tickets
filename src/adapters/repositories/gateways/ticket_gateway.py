@@ -159,14 +159,6 @@ class TicketGateway:
     WHERE user_ticket_id = :user_ticket_id
     """
 
-    #
-    EXISTS_BY_ADMIN_ID = """
-    SELECT 1 AS one
-    FROM tickets
-    WHERE admin_id = :admin_id
-    LIMIT 1
-    """
-
     EXISTS_BY_EXECUTOR_ID = """
     SELECT 1 AS one
     FROM tickets
