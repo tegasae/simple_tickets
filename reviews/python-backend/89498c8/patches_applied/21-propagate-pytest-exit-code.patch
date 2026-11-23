@@ -1,0 +1,29 @@
+diff --git a/main.py b/main.py
+--- a/main.py
++++ b/main.py
+@@ -1,10 +1,4 @@
+-import pytest
+-#pytest -v -rxX
+-pytest.main(["--cov","--cov-report=term-missing","-s" ])
+-# main.py
+-exit()
+ import sys
+-import pytest
+ 
+ 
+ def main() -> int:
+@@ -18,12 +12,9 @@
+         python main.py tests/repositories -v
+     """
+ 
+-    args = sys.argv[1:]
++    import pytest
+ 
+-    if not args:
+-        args = ["tests", "-v"]
+-
+-    return pytest.main(args)
++    return pytest.main(sys.argv[1:])
+ 
+ 
+ if __name__ == "__main__":
