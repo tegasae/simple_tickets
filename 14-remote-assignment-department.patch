@@ -1,0 +1,54 @@
+diff --git a/src/application/services/ticket_service.py b/src/application/services/ticket_service.py
+--- a/src/application/services/ticket_service.py
++++ b/src/application/services/ticket_service.py
+@@ -18,6 +18,7 @@
+ from src.domain.services.ticket_service import TicketService
+ from src.domain.services.ticket_sync_service import TicketSyncService
+ from src.domain.services.ticket_user_service import TicketUserService
++from src.domain.statuses.ticket_status import TicketStatus
+ from src.domain.ticket import Ticket
+ from src.domain.ticket_components import TicketUrgency
+ from src.domain.ticket_user import TicketUser
+@@ -704,6 +705,9 @@
+                 ticket=ticket,
+             )
+ 
++            if ticket.current_status() == TicketStatus.ACCEPTED:
++                self.ticket_service.ensure_can_assign(ticket=ticket, executor=actor)
++
+             self.ticket_service.start_remote_work(
+                     ticket=ticket,
+                     ticket_user=ticket_user,
+diff --git a/src/domain/services/ticket_service.py b/src/domain/services/ticket_service.py
+--- a/src/domain/services/ticket_service.py
++++ b/src/domain/services/ticket_service.py
+@@ -242,6 +242,16 @@
+         executor: Admin,
+         comment: str = "",
+     ) -> None:
++        self.ensure_can_assign(ticket=ticket, executor=executor)
++        ticket.assign(
++            actor_employee_id=actor_employee_id,
++            executor_id=executor.employee_id,
++            comment=comment,
++        )
++        self._ticket_sync_service.sync_from_ticket(ticket, ticket_user)
++
++    @staticmethod
++    def ensure_can_assign(*, ticket: Ticket, executor: Admin) -> None:
+         if not isinstance(executor, Admin):
+             raise DomainOperationError("executor must be an Admin")
+         if type(executor.employee_id) is not int or executor.employee_id <= 0:
+@@ -256,12 +266,6 @@
+                 f"Ticket has department {ticket.department_id}; "
+                 f"executor has department {executor.department_id}"
+             )
+-        ticket.assign(
+-            actor_employee_id=actor_employee_id,
+-            executor_id=executor.employee_id,
+-            comment=comment,
+-        )
+-        self._ticket_sync_service.sync_from_ticket(ticket, ticket_user)
+ 
+     # ------------------------------------------------------------------
+     # Work
