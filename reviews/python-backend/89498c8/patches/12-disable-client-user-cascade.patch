@@ -1,0 +1,115 @@
+diff --git a/src/domain/services/client_service.py b/src/domain/services/client_service.py
+--- a/src/domain/services/client_service.py
++++ b/src/domain/services/client_service.py
+@@ -5,6 +5,11 @@
+ from src.domain.client import Client
+ from src.domain.employee import User
+ from src.domain.exceptions import DomainOperationError
++from src.domain.services.ticket_sync_service import TicketSyncService
++from src.domain.statuses.rules.ticket_status_transition import TICKET_TRANSITIONS
++from src.domain.statuses.ticket_status import TicketStatus
++from src.domain.statuses.ticket_user_status import TicketUserStatus
++from src.domain.statuses.ticket_user_status_transitions import TICKET_USER_TRANSITIONS
+ 
+ 
+ from src.domain.ticket import Ticket
+@@ -70,8 +75,11 @@
+        SUSPENDED:
+            no change;
+ 
+-       any other non-terminal status:
+-           -> SUSPENDED.
++       other statuses with an allowed transition to SUSPENDED:
++           -> SUSPENDED (including the linked TicketUser).
++
++       a status without that transition, such as READY_FOR_REVIEW:
++           no change.
+ 
+     4. If suspended Ticket is linked to TicketUser,
+        corresponding TicketUser is synchronized through
+@@ -222,6 +230,10 @@
+ 
+         changed_tickets: list[Ticket] = []
+         changed_ticket_users: list[TicketUser] = []
++        remaining_ticket_users = {
++            ticket_user.ticket_user_id: ticket_user for ticket_user in open_ticket_users
++        }
++        sync_service = TicketSyncService()
+ 
+         for ticket in open_tickets:
+             if ticket.client_id != client.client_id:
+@@ -230,21 +242,28 @@
+                     f"to client {client.client_id}"
+                 )
+ 
+-            ticket.suspend(
+-                actor_employee_id=actor_employee_id
+-            )
+-
++            linked_user_ticket = remaining_ticket_users.pop(ticket.user_ticket_id, None)
++            if TicketStatus.SUSPENDED not in TICKET_TRANSITIONS[ticket.current_status()]:
++                continue
++
++            ticket.suspend(actor_employee_id=actor_employee_id)
+             changed_tickets.append(ticket)
+-
+-        for ticket_user in open_ticket_users:
++            if ticket.user_ticket_id:
++                if linked_user_ticket is None:
++                    raise DomainOperationError("Open Ticket requires its linked TicketUser")
++                sync_service.sync_from_ticket(ticket, linked_user_ticket)
++                changed_ticket_users.append(linked_user_ticket)
++
++        for ticket_user in remaining_ticket_users.values():
+             if ticket_user.client_id != client.client_id:
+                 raise DomainOperationError(
+                     f"TicketUser {ticket_user.ticket_user_id} does not belong "
+                     f"to client {client.client_id}"
+                 )
+ 
+-            ticket_user.suspend(actor_employee_id=actor_employee_id)
+-            changed_ticket_users.append(ticket_user)
++            if TicketUserStatus.SUSPENDED in TICKET_USER_TRANSITIONS[ticket_user.current_status()]:
++                ticket_user.suspend(actor_employee_id=actor_employee_id)
++                changed_ticket_users.append(ticket_user)
+ 
+ 
+         return ClientDisableResult(
+diff --git a/src/domain/services/user_service.py b/src/domain/services/user_service.py
+--- a/src/domain/services/user_service.py
++++ b/src/domain/services/user_service.py
+@@ -6,6 +6,7 @@
+ from src.domain.employee import User
+ from src.domain.exceptions import DomainOperationError
+ from src.domain.services.ticket_sync_service import TicketSyncService
++from src.domain.statuses.rules.ticket_status_transition import TICKET_TRANSITIONS
+ from src.domain.statuses.ticket_status import TicketStatus
+ from src.domain.ticket import Ticket
+ from src.domain.ticket_user import TicketUser
+@@ -390,7 +391,7 @@
+                 ticket,
+                 ticket_user,
+             )
+-
++            changed_ticket_users.append(ticket_user)
+ 
+         return UserDisableResult(
+             tickets=tuple(changed_tickets),
+@@ -436,16 +437,7 @@
+     def _should_suspend(
+         ticket: Ticket,
+     ) -> bool:
+-        if ticket.is_terminal():
+-            return False
+-
+-        current_status = ticket.current_status()
+-
+-        if current_status == TicketStatus.AT_WORK:
+-            return False
+-
+-
+-        return True
++        return TicketStatus.SUSPENDED in TICKET_TRANSITIONS[ticket.current_status()]
+ 
+     # ==================================================================
+     # Context validation

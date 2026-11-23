@@ -1,0 +1,54 @@
+diff --git a/src/application/services/ticket_service.py b/src/application/services/ticket_service.py
+--- a/src/application/services/ticket_service.py
++++ b/src/application/services/ticket_service.py
+@@ -1192,14 +1192,9 @@
+             ticket
+         )
+ 
++        response = TicketAssembler.to_dto(saved_ticket)
+         self.uow.commit()
+-
+-        #if saved_ticket is None:
+-        #    saved_ticket = ticket
+-
+-        return TicketAssembler.to_dto(
+-            saved_ticket
+-        )
++        return response
+ 
+     @staticmethod
+     def _to_dto_list(
+diff --git a/src/application/services/ticket_user_service.py b/src/application/services/ticket_user_service.py
+--- a/src/application/services/ticket_user_service.py
++++ b/src/application/services/ticket_user_service.py
+@@ -899,13 +899,9 @@
+             ticket_user
+         )
+ 
++        response = TicketUserAssembler.to_dto(saved_ticket_user)
+         self.uow.commit()
+-
+-
+-
+-        return TicketUserAssembler.to_dto(
+-            saved_ticket_user
+-        )
++        return response
+ 
+     def _save_pair(
+         self,
+@@ -921,12 +917,9 @@
+             ticket
+         )
+ 
++        response = TicketUserAssembler.to_dto(saved_ticket_user)
+         self.uow.commit()
+-
+-
+-        return TicketUserAssembler.to_dto(
+-            saved_ticket_user
+-        )
++        return response
+ 
+     @staticmethod
+     def _to_dto_list(

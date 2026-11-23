@@ -1,0 +1,140 @@
+diff --git a/src/application/services/ticket_user_service.py b/src/application/services/ticket_user_service.py
+--- a/src/application/services/ticket_user_service.py
++++ b/src/application/services/ticket_user_service.py
+@@ -494,20 +494,11 @@
+                 client_id=target_user.client_id,
+             )
+ 
+-            ticket_users = self.uow.user_tickets.get_all()
+-
+-            return self._to_dto_list(
+-                [
+-                    ticket_user
+-                    for ticket_user in ticket_users
+-                    if (
+-                        ticket_user.client_id
+-                        == target_user.client_id
+-                        and ticket_user.user_id
+-                        == target_user.employee_id
+-                    )
+-                ]
+-            )
++            ticket_users = self.uow.user_tickets.get_by_user_id(target_user.employee_id)
++            return self._to_dto_list([
++                ticket_user for ticket_user in ticket_users
++                if ticket_user.client_id == target_user.client_id
++            ])
+ 
+     def get_all(
+         self,
+@@ -537,15 +528,7 @@
+                     "of another Client"
+                 )
+ 
+-            ticket_users = self.uow.user_tickets.get_all()
+-
+-            return self._to_dto_list(
+-                [
+-                    ticket_user
+-                    for ticket_user in ticket_users
+-                    if ticket_user.client_id == actor.client_id
+-                ]
+-            )
++            return self._to_dto_list(self.uow.user_tickets.get_by_client_id(actor.client_id))
+ 
+     def get_open(
+         self,
+@@ -576,31 +559,15 @@
+                 permission=UserPermission.TICKET_VIEW_ALL,
+             )
+ 
+-            ticket_users = self.uow.user_tickets.get_all()
+-
+             if view_all:
+-                ticket_users = [
+-                    ticket_user
+-                    for ticket_user in ticket_users
+-                    if (
+-                        ticket_user.client_id == actor.client_id
+-                        and not ticket_user.is_closed
+-                    )
+-                ]
++                ticket_users = self.uow.user_tickets.get_by_client_id(actor.client_id)
+             else:
+-                ticket_users = [
+-                    ticket_user
+-                    for ticket_user in ticket_users
+-                    if (
+-                        ticket_user.client_id == actor.client_id
+-                        and ticket_user.user_id == actor.employee_id
+-                        and not ticket_user.is_closed
+-                    )
+-                ]
+-
+-            return self._to_dto_list(
+-                ticket_users
+-            )
++                ticket_users = self.uow.user_tickets.get_by_user_id(actor.employee_id)
++
++            return self._to_dto_list([
++                ticket_user for ticket_user in ticket_users
++                if ticket_user.client_id == actor.client_id and not ticket_user.is_closed
++            ])
+ 
+     def get_closed(
+         self,
+@@ -631,31 +598,15 @@
+                 permission=UserPermission.TICKET_VIEW_ALL,
+             )
+ 
+-            ticket_users = self.uow.user_tickets.get_all()
+-
+             if view_all:
+-                ticket_users = [
+-                    ticket_user
+-                    for ticket_user in ticket_users
+-                    if (
+-                        ticket_user.client_id == actor.client_id
+-                        and ticket_user.is_closed
+-                    )
+-                ]
++                ticket_users = self.uow.user_tickets.get_by_client_id(actor.client_id)
+             else:
+-                ticket_users = [
+-                    ticket_user
+-                    for ticket_user in ticket_users
+-                    if (
+-                        ticket_user.client_id == actor.client_id
+-                        and ticket_user.user_id == actor.employee_id
+-                        and ticket_user.is_closed
+-                    )
+-                ]
+-
+-            return self._to_dto_list(
+-                ticket_users
+-            )
++                ticket_users = self.uow.user_tickets.get_by_user_id(actor.employee_id)
++
++            return self._to_dto_list([
++                ticket_user for ticket_user in ticket_users
++                if ticket_user.client_id == actor.client_id and ticket_user.is_closed
++            ])
+ 
+     # ==================================================================
+     # Access scope
+diff --git a/src/adapters/repositories/gateways/ticket_user_gateway.py b/src/adapters/repositories/gateways/ticket_user_gateway.py
+--- a/src/adapters/repositories/gateways/ticket_user_gateway.py
++++ b/src/adapters/repositories/gateways/ticket_user_gateway.py
+@@ -21,9 +21,11 @@
+ 
+     SELECT_BY_USER_ID = BASE_SELECT + """
+         WHERE user_id = :user_id
++        ORDER BY user_ticket_id
+         """
+     SELECT_BY_CLIENT_ID=BASE_SELECT+ """
+-    WHERE client_id = :client_id"""
++    WHERE client_id = :client_id
++    ORDER BY user_ticket_id"""
+ 
+     SELECT_BY_OPEN_USER_ID=BASE_SELECT +   """ 
+     WHERE user_id=:user_id AND date_finished is NULL"""
