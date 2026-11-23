@@ -251,19 +251,32 @@ class AuthManager:
         self,
         *,
         logout_request: LogoutRequest,
+        access_token: str | None = None,
     ) -> None:
         """
         Logout by revoking refresh tokens.
         """
         if logout_request.refresh_token:
-            self.token_service.revoke_token(
-                logout_request.refresh_token
-            )
+            refresh_token = self.token_storage.get(logout_request.refresh_token)
+            if refresh_token.subject_type != self.subject_type:
+                raise TokenError("Refresh token subject type mismatch")
+            self.token_service.revoke_token(logout_request.refresh_token)
             return
 
         if logout_request.username:
-            self.token_service.revoke_user_tokens(
-                logout_request.username
+            if access_token is None:
+                raise TokenError("Access token is required")
+            principal = self.token_service.verify_access_token(
+                access_token, settings=self.token_service.settings,
+            )
+            subject_id = (
+                principal.get_admin_id() if self.subject_type == "admin"
+                else principal.get_user_id()
+            )
+            self.token_storage.revoke_user_tokens(
+                logout_request.username,
+                subject_id=subject_id,
+                subject_type=self.subject_type,
             )
             return
 

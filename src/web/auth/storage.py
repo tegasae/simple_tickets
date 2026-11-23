@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from threading import Lock
 
 from src.web.auth.exceptions import TokenNotFoundError
-from src.web.auth.tokens import RefreshToken, hash_token
+from src.web.auth.tokens import RefreshToken, SubjectType, hash_token
 
 
 class TokenStorage(ABC):
@@ -36,7 +36,10 @@ class TokenStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def revoke_user_tokens(self, username: str) -> int:
+    def revoke_user_tokens(
+        self, username: str, *, subject_id: int | None = None,
+        subject_type: SubjectType | None = None,
+    ) -> int:
         raise NotImplementedError
 
     @abstractmethod
@@ -150,7 +153,10 @@ class TokenStorageMemory(TokenStorage):
                 if token.username == username
             ]
 
-    def revoke_user_tokens(self, username: str) -> int:
+    def revoke_user_tokens(
+        self, username: str, *, subject_id: int | None = None,
+        subject_type: SubjectType | None = None,
+    ) -> int:
         """
         Revoke all refresh tokens for username.
 
@@ -163,7 +169,11 @@ class TokenStorageMemory(TokenStorage):
 
         with self._lock:
             for token in self._refresh_tokens.values():
-                if token.username == username:
+                if (
+                    token.username == username
+                    and (subject_id is None or token.subject_id == subject_id)
+                    and (subject_type is None or token.subject_type == subject_type)
+                ):
                     token.revoke()
                     count += 1
 
