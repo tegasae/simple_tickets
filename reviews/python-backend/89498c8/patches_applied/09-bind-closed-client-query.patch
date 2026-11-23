@@ -1,0 +1,13 @@
+diff --git a/src/adapters/repositories/ticket_repository.py b/src/adapters/repositories/ticket_repository.py
+--- a/src/adapters/repositories/ticket_repository.py
++++ b/src/adapters/repositories/ticket_repository.py
+@@ -269,7 +269,8 @@
+             sql = TicketGateway.SELECT_BY_FINISHED
+ 
+         return self._load_many_tickets(
+-            sql
++            sql,
++            {"client_id": client_id} if client_id else None,
+         )
+ 
+ 

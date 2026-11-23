@@ -1,0 +1,12 @@
+diff --git a/src/adapters/repositories/mappers/ticket_mapper.py b/src/adapters/repositories/mappers/ticket_mapper.py
+--- a/src/adapters/repositories/mappers/ticket_mapper.py
++++ b/src/adapters/repositories/mappers/ticket_mapper.py
+@@ -119,7 +119,7 @@
+             actual_finished_at=datetime_from_db(
+                 row["actual_finished_at"]
+             ),
+-            duration= timedelta(seconds=row["duration"]) or timedelta(seconds=0),
++            duration=timedelta(seconds=row["duration"] or 0),
+             comment=create_comment(row["comment"]),
+         )
+ 
