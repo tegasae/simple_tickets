@@ -20,7 +20,6 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "production"
     JWT_ISSUER:str="simple - tickets"
     JWT_AUDIENCE:str="simple - tickets - api"
-
     REFRESH_TOKEN_BACKEND: Literal["memory", "sqlite"] = "memory"
     REFRESH_TOKEN_SQLITE_PATH: Path | None = None
 
