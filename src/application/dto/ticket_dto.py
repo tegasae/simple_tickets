@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from src.application.exceptions import ApplicationValidateError
+from src.application.exceptions import TicketInputValidationError
 from src.domain.ticket_components import TicketUrgency
 
 
@@ -44,21 +44,19 @@ class TicketDTO:
 
     def __post_init__(self):
         if self.ticket_id < 0:
-            raise ApplicationValidateError("Ticket ID cannot be negative")
+            raise TicketInputValidationError("Ticket ID cannot be negative")
         if self.actor_admin_id < 0:
-            raise ApplicationValidateError("The actor admin ID is invalid")
-        if self.ticket_id < 0:
-            raise ApplicationValidateError("The ticket ID is invalid")
+            raise TicketInputValidationError("The actor admin ID is invalid")
         if self.client_id < 0:
-            raise ApplicationValidateError("The client ID is invalid")
+            raise TicketInputValidationError("The client ID is invalid")
         if self.user_id < 0:
-            raise ApplicationValidateError("The user ID is invalid")
+            raise TicketInputValidationError("The user ID is invalid")
         if self.contact_user_id < 0:
-            raise ApplicationValidateError("The contact user ID is invalid")
+            raise TicketInputValidationError("The contact user ID is invalid")
         if self.user_ticket_id < 0:
-            raise ApplicationValidateError("The user ticket ID is invalid")
+            raise TicketInputValidationError("The user ticket ID is invalid")
         if self.department_id < 0:
-            raise ApplicationValidateError("The department ID is invalid")
+            raise TicketInputValidationError("The department ID is invalid")
 
         self.text_of_ticket=self.text_of_ticket.strip()
 

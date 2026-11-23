@@ -269,7 +269,8 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             sql = TicketGateway.SELECT_BY_FINISHED
 
         return self._load_many_tickets(
-            sql
+            sql,
+            {"client_id": client_id} if client_id else None,
         )
 
 

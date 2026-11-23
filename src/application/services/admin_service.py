@@ -640,12 +640,7 @@ class AdminApplicationService:
         self,
         admin: Admin,
     ) -> AdminResponseDTO:
-        try:
-            saved_admin = self.uow.admins.save(
-                admin
-            )
-        except:
-            raise ApplicationValidateError(f"The admin {admin.employee_id} was not saved")
+        saved_admin = self.uow.admins.save(admin)
         return AdminAssembler.to_dto(
             saved_admin
         )

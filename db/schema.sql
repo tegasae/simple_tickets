@@ -5,7 +5,6 @@ CREATE TABLE departments (
     version INTEGER DEFAULT 0,
     date_created TEXT
 );
-CREATE TABLE sqlite_sequence(name,seq);
 CREATE TABLE employees (
 	employee_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	first_name TEXT,

@@ -621,12 +621,7 @@ class UserApplicationService:
         self,
         user: User,
     ) -> UserResponseDTO:
-        try:
-            saved_user = self.uow.users.save(
-                user
-            )
-        except:
-            raise ApplicationValidateError(f"The user {user.employee_id} was not saved")
+        saved_user = self.uow.users.save(user)
         return UserAssembler.to_dto(
             saved_user
         )

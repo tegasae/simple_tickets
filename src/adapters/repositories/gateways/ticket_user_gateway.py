@@ -34,7 +34,7 @@ class TicketUserGateway:
     SELECT_BY_FINISHED_USER_ID=BASE_SELECT + """
     WHERE user_id=:user_id AND date_finished is not NULL"""
     SELECT_BY_FINISHED_CLIENT_ID = BASE_SELECT + """
-    WHERE user_id=:user_id AND date_finished is NULL"""
+    WHERE client_id=:client_id AND date_finished is not NULL"""
 
 
 
@@ -73,9 +73,9 @@ class TicketUserGateway:
         contact_user_id = :contact_user_id,
         description = :description,
         date_finished = :date_finished,
-        version = version + 1
+        version = COALESCE(version, 0) + 1
     WHERE user_ticket_id = :user_ticket_id
-      AND version = :version
+      AND COALESCE(version, 0) = :version
     """
 
     DELETE = """
@@ -99,9 +99,9 @@ class TicketUserGateway:
 
     TOUCH = """
         UPDATE user_tickets
-        SET version = version + 1
+        SET version = COALESCE(version, 0) + 1
         WHERE user_ticket_id = :user_ticket_id
-          AND version = :version
+          AND COALESCE(version, 0) = :version
     """
 
 

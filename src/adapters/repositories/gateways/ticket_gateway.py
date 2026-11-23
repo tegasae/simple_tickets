@@ -1,4 +1,4 @@
-# src/adapters/repositories/gateways/ticket_gateway.py
+    # src/adapters/repositories/gateways/ticket_gateway.py
 
 
 class TicketGateway:
@@ -17,7 +17,7 @@ class TicketGateway:
         remote_work_recommended,
         urgency_level,
         description,
-        version
+        version 
     FROM tickets
     """
 
@@ -66,56 +66,22 @@ class TicketGateway:
 
     SELECT_BY_OPEN_CLIENT_ID = SELECT_BY_OPEN + " AND client_id=:client_id"
 
-    SELECT_BY_FINISHED_CLIENT_ID = SELECT_BY_OPEN + " AND client_id=:client_id"
+    SELECT_BY_FINISHED_CLIENT_ID = SELECT_BY_FINISHED + " AND client_id=:client_id"
 
 
 
 
-    SELECT_BY_CLIENT_ID_BATCH ="""
-    SELECT
-        t.ticket_id,
-        t.client_id,
-        t.text_of_ticket,
-        t.user_id,
-        t.contact_user_id,
-        t.user_ticket_id,
-        t.date_created,
-        t.planned_at,
-        t.department_id,
-        t.remote_work_recommended,
-        t.description,
-        t.urgency_level,
-        t.user_ticket_id,
-        t.description,
-        t.version
-    FROM tickets AS t
-    WHERE t.client_id = :client_id
-      AND t.ticket_id > :last_id
-    ORDER BY t.ticket_id
+    SELECT_BY_CLIENT_ID_BATCH = SELECT_BASE + """
+    WHERE client_id = :client_id
+      AND ticket_id > :last_id
+    ORDER BY ticket_id
     LIMIT :limit
 """
 
 
-    SELECT_ALL_BATCH = """
-    SELECT
-        t.ticket_id,
-        t.client_id,
-        t.text_of_ticket,
-        t.user_id,
-        t.contact_user_id,
-        t.user_ticket_id,
-        t.date_created,
-        t.planned_at,
-        t.department_id,
-        t.remote_work_recommended,
-        t.description,
-        t.urgency_level,
-        t.user_ticket_id,
-        t.description,
-        t.version
-    FROM tickets AS t
-    WHERE t.ticket_id > :last_id
-    ORDER BY t.ticket_id
+    SELECT_ALL_BATCH = SELECT_BASE + """
+    WHERE ticket_id > :last_id
+    ORDER BY ticket_id
     LIMIT :limit
 """
 
@@ -170,9 +136,9 @@ class TicketGateway:
     remote_work_recommended= :remote_work_recommended,
     current_executor_id = :current_executor_id,
     date_finished = :date_finished,
-    version = version + 1
+    version = COALESCE(version, 0) + 1
     WHERE ticket_id = :ticket_id
-    AND version = :version
+    AND COALESCE(version, 0) = :version
     """
 
     DELETE = """
@@ -217,9 +183,9 @@ class TicketGateway:
 
     TOUCH = """
         UPDATE tickets
-        SET version = version + 1
+        SET version = COALESCE(version, 0) + 1
         WHERE ticket_id = :ticket_id
-          AND version = :version
+          AND COALESCE(version, 0) = :version
     """
 
 

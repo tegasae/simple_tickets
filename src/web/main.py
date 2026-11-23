@@ -1,10 +1,18 @@
 import uvicorn
 from fastapi import FastAPI
 
+from src.adapters.repositories.exceptions import NotFoundError as RepositoryNotFoundError
 from src.adapters.repositories.exceptions import OptimisticLockError
-from src.domain.exceptions import ItemValidationError, DomainOperationError, ItemAlreadyExistsError, ItemNotFoundError
-from src.web.auth.exceptions import TokenError, TokenNotFoundError, TokenExpiredError, UserNotValidError, \
-    InvalidCredentialsError
+from src.application.exceptions import TicketInputValidationError
+from src.domain.exceptions import (
+    AuthenticationError,
+    AuthorizationError,
+    DomainOperationError,
+    ItemAlreadyExistsError,
+    ItemNotFoundError,
+    ItemValidationError,
+)
+from src.web.auth.exceptions import AuthError, AuthPermissionError
 from src.web.execeptions.exception_handlers import ExceptionHandlerRegistry
 
 from src.web.routers import admin
@@ -48,31 +56,30 @@ def create_app() -> FastAPI:
         expose_error_type=True,
     )
 
-#    registry.add_all_standard_handlers(
-#        exceptions={
-#            TokenError: 401,
-#            TokenNotFoundError: 401,
-#            TokenExpiredError: 401,
-#            UserNotValidError: 401,
-#            InvalidCredentialsError: 401,
-#            ItemValidationError: 400,
-#            PermissionError: 403,
-#            ValueError: 400,
-#            ItemAlreadyExistsError: 400,
-#            DomainOperationError:400,
-#            OptimisticLockError:500,
-#            ItemNotFoundError: 404
-#        }
-#    )
-#    registry.add_all_handlers_from_module(
-#        module_name="src.domain.exceptions",
-#        exceptions=admin.clients.handlers,
-#    )
-
-
+    registry.add_all_standard_handlers(
+        exceptions={
+            AuthPermissionError: 403,
+            TicketInputValidationError: 400,
+            AuthenticationError: 401,
+            AuthorizationError: 403,
+            PermissionError: 403,
+            ItemValidationError: 400,
+            DomainOperationError: 400,
+            ItemAlreadyExistsError: 409,
+            OptimisticLockError: 409,
+            ItemNotFoundError: 404,
+            RepositoryNotFoundError: 404,
+        }
+    )
+    registry.add_standard_handler(
+        exception_type=AuthError,
+        status_code=401,
+        public_detail="Invalid credentials or session",
+    )
     registry.add_standard_handler(
         exception_type=Exception,
-        status_code=500
+        status_code=500,
+        public_detail="Internal server error",
     )
 
     registry.register_all()
