@@ -1,0 +1,39 @@
+--- a/src/domain/services/admin_service.py
++++ b/src/domain/services/admin_service.py
+@@ -170,7 +170,12 @@
+     def enable(
+         *,
+         admin: Admin,
+-    ) -> None:
++        department: Department,
++    ) -> None:
++        """Enable Admin only when its assigned Department is enabled."""
++        if admin.department_id != department.department_id:
++            raise DomainOperationError("Department does not match Admin assignment")
++        AdminService._ensure_department_enabled(department=department)
+         admin.enable()
+ 
+ 
+--- a/src/application/services/admin_service.py
++++ b/src/application/services/admin_service.py
+@@ -399,9 +399,19 @@
+                 admin_id=admin_dto.employee_id,
+             )
+ 
++            department = Department.create_empty()
++            if admin.department_id:
++                department = self.uow.departments.get(
++                    department_id=admin.department_id,
++                )
++
+             AdminService.enable(
+                 admin=admin,
+-            )
++                department=department,
++            )
++
++            if not department.is_empty():
++                self.uow.departments.touch(department)
+ 
+             return self._save_and_to_dto(
+                 admin
