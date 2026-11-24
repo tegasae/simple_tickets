@@ -1,7 +1,9 @@
+from src.domain.value_objects import Name
 # src/web/models/role.py
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator
+from src.domain.rbac.permissions import AdminPermission, UserPermission
 
 from src.web.models.base_response import BaseResponse
 
@@ -14,7 +16,7 @@ class AdminRoleCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    permissions: list[str]
+    permissions: list[AdminPermission]
     description: str = ""
     is_system_role: bool = False
 
@@ -26,7 +28,7 @@ class AdminRoleCreateRequest(BaseModel):
         if not value:
             raise ValueError("Role name must not be empty")
 
-        return value
+        return str(Name(value))
 
     @field_validator("permissions")
     @classmethod
@@ -69,7 +71,7 @@ class UserRoleCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    permissions: list[str]
+    permissions: list[UserPermission]
     description: str = ""
     is_system_role: bool = False
 
@@ -82,7 +84,7 @@ class UserRoleCreateRequest(BaseModel):
         if not value:
             raise ValueError("Role name must not be empty")
 
-        return value
+        return str(Name(value))
 
     @field_validator("permissions")
     @classmethod

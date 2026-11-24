@@ -399,9 +399,19 @@ class AdminApplicationService:
                 admin_id=admin_dto.employee_id,
             )
 
+            department = Department.create_empty()
+            if admin.department_id:
+                department = self.uow.departments.get(
+                    department_id=admin.department_id,
+                )
+
             AdminService.enable(
                 admin=admin,
+                department=department,
             )
+
+            if not department.is_empty():
+                self.uow.departments.touch(department)
 
             return self._save_and_to_dto(
                 admin

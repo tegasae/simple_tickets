@@ -33,7 +33,9 @@ class AuthServiceAbstract(ABC):
     @abstractmethod
     def validate_user_exists(
         self,
-        login_request: LoginRequest
+        login_request: LoginRequest,
+        *,
+        expected_subject_id: int | None = None,
     ) -> bool:
         raise NotImplementedError
 
@@ -91,7 +93,9 @@ class AdminAuthService(AuthServiceAbstract):
 
     def validate_user_exists(
             self,
-            login_request: LoginRequest
+            login_request: LoginRequest,
+            *,
+            expected_subject_id: int | None = None,
     ) -> bool:
         """
         Validate that admin still exists and is enabled.
@@ -101,6 +105,8 @@ class AdminAuthService(AuthServiceAbstract):
         with self.uow:
             try:
                 admin = self.uow.admins.find_by_login(login=login_request.username)
+                if expected_subject_id is not None and admin.employee_id != expected_subject_id:
+                    return False
                 AdminPolicy.ensure_login_is_still_valid(admin=admin)
             except DomainError:
                 return False
@@ -162,7 +168,9 @@ class UserAuthService(AuthServiceAbstract):
 
     def validate_user_exists(
             self,
-            login_request: LoginRequest
+            login_request: LoginRequest,
+            *,
+            expected_subject_id: int | None = None,
     ) -> bool:
         """
         Validate that user still exists and is enabled.
@@ -172,6 +180,8 @@ class UserAuthService(AuthServiceAbstract):
         with self.uow:
             try:
                 user = self.uow.users.find_by_login(login=login_request.username)
+                if expected_subject_id is not None and user.employee_id != expected_subject_id:
+                    return False
                 client = self.uow.clients.get(client_id=user.client_id)
                 UserPolicy.ensure_login_is_still_valid(user=user,client=client)
             except DomainError:

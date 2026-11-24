@@ -39,11 +39,16 @@ class TicketUserStatusRule:
 
     requires_comment:
         ``True`` if the status record must contain a non-empty comment.
+
+    can_change_contact:
+        Allows contact editing independently from description editing.
+        Services must also check the linked internal Ticket's editing rules.
     """
 
     user_action: bool = False
     requires_comment: bool = False
     can_change:bool = False
+    can_change_contact: bool = False
 
 
 TICKET_USER_STATUS_RULES: Final[
@@ -52,9 +57,12 @@ TICKET_USER_STATUS_RULES: Final[
     TicketUserStatus.CREATED: TicketUserStatusRule(
         user_action=True,
         can_change=True,
+        can_change_contact=True,
     ),
 
-    TicketUserStatus.IN_WORK: TicketUserStatusRule(),
+    TicketUserStatus.IN_WORK: TicketUserStatusRule(
+        can_change_contact=True,
+    ),
 
     TicketUserStatus.WAITING_FOR_CONFIRMATION: TicketUserStatusRule(),
 

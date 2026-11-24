@@ -1,3 +1,4 @@
+from src.web.models.ticket_input import TicketDescriptionText
 from datetime import datetime
 from typing import Any
 
@@ -25,7 +26,7 @@ class UserTicketCreateRequest(UserTicketRequest):
     )
 
 
-    description: str = ""
+    description: TicketDescriptionText = ""
 
     remote_work_recommended: bool = False
 
@@ -43,7 +44,7 @@ class UserTicketCommentRequest(UserTicketRequest):
 
 
 class UserTicketDescriptionRequest(UserTicketRequest):
-    description: str = ""
+    description: TicketDescriptionText = ""
 
 
 class UserTicketContactUserRequest(UserTicketRequest):

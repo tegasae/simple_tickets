@@ -3,7 +3,7 @@ from fastapi import FastAPI
 
 from src.adapters.repositories.exceptions import NotFoundError as RepositoryNotFoundError
 from src.adapters.repositories.exceptions import OptimisticLockError
-from src.application.exceptions import TicketInputValidationError
+from src.application.exceptions import ApplicationValidateError
 from src.domain.exceptions import (
     AuthenticationError,
     AuthorizationError,
@@ -68,7 +68,7 @@ def create_app() -> FastAPI:
     registry.add_all_standard_handlers(
         exceptions={
             AuthPermissionError: 403,
-            TicketInputValidationError: 400,
+            ApplicationValidateError: 400,
             AuthenticationError: 401,
             AuthorizationError: 403,
             PermissionError: 403,

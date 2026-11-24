@@ -239,7 +239,8 @@ class AuthManager:
         )
 
         if not self.auth_service.validate_user_exists(
-            login_request=login_request
+            login_request=login_request,
+            expected_subject_id=refresh_token.subject_id,
         ):
             raise UserNotValidError(
                 username=refresh_token.username

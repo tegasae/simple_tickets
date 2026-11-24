@@ -153,11 +153,17 @@ class TicketApplicationService:
                 ticket_user1 = TicketUserService.create(
                     text_of_ticket=ticket_dto.text_of_ticket,
                     description=ticket_dto.description,
-                    comment=ticket_dto.comment,
+                    comment="",
                     client=client,
                     user=user,
                     contact_user=contact_user
                 )
+                if ticket_dto.comment.strip():
+                    TicketUserService.add_comment(
+                        ticket_user=ticket_user1,
+                        employee_id=actor.employee_id,
+                        comment=ticket_dto.comment,
+                    )
 
                 saved_ticket_user = self.uow.user_tickets.save(
                         ticket_user1

@@ -77,6 +77,12 @@ class UserApplicationService:
                 permission=AdminPermission.USER_OPERATION,
             )
 
+            if user_dto.roles:
+                self.actor.require_actor_admin(
+                    actor_admin_id=user_dto.actor_admin_id,
+                    permission=AdminPermission.ROLE_USER_ASSIGN,
+                )
+
             self.helper.ensure_login_is_free(
                 login=user_dto.login,
             )
@@ -111,7 +117,7 @@ class UserApplicationService:
                         user_dto.roles
                     ),
                     required_permission=(
-                        AdminPermission.USER_OPERATION
+                        AdminPermission.ROLE_USER_ASSIGN
                     ),
                 )
 
@@ -384,7 +390,7 @@ class UserApplicationService:
                     user_dto.roles
                 ),
                 required_permission=(
-                    AdminPermission.ROLE_ASSIGN
+                    AdminPermission.ROLE_USER_ASSIGN
                 ),
             )
 

@@ -170,7 +170,12 @@ class AdminService:
     def enable(
         *,
         admin: Admin,
+        department: Department,
     ) -> None:
+        """Enable Admin only when its assigned Department is enabled."""
+        if admin.department_id != department.department_id:
+            raise DomainOperationError("Department does not match Admin assignment")
+        AdminService._ensure_department_enabled(department=department)
         admin.enable()
 
 

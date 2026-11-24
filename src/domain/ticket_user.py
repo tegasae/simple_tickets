@@ -233,9 +233,16 @@ class TicketUser:
         """Set or reset the contact without changing description.
 
         Linked-pair synchronization belongs to TicketSyncService.
+        The service also checks whether the linked Ticket permits editing:
+        IN_WORK represents internal states with different editing rules.
         No actor is recorded for a data-only change.
         """
-        self._can_change()
+        self._ensure_not_terminal()
+        if not self.current_status_record().rule.can_change_contact:
+            raise DomainOperationError(
+                f"TicketUser {self.ticket_user_id} cannot change contact "
+                f"in status {self.current_status().value}"
+            )
         self.contact_user_id = self._resolve_edited_contact_user_id(
             contact_user_id
         )

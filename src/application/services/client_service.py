@@ -5,7 +5,7 @@ from src.application.dto.client_dto import (
     ClientDTO,
     ClientResponseDTO,
 )
-from src.application.exceptions import ApplicationValidateError
+from src.application.exceptions import ApplicationStoreError, ApplicationValidateError
 from src.application.helper.actor_helper import EmployeeActorHelper
 
 from src.domain.client import Client
@@ -318,7 +318,7 @@ class ClientApplicationService:
             client
         )
         if not saved_client:
-            raise ApplicationValidateError(f"The client {client.client_id} cannot be saved")
+            raise ApplicationStoreError(f"The client {client.client_id} cannot be saved")
         return ClientAssembler.to_dto(
             saved_client
         )

@@ -1,3 +1,4 @@
+from src.web.models.ticket_input import TicketDescriptionText
 # src/web/models/tickets.py
 
 from datetime import datetime, UTC, timedelta
@@ -29,7 +30,7 @@ class TicketCreateRequest(BaseModel):
 
     client_id: int
     text_of_ticket: TicketText
-    description: str = ""
+    description: TicketDescriptionText = ""
 
     user_id: int = 0
     contact_user_id: int = 0
@@ -88,7 +89,7 @@ class TicketDeferRequest(TicketRequiredCommentRequest):
 class TicketDescriptionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    description: str = ""
+    description: TicketDescriptionText = ""
 
 
 class TicketContactUserRequest(BaseModel):
