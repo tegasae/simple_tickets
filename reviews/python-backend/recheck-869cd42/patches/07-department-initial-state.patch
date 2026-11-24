@@ -1,0 +1,13 @@
+diff --git a/src/application/services/department_service.py b/src/application/services/department_service.py
+index beaff08..16d79b9 100644
+--- a/src/application/services/department_service.py
++++ b/src/application/services/department_service.py
+@@ -67,7 +67,7 @@ class DepartmentApplicationService:
+ 
+             department = self.department_service.create(
+                 name=department_dto.name,
+-                enabled=True,
++                enabled=department_dto.enabled,
+             )
+ 
+             return self._save_and_to_dto(

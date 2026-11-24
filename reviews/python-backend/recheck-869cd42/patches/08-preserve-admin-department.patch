@@ -1,0 +1,123 @@
+diff --git a/src/application/services/admin_service.py b/src/application/services/admin_service.py
+index a18e7fa..0c1f1e5 100644
+--- a/src/application/services/admin_service.py
++++ b/src/application/services/admin_service.py
+@@ -146,6 +146,7 @@ class AdminApplicationService:
+         self,
+         *,
+         admin_dto: AdminDTO,
++        update_department: bool = True,
+     ) -> AdminResponseDTO:
+         with self.uow:
+             self.actor.require_actor_admin(
+@@ -158,21 +159,24 @@ class AdminApplicationService:
+             )
+ 
+ 
+-            if admin_dto.department_id:
+-                department = self.uow.departments.get(
+-                    department_id=admin_dto.department_id,
+-                )
+-                self.uow.departments.touch(
+-                    department
++            department = None
++            has_current_executor_tickets = False
++            if update_department:
++                if admin_dto.department_id:
++                    department = self.uow.departments.get(
++                        department_id=admin_dto.department_id,
++                    )
++                    self.uow.departments.touch(department)
++                else:
++                    department = Department.create_empty()
++                has_current_executor_tickets = self._has_current_executor_tickets(
++                    admin_id=admin.employee_id,
+                 )
+-            else:
+-                department=Department.create_empty()
+-
+ 
+             AdminService.update(
+                 admin=admin,
+                 department=department,
+-                has_current_executor_tickets=self._has_current_executor_tickets(admin_id=admin.employee_id),
++                has_current_executor_tickets=has_current_executor_tickets,
+                 job_title=admin_dto.job_title,
+                 first_name=admin_dto.first_name,
+                 last_name=admin_dto.last_name,
+diff --git a/src/domain/services/admin_service.py b/src/domain/services/admin_service.py
+index 97f4447..992a3b2 100644
+--- a/src/domain/services/admin_service.py
++++ b/src/domain/services/admin_service.py
+@@ -83,7 +83,7 @@ class AdminService:
+     def update(
+         *,
+         admin: Admin,
+-        department: Department,
++        department: Department | None,
+         has_current_executor_tickets: bool,
+         job_title: str = "",
+         first_name: str = "",
+@@ -98,15 +98,13 @@ class AdminService:
+         - Admin must not be current executor of any Ticket;
+         - target Department must be enabled.
+ 
+-        Ordinary Admin data may be updated without these checks
+-        when Department is unchanged.
++        A missing Department retains the current department.
+         """
+-
+-
+-        if admin.department_id != department.department_id:
+-            AdminService._ensure_not_current_executor(admin=admin,
+-                                                      has_current_executor_tickets=has_current_executor_tickets)
+-
++        if department is not None and admin.department_id != department.department_id:
++            AdminService._ensure_not_current_executor(
++                admin=admin,
++                has_current_executor_tickets=has_current_executor_tickets,
++            )
+             AdminService._ensure_department_enabled(department=department)
+ 
+         admin.update(
+@@ -115,7 +113,7 @@ class AdminService:
+             last_name=last_name,
+             email=email,
+             phone=phone,
+-            department_id=department.department_id
++            department_id=admin.department_id if department is None else department.department_id,
+         )
+ 
+ 
+diff --git a/src/web/models/admins.py b/src/web/models/admins.py
+index 5befaca..0c9741e 100644
+--- a/src/web/models/admins.py
++++ b/src/web/models/admins.py
+@@ -40,7 +40,10 @@ class AdminUpdateRequest(BaseModel):
+     email: str = ""
+     phone: str = ""
+     job_title: str = ""
+-    department_id: int=0
++    department_id: int = Field(
++        default_factory=int,
++        description="Omit to keep the current department. Send 0 to remove it.",
++    )
+ 
+ class AdminAttachAccountRequest(BaseModel):
+     """
+diff --git a/src/web/routers/admin/admins.py b/src/web/routers/admin/admins.py
+index a11ea66..1722214 100644
+--- a/src/web/routers/admin/admins.py
++++ b/src/web/routers/admin/admins.py
+@@ -184,7 +184,10 @@ def update_admin(
+         employee_id=employee_id,
+         **admin_request.model_dump(),
+     )
+-    response_dto = asf.admin_service().update_admin(admin_dto=dto)
++    response_dto = asf.admin_service().update_admin(
++        admin_dto=dto,
++        update_department="department_id" in admin_request.model_fields_set,
++    )
+ 
+     return AdminResponse.from_dto(response_dto)
+ 

@@ -1,0 +1,33 @@
+diff --git a/src/adapters/repositories/mappers/ticket_mapper.py b/src/adapters/repositories/mappers/ticket_mapper.py
+--- a/src/adapters/repositories/mappers/ticket_mapper.py
++++ b/src/adapters/repositories/mappers/ticket_mapper.py
+@@ -2,6 +2,7 @@
+ from datetime import timedelta
+ 
+ from src.domain.datetime_check import datetime_to_db, datetime_from_db
++from src.domain.statuses.rules.ticket_status_rule import TICKET_STATUS_RULES
+ from src.domain.statuses.ticket_status import TicketStatus
+ from src.domain.statuses.ticket_status_record import TicketStatusRecord
+ from src.domain.ticket import Ticket
+@@ -109,13 +110,19 @@
+                 "has no date_created"
+             )
+ 
++        status = TicketStatus(row["status"])
++        work_is_remote = row["work_is_remote"]
++        # Keep legacy work records without a stored mode readable as on-site work.
++        if work_is_remote is not None or TICKET_STATUS_RULES[status].requires_work_mode:
++            work_is_remote = bool(work_is_remote)
++
+         return TicketStatusRecord(
+             status_id=row["status_id"],
+             actor_employee_id=row["actor_employee_id"] or 0,
+-            status=TicketStatus(row["status"]),
++            status=status,
+             date_created=date_created,
+             executor_id=row["executor_id"] or 0,
+-            work_is_remote=bool(row["work_is_remote"]),
++            work_is_remote=work_is_remote,
+             actual_started_at=datetime_from_db(
+                 row["actual_started_at"]
+             ),
