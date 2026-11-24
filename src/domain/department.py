@@ -1,7 +1,7 @@
 # src/domain/department.py
 
 from dataclasses import dataclass, field, InitVar
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Self
 
 from src.domain.exceptions import ItemValidationError, DomainOperationError
@@ -24,7 +24,7 @@ class Department:
     department_id: int
     name: Name
     enabled: bool = True
-    date_created: datetime = field(default_factory=datetime.now)
+    date_created: datetime = field(default_factory=lambda: datetime.now(UTC))
     version: int = 0
     _is_empty: bool = field(default=False, init=False, repr=False,compare=False)
     _empty_token: InitVar[object | None] = None

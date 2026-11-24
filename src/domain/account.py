@@ -6,7 +6,7 @@ for authentication and authorization.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Self
 
 from src.domain.value_objects import Login, Password, FakePassword
@@ -28,7 +28,7 @@ class Account:
     login: Login
     password: Password
     enabled: bool = field(default=True)
-    date_created: datetime = field(default_factory=datetime.now)
+    date_created: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
     @classmethod
@@ -77,7 +77,7 @@ class Account:
             login=Login(login),
             password=Password.from_hash(password_hash),
             enabled=enabled,
-            date_created=date_created or datetime.now(),
+            date_created=date_created or datetime.now(UTC),
         )
     def change_password(self, *, plain_password: str) -> Self:
         """Change account password.

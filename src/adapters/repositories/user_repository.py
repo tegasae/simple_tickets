@@ -147,7 +147,7 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
             user.version += 1
             return user
 
-        except (OptimisticLockError, NotFoundError):
+        except (OptimisticLockError, NotFoundError, PersistenceError):
             raise
         except Exception as e:
             raise PersistenceError(f"Failed to save User {user.employee_id}: {e}") from e
@@ -160,6 +160,8 @@ class UserRepositorySQLite(BaseRepository, UserRepository):
             self._exec(UserGateway.DELETE, {"employee_id": user_id})
             self._exec(EmployeeGateway.DELETE, {"employee_id": user_id})
 
+        except PersistenceError:
+            raise
         except Exception as e:
             raise PersistenceError(f"Failed to delete User {user_id}: {e}") from e
 

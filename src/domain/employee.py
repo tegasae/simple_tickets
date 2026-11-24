@@ -1,6 +1,6 @@
 #src/domain/employee.py
 from dataclasses import field, dataclass, InitVar
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Self, Any
 
 
@@ -20,7 +20,7 @@ class _Employee(HasRoleIds):
     email: Email|Empty=field(default_factory=Empty)
     phone: Phone|Empty=field(default_factory=Empty)
     account:Account|NoAccount=field(default_factory=NoAccount)
-    date_created: datetime = field(default_factory=datetime.now)
+    date_created: datetime = field(default_factory=lambda: datetime.now(UTC))
     enabled: bool = True
     version: int = 0
     _is_empty: bool = field(default=False, init=False, repr=False,compare=False)
@@ -94,7 +94,7 @@ class _Employee(HasRoleIds):
                 "email": Email(email) if email else Empty(),
                 "phone": Phone(phone) if phone else Empty(),
                 "enabled": enabled,
-                "date_created": date_created if date_created else datetime.now(),
+                "date_created": date_created if date_created else datetime.now(UTC),
                 "account": _Employee._create_account(login=login,password=password,enabled_account=enabled_account),
                 "version": version,
                 "_role_ids": role_ids,

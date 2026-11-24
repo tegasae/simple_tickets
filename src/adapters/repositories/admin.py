@@ -188,6 +188,8 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
             self._exec(RoleEmployeeGateway.DELETE_ALL_FOR_ADMIN, {"employee_id": admin_id})
             self._exec(AdminGateway.DELETE, {"employee_id": admin_id})
             self._exec(EmployeeGateway.DELETE_ADMIN_EMPLOYEE, {"employee_id": admin_id})
+        except PersistenceError:
+            raise
         except Exception as e:
             raise PersistenceError(f"Failed to delete Admin(employee_id={admin_id}): {e}") from e
 

@@ -1,3 +1,5 @@
+from src.adapters.repositories.exceptions import TransientPersistenceError
+from utils.db.exceptions import DBTransientError
 import uvicorn
 from fastapi import FastAPI
 
@@ -80,6 +82,13 @@ def create_app() -> FastAPI:
             RepositoryNotFoundError: 404,
         }
     )
+    for exception_type in (DBTransientError, TransientPersistenceError):
+        registry.add_standard_handler(
+            exception_type=exception_type,
+            status_code=503,
+            public_detail="Database temporarily unavailable",
+        )
+
     registry.add_standard_handler(
         exception_type=AuthError,
         status_code=401,
