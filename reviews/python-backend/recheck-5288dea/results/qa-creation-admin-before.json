@@ -1,0 +1,340 @@
+{
+  "code_sha": "5288dea85d8f7e7e4c84d4801781d297e0e14475",
+  "source_runtime": "/tmp/audit4-qa-5288dea",
+  "pytest_exit_code": 1,
+  "tests": 64,
+  "failed": 28,
+  "passed": 36,
+  "errors": 0,
+  "skipped": 0,
+  "xfail": 0,
+  "duration_seconds": 31.691,
+  "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/tmp/audit4-qa-5288dea /tmp/tickets-bbf7a39-venv/bin/python -m pytest /tmp/audit4-qa-regressions-5288dea/tests/test_creation_idempotency.py /tmp/audit4-qa-regressions-5288dea/tests/test_admin_refresh_revocation.py -q --tb=short --junitxml=/tmp/audit4-qa-regressions-5288dea/before.xml",
+  "tests_sha256": {
+    "conftest.py": "3d58984b6e1be01e0005a8726b76aeb8908d462649b276b696549b10ee05d098",
+    "test_creation_idempotency.py": "8bbd49819a519f19f70f9447e886e647ac058296c23ad7ad2d2733e68bbb142c",
+    "test_admin_refresh_revocation.py": "d9afd82c3f2294e65e6f6b7d8898a7afcf8d7df98f660078ff83eca4f93bb31f"
+  },
+  "cases": [
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[client-memory]",
+      "outcome": "failed",
+      "failure": "AssertionError: client\nassert {'clients': 3} == {'clients': 2}\n  \n  Differing items:\n  {'clients': 3} != {'clients': 2}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[client-sqlite]",
+      "outcome": "failed",
+      "failure": "AssertionError: client\nassert {'clients': 3} == {'clients': 2}\n  \n  Differing items:\n  {'clients': 3} != {'clients': 2}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[department-memory]",
+      "outcome": "failed",
+      "failure": "AssertionError: ('department', 201, 409)\nassert 409 == 201\n +  where 409 = <Response [409 Conflict]>.status_code\n +  and   201 = <Response [201 Created]>.status_code"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[department-sqlite]",
+      "outcome": "failed",
+      "failure": "AssertionError: ('department', 201, 409)\nassert 409 == 201\n +  where 409 = <Response [409 Conflict]>.status_code\n +  and   201 = <Response [201 Created]>.status_code"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[admin-memory]",
+      "outcome": "failed",
+      "failure": "AssertionError: admin\nassert {'employees': 5, 'admins': 3} == {'employees': 4, 'admins': 2}\n  \n  Differing items:\n  {'admins': 3} != {'admins': 2}\n  {'employees': 5} != {'employees': 4}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[admin-sqlite]",
+      "outcome": "failed",
+      "failure": "AssertionError: admin\nassert {'employees': 5, 'admins': 3} == {'employees': 4, 'admins': 2}\n  \n  Differing items:\n  {'admins': 3} != {'admins': 2}\n  {'employees': 5} != {'employees': 4}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[user-memory]",
+      "outcome": "failed",
+      "failure": "AssertionError: user\nassert {'employees': 5, 'users': 4} == {'employees': 4, 'users': 3}\n  \n  Differing items:\n  {'users': 4} != {'users': 3}\n  {'employees': 5} != {'employees': 4}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[user-sqlite]",
+      "outcome": "failed",
+      "failure": "AssertionError: user\nassert {'employees': 5, 'users': 4} == {'employees': 4, 'users': 3}\n  \n  Differing items:\n  {'users': 4} != {'users': 3}\n  {'employees': 5} != {'employees': 4}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[admin_role-memory]",
+      "outcome": "failed",
+      "failure": "AssertionError: admin_role\nassert {'roles': 4} == {'roles': 3}\n  \n  Differing items:\n  {'roles': 4} != {'roles': 3}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[admin_role-sqlite]",
+      "outcome": "failed",
+      "failure": "AssertionError: admin_role\nassert {'roles': 4} == {'roles': 3}\n  \n  Differing items:\n  {'roles': 4} != {'roles': 3}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[user_role-memory]",
+      "outcome": "failed",
+      "failure": "AssertionError: user_role\nassert {'roles': 4} == {'roles': 3}\n  \n  Differing items:\n  {'roles': 4} != {'roles': 3}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[user_role-sqlite]",
+      "outcome": "failed",
+      "failure": "AssertionError: user_role\nassert {'roles': 4} == {'roles': 3}\n  \n  Differing items:\n  {'roles': 4} != {'roles': 3}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[admin_ticket-memory]",
+      "outcome": "failed",
+      "failure": "AssertionError: admin_ticket\nassert {'tickets': 2...us_record': 4} == {'tickets': 1...us_record': 2}\n  \n  Differing items:\n  {'user_tickets': 2} != {'user_tickets': 1}\n  {'user_tickets_status_record': 4} != {'user_tickets_status_record': 2}\n  {'tickets': 2} != {'tickets': 1}\n  {'ticket_status_records': 4} != {'ticket_status_records': 2}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[admin_ticket-sqlite]",
+      "outcome": "failed",
+      "failure": "AssertionError: admin_ticket\nassert {'tickets': 2...us_record': 4} == {'tickets': 1...us_record': 2}\n  \n  Differing items:\n  {'user_tickets': 2} != {'user_tickets': 1}\n  {'user_tickets_status_record': 4} != {'user_tickets_status_record': 2}\n  {'tickets': 2} != {'tickets': 1}\n  {'ticket_status_records': 4} != {'ticket_status_records': 2}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[user_ticket-memory]",
+      "outcome": "failed",
+      "failure": "AssertionError: user_ticket\nassert {'tickets': 2...us_record': 2} == {'tickets': 1...us_record': 1}\n  \n  Differing items:\n  {'user_tickets': 2} != {'user_tickets': 1}\n  {'user_tickets_status_record': 2} != {'user_tickets_status_record': 1}\n  {'tickets': 2} != {'tickets': 1}\n  {'ticket_status_records': 2} != {'ticket_status_records': 1}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[user_ticket-sqlite]",
+      "outcome": "failed",
+      "failure": "AssertionError: user_ticket\nassert {'tickets': 2...us_record': 2} == {'tickets': 1...us_record': 1}\n  \n  Differing items:\n  {'user_tickets': 2} != {'user_tickets': 1}\n  {'user_tickets_status_record': 2} != {'user_tickets_status_record': 1}\n  {'tickets': 2} != {'tickets': 1}\n  {'ticket_status_records': 2} != {'ticket_status_records': 1}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[admin_comment-memory]",
+      "outcome": "failed",
+      "failure": "AssertionError: admin_comment\nassert {'ticket_comments': 2} == {'ticket_comments': 1}\n  \n  Differing items:\n  {'ticket_comments': 2} != {'ticket_comments': 1}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[admin_comment-sqlite]",
+      "outcome": "failed",
+      "failure": "AssertionError: admin_comment\nassert {'ticket_comments': 2} == {'ticket_comments': 1}\n  \n  Differing items:\n  {'ticket_comments': 2} != {'ticket_comments': 1}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[user_comment-memory]",
+      "outcome": "failed",
+      "failure": "AssertionError: user_comment\nassert {'user_tickets_comment': 2} == {'user_tickets_comment': 1}\n  \n  Differing items:\n  {'user_tickets_comment': 2} != {'user_tickets_comment': 1}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[user_comment-sqlite]",
+      "outcome": "failed",
+      "failure": "AssertionError: user_comment\nassert {'user_tickets_comment': 2} == {'user_tickets_comment': 1}\n  \n  Differing items:\n  {'user_tickets_comment': 2} != {'user_tickets_comment': 1}\n  Use -v to get more diff"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[admin_with_account-memory]",
+      "outcome": "failed",
+      "failure": "AssertionError: ('admin_with_account', 201, 400)\nassert 400 == 201\n +  where 400 = <Response [400 Bad Request]>.status_code\n +  and   201 = <Response [201 Created]>.status_code"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[admin_with_account-sqlite]",
+      "outcome": "failed",
+      "failure": "AssertionError: ('admin_with_account', 201, 400)\nassert 400 == 201\n +  where 400 = <Response [400 Bad Request]>.status_code\n +  and   201 = <Response [201 Created]>.status_code"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[user_with_account-memory]",
+      "outcome": "failed",
+      "failure": "AssertionError: ('user_with_account', 201, 400)\nassert 400 == 201\n +  where 400 = <Response [400 Bad Request]>.status_code\n +  and   201 = <Response [201 Created]>.status_code"
+    },
+    {
+      "test": "test_same_key_replays_original_success_with_one_business_effect[user_with_account-sqlite]",
+      "outcome": "failed",
+      "failure": "AssertionError: ('user_with_account', 201, 400)\nassert 400 == 201\n +  where 400 = <Response [400 Bad Request]>.status_code\n +  and   201 = <Response [201 Created]>.status_code"
+    },
+    {
+      "test": "test_creation_accepts_omitted_optional_key[client]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_creation_accepts_omitted_optional_key[department]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_creation_accepts_omitted_optional_key[admin]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_creation_accepts_omitted_optional_key[user]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_creation_accepts_omitted_optional_key[admin_role]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_creation_accepts_omitted_optional_key[user_role]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_creation_accepts_omitted_optional_key[admin_ticket]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_creation_accepts_omitted_optional_key[user_ticket]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_creation_accepts_omitted_optional_key[admin_comment]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_creation_accepts_omitted_optional_key[user_comment]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_creation_accepts_omitted_optional_key[admin_with_account]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_creation_accepts_omitted_optional_key[user_with_account]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[no-key-client]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[no-key-department]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[no-key-admin]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[no-key-user]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[no-key-admin_role]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[no-key-user_role]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[no-key-admin_ticket]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[no-key-user_ticket]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[no-key-admin_comment]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[no-key-user_comment]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[no-key-admin_with_account]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[no-key-user_with_account]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[different-keys-client]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[different-keys-department]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[different-keys-admin]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[different-keys-user]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[different-keys-admin_role]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[different-keys-user_role]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[different-keys-admin_ticket]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[different-keys-user_ticket]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[different-keys-admin_comment]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[different-keys-user_comment]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[different-keys-admin_with_account]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_separate_commands_keep_ordinary_creation_semantics[different-keys-user_with_account]",
+      "outcome": "passed",
+      "failure": null
+    },
+    {
+      "test": "test_admin_lifecycle_permanently_rejects_old_refresh[password-memory]",
+      "outcome": "failed",
+      "failure": "assert 200 == 401\n +  where 200 = <Response [200 OK]>.status_code"
+    },
+    {
+      "test": "test_admin_lifecycle_permanently_rejects_old_refresh[password-sqlite]",
+      "outcome": "failed",
+      "failure": "assert 200 == 401\n +  where 200 = <Response [200 OK]>.status_code"
+    },
+    {
+      "test": "test_admin_lifecycle_permanently_rejects_old_refresh[employee_disable_enable-memory]",
+      "outcome": "failed",
+      "failure": "assert 200 == 401\n +  where 200 = <Response [200 OK]>.status_code"
+    },
+    {
+      "test": "test_admin_lifecycle_permanently_rejects_old_refresh[employee_disable_enable-sqlite]",
+      "outcome": "failed",
+      "failure": "assert 200 == 401\n +  where 200 = <Response [200 OK]>.status_code"
+    }
+  ]
+}

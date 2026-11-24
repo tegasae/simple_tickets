@@ -1,0 +1,42 @@
+{
+  "baseline": {
+    "exit_code": 0,
+    "ast_files": 167,
+    "ast": "passed",
+    "sql_prepared": 115,
+    "integrity_check": "ok",
+    "foreign_key_violations": 0,
+    "imports": [
+      "main",
+      "src.web.main",
+      "src.oauth2.main"
+    ],
+    "health_status": 200,
+    "openapi_status": 200,
+    "openapi_paths": 83,
+    "command": [
+      "/tmp/tickets-bbf7a39-venv/bin/python",
+      "/workspace/work/simple_tickets-5288dea/reviews/python-backend/recheck-5288dea/tests/check_backend.py"
+    ]
+  },
+  "patched": {
+    "exit_code": 0,
+    "ast_files": 167,
+    "ast": "passed",
+    "sql_prepared": 115,
+    "integrity_check": "ok",
+    "foreign_key_violations": 0,
+    "imports": [
+      "main",
+      "src.web.main",
+      "src.oauth2.main"
+    ],
+    "health_status": 200,
+    "openapi_status": 200,
+    "openapi_paths": 83,
+    "command": [
+      "/tmp/tickets-bbf7a39-venv/bin/python",
+      "/workspace/work/simple_tickets-5288dea/reviews/python-backend/recheck-5288dea/tests/check_backend.py"
+    ]
+  }
+}

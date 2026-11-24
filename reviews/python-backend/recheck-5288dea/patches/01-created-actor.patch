@@ -1,0 +1,126 @@
+--- a/src/domain/ticket_user.py
++++ b/src/domain/ticket_user.py
+@@ -84,13 +84,19 @@
+         contact_user_id: int = 0,
+         description: str = "",
+         comment: str = "",
++        actor_employee_id: int | None = None,
+ 
+     ) -> Self:
+-        """Create a User-originated request, directly or through staff."""
++        """Create a request owned by User, directly or through staff.
++
++        The initial status and comment belong to the actual initiator.
++        Omitted actor preserves the owner-as-initiator factory contract.
++        """
+         if type(user_id) is not int or user_id <= 0:
+             raise ItemValidationError("User id must be a positive integer")
+ 
+         now = datetime.now(UTC)
++        actor_employee_id = user_id if actor_employee_id is None else actor_employee_id
+         resolved_contact_user_id = cls._resolve_contact_user_id(
+             user_id=user_id,
+             contact_user_id=contact_user_id,
+@@ -108,7 +114,7 @@
+             statuses=[
+                 TicketUserStatusRecord(
+                     status=TicketUserStatus.CREATED,
+-                    actor_employee_id=user_id,
++                    actor_employee_id=actor_employee_id,
+                     date_created=now,
+                 ),
+             ],
+@@ -117,7 +123,7 @@
+         if comment.strip():
+             ticket_user.add_comment(
+                 Comment(
+-                    employee_id=user_id,
++                    employee_id=actor_employee_id,
+                     comment=CommonComment(comment),
+                     date_created=now,
+                 )
+--- a/src/domain/services/ticket_user_service.py
++++ b/src/domain/services/ticket_user_service.py
+@@ -44,9 +44,12 @@
+         comment: str = "",
+         client:Client,
+         user:User,
+-        contact_user:User
++        contact_user:User,
++        actor_employee_id: int | None = None,
+     ) -> TicketUser:
+-        """Create a User-initiated TicketUser with initial status CREATED.
++        """Create TicketUser with its actual initiator on initial CREATED.
++
++        The owner remains User; omitted actor means self-registration.
+ 
+         The application layer coordinates creation and persistence of the
+         related internal Ticket after TicketUser receives its identifier.
+@@ -67,6 +70,7 @@
+             contact_user_id=contact_user.employee_id,
+             description=description,
+             comment=comment,
++            actor_employee_id=actor_employee_id,
+         )
+ 
+     # ==================================================================
+--- a/src/application/services/ticket_service.py
++++ b/src/application/services/ticket_service.py
+@@ -156,7 +156,8 @@
+                     comment="",
+                     client=client,
+                     user=user,
+-                    contact_user=contact_user
++                    contact_user=contact_user,
++                    actor_employee_id=actor.employee_id,
+                 )
+                 if ticket_dto.comment.strip():
+                     TicketUserService.add_comment(
+--- a/src/domain/statuses/ticket_user_status.py
++++ b/src/domain/statuses/ticket_user_status.py
+@@ -28,7 +28,8 @@
+ 
+     By default, a status represents an action performed by an Admin.
+     Statuses explicitly marked with ``user_action=True`` represent
+-    actions performed by a User.
++    actions normally performed by a User. CREATED is an exception:
++    its actual initiator may be the User or an Admin registering for User.
+ 
+     Attributes
+     ----------
+@@ -36,6 +37,10 @@
+         ``True`` if the status is produced by a User action.
+ 
+         ``False`` means that the status is produced by an Admin action.
++
++        CREATED retains ``True`` for compatibility, but permits either
++        actual initiator. This flag does not validate the actor's type;
++        the history record always stores the real positive employee ID.
+ 
+     requires_comment:
+         ``True`` if the status record must contain a non-empty comment.
+--- a/src/domain/statuses/ticket_user_status_record.py
++++ b/src/domain/statuses/ticket_user_status_record.py
+@@ -56,16 +56,19 @@
+     - User;
+     - Admin.
+ 
+-    Which kind of actor is expected is determined by the intrinsic
+-    TicketUserStatusRule of the status.
++    TicketUserStatusRule documents the usual actor family for the status.
+ 
+     In particular:
+ 
+         rule.user_action == True
+-            the action is performed by a User
++            the action is normally performed by a User
+ 
+         rule.user_action == False
+             the action is performed by an Admin
++
++    CREATED is an exception: it stores the actual User or Admin who
++    registered the request, while retaining user_action=True for compatibility.
++    The flag is not used to validate the actor's type in this record.
+ 
+     actor_employee_id must always be positive.
+ 
