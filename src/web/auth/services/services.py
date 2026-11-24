@@ -1,4 +1,5 @@
 
+from datetime import timezone
 from typing import Any
 
 from src.web.auth.exceptions import (
@@ -90,6 +91,17 @@ class TokenService:
             client_id=old_refresh_token.client_id,
             scope=old_refresh_token.scope,
         )
+        # Rotation changes the credential, not the session's original dates.
+        # Legacy naive metadata is interpreted as UTC, as in is_valid().
+        absolute_end = old_refresh_token.expires_at
+        if absolute_end.tzinfo is None:
+            absolute_end = absolute_end.replace(tzinfo=timezone.utc)
+        initial_start = old_refresh_token.created_at
+        if initial_start.tzinfo is None:
+            initial_start = initial_start.replace(tzinfo=timezone.utc)
+        token_pair.refresh_token.created_at = initial_start
+        token_pair.refresh_token.expires_at = absolute_end
+        token_pair.access_token.exp = min(token_pair.access_token.exp, absolute_end)
         response = token_pair.encode(settings=self.settings)
         self.token_storage.replace(old_refresh_token_id, token_pair.refresh_token)
         return response
