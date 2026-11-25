@@ -1,6 +1,7 @@
 from src.domain.datetime_check import datetime_from_db
 from src.domain.account import Account, NoAccount
 from src.domain.employee import Admin
+from src.domain.repositories.admin_repository import AdminLoginState
 
 
 
@@ -27,6 +28,15 @@ class AdminMapper:
         "account_enabled",
         "account_date_created",
     ]
+    @staticmethod
+    def row_to_login_state(row: dict) -> AdminLoginState:
+        # Keep the existing validation of stored administrator and account data.
+        admin = AdminMapper.row_to_admin(row)
+        return AdminLoginState(
+            admin_enabled=admin.enabled,
+            account_enabled=isinstance(admin.account, Account) and admin.account.enabled,
+        )
+
     @staticmethod
     def row_to_admin(row: dict) -> Admin:
         admin = Admin.rehydrate(

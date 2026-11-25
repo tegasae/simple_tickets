@@ -25,10 +25,12 @@ class Application:
     api: TestClient
     database: Path
     user_id: int
+    admin_id: int
     admin_headers: dict[str, str] = field(repr=False)
     user_login: str = field(repr=False)
     user_password: str = field(repr=False)
     user_refresh: str = field(repr=False)
+    admin_refresh: str = field(repr=False)
 
 
 @pytest.fixture
@@ -80,10 +82,12 @@ def application(tmp_path, monkeypatch):
             api=api,
             database=database,
             user_id=user.employee_id,
+            admin_id=admin.employee_id,
             admin_headers={"Authorization": "Bearer " + admin_auth.json()["access_token"]},
             user_login=user_login,
             user_password=user_password,
             user_refresh=user_auth.json()["refresh_token"],
+            admin_refresh=admin_auth.json()["refresh_token"],
         )
 
 
@@ -214,3 +218,116 @@ def test_migration_from_pre_activation_key_table(tmp_path, has_results):
             assert [(row[1], row[5]) for row in columns if row[5]] == [
                 ("employee_id", 1), ("idempotency_key", 2),
             ]
+
+
+@pytest.fixture
+def database_statements(monkeypatch):
+    statements = []
+    create_connection = Connection.create_connection
+
+    def trace(statement):
+        sql = statement.upper().lstrip()
+        operation = sql.split(maxsplit=1)[0]
+        statements.append(operation)
+
+    def connect(cls, *args, **kwargs):
+        connection = create_connection(*args, **kwargs)
+        connection.connect.set_trace_callback(trace)
+        return connection
+
+    monkeypatch.setattr(Connection, "create_connection", classmethod(connect))
+    return statements
+
+
+@pytest.mark.parametrize("realm", ["admin", "user"])
+def test_password_change_opens_only_the_business_transaction(application, database_statements, realm):
+    resource = "admins" if realm == "admin" else "users"
+    employee_id = application.admin_id if realm == "admin" else application.user_id
+    refresh_token = application.admin_refresh if realm == "admin" else application.user_refresh
+
+    response = application.api.patch(
+        f"/admin/{resource}/{employee_id}/password",
+        headers=application.admin_headers,
+        json={"password": "Aa1!" + secrets.token_hex(12)},
+    )
+    assert response.status_code == 200
+    begin = database_statements.index("BEGIN")
+    assert database_statements[:begin] == ["SELECT"]
+    assert [operation for operation in database_statements if operation in {"BEGIN", "COMMIT", "ROLLBACK"}] == [
+        "BEGIN", "COMMIT",
+    ]
+    assert application.api.post(
+        f"/auth/{realm}/refresh", json={"refresh_token": refresh_token},
+    ).status_code == 401
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "UPDATE employees SET enabled=0 WHERE employee_id=?",
+        "UPDATE accounts SET enabled=0 WHERE employee_id=?",
+        "DELETE FROM accounts WHERE employee_id=?",
+        "DELETE FROM admins WHERE employee_id=?",
+        "UPDATE employees SET enabled=NULL WHERE employee_id=?",
+        "UPDATE accounts SET enabled=NULL WHERE employee_id=?",
+    ],
+    ids=[
+        "admin-disabled", "account-disabled", "account-missing", "admin-missing",
+        "admin-null-flag", "account-null-flag",
+    ],
+)
+def test_invalid_admin_is_rejected_before_password_transaction(application, database_statements, change):
+    with closing(sqlite3.connect(application.database)) as db, db:
+        db.execute("PRAGMA foreign_keys=ON")
+        db.execute(change, (application.admin_id,))
+
+    response = application.api.patch(
+        f"/admin/users/{application.user_id}/password",
+        headers=application.admin_headers,
+        json={"password": "Aa1!" + secrets.token_hex(12)},
+    )
+    assert response.status_code == 401
+    assert response.headers["WWW-Authenticate"] == "Bearer"
+    assert database_statements == ["SELECT"]
+
+
+@pytest.mark.parametrize("table", ["employees", "accounts"])
+def test_existing_nonzero_enabled_value_still_allows_admin_access(application, table):
+    with closing(sqlite3.connect(application.database)) as db, db:
+        db.execute(f"UPDATE {table} SET enabled=2 WHERE employee_id=?", (application.admin_id,))
+
+    response = application.api.get(
+        f"/admin/users/{application.user_id}", headers=application.admin_headers,
+    )
+    assert response.status_code == 200
+
+
+def test_admin_without_permission_cannot_change_password(application):
+    with closing(sqlite3.connect(application.database)) as db, db:
+        db.execute("DELETE FROM admins_roles WHERE employee_id=?", (application.admin_id,))
+
+    response = application.api.patch(
+        f"/admin/users/{application.user_id}/password",
+        headers=application.admin_headers,
+        json={"password": "Aa1!" + secrets.token_hex(12)},
+    )
+    assert response.status_code == 403
+    assert application.api.post(
+        "/auth/user/refresh", json={"refresh_token": application.user_refresh},
+    ).status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("change", "status_code"),
+    [
+        ("UPDATE employees SET first_name='' WHERE employee_id=?", 401),
+        ("UPDATE accounts SET password=NULL WHERE employee_id=?", 500),
+    ],
+    ids=["invalid-profile", "invalid-password-hash"],
+)
+def test_admin_access_preserves_validation_of_stored_data(application, change, status_code):
+    with closing(sqlite3.connect(application.database)) as db, db:
+        db.execute(change, (application.admin_id,))
+
+    response = application.api.get("/admin/roles/admin/permissions", headers=application.admin_headers)
+    assert response.status_code == status_code

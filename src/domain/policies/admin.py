@@ -15,8 +15,16 @@ class AdminPolicy:
 
     @staticmethod
     def ensure_login_is_still_valid(admin: Admin) -> None:
-        if (not isinstance(admin,Admin) or not isinstance(admin.account, Account) or not admin.enabled
-                or not admin.account.enabled):
+        if not isinstance(admin, Admin):
+            raise DomainOperationError("Admin is not valid")
+        AdminPolicy.ensure_login_state_is_valid(
+            admin_enabled=admin.enabled,
+            account_enabled=isinstance(admin.account, Account) and admin.account.enabled,
+        )
+
+    @staticmethod
+    def ensure_login_state_is_valid(*, admin_enabled: bool, account_enabled: bool) -> None:
+        if not admin_enabled or not account_enabled:
             raise DomainOperationError("Admin is not valid")
 
 

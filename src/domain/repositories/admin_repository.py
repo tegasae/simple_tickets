@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 from src.domain.employee import Admin
+
+
+@dataclass(frozen=True)
+class AdminLoginState:
+    admin_enabled: bool
+    account_enabled: bool
 
 
 class AdminRepository(ABC):
@@ -34,6 +41,15 @@ class AdminRepository(ABC):
 
         Raises:
             NotFoundError if admin does not exist.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_login_state(self, *, admin_id: int) -> AdminLoginState:
+        """Read account status for an existing administrator in one query.
+
+        A missing account is disabled for login. A missing administrator
+        raises ItemNotFoundError. The read does not require an active UoW.
         """
         raise NotImplementedError
 

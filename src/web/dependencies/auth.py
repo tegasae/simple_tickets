@@ -128,12 +128,14 @@ def get_current_admin(
     )
 
     employee_id = access_token.get_admin_id()
-    with uow:
-        try:
-            admin = uow.admins.get(admin_id=employee_id)
-            AdminPolicy.ensure_login_is_still_valid(admin)
-        except DomainError as exc:
-            raise InvalidCredentialsError() from exc
+    try:
+        state = uow.admins.get_login_state(admin_id=employee_id)
+        AdminPolicy.ensure_login_state_is_valid(
+            admin_enabled=state.admin_enabled,
+            account_enabled=state.account_enabled,
+        )
+    except DomainError as exc:
+        raise InvalidCredentialsError() from exc
     request.state.employee = EmployeeID(employee_id=employee_id)
 
 

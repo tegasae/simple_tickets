@@ -10,7 +10,7 @@ from src.adapters.repositories.mappers.admin_mapper import AdminMapper
 
 from src.domain.employee import Admin
 from src.domain.exceptions import ItemNotFoundError
-from src.domain.repositories.admin_repository import AdminRepository
+from src.domain.repositories.admin_repository import AdminLoginState, AdminRepository
 
 
 class AdminRepositorySQLite(BaseRepository, AdminRepository):
@@ -73,6 +73,16 @@ class AdminRepositorySQLite(BaseRepository, AdminRepository):
         admin = AdminMapper.row_to_admin(row)
         admin._role_ids = self._load_roles(admin.employee_id)
         return admin
+
+    def get_login_state(self, *, admin_id: int) -> AdminLoginState:
+        row = self._get_one(
+            AdminGateway.SELECT_BY_ID,
+            var=AdminMapper.VARS,
+            params={"employee_id": admin_id},
+        )
+        if not row:
+            raise ItemNotFoundError(f"Admin {admin_id} not found")
+        return AdminMapper.row_to_login_state(row)
 
     def get_all(self) -> list[Admin]:
         rows = self._get_many(AdminGateway.SELECT_BASE, var=AdminMapper.VARS)
