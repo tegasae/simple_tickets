@@ -10,7 +10,7 @@ mode=$1
 shift
 tests_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 review_dir=$(dirname "$tests_dir")
-repo=$(git -C "$review_dir" rev-parse --show-toplevel)
+repo=$(git -C "${SIMPLE_TICKETS_REPO:-$review_dir}" rev-parse --show-toplevel)
 snapshot=869cd424b1b9f13babd720884a3cbb7e0f6a10bb
 python_cmd=${ACCEPTANCE_PYTHON:-python3}
 temp=$(mktemp -d)

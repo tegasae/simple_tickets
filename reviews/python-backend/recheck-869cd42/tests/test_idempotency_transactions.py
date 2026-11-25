@@ -200,3 +200,36 @@ def test_concurrent_replay_returns_one_effect_with_standard_sqlite_busy(world, m
     assert post(world, command, key).json() == response.json()
     assert counts(world, command) == expected_counts(before, command)
     assert len(stored_results(world)) == 1
+
+
+def test_busy_maintenance_sql_leaves_durable_creation(world, monkeypatch):
+    """Ошибка SQL при выставлении TTL оставляет сохранённый ответ доступным."""
+    from utils.db.exceptions import DBTransientError
+    from utils.db.query import Query
+
+    command = creation(world, "client")
+    before = counts(world, command)
+    execute_query = Query._execute
+    maintenance_attempts = []
+
+    def execute_with_busy_maintenance(query, params=None):
+        statement = " ".join(query.sql.split()).lower()
+        if statement.startswith("update creation_results set expires_at"):
+            maintenance_attempts.append(True)
+            raise DBTransientError("Synthetic lock during deadline update")
+        return execute_query(query, params)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Query, "_execute", execute_with_busy_maintenance)
+        created = post(world, command, "maintenance-busy")
+    assert maintenance_attempts == [True]
+    assert created.status_code == 201
+    assert stored_results(world) == [(201, None)]
+
+    replay = post(world, command, "maintenance-busy")
+    assert replay.status_code == 201
+    assert replay.text == created.text
+    [(status, deadline)] = stored_results(world)
+    assert status == 201
+    assert deadline is not None
+    assert counts(world, command) == expected_counts(before, command)

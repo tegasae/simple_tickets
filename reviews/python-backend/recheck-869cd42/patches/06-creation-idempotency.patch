@@ -33,82 +33,168 @@ index a133246..f48afa3 100644
  
 diff --git a/src/adapters/repositories/creation_result_repository.py b/src/adapters/repositories/creation_result_repository.py
 new file mode 100644
-index 0000000..b6f4338
+index 0000000..aea9b7b
 --- /dev/null
 +++ b/src/adapters/repositories/creation_result_repository.py
-@@ -0,0 +1,72 @@
-+from dataclasses import asdict
-+
+@@ -0,0 +1,63 @@
++from src.adapters.repositories.base_repository import BaseRepository
++from src.adapters.repositories.exceptions import UniqueConstraintError
++from src.adapters.repositories.gateways.creation_result_gateway import CreationResultGateway
++from src.adapters.repositories.mappers.creation_result_mapper import CreationResultMapper
 +from src.domain.repositories.creation_result_repository import (
-+    CreationAlreadyReserved, CreationKey, CreationResult,
++    CreationAlreadyReserved, CreationKey, CreationResult, CreationResultRepository,
 +)
 +from utils.db.connect import Connection
-+from utils.db.exceptions import DBUniqueConstraintError
 +
 +
-+class CreationResultRepositorySQLite:
-+    _where = """subject_type = :subject_type AND subject_id = :subject_id
-+                AND command = :command AND idempotency_key = :key"""
-+
++class CreationResultRepositorySQLite(BaseRepository, CreationResultRepository):
 +    def __init__(self, connection: Connection) -> None:
-+        self.connection = connection
++        super().__init__(connection)
 +
 +    def get(self, key: CreationKey) -> CreationResult | None:
-+        with self.connection.create_query(
-+            sql=f"""SELECT fingerprint, status_code, body, expires_at
-+                    FROM creation_results WHERE {self._where}""",
-+            params=asdict(key),
-+        ) as query:
-+            row = query.get_one_result_tuple()
-+        return CreationResult(*row) if row else None
++        row = self._get_one(
++            CreationResultGateway.SELECT_BY_KEY,
++            var=CreationResultMapper.RESULT_COLUMNS,
++            params=CreationResultMapper.key_params(key),
++        )
++        return CreationResultMapper.row_to_result(row) if row else None
 +
 +    def reserve(self, key: CreationKey, *, fingerprint: str) -> None:
 +        try:
-+            self._write(
-+                """INSERT INTO creation_results
-+                   (subject_type, subject_id, command, idempotency_key, fingerprint)
-+                   VALUES (:subject_type, :subject_id, :command, :key, :fingerprint)""",
-+                {**asdict(key), "fingerprint": fingerprint},
++            self._exec(
++                CreationResultGateway.INSERT_RESERVATION,
++                CreationResultMapper.key_params(key, fingerprint=fingerprint),
 +            )
-+        except DBUniqueConstraintError as exc:
++        except UniqueConstraintError as exc:
 +            raise CreationAlreadyReserved() from exc
 +
 +    def complete(self, key: CreationKey, *, result: CreationResult) -> None:
-+        changed = self._write(
-+            f"""UPDATE creation_results SET status_code = :status_code, body = :body
-+                WHERE {self._where} AND status_code IS NULL""",
-+            {**asdict(key), "status_code": result.status_code, "body": result.body},
++        written = self._exec(
++            CreationResultGateway.COMPLETE,
++            CreationResultMapper.completion_params(key, result),
 +        )
-+        if changed != 1:
++        if written.rowcount != 1:
 +            raise RuntimeError("Expected one reserved creation result")
 +
 +    def forget_expired(self, key: CreationKey, *, now: float) -> None:
-+        self._write(
-+            f"DELETE FROM creation_results WHERE {self._where} AND expires_at <= :now",
-+            {**asdict(key), "now": now},
++        self._exec(
++            CreationResultGateway.DELETE_EXPIRED_BY_KEY,
++            CreationResultMapper.key_params(key, now=now),
 +        )
 +
 +    def pending_deadlines(self) -> list[CreationKey]:
-+        with self.connection.create_query(
-+            sql="""SELECT subject_type, subject_id, command, idempotency_key
-+                   FROM creation_results WHERE expires_at IS NULL AND status_code IS NOT NULL""",
-+        ) as query:
-+            return [CreationKey(*row) for row in query.get_result()]
++        rows = self._get_many(
++            CreationResultGateway.SELECT_PENDING_DEADLINES,
++            var=CreationResultMapper.KEY_COLUMNS,
++        )
++        return [CreationResultMapper.row_to_key(row) for row in rows]
 +
 +    def set_deadline(self, key: CreationKey, *, expires_at: float) -> None:
-+        self._write(
-+            f"""UPDATE creation_results SET expires_at = :expires_at
-+                WHERE {self._where} AND expires_at IS NULL AND status_code IS NOT NULL""",
-+            {**asdict(key), "expires_at": expires_at},
++        self._exec(
++            CreationResultGateway.SET_DEADLINE,
++            CreationResultMapper.key_params(key, expires_at=expires_at),
 +        )
 +
 +    def prune_expired(self, *, now: float) -> None:
-+        self._write("DELETE FROM creation_results WHERE expires_at <= :now", {"now": now})
++        self._exec(
++            CreationResultGateway.DELETE_EXPIRED,
++            CreationResultMapper.expiry_params(now),
++        )
+diff --git a/src/adapters/repositories/gateways/creation_result_gateway.py b/src/adapters/repositories/gateways/creation_result_gateway.py
+new file mode 100644
+index 0000000..22d04a5
+--- /dev/null
++++ b/src/adapters/repositories/gateways/creation_result_gateway.py
+@@ -0,0 +1,39 @@
++class CreationResultGateway:
++    _KEY_FILTER = """
++        subject_type = :subject_type AND subject_id = :subject_id
++        AND command = :command AND idempotency_key = :key
++    """
 +
-+    def _write(self, sql: str, params: dict) -> int:
-+        with self.connection.create_query(sql=sql, params=params) as query:
-+            query.set_result()
-+            return query.count
++    SELECT_BY_KEY = f"""
++        SELECT fingerprint, status_code, body, expires_at
++        FROM creation_results WHERE {_KEY_FILTER}
++    """
++
++    INSERT_RESERVATION = """
++        INSERT INTO creation_results
++            (subject_type, subject_id, command, idempotency_key, fingerprint)
++        VALUES (:subject_type, :subject_id, :command, :key, :fingerprint)
++    """
++
++    COMPLETE = f"""
++        UPDATE creation_results SET status_code = :status_code, body = :body
++        WHERE {_KEY_FILTER} AND status_code IS NULL
++    """
++
++    DELETE_EXPIRED_BY_KEY = f"""
++        DELETE FROM creation_results WHERE {_KEY_FILTER} AND expires_at <= :now
++    """
++
++    SELECT_PENDING_DEADLINES = """
++        SELECT subject_type, subject_id, command, idempotency_key
++        FROM creation_results WHERE expires_at IS NULL AND status_code IS NOT NULL
++    """
++
++    SET_DEADLINE = f"""
++        UPDATE creation_results SET expires_at = :expires_at
++        WHERE {_KEY_FILTER} AND expires_at IS NULL AND status_code IS NOT NULL
++    """
++
++    DELETE_EXPIRED = """
++        DELETE FROM creation_results WHERE expires_at <= :now
++    """
+diff --git a/src/adapters/repositories/mappers/creation_result_mapper.py b/src/adapters/repositories/mappers/creation_result_mapper.py
+new file mode 100644
+index 0000000..0af5de3
+--- /dev/null
++++ b/src/adapters/repositories/mappers/creation_result_mapper.py
+@@ -0,0 +1,44 @@
++from typing import Any
++
++from src.domain.repositories.creation_result_repository import CreationKey, CreationResult
++
++
++class CreationResultMapper:
++    RESULT_COLUMNS = ["fingerprint", "status_code", "body", "expires_at"]
++    KEY_COLUMNS = ["subject_type", "subject_id", "command", "idempotency_key"]
++
++    @staticmethod
++    def row_to_result(row: dict[str, Any]) -> CreationResult:
++        return CreationResult(
++            fingerprint=row["fingerprint"],
++            status_code=row["status_code"],
++            body=row["body"],
++            expires_at=row["expires_at"],
++        )
++
++    @staticmethod
++    def row_to_key(row: dict[str, Any]) -> CreationKey:
++        return CreationKey(
++            subject_type=row["subject_type"],
++            subject_id=row["subject_id"],
++            command=row["command"],
++            key=row["idempotency_key"],
++        )
++
++    @staticmethod
++    def key_params(key: CreationKey, **values: object) -> dict[str, object]:
++        return {
++            **values,
++            "subject_type": key.subject_type,
++            "subject_id": key.subject_id,
++            "command": key.command,
++            "key": key.key,
++        }
++
++    @classmethod
++    def completion_params(cls, key: CreationKey, result: CreationResult) -> dict[str, object]:
++        return cls.key_params(key, status_code=result.status_code, body=result.body)
++
++    @staticmethod
++    def expiry_params(now: float) -> dict[str, float]:
++        return {"now": now}
 diff --git a/src/adapters/uow/sqlite_unit_of_work.py b/src/adapters/uow/sqlite_unit_of_work.py
 index 1f2746a..c5f0184 100644
 --- a/src/adapters/uow/sqlite_unit_of_work.py
@@ -540,12 +626,12 @@ index ba84f4d..9b20235 100644
          self,
 diff --git a/src/domain/repositories/creation_result_repository.py b/src/domain/repositories/creation_result_repository.py
 new file mode 100644
-index 0000000..ce44eed
+index 0000000..729920a
 --- /dev/null
 +++ b/src/domain/repositories/creation_result_repository.py
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,55 @@
++from abc import ABC, abstractmethod
 +from dataclasses import dataclass
-+from typing import Protocol
 +
 +from src.domain.repositories.refresh_session_repository import SubjectType
 +
@@ -570,20 +656,35 @@ index 0000000..ce44eed
 +    """Another transaction owns this scoped key."""
 +
 +
-+class CreationResultRepository(Protocol):
-+    def get(self, key: CreationKey) -> CreationResult | None: ...
++class CreationResultRepository(ABC):
++    @abstractmethod
++    def get(self, key: CreationKey) -> CreationResult | None:
++        raise NotImplementedError
 +
-+    def reserve(self, key: CreationKey, *, fingerprint: str) -> None: ...
++    @abstractmethod
++    def reserve(self, key: CreationKey, *, fingerprint: str) -> None:
++        """Claim the key or raise CreationAlreadyReserved if it already exists."""
++        raise NotImplementedError
 +
-+    def complete(self, key: CreationKey, *, result: CreationResult) -> None: ...
++    @abstractmethod
++    def complete(self, key: CreationKey, *, result: CreationResult) -> None:
++        raise NotImplementedError
 +
-+    def forget_expired(self, key: CreationKey, *, now: float) -> None: ...
++    @abstractmethod
++    def forget_expired(self, key: CreationKey, *, now: float) -> None:
++        raise NotImplementedError
 +
-+    def pending_deadlines(self) -> list[CreationKey]: ...
++    @abstractmethod
++    def pending_deadlines(self) -> list[CreationKey]:
++        raise NotImplementedError
 +
-+    def set_deadline(self, key: CreationKey, *, expires_at: float) -> None: ...
++    @abstractmethod
++    def set_deadline(self, key: CreationKey, *, expires_at: float) -> None:
++        raise NotImplementedError
 +
-+    def prune_expired(self, *, now: float) -> None: ...
++    @abstractmethod
++    def prune_expired(self, *, now: float) -> None:
++        raise NotImplementedError
 diff --git a/src/domain/uow/unit_of_work.py b/src/domain/uow/unit_of_work.py
 index eeaac6c..918f180 100644
 --- a/src/domain/uow/unit_of_work.py
@@ -602,22 +703,22 @@ index eeaac6c..918f180 100644
  
 diff --git a/src/web/idempotency.py b/src/web/idempotency.py
 new file mode 100644
-index 0000000..b1cbfba
+index 0000000..fb47b59
 --- /dev/null
 +++ b/src/web/idempotency.py
-@@ -0,0 +1,151 @@
+@@ -0,0 +1,152 @@
 +"""Execute a keyed creation once, using the service's UnitOfWork."""
 +from collections.abc import Callable
 +from datetime import UTC, datetime
 +import hmac
 +import json
 +import logging
-+from typing import Annotated
++from typing import Annotated, TypeVar
 +
 +from fastapi import Depends, Header, HTTPException, Request, Response
 +from pydantic import BaseModel
 +
-+from src.adapters.repositories.exceptions import TransientPersistenceError
++from src.adapters.repositories.exceptions import PersistenceError, TransientPersistenceError
 +from src.domain.repositories.creation_result_repository import (
 +    CreationAlreadyReserved, CreationKey, CreationResult,
 +)
@@ -630,6 +731,7 @@ index 0000000..b1cbfba
 +
 +logger = logging.getLogger(__name__)
 +RESULT_TTL = 24 * 60 * 60
++T = TypeVar("T", bound=BaseModel)
 +
 +
 +def timestamp() -> float:
@@ -705,7 +807,7 @@ index 0000000..b1cbfba
 +            for key in pending:
 +                uow.creation_results.set_deadline(key, expires_at=now + RESULT_TTL)
 +            uow.creation_results.prune_expired(now=now)
-+    except DBOperationError:
++    except (DBOperationError, PersistenceError):
 +        # The business operation and response are already durable. The next
 +        # keyed write or replay without a deadline can perform maintenance.
 +        logger.warning("Creation result retention maintenance deferred")
@@ -722,9 +824,9 @@ index 0000000..b1cbfba
 +    payload: BaseModel,
 +    status_code: int,
 +    authorize: Callable[[], object],
-+    execute: Callable[[bool], BaseModel],
++    execute: Callable[[bool], T],
 +    target_id: int | None = None,
-+) -> BaseModel | Response:
++) -> T | Response:
 +    if idempotency_key is None:
 +        return execute(False)
 +

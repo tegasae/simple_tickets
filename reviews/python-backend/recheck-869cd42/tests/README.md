@@ -50,3 +50,18 @@ bash "$REVIEW/tests/reproduce.sh" smoke-patched
 Контроль прежней версии выполнялся с Git archive снимка `5288dea85d8f7e7e4c84d4801781d297e0e14475` и теми же модулями приёмки. Для контроля D01–D04 использовались цели `test_department_initial_state.py`, `test_admin_profile_department.py`, `test_account_creation_input.py` и `test_ticket_work_mode_roundtrip.py`. Для 11 сравнений F-01–F-05 использовались модуль комментариев без телефонной атрибуции, начальные settings, тесты сохранения дедлайна и варианты назначения из `test_executor_guard.py`. [Список выполненных test ID](run-data.json)
 
 Штатный runtime в контейнере Python 3.14 и будущий PostgreSQL проверяются после подготовки окружения и соответствующего адаптера. Для PostgreSQL нужны независимые соединения и управляемые порядки фиксации назначения, отзыва и ключа. Фактические значения среды production и реальные данные исключены из тестов.
+
+
+## Запуск из отдельного комплекта
+
+Укажите путь к подключённому репозиторию, содержащему Git-объект `869cd424b1b9f13babd720884a3cbb7e0f6a10bb`. Команды можно выполнять из каталога распакованного комплекта.
+
+```bash
+export SIMPLE_TICKETS_REPO=/path/to/simple_tickets
+REVIEW="$PWD/reviews/python-backend/recheck-869cd42"
+bash "$REVIEW/tests/reproduce.sh" patched
+bash "$REVIEW/tests/reproduce.sh" historical-patched
+bash "$REVIEW/tests/reproduce.sh" smoke-patched
+```
+
+Проверка `test_busy_maintenance_sql_leaves_durable_creation` имитирует отказ SQL при выставлении TTL через обычный Query. Она проверяет HTTP 201 после фиксации, восстановление отметки срока и один бизнес-результат после повтора. [Протокол редакции](results.md#проверка-редакции-репозиториев)

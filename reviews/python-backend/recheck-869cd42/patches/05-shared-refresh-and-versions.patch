@@ -177,86 +177,148 @@ index 0000000..a133246
 +
 +if __name__ == "__main__":
 +    main()
-diff --git a/src/adapters/repositories/refresh_session_repository.py b/src/adapters/repositories/refresh_session_repository.py
+diff --git a/src/adapters/repositories/gateways/refresh_session_gateway.py b/src/adapters/repositories/gateways/refresh_session_gateway.py
 new file mode 100644
-index 0000000..563ee64
+index 0000000..b2a1764
 --- /dev/null
-+++ b/src/adapters/repositories/refresh_session_repository.py
-@@ -0,0 +1,74 @@
++++ b/src/adapters/repositories/gateways/refresh_session_gateway.py
+@@ -0,0 +1,30 @@
++class RefreshSessionGateway:
++    """SQL statements for refresh sessions in the main SQLite database."""
++
++    SELECT_BY_HASH = """
++        SELECT account_id, subject_id, subject_type, username,
++               created_at, expires_at, scope
++        FROM auth_refresh_sessions
++        WHERE token_hash = :token_hash
++    """
++
++    INSERT = """
++        INSERT INTO auth_refresh_sessions
++            (token_hash, account_id, subject_id, subject_type, username,
++             created_at, expires_at, scope)
++        VALUES (:token_hash, :account_id, :subject_id, :subject_type, :username,
++                :created_at, :expires_at, :scope)
++    """
++
++    DELETE_BY_HASH = """
++        DELETE FROM auth_refresh_sessions WHERE token_hash = :token_hash
++    """
++
++    DELETE_BY_SUBJECT = """
++        DELETE FROM auth_refresh_sessions
++        WHERE subject_type = :subject_type AND subject_id = :subject_id
++    """
++
++    DELETE_EXPIRED = """
++        DELETE FROM auth_refresh_sessions WHERE expires_at <= :now
++    """
+diff --git a/src/adapters/repositories/mappers/refresh_session_mapper.py b/src/adapters/repositories/mappers/refresh_session_mapper.py
+new file mode 100644
+index 0000000..cb861c3
+--- /dev/null
++++ b/src/adapters/repositories/mappers/refresh_session_mapper.py
+@@ -0,0 +1,45 @@
 +import json
 +from datetime import UTC, datetime
 +
-+from src.domain.repositories.refresh_session_repository import RefreshSession, SubjectType
++from src.domain.repositories.refresh_session_repository import RefreshSession
++
++
++class RefreshSessionMapper:
++    VARS = [
++        "account_id",
++        "subject_id",
++        "subject_type",
++        "username",
++        "created_at",
++        "expires_at",
++        "scope",
++    ]
++
++    @staticmethod
++    def row_to_session(row: dict) -> RefreshSession:
++        return RefreshSession(
++            account_id=row["account_id"],
++            subject_id=row["subject_id"],
++            subject_type=row["subject_type"],
++            username=row["username"],
++            created_at=datetime.fromtimestamp(row["created_at"], UTC),
++            expires_at=datetime.fromtimestamp(row["expires_at"], UTC),
++            scope=tuple(json.loads(row["scope"])),
++        )
++
++    @staticmethod
++    def session_params(token_hash: str, session: RefreshSession) -> dict[str, str | int | float]:
++        return {
++            "token_hash": token_hash,
++            "account_id": session.account_id,
++            "subject_id": session.subject_id,
++            "subject_type": session.subject_type,
++            "username": session.username,
++            "created_at": session.created_at.timestamp(),
++            "expires_at": session.expires_at.timestamp(),
++            "scope": json.dumps(session.scope),
++        }
++
++    @staticmethod
++    def expiry_params(now: datetime) -> dict[str, float]:
++        return {"now": now.timestamp()}
+diff --git a/src/adapters/repositories/refresh_session_repository.py b/src/adapters/repositories/refresh_session_repository.py
+new file mode 100644
+index 0000000..960608b
+--- /dev/null
++++ b/src/adapters/repositories/refresh_session_repository.py
+@@ -0,0 +1,49 @@
++from datetime import datetime
++
++from src.adapters.repositories.base_repository import BaseRepository
++from src.adapters.repositories.gateways.refresh_session_gateway import RefreshSessionGateway
++from src.adapters.repositories.mappers.refresh_session_mapper import RefreshSessionMapper
++from src.domain.repositories.refresh_session_repository import (
++    RefreshSession,
++    RefreshSessionRepository,
++    SubjectType,
++)
 +from utils.db.connect import Connection
 +
 +
-+class RefreshSessionRepositorySQLite:
++class RefreshSessionRepositorySQLite(BaseRepository, RefreshSessionRepository):
 +    def __init__(self, connection: Connection) -> None:
-+        self.connection = connection
++        super().__init__(connection)
 +
 +    def get(self, token_hash: str) -> RefreshSession | None:
-+        with self.connection.create_query(
-+            sql="""SELECT account_id, subject_id, subject_type, username,
-+                          created_at, expires_at, scope
-+                   FROM auth_refresh_sessions WHERE token_hash = :token_hash""",
++        row = self._get_one(
++            RefreshSessionGateway.SELECT_BY_HASH,
++            var=RefreshSessionMapper.VARS,
 +            params={"token_hash": token_hash},
-+        ) as query:
-+            row = query.get_one_result_tuple()
-+        if not row:
-+            return None
-+        account_id, subject_id, subject_type, username, created_at, expires_at, scope = row
-+        return RefreshSession(
-+            account_id=account_id,
-+            subject_id=subject_id,
-+            subject_type=subject_type,
-+            username=username,
-+            created_at=datetime.fromtimestamp(created_at, UTC),
-+            expires_at=datetime.fromtimestamp(expires_at, UTC),
-+            scope=tuple(json.loads(scope)),
 +        )
++        return RefreshSessionMapper.row_to_session(row) if row else None
 +
 +    def add(self, token_hash: str, session: RefreshSession) -> None:
-+        self._write(
-+            """INSERT INTO auth_refresh_sessions
-+               (token_hash, account_id, subject_id, subject_type, username,
-+                created_at, expires_at, scope)
-+               VALUES (:token_hash, :account_id, :subject_id, :subject_type, :username,
-+                       :created_at, :expires_at, :scope)""",
-+            {
-+                "token_hash": token_hash,
-+                "account_id": session.account_id,
-+                "subject_id": session.subject_id,
-+                "subject_type": session.subject_type,
-+                "username": session.username,
-+                "created_at": session.created_at.timestamp(),
-+                "expires_at": session.expires_at.timestamp(),
-+                "scope": json.dumps(session.scope),
-+            },
++        self._exec(
++            RefreshSessionGateway.INSERT,
++            RefreshSessionMapper.session_params(token_hash, session),
 +        )
 +
 +    def remove(self, token_hash: str) -> bool:
-+        return self._write(
-+            "DELETE FROM auth_refresh_sessions WHERE token_hash = :token_hash",
++        result = self._exec(
++            RefreshSessionGateway.DELETE_BY_HASH,
 +            {"token_hash": token_hash},
-+        ) == 1
++        )
++        return result.rowcount == 1
 +
 +    def revoke_subject(self, *, subject_type: SubjectType, subject_id: int) -> None:
-+        self._write(
-+            """DELETE FROM auth_refresh_sessions
-+               WHERE subject_type = :subject_type AND subject_id = :subject_id""",
++        self._exec(
++            RefreshSessionGateway.DELETE_BY_SUBJECT,
 +            {"subject_type": subject_type, "subject_id": subject_id},
 +        )
 +
 +    def remove_expired(self, *, now: datetime) -> None:
-+        self._write(
-+            "DELETE FROM auth_refresh_sessions WHERE expires_at <= :now",
-+            {"now": now.timestamp()},
++        self._exec(
++            RefreshSessionGateway.DELETE_EXPIRED,
++            RefreshSessionMapper.expiry_params(now),
 +        )
-+
-+    def _write(self, sql: str, params: dict) -> int:
-+        with self.connection.create_query(sql=sql, params=params) as query:
-+            query.set_result()
-+            return query.count
 diff --git a/src/adapters/uow/sqlite_unit_of_work.py b/src/adapters/uow/sqlite_unit_of_work.py
 index 50209ff..1f2746a 100644
 --- a/src/adapters/uow/sqlite_unit_of_work.py
@@ -405,13 +467,14 @@ index d64f1bd..ba84f4d 100644
              saved_user
 diff --git a/src/domain/repositories/refresh_session_repository.py b/src/domain/repositories/refresh_session_repository.py
 new file mode 100644
-index 0000000..a0b5de7
+index 0000000..f493483
 --- /dev/null
 +++ b/src/domain/repositories/refresh_session_repository.py
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,41 @@
++from abc import ABC, abstractmethod
 +from dataclasses import dataclass
 +from datetime import datetime
-+from typing import Literal, Protocol
++from typing import Literal
 +
 +SubjectType = Literal["admin", "user"]
 +
@@ -427,18 +490,28 @@ index 0000000..a0b5de7
 +    scope: tuple[str, ...]
 +
 +
-+class RefreshSessionRepository(Protocol):
++class RefreshSessionRepository(ABC):
 +    """Operate on hashes and metadata in the caller's transaction."""
 +
-+    def get(self, token_hash: str) -> RefreshSession | None: ...
++    @abstractmethod
++    def get(self, token_hash: str) -> RefreshSession | None:
++        raise NotImplementedError
 +
-+    def add(self, token_hash: str, session: RefreshSession) -> None: ...
++    @abstractmethod
++    def add(self, token_hash: str, session: RefreshSession) -> None:
++        raise NotImplementedError
 +
-+    def remove(self, token_hash: str) -> bool: ...
++    @abstractmethod
++    def remove(self, token_hash: str) -> bool:
++        raise NotImplementedError
 +
-+    def revoke_subject(self, *, subject_type: SubjectType, subject_id: int) -> None: ...
++    @abstractmethod
++    def revoke_subject(self, *, subject_type: SubjectType, subject_id: int) -> None:
++        raise NotImplementedError
 +
-+    def remove_expired(self, *, now: datetime) -> None: ...
++    @abstractmethod
++    def remove_expired(self, *, now: datetime) -> None:
++        raise NotImplementedError
 diff --git a/src/domain/uow/unit_of_work.py b/src/domain/uow/unit_of_work.py
 index d97d6df..eeaac6c 100644
 --- a/src/domain/uow/unit_of_work.py
