@@ -1,0 +1,85 @@
+diff --git a/src/application/services/ticket_user_service.py b/src/application/services/ticket_user_service.py
+index 6f095af09c5d5d6088a104c6c40e602db9e12a8e..09ca45d555ba3a2f1127822c952e3a976d7010df 100644
+--- a/src/application/services/ticket_user_service.py
++++ b/src/application/services/ticket_user_service.py
+@@ -110,7 +110,7 @@ class TicketUserApplicationService:
+         """
+ 
+         with self.uow.transaction(join=join_transaction):
+-            actor = self.require_create_access(ticket_user_dto)
++            actor = self.require_create_ticket(ticket_user_dto)
+ 
+             if ticket_user_dto.ticket_user_id != 0:
+                 raise DomainOperationError(
+@@ -207,13 +207,18 @@ class TicketUserApplicationService:
+     # TicketUser data
+     # ==================================================================
+ 
+-    def require_create_access(self, ticket_user_dto: TicketUserDTO) -> User:
++    def require_create_ticket(self, ticket_user_dto: TicketUserDTO) -> User:
++        """Check access to create a ticket as the requesting user."""
+         actor = self.actor.require_actor_user(
+             actor_user_id=ticket_user_dto.actor_user_id,
+             permission=UserPermission.TICKET_OPERATION,
+         )
+         return actor
+ 
++    def require_create_access(self, ticket_user_dto: TicketUserDTO) -> User:
++        """Compatibility entry point for existing creation replay adapters."""
++        return self.require_create_ticket(ticket_user_dto)
++
+     def add_comment(
+         self,
+         *,
+@@ -445,7 +450,7 @@ class TicketUserApplicationService:
+                 ticket_user_dto.ticket_user_id,
+             )
+ 
+-            self._require_view_access(
++            self.require_view_ticket(
+                 actor_user_id=ticket_user_dto.actor_user_id,
+                 ticket_user=ticket_user,
+             )
+@@ -665,7 +670,7 @@ class TicketUserApplicationService:
+ 
+         return actor
+ 
+-    def _require_view_access(
++    def require_view_ticket(
+         self,
+         *,
+         actor_user_id: int,
+diff --git a/src/application/services/user_service.py b/src/application/services/user_service.py
+index 08a673b30ada423706c48aba68545a54e3bc7089..e6d1f9aa0414313c34b6ea094264e081f8d69f16 100644
+--- a/src/application/services/user_service.py
++++ b/src/application/services/user_service.py
+@@ -73,7 +73,7 @@ class UserApplicationService:
+         join_transaction: bool = False,
+     ) -> UserResponseDTO:
+         with self.uow.transaction(join=join_transaction):
+-            actor = self.require_create_access(user_dto)
++            actor = self.require_create_user(user_dto)
+ 
+             self.helper.ensure_login_is_free(
+                 login=user_dto.login,
+@@ -126,7 +126,8 @@ class UserApplicationService:
+     # Update
+     # ==================================================================
+ 
+-    def require_create_access(self, user_dto: UserDTO) -> Admin:
++    def require_create_user(self, user_dto: UserDTO) -> Admin:
++        """Check access to create a user with the requested roles."""
+         actor = self.actor.require_actor_admin(
+             actor_admin_id=user_dto.actor_admin_id,
+             permission=AdminPermission.USER_OPERATION,
+@@ -139,6 +140,10 @@ class UserApplicationService:
+             )
+         return actor
+ 
++    def require_create_access(self, user_dto: UserDTO) -> Admin:
++        """Compatibility entry point for existing creation replay adapters."""
++        return self.require_create_user(user_dto)
++
+     def update_user(
+         self,
+         *,
