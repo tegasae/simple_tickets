@@ -3,7 +3,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2Pas
 
 from src.domain.account import Account
 from src.web.auth.models import RefreshRequest, LogoutRequest, LoginRequest
-from src.web.auth.services.services import AuthManager
+from src.web.auth.services.shared_sessions import SharedSessionAuthManager
 
 from src.web.dependencies.auth import get_auth_manager_admin, get_auth_manager_user
 
@@ -72,7 +72,7 @@ def _verify_account_password(entity, plain_password: str) -> None:
 @router.post("/admin/login")
 def login(
         form_data: OAuth2PasswordRequestForm = Depends(),
-        auth_manager: AuthManager = Depends(get_auth_manager_admin)
+        auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_admin)
 ):
     #
     scopes = form_data.scopes if form_data.scopes else []
@@ -83,7 +83,7 @@ def login(
 @router.post("/admin/refresh")
 def refresh(
         refresh_request: RefreshRequest,
-        auth_manager: AuthManager = Depends(get_auth_manager_admin)
+        auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_admin)
 ):
     refresh_request = RefreshRequest(refresh_token=refresh_request.refresh_token)
     return auth_manager.refresh(refresh_request=refresh_request)
@@ -93,7 +93,7 @@ def refresh(
 @router.post("/admin/logout")
 def logout(
     logout_request: LogoutRequest,
-    auth_manager: AuthManager = Depends(get_auth_manager_admin),
+    auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_admin),
     bearer: HTTPAuthorizationCredentials | None = Depends(logout_bearer),
 ):
     auth_manager.logout(
@@ -107,7 +107,7 @@ def logout(
 @router.post("/user/login")
 def login_user(
         form_data: OAuth2PasswordRequestForm = Depends(),
-        auth_manager: AuthManager = Depends(get_auth_manager_user)
+        auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_user)
 ):
     #
     scopes = form_data.scopes if form_data.scopes else []
@@ -118,7 +118,7 @@ def login_user(
 @router.post("/user/refresh")
 def refresh_user(
         refresh_request: RefreshRequest,
-        auth_manager: AuthManager = Depends(get_auth_manager_user)
+        auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_user)
 ):
     refresh_request = RefreshRequest(refresh_token=refresh_request.refresh_token)
     return auth_manager.refresh(refresh_request=refresh_request)
@@ -127,7 +127,7 @@ def refresh_user(
 @router.post("/user/logout")
 def logout_user(
     logout_request: LogoutRequest,
-    auth_manager: AuthManager = Depends(get_auth_manager_user),
+    auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_user),
     bearer: HTTPAuthorizationCredentials | None = Depends(logout_bearer),
 ):
     auth_manager.logout(

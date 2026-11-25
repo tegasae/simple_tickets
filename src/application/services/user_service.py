@@ -9,7 +9,7 @@ from src.application.exceptions import ApplicationValidateError
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.application.helper.employee_helper import EmployeeHelper
 
-from src.domain.employee import User
+from src.domain.employee import Admin, User
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.ticket_sync_service import TicketSyncService
@@ -70,18 +70,10 @@ class UserApplicationService:
         self,
         *,
         user_dto: UserDTO,
+        join_transaction: bool = False,
     ) -> UserResponseDTO:
-        with self.uow:
-            actor = self.actor.require_actor_admin(
-                actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.USER_OPERATION,
-            )
-
-            if user_dto.roles:
-                self.actor.require_actor_admin(
-                    actor_admin_id=user_dto.actor_admin_id,
-                    permission=AdminPermission.ROLE_USER_ASSIGN,
-                )
+        with self.uow.transaction(join=join_transaction):
+            actor = self.require_create_access(user_dto)
 
             self.helper.ensure_login_is_free(
                 login=user_dto.login,
@@ -133,6 +125,19 @@ class UserApplicationService:
     # ==================================================================
     # Update
     # ==================================================================
+
+    def require_create_access(self, user_dto: UserDTO) -> Admin:
+        actor = self.actor.require_actor_admin(
+            actor_admin_id=user_dto.actor_admin_id,
+            permission=AdminPermission.USER_OPERATION,
+        )
+
+        if user_dto.roles:
+            self.actor.require_actor_admin(
+                actor_admin_id=user_dto.actor_admin_id,
+                permission=AdminPermission.ROLE_USER_ASSIGN,
+            )
+        return actor
 
     def update_user(
         self,
@@ -210,9 +215,12 @@ class UserApplicationService:
                 client
             )
 
-            return self._save_and_to_dto(
-                user
+            saved_user = self.uow.users.save(user)
+            self.uow.refresh_sessions.revoke_subject(
+                subject_type="user",
+                subject_id=saved_user.employee_id,
             )
+            return UserAssembler.to_dto(saved_user)
 
     def detach_account(
         self,
@@ -281,7 +289,12 @@ class UserApplicationService:
 
 
             UserService.disable_account(user=user)
-            return self._save_and_to_dto(user)
+            saved_user = self.uow.users.save(user)
+            self.uow.refresh_sessions.revoke_subject(
+                subject_type="user",
+                subject_id=saved_user.employee_id,
+            )
+            return UserAssembler.to_dto(saved_user)
 
     def change_password(
         self,
@@ -313,9 +326,12 @@ class UserApplicationService:
                 client
             )
 
-            return self._save_and_to_dto(
-                user
+            saved_user = self.uow.users.save(user)
+            self.uow.refresh_sessions.revoke_subject(
+                subject_type="user",
+                subject_id=saved_user.employee_id,
             )
+            return UserAssembler.to_dto(saved_user)
 
     # ==================================================================
     # Roles
@@ -496,9 +512,12 @@ class UserApplicationService:
                     ticket_user
                 )
 
-            return self._save_and_to_dto(
-                user
+            saved_user = self.uow.users.save(user)
+            self.uow.refresh_sessions.revoke_subject(
+                subject_type="user",
+                subject_id=saved_user.employee_id,
             )
+            return UserAssembler.to_dto(saved_user)
 
     # ==================================================================
     # Delete
@@ -533,6 +552,7 @@ class UserApplicationService:
                 ),
             )
 
+            self.uow.users.touch(user)
             self.uow.users.delete(
                 user.employee_id,
             )

@@ -2,6 +2,9 @@
 
 from fastapi import APIRouter, Depends, status
 
+from fastapi import Request, Response
+
+from src.web.idempotency import IdempotencyKey, create_response
 from src.application.dto.employee_dto import AdminDTO
 
 from src.web.dependencies.auth import (
@@ -53,16 +56,28 @@ router = APIRouter(
     description="Create a new admin.",
 )
 def create_admin(
+    http_request: Request,
+    idempotency_key: IdempotencyKey,
     admin_request: AdminCreateRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-)->AdminResponse:
+) -> AdminResponse | Response:
 
-    dto=AdminDTO(actor_admin_id=actor_admin_id,**admin_request.model_dump())
+    dto = AdminDTO(
+        actor_admin_id=actor_admin_id,
+        **admin_request.model_dump(),
+    )
+    service = asf.admin_service()
+    return create_response(
+        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+        employee_id=actor_admin_id, command="admin.create",
+        payload=admin_request, status_code=201,
+        authorize=lambda: service.require_create_access(dto),
+        execute=lambda join: AdminResponse.from_dto(
+            service.create_admin(admin_dto=dto, join_transaction=join),
+        ),
+    )
 
-    response_dto = asf.admin_service().create_admin(admin_dto=dto)
-
-    return AdminResponse.from_dto(response_dto)
 
 
 @router.get(

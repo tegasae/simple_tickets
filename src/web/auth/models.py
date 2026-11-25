@@ -27,5 +27,6 @@ class LoginRequest(BaseModel):
 
 class UserAuth(BaseModel):
     id: int
+    account_id: int = 0
     username: str
     scope: list[str] = Field(default_factory=list)

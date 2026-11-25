@@ -85,6 +85,7 @@ class TicketUserApplicationService:
         self,
         *,
         ticket_user_dto: TicketUserDTO,
+        join_transaction: bool = False,
     ) -> TicketUserResponseDTO:
         """
         User creates a new TicketUser.
@@ -108,11 +109,8 @@ class TicketUserApplicationService:
         Internal Ticket represents User-originated workflow actor as 0.
         """
 
-        with self.uow:
-            actor = self.actor.require_actor_user(
-                actor_user_id=ticket_user_dto.actor_user_id,
-                permission=UserPermission.TICKET_OPERATION,
-            )
+        with self.uow.transaction(join=join_transaction):
+            actor = self.require_create_access(ticket_user_dto)
 
             if ticket_user_dto.ticket_user_id != 0:
                 raise DomainOperationError(
@@ -209,20 +207,21 @@ class TicketUserApplicationService:
     # TicketUser data
     # ==================================================================
 
+    def require_create_access(self, ticket_user_dto: TicketUserDTO) -> User:
+        actor = self.actor.require_actor_user(
+            actor_user_id=ticket_user_dto.actor_user_id,
+            permission=UserPermission.TICKET_OPERATION,
+        )
+        return actor
+
     def add_comment(
         self,
         *,
         ticket_user_dto: TicketUserDTO,
+        join_transaction: bool = False,
     ) -> TicketUserResponseDTO:
-        with self.uow:
-            ticket_user = self._get_ticket_user(
-                ticket_user_dto.ticket_user_id,
-            )
-
-            actor = self._require_operation_access(
-                actor_user_id=ticket_user_dto.actor_user_id,
-                ticket_user=ticket_user,
-            )
+        with self.uow.transaction(join=join_transaction):
+            ticket_user, actor = self.require_comment_access(ticket_user_dto)
 
             self.ticket_user_service.add_comment(
                 ticket_user=ticket_user,
@@ -232,7 +231,19 @@ class TicketUserApplicationService:
 
             return self._save_ticket_user(
                 ticket_user=ticket_user,
+                commit=not join_transaction,
             )
+
+    def require_comment_access(self, ticket_user_dto: TicketUserDTO) -> tuple[TicketUser, User]:
+        ticket_user = self._get_ticket_user(
+            ticket_user_dto.ticket_user_id,
+        )
+
+        actor = self._require_operation_access(
+            actor_user_id=ticket_user_dto.actor_user_id,
+            ticket_user=ticket_user,
+        )
+        return ticket_user, actor
 
     def update_description(
         self,
@@ -847,13 +858,15 @@ class TicketUserApplicationService:
         self,
         *,
         ticket_user: TicketUser,
+        commit: bool = True,
     ) -> TicketUserResponseDTO:
         saved_ticket_user = self.uow.user_tickets.save(
             ticket_user
         )
 
         response = TicketUserAssembler.to_dto(saved_ticket_user)
-        self.uow.commit()
+        if commit:
+            self.uow.commit()
         return response
 
     def _save_pair(

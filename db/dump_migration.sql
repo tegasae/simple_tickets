@@ -212,15 +212,13 @@ CREATE INDEX idx_auth_refresh_sessions_expiry
     ON auth_refresh_sessions(expires_at);
 
 CREATE TABLE creation_results (
-    subject_type TEXT NOT NULL CHECK (subject_type IN ('admin', 'user')),
-    subject_id INTEGER NOT NULL,
-    command TEXT NOT NULL,
+    employee_id INTEGER NOT NULL,
     idempotency_key TEXT NOT NULL,
     fingerprint TEXT NOT NULL,
     status_code INTEGER,
     body TEXT,
     expires_at DOUBLE PRECISION,
-    PRIMARY KEY (subject_type, subject_id, command, idempotency_key),
+    PRIMARY KEY (employee_id, idempotency_key),
     CHECK ((status_code IS NULL AND body IS NULL AND expires_at IS NULL)
         OR (status_code IS NOT NULL AND status_code BETWEEN 200 AND 299 AND body IS NOT NULL))
 );

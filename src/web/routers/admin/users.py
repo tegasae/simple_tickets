@@ -2,6 +2,9 @@
 
 from fastapi import APIRouter, Depends, status
 
+from fastapi import Request, Response
+
+from src.web.idempotency import IdempotencyKey, create_response
 from src.application.dto.employee_dto import UserDTO
 from src.web.dependencies.auth import (
     get_current_admin,
@@ -74,17 +77,28 @@ handlers = {
     description="Create a new user.",
 )
 def create_user(
+    http_request: Request,
+    idempotency_key: IdempotencyKey,
     user_request: UserCreateRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-)->UserResponse:
+) -> UserResponse | Response:
 
+    dto = UserDTO(
+        actor_admin_id=actor_admin_id,
+        **user_request.model_dump(),
+    )
+    service = asf.user_service()
+    return create_response(
+        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+        employee_id=actor_admin_id, command="user.create",
+        payload=user_request, status_code=201,
+        authorize=lambda: service.require_create_access(dto),
+        execute=lambda join: UserResponse.from_dto(
+            service.create_user(user_dto=dto, join_transaction=join),
+        ),
+    )
 
-    dto = UserDTO(actor_admin_id=actor_admin_id, **user_request.model_dump())
-
-    response_dto = asf.user_service().create_user(user_dto=dto)
-
-    return UserResponse.from_dto(response_dto)
 
 
 @router.get(

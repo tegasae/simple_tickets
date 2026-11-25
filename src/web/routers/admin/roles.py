@@ -4,6 +4,9 @@
 
 from fastapi import APIRouter, Depends, status
 
+from fastapi import Request, Response
+
+from src.web.idempotency import IdempotencyKey, create_response
 from src.application.dto.roles_dto import RoleDTO
 from src.domain.rbac.permissions import AdminPermission, UserPermission
 from src.web.dependencies.auth import (
@@ -85,20 +88,28 @@ def get_user_permissions():
     summary="Create admin role",
 )
 def create_admin_role(
+    http_request: Request,
+    idempotency_key: IdempotencyKey,
     role_request: AdminRoleCreateRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-)->AdminRoleResponse:
+) -> AdminRoleResponse | Response:
 
-
-    dto=RoleDTO(actor_admin_id=actor_admin_id,**role_request.model_dump())
-
-
-    response_dto = asf.admin_role_service().create_role(
-        role_dto=dto,
+    dto = RoleDTO(
+        actor_admin_id=actor_admin_id,
+        **role_request.model_dump(),
+    )
+    service = asf.admin_role_service()
+    return create_response(
+        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+        employee_id=actor_admin_id, command="role.admin.create",
+        payload=role_request, status_code=201,
+        authorize=lambda: service.require_create_access(dto),
+        execute=lambda join: AdminRoleResponse.from_dto(
+            service.create_role(role_dto=dto, join_transaction=join),
+        ),
     )
 
-    return AdminRoleResponse.from_dto(response_dto)
 
 
 @router.get(
@@ -172,17 +183,28 @@ def delete_admin_role(
     summary="Create user role",
 )
 def create_user_role(
+    http_request: Request,
+    idempotency_key: IdempotencyKey,
     role_request: UserRoleCreateRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-)->UserRoleResponse:
+) -> UserRoleResponse | Response:
 
-    dto = RoleDTO(actor_admin_id=actor_admin_id, **role_request.model_dump())
-    response_dto = asf.user_role_service().create_role(
-        role_dto=dto,
+    dto = RoleDTO(
+        actor_admin_id=actor_admin_id,
+        **role_request.model_dump(),
+    )
+    service = asf.user_role_service()
+    return create_response(
+        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+        employee_id=actor_admin_id, command="role.user.create",
+        payload=role_request, status_code=201,
+        authorize=lambda: service.require_create_access(dto),
+        execute=lambda join: UserRoleResponse.from_dto(
+            service.create_role(role_dto=dto, join_transaction=join),
+        ),
     )
 
-    return UserRoleResponse.from_dto(response_dto)
 
 
 @router.get(

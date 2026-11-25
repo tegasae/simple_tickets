@@ -62,15 +62,14 @@ class RoleApplicationService(Generic[T]):
         self,
         *,
         role_dto: RoleDTO,
+        join_transaction: bool = False,
     ) -> RoleResponseDTO:
 
 
 
 
-        with self.uow:
-            self._check_actor(
-                actor_admin_id=role_dto.actor_admin_id,
-            )
+        with self.uow.transaction(join=join_transaction):
+            self.require_create_access(role_dto)
             role=self._service.create_role(name=role_dto.name,
                                            permissions=role_dto.permissions,
                                            description=role_dto.description,
@@ -80,6 +79,9 @@ class RoleApplicationService(Generic[T]):
             return self._save_and_to_dto(
                 role=role,
             )
+
+    def require_create_access(self, role_dto: RoleDTO) -> None:
+        self._check_actor(actor_admin_id=role_dto.actor_admin_id)
 
     def delete_role(
         self,
@@ -177,10 +179,14 @@ class AdminRoleApplicationService:
         self,
         *,
         role_dto: RoleDTO,
+        join_transaction: bool = False,
     ) -> RoleResponseDTO:
         return self._application_service.create_role(
-            role_dto=role_dto,
+            role_dto=role_dto, join_transaction=join_transaction,
         )
+
+    def require_create_access(self, role_dto: RoleDTO) -> None:
+        self._application_service.require_create_access(role_dto)
 
     def delete_role(
         self,
@@ -228,10 +234,14 @@ class UserRoleApplicationService:
         self,
         *,
         role_dto: RoleDTO,
+        join_transaction: bool = False,
     ) -> RoleResponseDTO:
         return self._application_service.create_role(
-            role_dto=role_dto,
+            role_dto=role_dto, join_transaction=join_transaction,
         )
+
+    def require_create_access(self, role_dto: RoleDTO) -> None:
+        self._application_service.require_create_access(role_dto)
 
     def delete_role(
         self,

@@ -12,8 +12,8 @@ from src.web.auth.services.auth_service import (
     AdminAuthService,
     UserAuthService,
 )
-from src.web.auth.services.services import AuthManager, TokenService
-from src.web.auth.storage import TokenStorage
+from src.web.auth.services.services import TokenService
+from src.web.auth.services.shared_sessions import SharedSessionAuthManager
 from src.web.auth.tokens import AccessToken
 from src.web.config import Settings
 from src.web.dependencies.scheme import (
@@ -24,10 +24,6 @@ from src.web.dependencies.services import (
     get_settings,
     get_uow,
 )
-
-
-def get_refresh_token_storage(request: Request) -> TokenStorage:
-    return request.app.state.refresh_token_storage
 
 
 # ---------------------------------------------------------------------
@@ -89,11 +85,10 @@ def require_current_user(
 def get_auth_manager_admin(
     uow: UnitOfWork = Depends(get_uow),
     settings: Settings = Depends(get_settings),
-    storage: TokenStorage = Depends(get_refresh_token_storage),
-) -> AuthManager:
-    return AuthManager(
+) -> SharedSessionAuthManager:
+    return SharedSessionAuthManager(
+        uow=uow,
         auth_service=AdminAuthService(uow=uow),
-        token_storage=storage,
         subject_type="admin",
         settings=settings
 
@@ -103,11 +98,10 @@ def get_auth_manager_admin(
 def get_auth_manager_user(
     uow: UnitOfWork = Depends(get_uow),
     settings: Settings = Depends(get_settings),
-    storage: TokenStorage = Depends(get_refresh_token_storage),
-) -> AuthManager:
-    return AuthManager(
+) -> SharedSessionAuthManager:
+    return SharedSessionAuthManager(
+        uow=uow,
         auth_service=UserAuthService(uow=uow),
-        token_storage=storage,
         subject_type="user",
         settings = settings
     )

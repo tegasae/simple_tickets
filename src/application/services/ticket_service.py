@@ -11,7 +11,7 @@ from src.application.exceptions import ApplicationStoreError
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.domain.client import Client
 from src.domain.department import Department
-from src.domain.employee import User
+from src.domain.employee import Admin, User
 
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
@@ -80,6 +80,7 @@ class TicketApplicationService:
             self,
             *,
             ticket_dto: TicketDTO,
+            join_transaction: bool = False,
     ) -> TicketResponseDTO:
         """
         Create internal Ticket.
@@ -121,14 +122,8 @@ class TicketApplicationService:
                 TicketUser.CREATED -> IN_WORK
         """
 
-        with self.uow:
-            actor = self.actor.require_actor_admin_any(
-                actor_admin_id=ticket_dto.actor_admin_id,
-                permissions=(
-                    AdminPermission.TICKET_CREATED,
-                    AdminPermission.TICKET_OPERATION,
-                ),
-            )
+        with self.uow.transaction(join=join_transaction):
+            actor = self.require_create_access(ticket_dto)
 
 
             user=User.create_empty()
@@ -228,25 +223,30 @@ class TicketApplicationService:
             return self._save_and_to_dto(
                 ticket=ticket,
                 ticket_user=ticket_user,
+                commit=not join_transaction,
             )
     # ==================================================================
     # Ticket data
     # ==================================================================
 
+    def require_create_access(self, ticket_dto: TicketDTO) -> Admin:
+        actor = self.actor.require_actor_admin_any(
+            actor_admin_id=ticket_dto.actor_admin_id,
+            permissions=(
+                AdminPermission.TICKET_CREATED,
+                AdminPermission.TICKET_OPERATION,
+            ),
+        )
+        return actor
+
     def add_comment(
         self,
         *,
         ticket_dto: TicketDTO,
+        join_transaction: bool = False,
     ) -> TicketResponseDTO:
-        with self.uow:
-            actor = self.actor.require_actor_admin(
-                actor_admin_id=ticket_dto.actor_admin_id,
-                permission=AdminPermission.TICKET_OPERATION,
-            )
-
-            ticket = self._get_ticket(
-                ticket_dto.ticket_id,
-            )
+        with self.uow.transaction(join=join_transaction):
+            ticket, actor = self.require_comment_access(ticket_dto)
 
             self.ticket_service.add_comment(
                 ticket=ticket,
@@ -256,7 +256,19 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
+                commit=not join_transaction,
             )
+
+    def require_comment_access(self, ticket_dto: TicketDTO) -> tuple[Ticket, Admin]:
+        actor = self.actor.require_actor_admin(
+            actor_admin_id=ticket_dto.actor_admin_id,
+            permission=AdminPermission.TICKET_OPERATION,
+        )
+
+        ticket = self._get_ticket(
+            ticket_dto.ticket_id,
+        )
+        return ticket, actor
 
     def update_description(
         self,
@@ -1185,6 +1197,7 @@ class TicketApplicationService:
         *,
         ticket: Ticket,
         ticket_user: TicketUser | None = None,
+        commit: bool = True,
     ) -> TicketResponseDTO:
         """
         Persist changed aggregates in the current UoW transaction.
@@ -1200,7 +1213,8 @@ class TicketApplicationService:
         )
 
         response = TicketAssembler.to_dto(saved_ticket)
-        self.uow.commit()
+        if commit:
+            self.uow.commit()
         return response
 
     @staticmethod

@@ -2,7 +2,7 @@ CREATE TABLE departments (
     department_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     enabled INTEGER DEFAULT 1,
-    version INTEGER DEFAULT 0,
+    version INTEGER NOT NULL DEFAULT 0,
     date_created TEXT
 );
 CREATE TABLE employees (
@@ -14,7 +14,7 @@ CREATE TABLE employees (
 	date_created TEXT,
 	address TEXT,
 	enabled INTEGER DEFAULT (1),
-	version INTEGER DEFAULT 0,
+	version INTEGER NOT NULL DEFAULT 0,
 	is_admin INTEGER);
 CREATE TABLE admins (
     employee_id INTEGER NOT NULL PRIMARY KEY,
@@ -45,7 +45,7 @@ CREATE TABLE clients (
 	address TEXT,
 	email TEXT,
 	phone TEXT,
-	enabled INTEGER, version INTEGER DEFAULT 0,
+	enabled INTEGER, version INTEGER NOT NULL DEFAULT 0,
 	date_created TEXT, description TEXT DEFAULT (''),
 	CONSTRAINT clients_admins_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict
 );
@@ -184,3 +184,34 @@ CREATE INDEX idx_ticket_comments_ticket_id
 ON ticket_comments(ticket_id, ticket_comment_id);
 CREATE INDEX idx_ticket_comments_employee_id
 ON ticket_comments(employee_id);
+
+CREATE TABLE auth_refresh_sessions (
+    token_hash TEXT NOT NULL PRIMARY KEY,
+    account_id INTEGER NOT NULL,
+    subject_id INTEGER NOT NULL,
+    subject_type TEXT NOT NULL CHECK (subject_type IN ('admin', 'user')),
+    username TEXT NOT NULL,
+    created_at DOUBLE PRECISION NOT NULL,
+    expires_at DOUBLE PRECISION NOT NULL,
+    scope TEXT NOT NULL,
+    FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE CASCADE
+);
+CREATE INDEX idx_auth_refresh_sessions_subject
+    ON auth_refresh_sessions(subject_type, subject_id);
+CREATE INDEX idx_auth_refresh_sessions_account
+    ON auth_refresh_sessions(account_id);
+CREATE INDEX idx_auth_refresh_sessions_expiry
+    ON auth_refresh_sessions(expires_at);
+
+CREATE TABLE creation_results (
+    employee_id INTEGER NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    fingerprint TEXT NOT NULL,
+    status_code INTEGER,
+    body TEXT,
+    expires_at DOUBLE PRECISION,
+    PRIMARY KEY (employee_id, idempotency_key),
+    CHECK ((status_code IS NULL AND body IS NULL AND expires_at IS NULL)
+        OR (status_code IS NOT NULL AND status_code BETWEEN 200 AND 299 AND body IS NOT NULL))
+);
+CREATE INDEX idx_creation_results_expiry ON creation_results(expires_at);

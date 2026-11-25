@@ -6,6 +6,9 @@ from fastapi import Path
 
 from fastapi import APIRouter, Depends, status
 
+from fastapi import Request, Response
+
+from src.web.idempotency import IdempotencyKey, create_response
 from src.application.dto.department_dto import DepartmentDTO
 from src.web.dependencies.auth import get_current_admin, get_employee_id_from_request
 from src.web.dependencies.services import get_application_service_factory
@@ -47,20 +50,28 @@ router = APIRouter(
     status_code=status.HTTP_201_CREATED,
 )
 def create_department(
+    http_request: Request,
+    idempotency_key: IdempotencyKey,
     request: DepartmentCreateRequest,
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
-)->DepartmentResponse:
+) -> DepartmentResponse | Response:
 
-    dto=DepartmentDTO(
+    dto = DepartmentDTO(
         actor_admin_id=actor_admin_id,
-        **request.model_dump()
+        **request.model_dump(),
     )
-    result = asf.department_service().create_department(
-        department_dto=dto,
+    service = asf.department_service()
+    return create_response(
+        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+        employee_id=actor_admin_id, command="department.create",
+        payload=request, status_code=201,
+        authorize=lambda: service.require_create_access(dto),
+        execute=lambda join: DepartmentResponse.from_dto(
+            service.create_department(department_dto=dto, join_transaction=join),
+        ),
     )
 
-    return DepartmentResponse.from_dto(result)
 
 
 @router.get(
