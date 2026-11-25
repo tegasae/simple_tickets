@@ -95,7 +95,7 @@ def test_generic_operation_grants_no_recommendation_or_unrecommended_self_assign
 
     world.action(pair[0], "executor", {"executor_id": actor})
     assigned = ticket_state(world, pair)
-    command(world, pair, headers, "start-work", {"work_is_remote": True}, expected=400)
+    command(world, pair, headers, "start-work", {"work_is_remote": True}, expected=403)
     command(world, pair, headers, "start-work", expected=403)
     command(world, pair, headers, "start-remote-work", expected=400)
     assert ticket_state(world, pair) == assigned
@@ -111,8 +111,9 @@ def test_scoped_role_completes_recommended_work_with_one_executor(world):
     assert assigned[1] == actor
     assert assigned[2][-1] == ("assigned", actor, False)
     command(world, pair, headers, "start-work", expected=403)
+    command(world, pair, headers, "start-work", {"work_is_remote": True}, expected=403)
     assert ticket_state(world, pair) == assigned
-    command(world, pair, headers, "start-work", {"work_is_remote": True})
+    command(world, pair, headers, "start-remote-work")
 
     started = ticket_state(world, pair)
     command(world, pair, other_headers, "pause-work", expected=400)
@@ -172,6 +173,13 @@ def test_dispatch_and_general_work_remain_possible_without_recommendation(world)
     after = ticket_state(world, pair)
     assert after[0:2] == (False, worker)
     assert after[2][-2:] == (("assigned", dispatcher, False), ("at_work", worker, True))
+
+    command(world, pair, worker_headers, "finish-work")
+    assert ticket_state(world, pair)[3][-1] == "waiting_for_confirmation"
+    command(world, pair, dispatcher_headers, "executor", {"executor_id": worker})
+    assert ticket_state(world, pair)[3][-1] == "in_work"
+    command(world, pair, worker_headers, "start-work")
+    assert ticket_state(world, pair)[2][-1] == ("at_work", worker, False)
 
 
 @pytest.mark.parametrize("work_is_remote", [False, True], ids=["on-site", "remote"])
@@ -246,3 +254,60 @@ def test_recommendation_editor_does_not_gain_assignment_right(world):
     assert before[:2] == (True, 0)
     command(world, pair, headers, "executor", {"executor_id": actor}, expected=403)
     assert ticket_state(world, pair) == before
+
+
+def test_dispatcher_can_recommend_and_assign_another_employee_but_not_self(world):
+    actor, headers = add_operator(world, ASSIGN, RECOMMEND)
+    worker, _ = add_operator(world, GENERAL)
+    pair = accepted_pair(world, recommended=False)
+    command(world, pair, headers, "remote-work-recommended", {"remote_work_recommended": True})
+    recommended = ticket_state(world, pair)
+    assert recommended[:2] == (True, 0)
+
+    command(world, pair, headers, "executor", {"executor_id": actor}, expected=403)
+    assert ticket_state(world, pair) == recommended
+
+    command(world, pair, headers, "executor", {"executor_id": worker})
+    assigned = ticket_state(world, pair)
+    assert assigned[:2] == (True, worker)
+    assert assigned[2][-1] == ("assigned", actor, False)
+
+
+def test_dispatch_right_does_not_override_hotline_self_assignment_conditions(world):
+    actor, headers = add_operator(world, ASSIGN, REMOTE)
+    unadvised = accepted_pair(world, recommended=False)
+    before = ticket_state(world, unadvised)
+    command(world, unadvised, headers, "executor", {"executor_id": actor}, expected=400)
+    assert ticket_state(world, unadvised) == before
+
+    advised = accepted_pair(world, recommended=True)
+    other, _ = add_operator(world, GENERAL)
+    world.action(advised[0], "executor", {"executor_id": other})
+    before = ticket_state(world, advised)
+    command(world, advised, headers, "executor", {"executor_id": actor}, expected=400)
+    assert ticket_state(world, advised) == before
+
+    unassigned = accepted_pair(world, recommended=True)
+    command(world, unassigned, headers, "executor", {"executor_id": actor})
+    assert ticket_state(world, unassigned)[:2] == (True, actor)
+
+
+def test_preassigned_executor_needs_hotline_grant_to_start_hotline_work(world):
+    dispatcher, dispatcher_headers = add_operator(world, ASSIGN)
+    worker, worker_headers = add_operator(world, GENERAL)
+    pair = accepted_pair(world, recommended=True)
+    command(world, pair, dispatcher_headers, "executor", {"executor_id": worker})
+    assigned = ticket_state(world, pair)
+    assert assigned[1] == worker
+    assert assigned[2][-1] == ("assigned", dispatcher, False)
+
+    command(world, pair, worker_headers, "start-remote-work", expected=403)
+    assert ticket_state(world, pair) == assigned
+
+    hotline_role = create_role(world, REMOTE)
+    change_roles(world, worker, hotline_role, "POST")
+    command(world, pair, worker_headers, "start-remote-work")
+    started = ticket_state(world, pair)
+    assert started[1] == worker
+    assert started[2] == assigned[2] + (("at_work", worker, True),)
+    assert started[3] == assigned[3]

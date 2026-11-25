@@ -1,24 +1,5 @@
-diff --git a/src/application/helper/actor_helper.py b/src/application/helper/actor_helper.py
-index 862c21b..b0d74c9 100644
---- a/src/application/helper/actor_helper.py
-+++ b/src/application/helper/actor_helper.py
-@@ -18,6 +18,14 @@ class EmployeeActorHelper:
-     # Admin
-     # ==============================================================
- 
-+    def get_actor_admin_with_permissions(
-+        self,
-+        *,
-+        actor_admin_id: int,
-+    ) -> tuple[Admin, set[AdminPermission]]:
-+        actor = self._get_admin(actor_admin_id=actor_admin_id)
-+        return actor, Authorizer(self.uow.roles_admin).permissions_of(actor)
-+
-     def require_actor_admin(
-         self,
-         *,
 diff --git a/src/application/services/ticket_service.py b/src/application/services/ticket_service.py
-index 9537d14..16dfc34 100644
+index 9537d14..10d21f8 100644
 --- a/src/application/services/ticket_service.py
 +++ b/src/application/services/ticket_service.py
 @@ -237,6 +237,11 @@ class TicketApplicationService:
@@ -75,22 +56,22 @@ index 9537d14..16dfc34 100644
              )
  
 +    def require_assign_access(self, ticket_dto: TicketDTO) -> tuple[Ticket, Admin]:
-+        actor, permissions = self.actor.get_actor_admin_with_permissions(
-+            actor_admin_id=ticket_dto.actor_admin_id,
++        is_self_assignment = ticket_dto.executor_id == ticket_dto.actor_admin_id
++        permission = (
++            AdminPermission.TICKET_AT_WORK_REMOTE
++            if is_self_assignment
++            else AdminPermission.TICKET_ASSIGN_EXECUTOR
 +        )
-+        assignment_permission = AdminPermission.TICKET_ASSIGN_EXECUTOR
-+        can_dispatch = assignment_permission in permissions
-+        if not can_dispatch and (
-+            AdminPermission.TICKET_AT_WORK_REMOTE not in permissions
-+            or ticket_dto.executor_id != actor.employee_id
-+        ):
-+            raise PermissionError(f"Subject lacks permission: {assignment_permission.value}")
++        actor = self.actor.require_actor_admin(
++            actor_admin_id=ticket_dto.actor_admin_id,
++            permission=permission,
++        )
 +
 +        if ticket_dto.executor_id <= 0:
 +            raise DomainOperationError("assign requires executor_id > 0")
 +
 +        ticket = self._get_ticket(ticket_dto.ticket_id)
-+        if not can_dispatch:
++        if is_self_assignment:
 +            ticket.require_remote_work_recommendation()
 +            if ticket.current_executor_id() not in (0, actor.employee_id):
 +                raise DomainOperationError("Ticket is assigned to another executor")
@@ -103,30 +84,7 @@ index 9537d14..16dfc34 100644
      # ==================================================================
      # Work
      # ==================================================================
-@@ -656,20 +675,13 @@ class TicketApplicationService:
-         ticket_dto: TicketDTO,
-     ) -> TicketResponseDTO:
-         """
--        Requires TICKET_AT_WORK.
-+        Requires general work permission or permission for recommended remote work.
- 
-         Ticket validates that actor is current executor.
-         """
- 
-         with self.uow:
--            actor = self.actor.require_actor_admin(
--                actor_admin_id=ticket_dto.actor_admin_id,
--                permission=AdminPermission.TICKET_AT_WORK,
--            )
--
--            ticket = self._get_ticket(
--                ticket_dto.ticket_id,
--            )
-+            ticket, actor = self.require_live_work_access(ticket_dto)
- 
-             ticket_user = self._load_linked_ticket_user(
-                 ticket=ticket,
-@@ -745,14 +757,7 @@ class TicketApplicationService:
+@@ -745,14 +764,7 @@ class TicketApplicationService:
          ticket_dto: TicketDTO,
      ) -> TicketResponseDTO:
          with self.uow:
@@ -142,7 +100,7 @@ index 9537d14..16dfc34 100644
  
              ticket_user = self._load_linked_ticket_user(
                  ticket=ticket,
-@@ -776,14 +781,7 @@ class TicketApplicationService:
+@@ -776,14 +788,7 @@ class TicketApplicationService:
          ticket_dto: TicketDTO,
      ) -> TicketResponseDTO:
          with self.uow:
@@ -154,35 +112,32 @@ index 9537d14..16dfc34 100644
 -            ticket = self._get_ticket(
 -                ticket_dto.ticket_id,
 -            )
-+            ticket, actor = self.require_live_work_access(ticket_dto)
++            ticket, actor = self.require_resume_work_access(ticket_dto)
  
              ticket_user = self._load_linked_ticket_user(
                  ticket=ticket,
-@@ -802,6 +800,23 @@ class TicketApplicationService:
+@@ -802,6 +807,20 @@ class TicketApplicationService:
                  ticket_user=ticket_user,
              )
  
-+    def require_live_work_access(self, ticket_dto: TicketDTO) -> tuple[Ticket, Admin]:
-+        actor, permissions = self.actor.get_actor_admin_with_permissions(
-+            actor_admin_id=ticket_dto.actor_admin_id,
-+        )
-+        work_permission = AdminPermission.TICKET_AT_WORK
-+        has_general_work_access = work_permission in permissions
-+        if not has_general_work_access and (
-+            not ticket_dto.work_is_remote
-+            or AdminPermission.TICKET_AT_WORK_REMOTE not in permissions
-+        ):
-+            raise PermissionError(f"Subject lacks permission: {work_permission.value}")
++    def require_resume_work_access(self, ticket_dto: TicketDTO) -> tuple[Ticket, Admin]:
++        if not ticket_dto.work_is_remote:
++            actor = self.actor.require_actor_admin(
++                actor_admin_id=ticket_dto.actor_admin_id,
++                permission=AdminPermission.TICKET_AT_WORK,
++            )
++            return self._get_ticket(ticket_dto.ticket_id), actor
 +
++        actor, permission = self._require_work_actor(ticket_dto.actor_admin_id)
 +        ticket = self._get_ticket(ticket_dto.ticket_id)
-+        if not has_general_work_access:
++        if permission == AdminPermission.TICKET_AT_WORK_REMOTE:
 +            ticket.require_remote_work_recommendation()
 +        return ticket, actor
 +
      # ==================================================================
      # Completion
      # ==================================================================
-@@ -812,7 +827,7 @@ class TicketApplicationService:
+@@ -812,7 +831,7 @@ class TicketApplicationService:
          ticket_dto: TicketDTO,
      ) -> TicketResponseDTO:
          """
@@ -191,7 +146,7 @@ index 9537d14..16dfc34 100644
  
          Normal actor:
  
-@@ -823,14 +838,7 @@ class TicketApplicationService:
+@@ -823,14 +842,7 @@ class TicketApplicationService:
          """
  
          with self.uow:
@@ -207,32 +162,44 @@ index 9537d14..16dfc34 100644
  
              ticket_user = self._load_linked_ticket_user(
                  ticket=ticket,
-@@ -851,6 +859,23 @@ class TicketApplicationService:
+@@ -851,6 +863,35 @@ class TicketApplicationService:
                  ticket_user=ticket_user,
              )
  
 +    def require_pause_or_finish_access(self, ticket_dto: TicketDTO) -> tuple[Ticket, Admin]:
-+        actor, permissions = self.actor.get_actor_admin_with_permissions(
-+            actor_admin_id=ticket_dto.actor_admin_id,
-+        )
-+        work_permission = AdminPermission.TICKET_AT_WORK
-+        has_general_work_access = work_permission in permissions
-+        if not has_general_work_access and AdminPermission.TICKET_AT_WORK_REMOTE not in permissions:
-+            raise PermissionError(f"Subject lacks permission: {work_permission.value}")
-+
++        actor, permission = self._require_work_actor(ticket_dto.actor_admin_id)
 +        ticket = self._get_ticket(ticket_dto.ticket_id)
-+        if not has_general_work_access and (
++        if permission == AdminPermission.TICKET_AT_WORK_REMOTE and (
 +            ticket.current_executor_id() != actor.employee_id
 +            or not ticket.current_status_record().work_is_remote
 +        ):
 +            raise DomainOperationError("Only the executor of the current remote work may do this")
 +        return ticket, actor
 +
++    def _require_work_actor(self, actor_admin_id: int) -> tuple[Admin, AdminPermission]:
++        permission = AdminPermission.TICKET_AT_WORK
++        try:
++            actor = self.actor.require_actor_admin(
++                actor_admin_id=actor_admin_id,
++                permission=permission,
++            )
++        except PermissionError as denied:
++            permission = AdminPermission.TICKET_AT_WORK_REMOTE
++            try:
++                actor = self.actor.require_actor_admin(
++                    actor_admin_id=actor_admin_id,
++                    permission=permission,
++                )
++            except PermissionError:
++                raise denied from None
++
++        return actor, permission
++
      def register_work(
          self,
          *,
 diff --git a/src/domain/rbac/permissions.py b/src/domain/rbac/permissions.py
-index 0866706..890ff40 100644
+index 0866706..79feeb6 100644
 --- a/src/domain/rbac/permissions.py
 +++ b/src/domain/rbac/permissions.py
 @@ -27,7 +27,9 @@ class AdminPermission(PermissionBase):
@@ -240,8 +207,8 @@ index 0866706..890ff40 100644
      TICKET_ACCEPTED = "ticket.accepted"                             # имеет право подтверждать заявки
      TICKET_AT_WORK = "ticket.at_work"                               # имеет право выполнять заявки
 -    TICKET_AT_WORK_REMOTE = "ticket.at_work_remote"                 # имеет право выполнять заявки, который рекомендованы как удаленные
-+    TICKET_AT_WORK_REMOTE = "ticket.at_work_remote"                 # удалённая работа по рекомендованным заявкам
-+    TICKET_ASSIGN_EXECUTOR = "ticket.assign_executor"               # назначение исполнителя независимо от рекомендации
++    TICKET_AT_WORK_REMOTE = "ticket.at_work_remote"                 # самоназначение и удалённая работа по рекомендованным заявкам
++    TICKET_ASSIGN_EXECUTOR = "ticket.assign_executor"               # назначение другого сотрудника независимо от рекомендации
 +    TICKET_SET_REMOTE_RECOMMENDATION = "ticket.set_remote_recommendation"  # изменение рекомендации
      TICKET_AT_WORK_RETROSPECTIVE = "ticket.at_work_retrospective"   # имеет право вносить данные по работе ретроспективно
      TICKET_CANCELLED="ticket.canceled"                              # имеет право снимать заявки cancel или reject
