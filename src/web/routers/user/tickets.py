@@ -1,10 +1,12 @@
 # src/web/routers/user/tickets.py
 
+from dataclasses import dataclass
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from fastapi import Request, Response
 
-from src.web.idempotency import IdempotencyKey, create_response
+from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
 from src.application.dto.ticket_dto import (
     TicketUserDTO,
     TicketUserResponseDTO,
@@ -111,6 +113,22 @@ def to_user_ticket_responses(
 # =====================================================================
 
 
+@dataclass(frozen=True)
+class CreateUserTicketOperation(CreationOperation[TicketUserResponse]):
+    service: TicketUserApplicationService
+    dto: TicketUserDTO
+
+    def authorize_replay(self) -> None:
+        self.service.require_create_access(self.dto)
+
+    def execute(self, *, join_transaction: bool) -> TicketUserResponse:
+        created = self.service.create_from_user(
+            ticket_user_dto=self.dto,
+            join_transaction=join_transaction,
+        )
+        return TicketUserResponse.from_dto(created)
+
+
 @router.post(
     "/",
     response_model=TicketUserResponse,
@@ -138,10 +156,7 @@ def create_ticket(
             request=http_request, idempotency_key=idempotency_key, uow=service.uow,
             employee_id=user_id, command="ticket.user.create",
             payload=request, status_code=201,
-            authorize=lambda: service.require_create_access(dto),
-            execute=lambda join: TicketUserResponse.from_dto(
-                service.create_from_user(ticket_user_dto=dto, join_transaction=join),
-            ),
+            operation=CreateUserTicketOperation(service=service, dto=dto),
         )
     except (DomainError, PermissionError) as exc:
         raise _domain_error(exc) from exc
@@ -303,6 +318,22 @@ def get_ticket(
 # =====================================================================
 
 
+@dataclass(frozen=True)
+class AddUserTicketCommentOperation(CreationOperation[TicketUserResponse]):
+    service: TicketUserApplicationService
+    dto: TicketUserDTO
+
+    def authorize_replay(self) -> None:
+        self.service.require_comment_access(self.dto)
+
+    def execute(self, *, join_transaction: bool) -> TicketUserResponse:
+        updated_ticket = self.service.add_comment(
+            ticket_user_dto=self.dto,
+            join_transaction=join_transaction,
+        )
+        return TicketUserResponse.from_dto(updated_ticket)
+
+
 @router.post(
     "/{ticket_user_id}/comments",
     response_model=TicketUserResponse,
@@ -333,10 +364,7 @@ def add_comment(
             employee_id=user_id, command="ticket.user.comment",
             payload=request, status_code=200,
             target_id=ticket_user_id,
-            authorize=lambda: service.require_comment_access(dto),
-            execute=lambda join: TicketUserResponse.from_dto(
-                service.add_comment(ticket_user_dto=dto, join_transaction=join),
-            ),
+            operation=AddUserTicketCommentOperation(service=service, dto=dto),
         )
     except (DomainError, PermissionError) as exc:
         raise _domain_error(exc) from exc

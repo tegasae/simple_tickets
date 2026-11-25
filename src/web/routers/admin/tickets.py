@@ -1,6 +1,6 @@
 # src/web/routers/admin/tickets.py
 
-
+from dataclasses import dataclass
 
 
 
@@ -8,8 +8,9 @@ from fastapi import APIRouter, Depends, status
 
 from fastapi import Request, Response
 
-from src.web.idempotency import IdempotencyKey, create_response
+from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
 from src.application.dto.ticket_dto import TicketDTO
+from src.application.services.ticket_service import TicketApplicationService
 from src.web.dependencies.auth import (
     get_current_admin,
     get_employee_id_from_request,
@@ -65,6 +66,22 @@ router = APIRouter(
 # =====================================================================
 
 
+@dataclass(frozen=True)
+class CreateTicketOperation(CreationOperation[TicketResponse]):
+    service: TicketApplicationService
+    dto: TicketDTO
+
+    def authorize_replay(self) -> None:
+        self.service.require_create_access(self.dto)
+
+    def execute(self, *, join_transaction: bool) -> TicketResponse:
+        result = self.service.create_ticket(
+            ticket_dto=self.dto,
+            join_transaction=join_transaction,
+        )
+        return TicketResponse.from_dto(result)
+
+
 @router.post(
     "/",
     response_model=TicketResponse,
@@ -92,10 +109,7 @@ def create_ticket(
         request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
         employee_id=actor_admin_id, command="ticket.admin.create",
         payload=request, status_code=201,
-        authorize=lambda: service.require_create_access(dto),
-        execute=lambda join: TicketResponse.from_dto(
-            service.create_ticket(ticket_dto=dto, join_transaction=join),
-        ),
+        operation=CreateTicketOperation(service=service, dto=dto),
     )
 
 
@@ -374,6 +388,22 @@ def get_ticket(
 # =====================================================================
 
 
+@dataclass(frozen=True)
+class AddTicketCommentOperation(CreationOperation[TicketResponse]):
+    service: TicketApplicationService
+    dto: TicketDTO
+
+    def authorize_replay(self) -> None:
+        self.service.require_comment_access(self.dto)
+
+    def execute(self, *, join_transaction: bool) -> TicketResponse:
+        result = self.service.add_comment(
+            ticket_dto=self.dto,
+            join_transaction=join_transaction,
+        )
+        return TicketResponse.from_dto(result)
+
+
 @router.post(
     "/{ticket_id}/comments",
     response_model=TicketResponse,
@@ -404,10 +434,7 @@ def add_comment(
         employee_id=actor_admin_id, command="ticket.admin.comment",
         payload=request, status_code=200,
         target_id=ticket_id,
-        authorize=lambda: service.require_comment_access(dto),
-        execute=lambda join: TicketResponse.from_dto(
-            service.add_comment(ticket_dto=dto, join_transaction=join),
-        ),
+        operation=AddTicketCommentOperation(service=service, dto=dto),
     )
 
 

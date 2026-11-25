@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import Path
@@ -8,8 +9,9 @@ from fastapi import APIRouter, Depends, status
 
 from fastapi import Request, Response
 
-from src.web.idempotency import IdempotencyKey, create_response
+from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
 from src.application.dto.department_dto import DepartmentDTO
+from src.application.services.department_service import DepartmentApplicationService
 from src.web.dependencies.auth import get_current_admin, get_employee_id_from_request
 from src.web.dependencies.services import get_application_service_factory
 
@@ -40,6 +42,22 @@ router = APIRouter(
 
 
 
+@dataclass(frozen=True)
+class CreateDepartmentOperation(CreationOperation[DepartmentResponse]):
+    service: DepartmentApplicationService
+    dto: DepartmentDTO
+
+    def authorize_replay(self) -> None:
+        self.service.require_create_access(self.dto)
+
+    def execute(self, *, join_transaction: bool) -> DepartmentResponse:
+        result = self.service.create_department(
+            department_dto=self.dto,
+            join_transaction=join_transaction,
+        )
+        return DepartmentResponse.from_dto(result)
+
+
 # -------------------------
 # Endpoints
 # -------------------------
@@ -66,10 +84,7 @@ def create_department(
         request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
         employee_id=actor_admin_id, command="department.create",
         payload=request, status_code=201,
-        authorize=lambda: service.require_create_access(dto),
-        execute=lambda join: DepartmentResponse.from_dto(
-            service.create_department(department_dto=dto, join_transaction=join),
-        ),
+        operation=CreateDepartmentOperation(service, dto),
     )
 
 

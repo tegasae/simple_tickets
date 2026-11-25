@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 import hmac
 import json
 import logging
-from typing import Annotated, TypeVar
+from typing import Annotated, Protocol, TypeVar
 
 from fastapi import Depends, Header, HTTPException, Request, Response
 from pydantic import BaseModel
@@ -14,7 +14,9 @@ from src.domain.repositories.creation_result_repository import (
     CreationAlreadyReserved, CreationKey, CreationResult,
 )
 from src.domain.uow.unit_of_work import UnitOfWork
-from src.domain.value_objects import Address, Description, Email, Login, Name, Phone
+from src.domain.value_objects import (
+    Address, Description, Email, Login, Name, Phone, ValueObject,
+)
 from src.web.dependencies.services import get_settings
 from src.web.models.clients import ClientCreateRequest
 from utils.db.exceptions import DBOperationError
@@ -22,6 +24,15 @@ from utils.db.exceptions import DBOperationError
 logger = logging.getLogger(__name__)
 RESULT_TTL = 24 * 60 * 60
 T = TypeVar("T", bound=BaseModel)
+ResponseT = TypeVar("ResponseT", bound=BaseModel, covariant=True)
+
+
+class CreationOperation(Protocol[ResponseT]):
+    """Create a resource or check access to the stored result of that creation."""
+
+    def authorize_replay(self) -> None: ...
+
+    def execute(self, *, join_transaction: bool) -> ResponseT: ...
 
 
 def timestamp() -> float:
@@ -47,7 +58,7 @@ def _fingerprint(
     request: Request, payload: BaseModel, *, command: str, target_id: int | None,
 ) -> str:
     body = payload.model_dump(mode="json")
-    domain_fields = {
+    domain_fields: dict[str, type[ValueObject[str]]] = {
         "name": Name,
         "first_name": Name,
         "last_name": Name,
@@ -61,7 +72,7 @@ def _fingerprint(
 
     for field, value_type in domain_fields.items():
         value = body.get(field)
-        if value:
+        if isinstance(value, str) and value:
             try:
                 body[field] = value_type(value).value
             except ValueError:
@@ -118,12 +129,11 @@ def create_response(
     command: str,
     payload: BaseModel,
     status_code: int,
-    authorize: Callable[[], object],
-    execute: Callable[[bool], T],
+    operation: CreationOperation[T],
     target_id: int | None = None,
 ) -> T | Response:
     if idempotency_key is None:
-        return execute(False)
+        return operation.execute(join_transaction=False)
 
     key = CreationKey(employee_id=employee_id, key=idempotency_key)
     fingerprint = _fingerprint(request, payload, command=command, target_id=target_id)
@@ -132,14 +142,14 @@ def create_response(
             now = timestamp()
             record = uow.creation_results.get(key)
             if record is not None and (record.expires_at is None or record.expires_at > now):
-                result = _replay(record, fingerprint, authorize)
+                result = _replay(record, fingerprint, operation.authorize_replay)
             else:
                 if record is not None:
                     uow.creation_results.forget_expired(key, now=now)
                 # Claim before any business write, so an entity-level unique
                 # constraint cannot hide an already processed duplicate.
                 uow.creation_results.reserve(key, fingerprint=fingerprint)
-                data = execute(True)
+                data = operation.execute(join_transaction=True)
                 result = CreationResult(fingerprint, status_code, data.model_dump_json(by_alias=True))
                 uow.creation_results.complete(key, result=result)
     except CreationAlreadyReserved:
@@ -149,7 +159,7 @@ def create_response(
             record = uow.creation_results.get(key)
             if record is None or (record.expires_at is not None and record.expires_at <= timestamp()):
                 raise TransientPersistenceError("Creation result is unavailable")
-            result = _replay(record, fingerprint, authorize)
+            result = _replay(record, fingerprint, operation.authorize_replay)
 
     _maintain(uow)
     return Response(result.body, status_code=result.status_code, media_type="application/json")

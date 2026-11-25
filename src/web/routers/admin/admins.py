@@ -1,11 +1,14 @@
 # src/web/routers/admin/admins.py
 
+from dataclasses import dataclass
+
 from fastapi import APIRouter, Depends, status
 
 from fastapi import Request, Response
 
-from src.web.idempotency import IdempotencyKey, create_response
+from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
 from src.application.dto.employee_dto import AdminDTO
+from src.application.services.admin_service import AdminApplicationService
 
 from src.web.dependencies.auth import (
     get_current_admin,
@@ -44,6 +47,22 @@ router = APIRouter(
 
 
 
+@dataclass(frozen=True)
+class CreateAdminOperation(CreationOperation[AdminResponse]):
+    service: AdminApplicationService
+    dto: AdminDTO
+
+    def authorize_replay(self) -> None:
+        self.service.require_create_access(self.dto)
+
+    def execute(self, *, join_transaction: bool) -> AdminResponse:
+        result = self.service.create_admin(
+            admin_dto=self.dto,
+            join_transaction=join_transaction,
+        )
+        return AdminResponse.from_dto(result)
+
+
 # ---------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------
@@ -72,10 +91,7 @@ def create_admin(
         request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
         employee_id=actor_admin_id, command="admin.create",
         payload=admin_request, status_code=201,
-        authorize=lambda: service.require_create_access(dto),
-        execute=lambda join: AdminResponse.from_dto(
-            service.create_admin(admin_dto=dto, join_transaction=join),
-        ),
+        operation=CreateAdminOperation(service, dto),
     )
 
 

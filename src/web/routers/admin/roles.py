@@ -1,13 +1,17 @@
 # src/web/routers/admin/role.py
 
-
+from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, status
 
 from fastapi import Request, Response
 
-from src.web.idempotency import IdempotencyKey, create_response
+from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
 from src.application.dto.roles_dto import RoleDTO
+from src.application.services.role_service import (
+    AdminRoleApplicationService,
+    UserRoleApplicationService,
+)
 from src.domain.rbac.permissions import AdminPermission, UserPermission
 from src.web.dependencies.auth import (
     get_current_admin,
@@ -81,6 +85,22 @@ def get_user_permissions():
 # Admin role endpoints
 # ---------------------------------------------------------------------
 
+@dataclass(frozen=True)
+class CreateAdminRoleOperation(CreationOperation[AdminRoleResponse]):
+    service: AdminRoleApplicationService
+    dto: RoleDTO
+
+    def authorize_replay(self) -> None:
+        self.service.require_create_access(self.dto)
+
+    def execute(self, *, join_transaction: bool) -> AdminRoleResponse:
+        result = self.service.create_role(
+            role_dto=self.dto,
+            join_transaction=join_transaction,
+        )
+        return AdminRoleResponse.from_dto(result)
+
+
 @router.post(
     "/admin",
     response_model=AdminRoleResponse,
@@ -104,10 +124,7 @@ def create_admin_role(
         request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
         employee_id=actor_admin_id, command="role.admin.create",
         payload=role_request, status_code=201,
-        authorize=lambda: service.require_create_access(dto),
-        execute=lambda join: AdminRoleResponse.from_dto(
-            service.create_role(role_dto=dto, join_transaction=join),
-        ),
+        operation=CreateAdminRoleOperation(service=service, dto=dto),
     )
 
 
@@ -176,6 +193,22 @@ def delete_admin_role(
 # User role endpoints
 # ---------------------------------------------------------------------
 
+@dataclass(frozen=True)
+class CreateUserRoleOperation(CreationOperation[UserRoleResponse]):
+    service: UserRoleApplicationService
+    dto: RoleDTO
+
+    def authorize_replay(self) -> None:
+        self.service.require_create_access(self.dto)
+
+    def execute(self, *, join_transaction: bool) -> UserRoleResponse:
+        result = self.service.create_role(
+            role_dto=self.dto,
+            join_transaction=join_transaction,
+        )
+        return UserRoleResponse.from_dto(result)
+
+
 @router.post(
     "/user",
     response_model=UserRoleResponse,
@@ -199,10 +232,7 @@ def create_user_role(
         request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
         employee_id=actor_admin_id, command="role.user.create",
         payload=role_request, status_code=201,
-        authorize=lambda: service.require_create_access(dto),
-        execute=lambda join: UserRoleResponse.from_dto(
-            service.create_role(role_dto=dto, join_transaction=join),
-        ),
+        operation=CreateUserRoleOperation(service=service, dto=dto),
     )
 
 
