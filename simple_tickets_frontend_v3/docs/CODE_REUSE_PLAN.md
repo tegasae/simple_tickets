@@ -70,3 +70,18 @@
 4. Подтвердить сборку, тесты клиентских состояний и чтение из изолированного backend. Последующие карточки, мутации, вкладки и справочники перенести отдельными вертикалями.
 
 Связанные планы — [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md), [TESTING_STRATEGY.md](TESTING_STRATEGY.md) и [COMPATIBILITY_MATRIX.md](COMPATIBILITY_MATRIX.md).
+
+## 6. Фактическая адаптация в I1
+
+| Источник v2 | Целевой путь v3 | Что адаптировано | Требование и проверка |
+|---|---|---|---|
+| `package.json`, `package-lock.json` | `package.json`, `package-lock.json` | Сохранены версии React/DOM и Vite/плагина. Собственный манифест, lock, скрипты тестов и привязка к Node/npm | DEC-011, чистая установка и сборка |
+| `index.html`, `src/main.jsx` | `index.html`, `src/main.jsx` | HTML и React entry. Добавлены встроенный словарь и инициализация сессии | FR-001, DEC-024, build и Chromium |
+| `src/components/LoginPage.jsx` | `src/app/LoginPage.jsx` | Форма и поля v2. Добавлены автозаполнение, подписи, управление фокусом, состояния сессии и ошибки по ключам словаря | FR-001, FR-014, Enter и реальные вход/выход |
+| `src/components/Shell.jsx` | `src/app/layout.jsx` | Марка, навигация и выход. Панель ограничена доступным разделом I1 | FR-002, отказ на прямом URL |
+| `src/components/TicketsPage.jsx`, `src/components/DataTable.jsx` | `src/features/tickets/QueuePage.jsx`, `TicketPage.jsx` | Использованы столбцы, компоновка, поля и история. Разделены чтение очереди и карточки, клавиатурные ссылки и сортировка | FR-003, FR-004, browser и unit проверки |
+| `src/ticketUtils.js` | `src/features/tickets/model.js`, `src/shared/i18n/messages.js` | Адаптированы нормализация статусов и `Intl`-форматирование. Источник даты и подписи обновлены по DEC-005/006 | FR-003, FR-004, `tests/model.test.js` |
+| `src/styles/base.css` | `src/shared/styles/base.css` | Использованы CSS-токены, типографика, контролы и панели. Адаптивная сетка, фокус и прокрутка таблицы доработаны | WCAG-ориентированные проверки клавиатуры и ширины |
+| `vite.config.js`, `src/api.js`, `src/storage.js` как справочные | `vite.config.js`, `src/api/`, `src/app/session/` | Сохранён принцип конфигурируемого dev proxy. Транспорт и хранение реализованы для утверждённых правил v3 | FR-001, FR-002, mock transport и реальный FastAPI |
+
+Формы редактирования, исходные модули ролей и справочников, переключатель тем и глобальный кэш v2 не нужны в области I1. [Реализованный срез и проверки](ITERATION_1_REPORT.md).
