@@ -4,7 +4,7 @@
 
 Разработка новой версии frontend для системы Simple Tickets на основе существующего frontend v2 и действующего backend на FastAPI.
 
-Рабочая ветка: `frontend-new
+Рабочая ветка: `frontend_new
 
 ## 2. Структура проекта и ограничения
 
