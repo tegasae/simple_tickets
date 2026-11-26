@@ -787,6 +787,12 @@ class Ticket:
         )
         self.append_status(record)
 
+    def require_remote_work_recommendation(self) -> None:
+        if not self.remote_work_recommended:
+            raise DomainOperationError(
+                "Remote work is not recommended for this ticket"
+            )
+
     def start_remote_work(
             self,
             *,
@@ -804,10 +810,7 @@ class Ticket:
         if actor_employee_id <= 0:
             raise DomainOperationError("Actor employee id must be positive")
 
-        if not self.remote_work_recommended:
-            raise DomainOperationError(
-                "Remote work is not recommended for this ticket"
-            )
+        self.require_remote_work_recommendation()
 
         current_status = self.current_status()
         if current_status == TicketStatus.ASSIGNED:

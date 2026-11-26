@@ -55,7 +55,7 @@ CREATE TABLE roles (
 	permissions TEXT,
 	description TEXT,
 	is_system_role INTEGER,
-	date_created TEXT,
+	date_created TEXT NOT NULL,
 	is_admin INTEGER DEFAULT (1), 
 	version INTEGER DEFAULT 0);
 CREATE TABLE admins_roles (
