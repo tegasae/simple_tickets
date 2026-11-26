@@ -1,7 +1,7 @@
-"""I1 through I3 checks against FastAPI and a disposable SQLite database.
+"""I1 through I4 checks against FastAPI and a disposable SQLite database.
 
 From frontend v3, run `python -B tests/backend_contract.py`.
-Use `--serve` for the I1/I2 fixture or `--serve-i3` for extra workflow cases.
+Use `--serve` for I1/I2, `--serve-i3` for workflow, or `--serve-i4` for administration.
 The loopback fixture writes temporary login details to its private fixture directory.
 """
 
@@ -46,6 +46,7 @@ class Fixture:
     ticket_ids: tuple[int, ...]
     references: References
     workflow: dict | None
+    management: dict | None
 
 
 def seed_profiles(uow, profiles, accounts, actor_ids):
@@ -121,7 +122,94 @@ def seed_workflow(uow, references, accounts, actor_ids):
     return {"actors": actor_ids, "tickets": tickets}
 
 
-def seed_database(database, *, workflow=False):
+def seed_management(uow, references, accounts, actor_ids):
+    from src.domain.employee import Admin
+    from src.domain.rbac.permissions import AdminPermission as Permission, UserPermission
+    from src.domain.rbac.role_new import Role
+    from src.domain.ticket import Ticket
+    from src.domain.ticket_user import TicketUser
+
+    view = {
+        Permission.TICKET_VIEW, Permission.CLIENT_VIEW, Permission.USER_VIEW,
+        Permission.ADMIN_VIEW, Permission.DEPARTMENT_VIEW,
+    }
+    seed_profiles(uow, {
+        "catalog_reader": ("Читатель И4", view, 0),
+        "client_create": ("Регистрация клиента И4", {Permission.CLIENT_CREATE}, 0),
+        "client_decide": ("Решение по клиенту И4", {Permission.CLIENT_DECISION}, 0),
+        "catalog_operator": ("Администратор И4", view | {
+            Permission.CLIENT_CREATE, Permission.CLIENT_OPERATION, Permission.CLIENT_DECISION,
+            Permission.USER_OPERATION, Permission.ADMIN_OPERATION, Permission.DEPARTMENT_OPERATION,
+            Permission.ROLE_ASSIGN, Permission.ROLE_USER_ASSIGN,
+        }, references.department),
+        "admin_role_operator": ("Роли сотрудников И4", {Permission.ADMIN_VIEW, Permission.ROLE_ASSIGN}, 0),
+        "user_role_operator": ("Роли пользователей И4", {Permission.USER_VIEW, Permission.ROLE_USER_ASSIGN}, 0),
+        "cancel_operator": ("Оператор отмены И4", {Permission.TICKET_VIEW, Permission.TICKET_CANCELLED},
+                            references.department),
+        "delete_operator": ("Оператор удаления И4", {Permission.TICKET_VIEW, Permission.TICKET_DELETE}, 0),
+    }, accounts, actor_ids)
+    account_subject = Admin.create(first_name="Сотрудник без аккаунта И4")
+    actor_ids["account_subject"] = uow.admins.save(account_subject).employee_id
+
+    admin_role = uow.roles_admin.save(Role.create("Чтение клиентов И4", {Permission.CLIENT_VIEW}))
+    user_role = uow.roles_user.save(Role.create("Просмотр заявок И4", {UserPermission.TICKET_VIEW}))
+    system_role = uow.roles_admin.save(Role.create(
+        "Системная роль И4", {Permission.TICKET_OPERATION}, is_system_role=True,
+    ))
+    admin = uow.admins.get(actor_ids["catalog_reader"])
+    assigned_role = next(iter(admin.role_ids()))
+    user = uow.users.get(references.other_contact)
+    user.grant_role(user_role.role_id)
+    uow.users.save(user)
+
+    cases = {
+        "cancel": ("И4 Отмена связанной заявки", True),
+        "delete_linked": ("И4 Удаление связанной заявки", True),
+        "cancel_at_work": ("И4 Текущий исполнитель", False),
+    }
+    tickets = {}
+    actor = actor_ids["catalog_operator"]
+    for case, (title, linked) in cases.items():
+        fields = {
+            "client_id": references.client,
+            "admin_id": actor,
+            "text_of_ticket": title,
+            "department_id": references.department,
+            "comment": "Синтетическая история Admin И4",
+        }
+        if linked:
+            request = TicketUser.create(
+                client_id=references.client,
+                user_id=references.requester,
+                contact_user_id=references.contact,
+                text_of_ticket=title,
+                comment="Синтетическая история User И4",
+            )
+            request.mark_in_work(actor_employee_id=actor)
+            request = uow.user_tickets.save(request)
+            ticket = Ticket.create_from_request_user(
+                **fields, user_id=references.requester, user_ticket_id=request.ticket_user_id,
+                contact_user_id=references.contact,
+            )
+        else:
+            ticket = Ticket.create(**fields)
+        ticket.accept(actor_employee_id=actor)
+        if case == "cancel_at_work":
+            worker = actor_ids["cancel_operator"]
+            ticket.assign(actor_employee_id=actor, executor_id=worker)
+            ticket.start_work(actor_employee_id=worker, work_is_remote=False)
+        ticket = uow.tickets.save(ticket)
+        tickets[case] = {"id": ticket.ticket_id, "title": title, "user_ticket_id": ticket.user_ticket_id}
+    return {
+        "actors": actor_ids, "tickets": tickets,
+        "roles": {"optional_admin": admin_role.role_id, "assigned_admin": assigned_role,
+                  "assigned_user": user_role.role_id, "system_admin": system_role.role_id},
+        "references": {"client": references.client, "user": references.requester,
+                       "user_roles": references.other_contact, "department": references.department},
+    }
+
+
+def seed_database(database, *, workflow=False, management=False):
     from src.adapters.uow.sqlite_unit_of_work import SQLiteUnitOfWork
     from src.domain.client import Client
     from src.domain.department import Department
@@ -204,17 +292,20 @@ def seed_database(database, *, workflow=False):
                     ticket.reject(actor_employee_id=reader_id, comment="Синтетическая причина")
                 ticket_ids.append(uow.tickets.save(ticket).ticket_id)
             workflow_data = seed_workflow(uow, references, accounts, actor_ids) if workflow else None
+            management_data = seed_management(uow, references, accounts, actor_ids) if management else None
 
-    return accounts, tuple(ticket_ids), references, workflow_data
+    return accounts, tuple(ticket_ids), references, workflow_data, management_data
 
 
 @contextmanager
-def isolated_application(*, workflow=False):
+def isolated_application(*, workflow=False, management=False):
     # Change cwd before importing Settings so the checkout's .env is never read.
     with TemporaryDirectory(prefix=".qa-contract-", dir=FRONTEND) as temporary:
         directory = Path(temporary)
         database = directory / "test.sqlite3"
-        accounts, ticket_ids, references, workflow_data = seed_database(database, workflow=workflow)
+        accounts, ticket_ids, references, workflow_data, management_data = seed_database(
+            database, workflow=workflow, management=management,
+        )
         previous_directory = Path.cwd()
         with patch.dict(os.environ, {"DATABASE_URL": str(database), "SECRET_KEY": secrets.token_hex(32)}):
             try:
@@ -224,7 +315,7 @@ def isolated_application(*, workflow=False):
                 application = create_app()
                 if application.state.settings.DATABASE_URL != str(database):
                     raise RuntimeError("FastAPI did not select the disposable database")
-                yield Fixture(application, directory, accounts, ticket_ids, references, workflow_data)
+                yield Fixture(application, directory, accounts, ticket_ids, references, workflow_data, management_data)
             finally:
                 os.chdir(previous_directory)
 
@@ -639,14 +730,259 @@ class BackendWorkflowContract(ContractCase):
                     self.assertEqual(recorded[key], value)
 
 
-def serve_fixture(*, workflow=False, port=18080):
+class BackendManagementContract(ContractCase):
+    @classmethod
+    def setUpClass(cls):
+        from fastapi.testclient import TestClient
+
+        cls.fixture = cls.enterClassContext(isolated_application(management=True))
+        cls.api = cls.enterClassContext(TestClient(cls.fixture.app, raise_server_exceptions=False))
+        cls.actors = cls.fixture.management["actors"]
+        cls.roles = cls.fixture.management["roles"]
+        cls.refs = cls.fixture.management["references"]
+        cls.tickets = cls.fixture.management["tickets"]
+
+    def send(self, method, endpoint, headers, status=200, body=None):
+        result = self.api.request(method, "/admin/" + endpoint, headers=headers, json=body)
+        self.assertEqual(result.status_code, status, f"{method} {endpoint}")
+        if status == 204:
+            self.assertEqual(result.content, b"")
+            return None
+        return result.json()
+
+    def authorized(self, profile):
+        return self.bearer(self.login(profile))
+
+    def test_client_view_create_operation_and_decision_are_separate(self):
+        reader = self.authorized("catalog_reader")
+        operator = self.authorized("catalog_operator")
+        create = self.authorized("client_create")
+        decide = self.authorized("client_decide")
+        self.assertTrue(self.send("GET", "clients/", reader))
+        self.send("GET", "clients/", create, 403)
+        self.send("POST", "clients/", reader, 403, {"name": "Клиент отказ"})
+        client = self.send("POST", "clients/", create, 201, {"name": "Новый клиент И4"})
+        path = f"clients/{client['client_id']}"
+        fields = {
+            "name": "Клиент после изменения И4", "email": "i4@example.invalid",
+            "phone": "", "address": "Тестовый адрес", "description": "Синтетическая запись",
+        }
+        self.send("PUT", path + "/contact", create, 403, fields)
+        self.send("PUT", path + "/contact", decide, 403, fields)
+        self.send("PATCH", path + "/disable", create, 403)
+        updated = self.send("PUT", path + "/contact", operator, body=fields)
+        self.assertEqual({key: updated[key] for key in fields}, fields)
+        self.assertFalse(self.send("PATCH", path + "/disable", decide)["enabled"])
+        self.assertTrue(self.send("PATCH", path + "/enable", decide)["enabled"])
+        self.assertEqual(self.send("GET", path, reader)["name"], fields["name"])
+        self.send("DELETE", path, decide, 403)
+        self.send("DELETE", path, operator, 204)
+        self.send("GET", path, reader, 404)
+
+    def test_user_admin_and_department_create_edit_enable_disable_and_delete(self):
+        operator = self.authorized("catalog_operator")
+        reader = self.authorized("catalog_reader")
+        department = self.send("POST", "departments/", operator, 201, {"name": "Отдел И4"})
+        department_id = department["department_id"]
+        definitions = (
+            ("departments", "department_id", {"name": "Запрещённый отдел"}, {"name": "Обновлённый отдел"}, department),
+            ("users", "employee_id", {"first_name": "Запрещённый", "client_id": self.refs["client"]},
+             {"first_name": "Обновлённый", "last_name": "Контакт И4", "phone": "", "email": ""},
+             self.send("POST", "users/", operator, 201, {"first_name": "Новый контакт", "client_id": self.refs["client"]})),
+            ("admins", "employee_id", {"first_name": "Запрещённый"},
+             {"first_name": "Обновлённый", "last_name": "Сотрудник И4", "phone": "", "email": "",
+              "job_title": "Сотрудник QA", "department_id": self.refs["department"]},
+             self.send("POST", "admins/", operator, 201, {"first_name": "Новый сотрудник", "department_id": department_id})),
+        )
+        # Release the synthetic department reference before testing its deletion.
+        admin_path = f"admins/{definitions[-1][-1]['employee_id']}"
+        self.assertEqual(self.send("DELETE", admin_path + "/department", operator)["department_id"], 0)
+        self.assertEqual(self.send("PATCH", admin_path + "/department", operator,
+                                   body={"department_id": department_id})["department_id"], department_id)
+        self.send("DELETE", admin_path + "/department", operator)
+        for realm, id_key, create, update, created in definitions:
+            with self.subTest(resource=realm):
+                path = f"{realm}/{created[id_key]}"
+                self.assertIn(created[id_key], [row[id_key] for row in self.send("GET", realm + "/", reader)])
+                self.send("GET", realm + "/", self.authorized("reader"), 403)
+                self.send("POST", realm + "/", reader, 403, create)
+                self.send("PUT", path, reader, 403, update)
+                self.send("PATCH", path + "/disable", reader, 403)
+                changed = self.send("PUT", path, operator, body=update)
+                self.assertEqual({key: changed[key] for key in update}, update)
+                self.assertFalse(self.send("PATCH", path + "/disable", operator)["enabled"])
+                self.assertTrue(self.send("PATCH", path + "/enable", operator)["enabled"])
+                self.assertTrue(self.send("GET", path, reader)["enabled"])
+                self.send("DELETE", path, reader, 403)
+                self.send("DELETE", path, operator, 204)
+                self.send("GET", path, reader, 404)
+
+    def test_admin_and_user_accounts_are_managed_independently_from_employee_profile(self):
+        operator = self.authorized("catalog_operator")
+        reader = self.authorized("catalog_reader")
+        for realm, identity, scope in (
+            ("admins", {"first_name": "Тестовая учётная запись И4"}, "admin"),
+            ("users", {"first_name": "Тестовая учётная запись И4", "client_id": self.refs["client"]}, "user"),
+        ):
+            with self.subTest(resource=realm):
+                employee = self.send("POST", realm + "/", operator, 201, identity)
+                path = f"{realm}/{employee['employee_id']}"
+                account = {"login": "qa" + secrets.token_hex(6), "password": "Aa1!" + secrets.token_hex(12)}
+                self.send("POST", path + "/account", reader, 403, account)
+                attached = self.send("POST", path + "/account", operator, body=account)
+                self.assertEqual(attached["login"], account["login"])
+                self.assertTrue(attached["enabled_login"])
+                self.assertNotIn("password", attached)
+                form = {"username": account["login"], "password": account["password"]}
+                auth_path = f"/auth/{scope}/login"
+                self.assertEqual(self.api.post(auth_path, data=form).status_code, 200)
+                disabled = self.send("PATCH", path + "/account/disable", operator)
+                self.assertFalse(disabled["enabled_login"])
+                self.assertTrue(disabled["enabled"])
+                self.assertIn(self.api.post(auth_path, data=form).status_code, (401, 403))
+                self.assertTrue(self.send("PATCH", path + "/account/enable", operator)["enabled_login"])
+                new_password = "Aa1!" + secrets.token_hex(12)
+                self.assertNotIn("password", self.send("PATCH", path + "/password", operator,
+                                                       body={"password": new_password}))
+                self.assertEqual(self.api.post(auth_path, data=form).status_code, 401)
+                self.assertEqual(self.api.post(auth_path, data={**form, "password": new_password}).status_code, 200)
+                detached = self.send("DELETE", path + "/account", operator)
+                self.assertFalse(detached["enabled_login"])
+                self.assertEqual(detached["login"], "")
+                self.assertTrue(self.send("GET", path, reader)["enabled"])
+
+    def test_referenced_catalog_records_and_system_or_assigned_roles_cannot_be_deleted(self):
+        operator = self.authorized("catalog_operator")
+        for path in (
+            f"clients/{self.refs['client']}", f"users/{self.refs['user']}",
+            f"admins/{self.actors['reader']}", f"departments/{self.refs['department']}",
+            f"roles/admin/{self.roles['system_admin']}", f"roles/admin/{self.roles['assigned_admin']}",
+            f"roles/user/{self.roles['assigned_user']}",
+        ):
+            with self.subTest(resource=path):
+                before = self.send("GET", path, operator)
+                self.send("DELETE", path, operator, 400)
+                self.assertEqual(self.send("GET", path, operator), before)
+        own = f"admins/{self.actors['catalog_operator']}"
+        self.send("PATCH", own + "/account/disable", operator, 400)
+        self.send("PATCH", own + "/disable", operator, 400)
+        self.send("DELETE", own + "/account", operator, 400)
+
+    def test_role_realms_are_separate_and_crud_has_no_definition_put(self):
+        admin = self.authorized("admin_role_operator")
+        user = self.authorized("user_role_operator")
+        reader = self.authorized("catalog_reader")
+        definitions = (
+            ("admin", admin, user, "client.view", "ticket.view.all"),
+            ("user", user, admin, "ticket.view.all", "client.view"),
+        )
+        for realm, authorized, denied, permission, wrong_permission in definitions:
+            with self.subTest(realm=realm):
+                path = "roles/" + realm
+                self.assertIn(permission, self.send("GET", path + "/permissions", reader))
+                self.send("GET", path, denied, 403)
+                role = {"name": f"Свободная роль И4 {realm}", "permissions": [permission]}
+                self.send("POST", path, denied, 403, role)
+                self.send("POST", path, authorized, 422, {**role, "permissions": [wrong_permission]})
+                created = self.send("POST", path, authorized, 201, role)
+                detail = f"{path}/{created['role_id']}"
+                self.assertEqual(self.send("GET", detail, authorized)["permissions"], [permission])
+                self.send("PUT", detail, authorized, 405, role)
+                self.send("DELETE", detail, authorized, 204)
+                self.send("GET", detail, authorized, 404)
+
+    def test_grant_and_revoke_are_separate_and_current_rights_change_with_existing_access(self):
+        admin = self.authorized("admin_role_operator")
+        user = self.authorized("user_role_operator")
+        own = f"admins/{self.actors['admin_role_operator']}"
+        permission_path = "admins/permissions"
+        optional = self.roles["optional_admin"]
+        role_body = {"roles": [optional]}
+        self.assertNotIn("client.view", self.send("GET", permission_path, admin)["permissions"])
+        self.send("PUT", own, admin, 403, {"first_name": "Нельзя править профиль"})
+        self.send("POST", own + "/roles", user, 403, role_body)
+        self.assertIn(optional, self.send("POST", own + "/roles", admin, body=role_body)["roles"])
+        self.assertIn("client.view", self.send("GET", permission_path, admin)["permissions"])
+        self.assertTrue(self.send("GET", "clients/", admin))
+        self.send("DELETE", own + "/roles", admin, 404, {"roles": [999999]})
+        self.assertIn(optional, self.send("GET", own, admin)["roles"])
+        self.assertNotIn(optional, self.send("DELETE", own + "/roles", admin, body=role_body)["roles"])
+        self.assertNotIn("client.view", self.send("GET", permission_path, admin)["permissions"])
+        self.send("GET", "clients/", admin, 403)
+
+        target = f"users/{self.refs['user']}"
+        user_role = self.roles["assigned_user"]
+        user_body = {"roles": [user_role]}
+        self.send("PUT", target, user, 403, {"first_name": "Нельзя править профиль"})
+        self.send("POST", target + "/roles", admin, 403, user_body)
+        self.assertIn(user_role, self.send("POST", target + "/roles", user, body=user_body)["roles"])
+        self.assertNotIn(user_role, self.send("DELETE", target + "/roles", user, body=user_body)["roles"])
+
+    def linked_rows(self, ticket):
+        ticket_id = ticket["id"]
+        user_id = ticket["user_ticket_id"]
+        with closing(sqlite3.connect(self.fixture.directory / "test.sqlite3")) as database:
+            tables = (
+                ("tickets", "ticket_id", ticket_id), ("user_tickets", "user_ticket_id", user_id),
+                ("ticket_status_records", "ticket_id", ticket_id), ("user_tickets_status_record", "user_ticket_id", user_id),
+                ("ticket_comments", "ticket_id", ticket_id), ("user_tickets_comment", "user_ticket_id", user_id),
+            )
+            return {
+                table: database.execute(f"SELECT * FROM {table} WHERE {column} = ? ORDER BY 1", (record_id,)).fetchall()
+                for table, column, record_id in tables
+            }
+
+    def test_cancel_is_permission_and_state_gated_and_preserves_both_histories(self):
+        cancel = self.authorized("cancel_operator")
+        delete = self.authorized("delete_operator")
+        ticket = self.tickets["cancel"]
+        path = f"tickets/{ticket['id']}"
+        before = self.linked_rows(ticket)
+        self.assertTrue(all(before.values()))
+        self.send("DELETE", path, cancel, 403)
+        self.send("PATCH", path + "/cancel", cancel, 422, {"comment": ""})
+        self.send("PATCH", path + "/cancel", delete, 403, {"comment": "Не разрешено"})
+        in_work = self.tickets["cancel_at_work"]["id"]
+        self.send("PATCH", f"tickets/{in_work}/cancel", cancel, 400, {"comment": "Текущий исполнитель"})
+        self.assertEqual(self.linked_rows(ticket), before)
+        result = self.send("PATCH", path + "/cancel", cancel, body={"comment": "Синтетическая причина отмены"})
+        self.assertEqual(result["statuses"][-1]["status"], "cancelled")
+        self.assertEqual(result["statuses"][-1]["comment"], "Синтетическая причина отмены")
+        self.assertTrue(result["is_closed"])
+        self.send("PATCH", path + "/cancel", cancel, 400, {"comment": "Повтор отмены"})
+        after = self.linked_rows(ticket)
+        self.assertTrue(all(after.values()))
+        for table in ("ticket_status_records", "user_tickets_status_record"):
+            self.assertEqual(after[table][:-1], before[table])
+        for table in ("ticket_comments", "user_tickets_comment"):
+            self.assertEqual(after[table], before[table])
+
+    def test_delete_is_distinct_and_removes_linked_user_ticket_and_both_histories(self):
+        delete = self.authorized("delete_operator")
+        reader = self.authorized("catalog_reader")
+        ticket = self.tickets["delete_linked"]
+        path = f"tickets/{ticket['id']}"
+        self.assertFalse(self.send("GET", path, reader)["is_closed"])
+        self.assertTrue(all(self.linked_rows(ticket).values()))
+        self.send("DELETE", path, reader, 403)
+        self.send("DELETE", path, delete, 204)
+        self.send("GET", path, reader, 404)
+        self.assertFalse(any(self.linked_rows(ticket).values()))
+        self.assertTrue(self.send("GET", f"users/{self.refs['user']}", reader))
+
+
+def serve_fixture(*, workflow=False, management=False, port=18080):
     import uvicorn
 
-    with isolated_application(workflow=workflow) as fixture:
+    with isolated_application(workflow=workflow, management=management) as fixture:
         credentials = fixture.directory / "credentials.json"
         fd = os.open(credentials, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as output:
-            data = {**fixture.accounts, "workflow": fixture.workflow} if workflow else fixture.accounts
+            data = dict(fixture.accounts)
+            if workflow:
+                data["workflow"] = fixture.workflow
+            if management:
+                data["management"] = fixture.management
             json.dump(data, output, ensure_ascii=False)
         print(f"Loopback fixture on 127.0.0.1:{port}; private credentials file: {credentials}", flush=True)
         uvicorn.run(fixture.app, host="127.0.0.1", port=port, access_log=False, log_level="warning")
@@ -657,15 +993,16 @@ def main():
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--serve", action="store_true", help="Run the I1/I2 loopback API fixture")
     mode.add_argument("--serve-i3", action="store_true", help="Run the loopback API fixture with workflow cases")
+    mode.add_argument("--serve-i4", action="store_true", help="Run the loopback API fixture with management cases")
     parser.add_argument("--port", type=int, default=18080, choices=(18080, 18081),
                         help="Loopback API fixture port")
     args = parser.parse_args()
     sys.dont_write_bytecode = True
     sys.path.insert(0, str(REPO))
-    if args.serve or args.serve_i3:
-        serve_fixture(workflow=args.serve_i3, port=args.port)
+    if args.serve or args.serve_i3 or args.serve_i4:
+        serve_fixture(workflow=args.serve_i3, management=args.serve_i4, port=args.port)
         return 0
-    cases = (BackendContract, BackendWriteContract, BackendWorkflowContract)
+    cases = (BackendContract, BackendWriteContract, BackendWorkflowContract, BackendManagementContract)
     tests = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromTestCase(case) for case in cases)
     return 0 if unittest.TextTestRunner(verbosity=2).run(tests).wasSuccessful() else 1
 

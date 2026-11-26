@@ -67,11 +67,14 @@ export function CloseDraftDialog({ id, busy, canSave, pendingWorkflow, onSaveClo
       <h2 id="close-draft-heading" tabIndex={-1} ref={title}>
         {t(pendingWorkflow ? "workflow.closeTitle" : "work.closeTitle", { id })}
       </h2>
-      <p id="close-draft-summary">{t(pendingWorkflow ? "workflow.closeDescription" : "work.closeDescription")}</p>
+      <p id="close-draft-summary">{t(pendingWorkflow === "deleteTicket" ? "workflow.closeDeleteDescription"
+        : pendingWorkflow ? "workflow.closeDescription" : "work.closeDescription")}</p>
       <div className="work-actions">
         {canSave && <button type="button" className="btn btn-primary" disabled={busy} onClick={onSaveClose}>{t("work.saveClose")}</button>}
         <button ref={continueButton} type="button" className="btn" disabled={busy} onClick={onContinue}>{t("work.continue")}</button>
-        <button type="button" className="btn" disabled={busy} onClick={onDiscard}>{t("work.discard")}</button>
+        <button type="button" className="btn" disabled={busy} onClick={onDiscard}>
+          {t(pendingWorkflow === "deleteTicket" ? "work.closeTabOnly" : "work.discard")}
+        </button>
       </div>
     </dialog>
   );

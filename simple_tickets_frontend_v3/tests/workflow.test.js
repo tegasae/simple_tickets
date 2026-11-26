@@ -66,6 +66,7 @@ test('workflow commands use exact PATCH paths and omit unrelated fields', async 
     }, { work_is_remote: true, duration: 'PT5400S' }],
     ['execute', 'execute', {}, {}],
     ['startRemoteWork', 'start-remote-work', {}, {}],
+    ['cancel', 'cancel', { comment: '  Отмена  ' }, { comment: 'Отмена' }],
   ];
   for (const [action, suffix, payload] of cases) {
     assert.equal((await api.execute(TICKET_ID, action, payload, { signal })).ticket_id, TICKET_ID);
@@ -74,9 +75,6 @@ test('workflow commands use exact PATCH paths and omit unrelated fields', async 
   assert.deepEqual(calls.map(([, options]) => options), cases.map(([, , , json]) => ({
     method: 'PATCH', json, signal,
   })));
-  await assert.rejects(api.execute(TICKET_ID, 'cancel', { comment: 'Out of scope' }), {
-    code: 'invalid-request',
-  });
   await assert.rejects(api.execute(TICKET_ID, 'startRemoteWork', { work_is_remote: true }), {
     code: 'invalid-request',
   });
@@ -84,7 +82,7 @@ test('workflow commands use exact PATCH paths and omit unrelated fields', async 
 });
 
 test('workflow requires reasons and validates retrospective alternatives before sending', () => {
-  for (const action of ['reject', 'defer']) {
+  for (const action of ['reject', 'defer', 'cancel']) {
     assert.throws(() => workflowPayload(action, { comment: '  ' }), {
       status: 422, fields: ['comment'],
     });
@@ -168,7 +166,10 @@ test('intake, deferral, and review follow exact action rights and valid statuses
   assert.deepEqual(availableActions(ticket('deferred'), accept), ['accept']);
   assert.deepEqual(availableActions(ticket('assigned'), accept), ['accept']);
   assert.deepEqual(availableActions(ticket('ready_for_review'), accept), ['accept']);
-  assert.deepEqual(availableActions(ticket('accepted'), reject), []);
+  assert.deepEqual(availableActions(ticket('accepted'), reject), ['cancel']);
+  assert.deepEqual(availableActions(atWork(ACTOR), reject), []);
+  assert.deepEqual(availableActions(atWork(OTHER), reject), ['cancel']);
+  assert.deepEqual(availableActions(ticket('executed', { is_closed: true }), rules(['ticket.delete'])), ['deleteTicket']);
   assert.deepEqual(availableActions(ticket('accepted'), defer), ['defer']);
   assert.deepEqual(availableActions(atWork(ACTOR), defer), []);
   assert.deepEqual(availableActions(atWork(OTHER), defer), ['defer']);

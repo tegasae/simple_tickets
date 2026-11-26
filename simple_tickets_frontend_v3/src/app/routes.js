@@ -1,6 +1,14 @@
 const queues = ["open", "all", "closed", "hotline"];
 const sorts = ["created-desc", "created-asc", "id-desc", "id-asc"];
 const sizes = [25, 50];
+export const directoryPaths = Object.freeze({
+  clients: "/clients",
+  users: "/users",
+  admins: "/admins",
+  departments: "/departments",
+  adminRoles: "/roles/admin",
+  userRoles: "/roles/user",
+});
 
 export const queueOptions = Object.freeze(queues);
 export const sizeOptions = Object.freeze(sizes);
@@ -13,6 +21,8 @@ function positiveInteger(value) {
 
 export function readRoute(pathname, search = "") {
   if (pathname === "/login") return { page: "login" };
+  const directory = readDirectory(pathname);
+  if (directory) return directory;
   if (pathname === "/tickets/new" || pathname === "/tickets/new/") return { page: "newTicket" };
   if (pathname === "/" || pathname === "/tickets" || pathname === "/tickets/") {
     const params = new URLSearchParams(search);
@@ -36,6 +46,28 @@ export function readRoute(pathname, search = "") {
   return ticketId && relatedId
     ? { page: "related", id: ticketId, type: relation[2], relatedId }
     : { page: "notFound" };
+}
+
+function readDirectory(pathname) {
+  const path = pathname.replace(/\/$/, "");
+  if (path === "/roles") return { page: "roleIndex" };
+  for (const [resource, base] of Object.entries(directoryPaths)) {
+    if (path === base) return { page: "directory", resource, mode: "list" };
+    if (!path.startsWith(`${base}/`)) continue;
+    const suffix = path.slice(base.length + 1);
+    if (suffix === "new") return { page: "directory", resource, mode: "create" };
+    const detail = /^(\d+)(\/edit)?$/.exec(suffix);
+    const id = positiveInteger(detail?.[1]);
+    if (id) return { page: "directory", resource, mode: detail[2] ? "edit" : "detail", id };
+  }
+  return null;
+}
+
+export function directoryPath(resource, mode, id) {
+  const base = directoryPaths[resource];
+  if (mode === "create") return `${base}/new`;
+  if (!id) return base;
+  return `${base}/${id}${mode === "edit" ? "/edit" : ""}`;
 }
 
 export const ticketPath = (id) => `/tickets/${id}`;

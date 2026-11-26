@@ -127,6 +127,12 @@ export function createTicketsApi(session) {
       return requireTicket(ticket, id);
     },
 
+    async remove(ticketId, { signal } = {}) {
+      const id = requireId(ticketId);
+      const response = await session.mutate(`${TICKETS}/${id}`, { method: 'DELETE', signal, expectedStatus: 204 });
+      if (response !== null) throw new ApiError(204, 'invalid-response');
+    },
+
     async create(payload, { idempotencyKey, signal } = {}) {
       if (!isRecord(payload)) {
         throw new ApiError(0, 'invalid-request');

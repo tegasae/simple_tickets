@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createReferencesApi } from "../api/resources/references.js";
+import { createDirectoryApi } from "../api/resources/directory.js";
 import { createTicketsApi } from "../api/resources/tickets.js";
 import { createWorkflowApi } from "../api/resources/workflow.js";
 import QueuePage from "../features/tickets/QueuePage.jsx";
+import DirectoryActions from "../features/admin/DirectoryActions.jsx";
+import DirectoryPage from "../features/admin/DirectoryPage.jsx";
+import { canDirectory, DIRECTORIES } from "../features/admin/directoryModel.js";
+import { useDirectoryMutations } from "../features/admin/useDirectoryMutations.js";
 import TicketPage from "../features/tickets/TicketPage.jsx";
 import { CloseDraftDialog, NewTicketPage, RelatedPage, WorkTabs } from "../features/tickets/WorkPages.jsx";
 import { useNewTicket } from "../features/tickets/useNewTicket.js";
@@ -12,7 +17,7 @@ import { allowedFields, canCreateTicket, canPostComment, hasEdits, hasNewDraft, 
 import { errorText, t } from "../shared/i18n/messages.js";
 import { ErrorPanel, RouteLink, Shell, StatePanel } from "./layout.jsx";
 import LoginPage from "./LoginPage.jsx";
-import { queuePath, readRoute, ticketPath } from "./routes.js";
+import { directoryPath, queuePath, readRoute, ticketPath } from "./routes.js";
 import { useRemoteData } from "./useRemoteData.js";
 
 function currentRoute() {
@@ -20,6 +25,14 @@ function currentRoute() {
 }
 
 const initialCriteria = { draft: "", search: "", status: "", urgency: "", filtersOpen: false };
+
+function directoryNavigation(permissions) {
+  return Object.entries(DIRECTORIES).flatMap(([resource, { labelKey }]) => {
+    if (canDirectory(resource, "read", permissions)) return [{ href: directoryPath(resource), labelKey, resource }];
+    if (!canDirectory(resource, "create", permissions)) return [];
+    return [{ href: directoryPath(resource, "create"), labelKey: `directory.create.${resource}`, resource }];
+  });
+}
 
 function QueueResource({ api, route, permissions, actorId, ...props }) {
   const hotline = route.queue === "hotline";
@@ -58,6 +71,7 @@ function TicketResource({ api, route, work, record, onBackRelated, ...props }) {
 function Workspace({ session, snapshot, route, navigate }) {
   const api = useMemo(() => createTicketsApi(session), [session]);
   const referencesApi = useMemo(() => createReferencesApi(session), [session]);
+  const directoryApi = useMemo(() => createDirectoryApi(session), [session]);
   const workflowApi = useMemo(() => createWorkflowApi(session), [session]);
   const [criteria, setCriteria] = useState(initialCriteria);
   const [returnFocus, setReturnFocus] = useState(null);
@@ -69,13 +83,28 @@ function Workspace({ session, snapshot, route, navigate }) {
   const viewAvailable = useRef(false);
   const [relationFocus, setRelationFocus] = useState(null);
   const [closingId, setClosingId] = useState(null);
-  const { permissions, actorId } = snapshot;
+  const [removedTicket, setRemovedTicket] = useState(null);
+  const [directoryDrafts, setDirectoryDrafts] = useState({});
+  const { permissions, actorId, checkingPermissions } = snapshot;
   const canView = permissions.includes("ticket.view");
   const canHotline = permissions.includes("ticket.at_work_remote");
   const canCreate = canCreateTicket(permissions);
   const onChanged = useCallback(() => setQueueRevision((value) => value + 1), []);
   const work = useTicketWork(api, session, canView, permissions, onChanged, { workflowApi, actorId });
   const creation = useNewTicket(api, session, canCreate, onChanged);
+  const mutations = useDirectoryMutations(directoryApi, session, onChanged);
+  const directories = useMemo(() => directoryNavigation(permissions), [permissions]);
+  const home = canView ? queuePath() : canCreate ? "/tickets/new" : directories[0]?.href ?? queuePath();
+  const roleHome = directories.find(({ resource }) => resource === "adminRoles" || resource === "userRoles")?.href;
+  const directoryRoute = route.page === "directory" ? route : route.page === "roleIndex" && roleHome ? readRoute(roleHome) : null;
+  useEffect(() => {
+    setDirectoryDrafts((previous) => {
+      const kept = Object.entries(previous).filter(([, { resource, id }]) => id
+        ? canDirectory(resource, "read", permissions) && canDirectory(resource, "update", permissions)
+        : canDirectory(resource, "create", permissions));
+      return kept.length === Object.keys(previous).length ? previous : Object.fromEntries(kept);
+    });
+  }, [permissions]);
   if (route.page === "queue" && (route.queue !== "hotline" || canHotline)) queueLocation.current = queuePath(route);
   const queueHref = queueLocation.current ?? queuePath();
 
@@ -93,16 +122,16 @@ function Workspace({ session, snapshot, route, navigate }) {
   }, []);
 
   useEffect(() => {
-    if (route.page === "login") navigate(canCreate && !canView ? "/tickets/new" : queuePath(), { replace: true });
-    else if (route.page === "queue" && !canView && canCreate && window.location.pathname === "/") {
-      navigate("/tickets/new", { replace: true });
+    if (!checkingPermissions && (route.page === "login" || (route.page === "queue" && !canView && window.location.pathname === "/"))) {
+      if (route.page === "login" || canCreate || directories.length) navigate(home, { replace: true });
     }
-  }, [route, navigate, canCreate, canView]);
+  }, [route, navigate, canCreate, canView, directories.length, home, checkingPermissions]);
 
   useEffect(() => {
-    const key = route.page === "newTicket" ? "work.newTicket" : ticket ? "ticket.title" : "queue.title";
+    const key = directoryRoute ? DIRECTORIES[directoryRoute.resource].labelKey
+      : route.page === "newTicket" ? "work.newTicket" : ticket ? "ticket.title" : "queue.title";
     document.title = `${t(key)} · ${t("app.name")}`;
-  }, [route.page, ticket]);
+  }, [route.page, ticket, directoryRoute?.resource]);
 
   useLayoutEffect(() => {
     const previous = previousRoute.current;
@@ -116,7 +145,7 @@ function Workspace({ session, snapshot, route, navigate }) {
     previousRoute.current = route;
   }, [route, ticket, canView]);
 
-  const hasDrafts = Object.values(work.records).some(isDirty) || hasNewDraft(creation.state.values);
+  const hasDrafts = Object.values(work.records).some(isDirty) || hasNewDraft(creation.state.values) || Object.keys(directoryDrafts).length > 0;
   useEffect(() => {
     if (!hasDrafts) return;
     const prevent = (event) => { event.preventDefault(); event.returnValue = ""; };
@@ -157,12 +186,19 @@ function Workspace({ session, snapshot, route, navigate }) {
     setClosingId(null);
     const index = work.openIds.indexOf(id);
     const next = work.openIds[index + 1] ?? work.openIds[index - 1];
-    if (ticket === id) {
+    const current = previousRoute.current;
+    if ((current?.page === "ticket" || current?.page === "related") && current.id === id) {
       navigate(next ? ticketPath(next) : queueHref, { replace: true });
       if (!next) setReturnFocus({ id: null, scroll: 0 });
     } else {
       requestAnimationFrame(() => (document.getElementById(`work-tab-${next}`) ?? document.getElementById("workspace"))?.focus());
     }
+  }
+
+  function deleteTicket(id) {
+    if (!activeWorkspace.current || !viewAvailable.current) return;
+    closeTab(id);
+    setRemovedTicket(id);
   }
 
   function requestClose(id) {
@@ -204,13 +240,54 @@ function Workspace({ session, snapshot, route, navigate }) {
     if (refreshingPermissions) return;
     setRefreshingPermissions(true);
     try {
-      await session.reloadPermissions();
+      await (checkingPermissions ? session.recheckPermissions() : session.reloadPermissions());
     } finally {
       setRefreshingPermissions(false);
     }
   }
 
-  if (route.page === "newTicket" && canCreate) {
+  if (checkingPermissions) {
+    content = snapshot.error ? <StatePanel title={t("directory.permissionsUnavailable")} description={errorText(snapshot.error)} error page>
+      <button type="button" className="btn" disabled={refreshingPermissions} onClick={retryPermissions}>{t("common.retry")}</button>
+    </StatePanel> : <StatePanel title={t("directory.recheckingPermissions")} loading />;
+  } else if (directoryRoute) {
+    const { resource, id, mode } = directoryRoute;
+    const write = mutations.state(resource, id);
+    const key = `${resource}:${id ?? "new"}`;
+    const storeDraft = (draft) => setDirectoryDrafts((previous) => {
+      if (draft) return { ...previous, [key]: { ...draft, resource, id } };
+      if (!Object.hasOwn(previous, key)) return previous;
+      const next = { ...previous };
+      delete next[key];
+      return next;
+    });
+    const save = async (transaction) => {
+      const result = await mutations.save(transaction);
+      if (result?.status === "success") storeDraft(null);
+      return result;
+    };
+    const canReadDirectory = canDirectory(resource, "read", permissions);
+    const check = async () => {
+      const result = await mutations.check(resource, id);
+      if (result?.status === "success") storeDraft(null);
+      if (previousRoute.current !== route || result?.status !== "success") return;
+      if (result.removed) navigate(directoryPath(resource), { replace: true });
+      else if (mode === "edit") navigate(directoryPath(resource, "detail", id), { replace: true });
+    };
+    const replayCreate = async () => {
+      const result = await mutations.replayCreate(resource);
+      if (result?.status === "success") storeDraft(null);
+      return result;
+    };
+    content = <DirectoryPage route={directoryRoute} api={directoryApi} permissions={permissions} navigate={navigate}
+      onSave={save} savedDraft={directoryDrafts[key]} onDraftChange={storeDraft} mutating={write.busy} writeFeedback={write.feedback}
+      onCheckWrite={canReadDirectory ? check : undefined}
+      onClearConflict={() => mutations.clearConflict(resource, id)}
+      onReplayCreate={mode === "create" && write.canReplay ? replayCreate : undefined}
+      renderActions={(props) => <DirectoryActions {...props} api={directoryApi} mutations={mutations} actorId={actorId} navigate={navigate} />} />;
+  } else if (route.page === "roleIndex") {
+    content = <StatePanel title={t("error.forbidden")} description={t("directory.noRead")} error page />;
+  } else if (route.page === "newTicket" && canCreate) {
     content = <NewTicketPage creation={creation} permissions={permissions} referencesApi={referencesApi}
       canView={canView} openTicket={openTicket} />;
   } else if (route.page === "newTicket") {
@@ -230,7 +307,7 @@ function Workspace({ session, snapshot, route, navigate }) {
       referencesApi={referencesApi} workflowApi={workflowApi} permissions={permissions} actorId={actorId}
       backHref={queueHref} onBack={goBack}
       onBackRelated={goBackRelated} onRelation={openRelation} focusLink={relationFocus}
-      onFocusRestored={linkFocusRestored} />;
+      onFocusRestored={linkFocusRestored} onDeleted={deleteTicket} />;
   } else if (route.page === "queue" && route.queue === "hotline" && !canHotline) {
     content = <StatePanel title={t("error.forbidden")} description={t("queue.hotlineForbidden")} error page>
       <RouteLink href={queuePath()} navigate={navigate}>{t("ticket.back")}</RouteLink>
@@ -246,12 +323,14 @@ function Workspace({ session, snapshot, route, navigate }) {
     </StatePanel>;
   }
 
-  return <Shell canView={canView} canCreate={canCreate} queueHref={queueHref} navigate={navigate}
+  return <Shell canView={canView && !checkingPermissions} canCreate={canCreate && !checkingPermissions}
+    directoryLinks={checkingPermissions ? [] : directories} activeDirectory={directoryRoute?.resource} queueHref={queueHref} navigate={navigate}
     storageAvailable={snapshot.storageAvailable} onLogout={() => session.logout()}>
-    {canView && <WorkTabs ids={work.openIds} activeId={ticket} record={work.record} navigate={navigate} requestClose={requestClose} />}
+    {canView && !checkingPermissions && <WorkTabs ids={work.openIds} activeId={ticket} record={work.record} navigate={navigate} requestClose={requestClose} />}
+    {canView && !checkingPermissions && route.page === "queue" && removedTicket && <p role="status">{t("workflow.ticketRemoved", { id: removedTicket })}</p>}
     {content}
-    {canView && closingId && <CloseDraftDialog id={closingId} busy={closingRecord.busy} canSave={canSaveClosing}
-      pendingWorkflow={Boolean(closingRecord.workflowPending)}
+    {canView && !checkingPermissions && closingId && <CloseDraftDialog id={closingId} busy={closingRecord.busy} canSave={canSaveClosing}
+      pendingWorkflow={closingRecord.workflowPending?.action}
       onSaveClose={saveAndClose} onDiscard={() => closeTab(closingId)} onContinue={() => setClosingId(null)} />}
   </Shell>;
 }

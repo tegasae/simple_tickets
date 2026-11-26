@@ -176,6 +176,8 @@ tr:hover td, tr:focus-within td { background: var(--panel-soft); }
 .work-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: 1rem; }
 .draft-dialog { width: min(calc(100% - 2rem), 33rem); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.2rem; color: var(--text); }
 .draft-dialog::backdrop { background: rgb(18 30 47 / .54); }
+.confirmation-dialog { overflow-wrap: anywhere; }
+.confirmation-dialog .work-actions { justify-content: flex-end; }
 .edit-result { margin-bottom: .8rem; padding: .7rem; background: var(--accent-soft); border-radius: var(--radius-sm); }
 .edit-result p + p { margin-top: .35rem; }
 .edit-result .btn { margin-top: .45rem; }

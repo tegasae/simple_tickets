@@ -1,0 +1,77 @@
+.directory-header { display: flex; flex-wrap: wrap; gap: .65rem; justify-content: space-between; align-items: center; }
+.directory-header > h1 { min-width: 0; }
+.directory-header > .btn { text-decoration: none; }
+.directory-filters { display: flex; flex-wrap: wrap; align-items: end; gap: .7rem; padding: .9rem; }
+.directory-filters > label, .directory-search { display: grid; gap: .35rem; }
+.directory-filters > label { flex: 0 1 12rem; min-width: 8rem; }
+.directory-search { flex: 1 1 16rem; max-width: 28rem; }
+.directory-search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .45rem; }
+.directory-actions-panel { display: grid; gap: .75rem; padding: .9rem; }
+.directory-action-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+.directory-action-feedback { display: grid; gap: .4rem; justify-items: start; }
+.directory-command { display: grid; gap: .7rem; border-top: 1px solid var(--line); padding-top: .8rem; }
+.directory-command-field { display: grid; gap: .3rem; max-width: 27rem; }
+.directory-command-options { display: grid; gap: .35rem; min-width: 0; padding: .45rem .65rem; }
+.directory-command-options label, .directory-command-check { display: flex; align-items: center; gap: .45rem; }
+.directory-command-options input, .directory-command-check input { width: 1.1rem; height: 1.1rem; min-height: auto; flex: none; }
+.directory-table-hint { display: none; color: var(--muted); font-size: .9rem; padding: 0 .9rem .55rem; }
+.directory-table table { min-width: 32rem; }
+.directory-table td { overflow-wrap: anywhere; }
+.directory-row-title { min-width: 9rem; }
+.directory-details { margin-bottom: .9rem; }
+.directory-details dd { overflow-wrap: anywhere; }
+.directory-form { display: grid; gap: .85rem; }
+.directory-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
+.directory-field { display: grid; min-width: 0; align-content: start; gap: .35rem; }
+.directory-field > label, .directory-permissions > legend, .directory-search > label { font-weight: 600; }
+.directory-wide { grid-column: 1 / -1; }
+.directory-field textarea {
+  width: 100%;
+  min-width: 0;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: .45rem .65rem;
+  font: inherit;
+  resize: vertical;
+}
+.directory-field [aria-invalid="true"] { border-color: var(--danger); }
+.directory-field .field-error, .directory-permissions .field-error, .directory-feedback p { overflow-wrap: anywhere; }
+.directory-checkbox { display: flex; gap: .5rem; align-items: center; min-height: var(--control-height); overflow-wrap: anywhere; }
+.directory-checkbox input { flex: 0 0 1.1rem; width: 1.1rem; height: 1.1rem; min-height: auto; }
+.directory-permissions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .35rem .8rem;
+  min-width: 0;
+  margin: 0;
+  padding: .45rem .7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.directory-permissions > :is(p, .btn) { grid-column: 1 / -1; }
+.directory-hint { color: var(--muted); font-size: .9rem; }
+.directory-required { color: var(--danger); }
+.directory-retry, .directory-save { justify-self: start; }
+.directory-feedback {
+  display: grid;
+  gap: .55rem;
+  margin-bottom: .8rem;
+  padding: .7rem;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.directory-conflict { display: grid; gap: .55rem; }
+.directory-conflict h2 { margin-bottom: 0; }
+.directory-conflict ul { display: grid; gap: .55rem; margin: 0; padding-inline-start: 1.1rem; }
+.directory-conflict dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; margin: .35rem 0 0; }
+.directory-conflict dt { color: var(--muted); }
+.directory-conflict dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.directory-conflict > .btn { justify-self: start; }
+
+@media (max-width: 37rem) {
+  .directory-table-hint { display: block; }
+  .directory-form-grid, .directory-permissions, .directory-conflict dl { grid-template-columns: minmax(0, 1fr); }
+}

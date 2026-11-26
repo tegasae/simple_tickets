@@ -86,7 +86,7 @@ function EditStatus({ id, record, work }) {
 
 export default function TicketPage({
   id, result, backHref, onBack, record, work, permissions, referencesApi, workflowApi, actorId, onRelation,
-  focusLink, onFocusRestored,
+  focusLink, onFocusRestored, onDeleted,
 }) {
   const history = record.history;
   const heading = useRef(null);
@@ -109,11 +109,19 @@ export default function TicketPage({
     }
   }, [result.phase]);
   const back = <RouteLink href={backHref} onFollow={onBack} className="back-link">{t("ticket.back")}</RouteLink>;
+  async function checkWorkflow() {
+    if (await work.reloadWorkflow(id)) onDeleted(id);
+  }
 
   if (result.phase === "loading") {
     return <>{back}<StatePanel title={t("common.loading")} loading /></>;
   }
   if (result.phase === "error") {
+    if (result.error?.status === 404 && record.workflowPending?.action === "deleteTicket") {
+      return <>{back}<StatePanel title={t("workflow.deleteCheck")} page>
+        <button type="button" className="btn" disabled={record.busy} onClick={checkWorkflow}>{t("workflow.reload")}</button>
+      </StatePanel></>;
+    }
     return <ErrorPanel error={result.error} retry={result.reload} back={back} />;
   }
 
@@ -159,8 +167,10 @@ export default function TicketPage({
       </div>
       <WorkflowPanel ticket={ticket} permissions={permissions} actorId={actorId} api={workflowApi}
         busy={record.busy} form={record.workflowForm} feedback={record.workflowFeedback}
-        onRun={(action, payload) => work.runWorkflow(ticket, action, payload)}
-        onReload={() => work.reloadWorkflow(id)} onFormChange={(form) => work.setWorkflowForm(id, form)} />
+        onRun={async (action, payload) => {
+          if (await work.runWorkflow(ticket, action, payload)) onDeleted(id);
+        }}
+        onReload={checkWorkflow} onFormChange={(form) => work.setWorkflowForm(id, form)} />
       {record.editing && (
         <section ref={editPanel} className="panel detail-panel ticket-edit-panel" tabIndex={-1} aria-labelledby="ticket-edit-heading">
           <h2 id="ticket-edit-heading">{t("ticketForm.edit")}</h2>

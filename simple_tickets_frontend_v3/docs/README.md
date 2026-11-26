@@ -1,6 +1,6 @@
 # Документация Simple Tickets Frontend v3
 
-Актуальное направление — рабочее место Admin в ветке `frontend_new`. Для запуска I1–I3 используйте [README frontend v3](../README.md). Итоги и условия продолжения приведены в [статусе проекта](PROJECT_STATUS.md). Объём I4 вынесен на согласование. [План I4](IMPLEMENTATION_PLAN.md#i4-администрирование--предложение) · [AGENTS.md](../../AGENTS.md).
+Актуальное направление — рабочее место Admin в ветке `frontend_new`. Для запуска I1–I4 используйте [README frontend v3](../README.md). Итоги и условия продолжения приведены в [статусе проекта](PROJECT_STATUS.md). [План реализации](IMPLEMENTATION_PLAN.md) · [AGENTS.md](../../AGENTS.md).
 
 | Документ | Содержание |
 |---|---|
@@ -8,6 +8,7 @@
 | [ITERATION_1_REPORT.md](ITERATION_1_REPORT.md) | Реализация I1, состав изменений, проверки и ограничения |
 | [ITERATION_2_REPORT.md](ITERATION_2_REPORT.md) | Рабочие вкладки, команды записи, результаты приёмки I2 и условия перехода к I3 |
 | [ITERATION_3_REPORT.md](ITERATION_3_REPORT.md) | Рабочие переходы, горячая линия, сверка истории и результаты приёмки I3 |
+| [ITERATION_4_REPORT.md](ITERATION_4_REPORT.md) | Административные справочники, аккаунты, роли, отмена и удаление |
 | [DECISIONS.md](DECISIONS.md) | Ответы владельца, статусы DEC, альтернативы и открытые вопросы |
 | [CONSILIUM_LOG.md](CONSILIUM_LOG.md) | Консилиумы, разногласия и результаты рецензирования |
 | [INITIAL_RESEARCH_REPORT.md](INITIAL_RESEARCH_REPORT.md) | Историческое заключение этапа 1. Поправка по query приведена в API_CONTRACT |
@@ -29,6 +30,6 @@
 | [ACCESSIBILITY.md](ACCESSIBILITY.md) | WCAG 2.2 AA, фокус, клавиатура и ручная проверка |
 | [TESTING_STRATEGY.md](TESTING_STRATEGY.md) | TC, mock и реальные проверки, критерии эксплуатации |
 | [RISKS.md](RISKS.md) | Вероятность, критичность, ответственность и смягчение |
-| [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | Backlog, объём I1–I3, предложенный порядок I4 и критерии готовности |
+| [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | Backlog, объём I1–I4, зависимости и критерии готовности |
 
 Трасса для реализации: DEC → FR/NFR → J/API/permission → AC/TC → BK. Только явно утверждённые решения в `DECISIONS.md` имеют статус Approved. Документы этапа 2 описывают проверку по исходникам, а работающую реализацию и эксплуатационную готовность подтверждают тесты последующих этапов.

@@ -13,6 +13,7 @@ const expectedStatuses = Object.freeze({
   finishWork: "ready_for_review",
   registerWork: "ready_for_review",
   execute: "executed",
+  cancel: "cancelled",
 });
 
 function statusOf(record) {

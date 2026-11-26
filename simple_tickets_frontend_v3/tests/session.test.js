@@ -501,3 +501,72 @@ test('a late read after logout cannot populate a different Admin session', async
   assert.equal(session.getSnapshot().actorId, 23);
   assert.equal(session.getSnapshot().phase, 'authenticated');
 });
+
+test('a change to own roles suspends access before dispatch and ignores an earlier permissions read', async () => {
+  const previousPermissions = deferred();
+  const mutation = deferred();
+  const updatedPermissions = deferred();
+  const recheckStarted = deferred();
+  const previousData = deferred();
+  let checks = 0;
+  let sends = 0;
+  const { session } = sessionFixture({
+    login: async () => tokenPair('role-operator'),
+    get: async (path) => {
+      if (path !== PERMISSIONS_PATH) return previousData.promise;
+      checks += 1;
+      if (checks === 1) return { permissions: ['admin.view', 'role.assign'] };
+      if (checks === 2) return previousPermissions.promise;
+      recheckStarted.resolve();
+      return updatedPermissions.promise;
+    },
+    mutate: async () => {
+      sends += 1;
+      assert.equal(session.getSnapshot().checkingPermissions, true);
+      return mutation.promise;
+    },
+  });
+  assert.equal(await session.login('operator', 'fixture'), true);
+  const olderCheck = session.reloadPermissions();
+  const earlierData = assert.rejects(session.get('/admin/admins/17'), { code: 'stale-permissions' });
+  const write = session.mutate('/admin/admins/17/roles', { method: 'DELETE', json: { roles: [24] } });
+  assert.equal(await session.reloadPermissions(), false);
+  await assert.rejects(session.get('/admin/admins/17'), { code: 'stale-permissions' });
+  await assert.rejects(session.mutate('/admin/clients/1', { method: 'DELETE' }), { code: 'stale-permissions' });
+  previousPermissions.resolve({ permissions: ['role.assign'] });
+  previousData.resolve({ employee_id: 17 });
+  assert.equal(await olderCheck, false);
+  await earlierData;
+
+  mutation.resolve({ employee_id: 17, roles: [] });
+  await recheckStarted.promise;
+  assert.equal(session.getSnapshot().checkingPermissions, true);
+  updatedPermissions.resolve({ permissions: ['admin.view'] });
+  await write;
+  assert.equal(sends, 1);
+  assert.equal(session.getSnapshot().checkingPermissions, false);
+  assert.deepEqual(session.getSnapshot().permissions, ['admin.view']);
+});
+
+test('a failed strict permissions check keeps the same workspace suspended until a fresh retry', async () => {
+  let checks = 0;
+  const { session } = sessionFixture({
+    login: async () => tokenPair('role-operator'),
+    get: async () => {
+      checks += 1;
+      if (checks === 2) throw httpError(503);
+      return checks === 1 ? { permissions: ['role.assign'] } : { permissions: [] };
+    },
+    mutate: async () => { throw httpError(503); },
+  });
+  await session.login('operator', 'fixture');
+  await assert.rejects(session.mutate('/admin/admins/17/roles', { method: 'POST', json: { roles: [23] } }), { status: 503 });
+  assert.equal(session.getSnapshot().phase, 'authenticated');
+  assert.equal(session.getSnapshot().actorId, 17);
+  assert.equal(session.getSnapshot().checkingPermissions, true);
+  assert.equal(session.getSnapshot().error.status, 503);
+  await assert.rejects(session.get('/admin/roles/admin'), { code: 'stale-permissions' });
+  assert.equal(await session.recheckPermissions(), true);
+  assert.equal(session.getSnapshot().checkingPermissions, false);
+  assert.deepEqual(session.getSnapshot().permissions, []);
+});

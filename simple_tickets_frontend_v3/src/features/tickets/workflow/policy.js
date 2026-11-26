@@ -49,7 +49,8 @@ export function defaultWorkMode(ticket) {
 export function availableActions(ticket, { permissions = [], actorId, actorDepartmentId } = {}) {
   const record = Array.isArray(ticket?.statuses) ? ticket.statuses.at(-1) : null;
   const status = normalizeStatus(record?.status);
-  if (!status || ticket.is_closed === true) return [];
+  const canDelete = Boolean(ticket) && permissions.includes('ticket.delete');
+  if (!status || ticket.is_closed === true) return canDelete ? ['deleteTicket'] : [];
 
   const has = (permission) => permissions.includes(permission);
   const actorKnown = isPositiveId(actorId);
@@ -81,6 +82,8 @@ export function availableActions(ticket, { permissions = [], actorId, actorDepar
     ['registerWork', status === 'assigned' && executorKnown && actorKnown && has('ticket.at_work_retrospective')],
     ['execute', status === 'ready_for_review' && has('ticket.executed')],
     ['startRemoteWork', permittedHotline],
+    ['cancel', has('ticket.canceled') && ASSIGNABLE.includes(status) && (!atWork || otherActorAtWork)],
+    ['deleteTicket', canDelete],
   ];
   return options.filter(([, allowed]) => allowed).map(([action]) => action);
 }

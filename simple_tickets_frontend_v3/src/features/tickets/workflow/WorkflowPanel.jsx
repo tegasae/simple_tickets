@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { ConfirmationDialog } from "../../../app/layout.jsx";
 import { t } from "../../../shared/i18n/messages.js";
 import { normalizeStatus } from "../model.js";
 import { allowedExecutors, availableActions, defaultWorkMode, workModes } from "./policy.js";
@@ -8,7 +9,7 @@ const HOTLINE = "startRemoteWork";
 const ASSIGN = "assign";
 const RETRO = "registerWork";
 const MAX_COMMENT_LENGTH = 1000;
-const REQUIRES_REASON = new Set(["reject", "defer"]);
+const REQUIRES_REASON = new Set(["reject", "defer", "cancel"]);
 const FEEDBACK_KEYS = {
   success: "workflow.success",
   rejected: "workflow.rejected",
@@ -318,6 +319,7 @@ export default function WorkflowPanel({
   const section = useRef(null);
   const formHeading = useRef(null);
   const pendingFocus = useRef(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const actions = availableActions(ticket, { permissions, actorId, actorDepartmentId });
   const blocked = feedback?.status === "unconfirmed" || feedback?.status === "conflict";
   const hotline = actions.includes(HOTLINE);
@@ -340,6 +342,10 @@ export default function WorkflowPanel({
 
   function open(action) {
     if (busy || blocked) return;
+    if (action === "deleteTicket") {
+      setConfirmingDelete(true);
+      return;
+    }
     if (action === HOTLINE) {
       section.current?.querySelector("h2")?.focus();
       onRun(action, {});
@@ -359,6 +365,15 @@ export default function WorkflowPanel({
   return (
     <section ref={section} className="panel detail-panel workflow-panel" aria-labelledby={`${id}-heading`}>
       <h2 id={`${id}-heading`} tabIndex={-1}>{t("workflow.title")}</h2>
+      {confirmingDelete && actions.includes("deleteTicket") && (
+        <ConfirmationDialog title={t("workflow.deleteTicket")}
+          description={t(ticket.user_ticket_id ? "workflow.deleteTicket.linked" : "workflow.deleteTicket.help", { id: ticket.ticket_id })}
+          confirmLabel={t("workflow.deleteTicket.confirm")} busy={busy}
+          onCancel={() => setConfirmingDelete(false)} onConfirm={() => {
+            setConfirmingDelete(false);
+            onRun("deleteTicket", {});
+          }} />
+      )}
       {feedback && (
         <div className="workflow-feedback" data-error={feedback.status !== "success" || undefined}>
           <p role={feedback.status === "success" ? "status" : "alert"}>

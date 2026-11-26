@@ -25,6 +25,7 @@ function createContext(refreshToken = null) {
     refresh: null,
     permissions: null,
     permissionRevision: 0,
+    rolesChanging: false,
   };
 }
 
@@ -69,6 +70,7 @@ export function createSession({ api = createApi(), storage = browserStorage() } 
     return Object.freeze({
       phase,
       permissions: NO_PERMISSIONS,
+      checkingPermissions: false,
       actorId: null,
       error: null,
       logoutStatus: null,
@@ -283,7 +285,14 @@ export function createSession({ api = createApi(), storage = browserStorage() } 
         .catch((error) => {
           if (current === context && context.permissionRevision === revision) {
             const failure = safeError(error);
-            if (failure.status === 403 || snapshot.phase !== 'authenticated') {
+            if (snapshot.checkingPermissions && snapshot.phase === 'authenticated') {
+              publish('authenticated', {
+                permissions: snapshot.permissions,
+                actorId: snapshot.actorId,
+                checkingPermissions: true,
+                error: failure,
+              });
+            } else if (failure.status === 403 || snapshot.phase !== 'authenticated') {
               context.permissionRevision += 1;
               publish('error', { error: failure });
             } else {
@@ -304,6 +313,15 @@ export function createSession({ api = createApi(), storage = browserStorage() } 
       context.permissions = request;
     }
     return context.permissions.promise;
+  }
+
+  function suspendPermissions(context) {
+    context.permissionRevision += 1;
+    publish('authenticated', {
+      actorId: snapshot.actorId,
+      permissions: snapshot.permissions,
+      checkingPermissions: true,
+    });
   }
 
   async function revoke(context) {
@@ -363,7 +381,14 @@ export function createSession({ api = createApi(), storage = browserStorage() } 
       return context.bootstrap;
     },
 
-    reloadPermissions: () => reloadPermissions(current),
+    reloadPermissions: () => current.rolesChanging ? Promise.resolve(false) : reloadPermissions(current),
+
+    recheckPermissions() {
+      const context = current;
+      if (snapshot.phase !== 'authenticated' || context.rolesChanging) return Promise.resolve(false);
+      if (!snapshot.checkingPermissions) suspendPermissions(context);
+      return reloadPermissions(context);
+    },
 
     bindSignal: (signal) => contextSignal(current, signal),
 
@@ -385,6 +410,7 @@ export function createSession({ api = createApi(), storage = browserStorage() } 
       if (snapshot.phase !== 'authenticated') {
         throw new ApiError(401);
       }
+      if (snapshot.checkingPermissions) throw new ApiError(0, 'stale-permissions');
       const readsTicket = /^\/admin\/tickets(?:[/?]|$)/.test(path);
       if (readsTicket && !snapshot.permissions.includes(TICKET_VIEW)) {
         throw new ApiError(403);
@@ -397,7 +423,7 @@ export function createSession({ api = createApi(), storage = browserStorage() } 
         if (current !== context && error?.code !== 'session_expired') {
           assertCurrent(context);
         }
-        if (readsTicket && context.permissionRevision !== revision) {
+        if (context.permissionRevision !== revision) {
           throw new ApiError(0, 'stale-permissions');
         }
         if (error?.status === 403 && current === context && path !== PERMISSIONS_PATH) {
@@ -412,22 +438,29 @@ export function createSession({ api = createApi(), storage = browserStorage() } 
       }
       assertCurrent(context);
       signal?.throwIfAborted();
-      if (readsTicket && context.permissionRevision !== revision) {
+      if (context.permissionRevision !== revision) {
         throw new ApiError(0, 'stale-permissions');
       }
       return data;
     },
 
-    async mutate(path, { method, json, idempotencyKey, signal } = {}) {
+    async mutate(path, { method, json, idempotencyKey, signal, expectedStatus } = {}) {
       const context = current;
       if (snapshot.phase !== 'authenticated') {
         throw new ApiError(401);
       }
+      if (snapshot.checkingPermissions) throw new ApiError(0, 'stale-permissions');
       const activeSignal = contextSignal(context, signal);
       activeSignal.throwIfAborted();
+      const ownRoles = snapshot.actorId !== null && path === `/admin/admins/${snapshot.actorId}/roles` &&
+        (method === 'POST' || method === 'DELETE');
+      if (ownRoles) {
+        context.rolesChanging = true;
+        suspendPermissions(context);
+      }
       try {
         const data = await api.mutate(path, {
-          method, json, idempotencyKey, accessToken: context.accessToken, signal: activeSignal,
+          method, json, idempotencyKey, accessToken: context.accessToken, signal: activeSignal, expectedStatus,
         });
         assertCurrent(context);
         activeSignal.throwIfAborted();
@@ -436,6 +469,11 @@ export function createSession({ api = createApi(), storage = browserStorage() } 
         assertCurrent(context);
         activeSignal.throwIfAborted();
         throw safeError(error);
+      } finally {
+        if (ownRoles && current === context) {
+          context.rolesChanging = false;
+          await reloadPermissions(context);
+        }
       }
     },
   };

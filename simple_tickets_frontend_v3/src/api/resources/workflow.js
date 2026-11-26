@@ -16,6 +16,7 @@ const COMMANDS = {
   },
   execute: { path: 'execute' },
   startRemoteWork: { path: 'start-remote-work' },
+  cancel: { path: 'cancel', requiredComment: true },
 };
 
 function invalidFields(...fields) {

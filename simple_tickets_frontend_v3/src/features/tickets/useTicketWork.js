@@ -65,7 +65,12 @@ export function useTicketWork(api, session, canView, permissions, onChanged, { w
     setOpenIds((previous) => previous.filter((item) => item !== id));
     setRecords((previous) => {
       const next = { ...previous };
-      delete next[id];
+      const record = previous[id];
+      if (record?.workflowPending?.action === "deleteTicket") {
+        next[id] = { ...emptyRecord, workflowPending: { action: "deleteTicket" }, workflowFeedback: record.workflowFeedback };
+      } else {
+        delete next[id];
+      }
       return next;
     });
     return true;
@@ -256,6 +261,7 @@ export function useTicketWork(api, session, canView, permissions, onChanged, { w
 
   async function runWorkflow(ticket, action, payload) {
     const id = ticket.ticket_id;
+    const deleting = action === "deleteTicket";
     const record = records[id] ?? emptyRecord;
     if (["unconfirmed", "conflict"].includes(record.workflowFeedback?.status)) return;
     const canRun = (data) => availableActions(data, { permissions: rights.current, actorId }).includes(action);
@@ -269,12 +275,18 @@ export function useTicketWork(api, session, canView, permissions, onChanged, { w
     try {
       const before = await api.get(id, { signal });
       if (!current(id, controller) || signal.aborted) return;
-      if (!sameWorkflowState(ticket, before) || !canRun(before)) {
+      if (!sameWorkflowState(ticket, before) || !canRun(before) || (deleting && before.user_ticket_id !== ticket.user_ticket_id)) {
         update(id, (entry) => ({ ...entry, workflowFeedback: feedback("conflict", "workflow.conflict"), revision: entry.revision + 1 }));
         onChanged();
         return;
       }
       intent = { before, action, payload };
+      if (deleting) {
+        await api.remove(id, { signal });
+        if (!current(id, controller) || signal.aborted) return;
+        onChanged();
+        return true;
+      }
       const result = await workflowApi.execute(id, action, payload, { signal });
       if (!current(id, controller) || signal.aborted) return;
       if (!confirmsWorkflow(result, before, action, payload, actorId)) {
@@ -297,7 +309,8 @@ export function useTicketWork(api, session, canView, permissions, onChanged, { w
             : error?.status === 403 ? "work.writeForbidden"
               : action === "startRemoteWork" && error?.status === 400 ? "workflow.hotlineRejected" : "workflow.rejected");
       update(id, (entry) => ({
-        ...entry, workflowFeedback: result, workflowPending: pending, revision: entry.revision + 1,
+        ...entry, workflowFeedback: result, workflowPending: pending,
+        revision: entry.revision + (pending && deleting ? 0 : 1),
       }));
       onChanged();
       reportError(error);
@@ -314,6 +327,11 @@ export function useTicketWork(api, session, canView, permissions, onChanged, { w
     try {
       const latest = await api.get(id, { signal });
       if (!current(id, controller) || signal.aborted) return;
+      if (pending?.action === "deleteTicket") {
+        remember(id, latest);
+        update(id, { workflowFeedback: { status: "unconfirmed", message: t("workflow.deleteStillUnconfirmed") } });
+        return;
+      }
       const observed = pending && confirmsWorkflow(latest, pending.before, pending.action, pending.payload, actorId);
       const unchanged = pending && !observed && sameWorkflowHistory(pending.before, latest);
       const feedback = observed ? { status: "success", message: t("workflow.observed") }
@@ -329,6 +347,11 @@ export function useTicketWork(api, session, canView, permissions, onChanged, { w
       onChanged();
     } catch (error) {
       if (current(id, controller) && !signal.aborted) {
+        if (pending?.action === "deleteTicket" && error?.status === 404 && rights.current.includes("ticket.view")) {
+          update(id, { workflowPending: null, workflowFeedback: null });
+          onChanged();
+          return true;
+        }
         update(id, { workflowFeedback: { status: pending ? "unconfirmed" : "conflict", message: errorText(error) } });
         reportError(error);
       }

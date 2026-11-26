@@ -65,7 +65,7 @@ function validationFields(payload) {
 }
 
 export function createApi({ fetchImpl = globalThis.fetch, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
-  async function request(path, { method = 'GET', body, json, accessToken, idempotencyKey, signal, validate } = {}) {
+  async function request(path, { method = 'GET', body, json, accessToken, idempotencyKey, signal, validate, expectedStatus } = {}) {
     const headers = new Headers({ Accept: 'application/json' });
     if (accessToken) {
       headers.set('Authorization', `Bearer ${accessToken}`);
@@ -126,6 +126,9 @@ export function createApi({ fetchImpl = globalThis.fetch, timeoutMs = REQUEST_TI
         throw new ApiError(response.status);
       }
 
+      if (expectedStatus !== undefined && response.status !== expectedStatus) {
+        throw new ApiError(response.status, 'invalid-response');
+      }
       let payload = null;
       if (response.status !== 204) {
         try {
@@ -153,19 +156,24 @@ export function createApi({ fetchImpl = globalThis.fetch, timeoutMs = REQUEST_TI
       }
       return request(assertAdminPath(path), { accessToken, signal });
     },
-    async mutate(path, { method, json, idempotencyKey, accessToken, signal } = {}) {
+    async mutate(path, { method, json, idempotencyKey, accessToken, signal, expectedStatus } = {}) {
       if (!isTokenString(accessToken)) {
         throw new ApiError(401);
       }
-      if (!['POST', 'PATCH', 'DELETE'].includes(method) ||
-          (method === 'DELETE' ? json !== undefined : !json || typeof json !== 'object' || Array.isArray(json))) {
+      const target = assertAdminPath(path);
+      const isObject = json && typeof json === 'object' && !Array.isArray(json);
+      const revoking = /^\/admin\/(admins|users)\/[1-9]\d*\/roles$/.test(target);
+      const toggle = /^\/admin\/(clients|users|admins|departments)\/[1-9]\d*\/(?:account\/)?(?:enable|disable)$/.test(target);
+      if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) ||
+          (method === 'DELETE' ? (revoking ? !isObject : json !== undefined)
+            : method === 'PATCH' && toggle ? json !== undefined : !isObject)) {
         throw new ApiError(0, 'invalid-request');
       }
       if (idempotencyKey !== undefined &&
           (method !== 'POST' || !isTokenString(idempotencyKey) || idempotencyKey.length > 128)) {
         throw new ApiError(0, 'invalid-request');
       }
-      return request(assertAdminPath(path), { method, json, idempotencyKey, accessToken, signal });
+      return request(target, { method, json, idempotencyKey, accessToken, signal, expectedStatus });
     },
   };
 }
