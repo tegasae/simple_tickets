@@ -40,7 +40,6 @@ class AdminService:
     def create(
         *,
         department: Department,
-        employee_id: int,
         first_name: str,
         last_name: str = "",
         email: str = "",
@@ -49,7 +48,6 @@ class AdminService:
         login: str = "",
         password: str = "",
         enable_account: bool = True,
-        version: int = 0,
         roles: set[int] | None = None,
         job_title: str = "",
     ) -> Admin:
@@ -64,7 +62,6 @@ class AdminService:
         )
 
         return Admin.create(
-            employee_id=employee_id,
             first_name=first_name,
             last_name=last_name,
             email=email,
@@ -73,7 +70,6 @@ class AdminService:
             login=login,
             password=password,
             enable_account=enable_account,
-            version=version,
             roles=roles or set(),
             job_title=job_title,
             department_id=department.department_id,
@@ -158,6 +154,14 @@ class AdminService:
             password=password,
         )
 
+    @staticmethod
+    def enable_account(*,admin:Admin)->None:
+        admin.enable_account()
+
+    @staticmethod
+    def disable_account(*, admin: Admin) -> None:
+        admin.disable_account()
+
     # ==================================================================
     # Enable / disable
     # ==================================================================
@@ -166,8 +170,14 @@ class AdminService:
     def enable(
         *,
         admin: Admin,
+        department: Department,
     ) -> None:
+        """Enable Admin only when its assigned Department is enabled."""
+        if admin.department_id != department.department_id:
+            raise DomainOperationError("Department does not match Admin assignment")
+        AdminService._ensure_department_enabled(department=department)
         admin.enable()
+
 
     @staticmethod
     def disable(

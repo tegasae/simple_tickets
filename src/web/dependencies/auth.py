@@ -3,13 +3,17 @@ from typing import Any
 
 from fastapi import Depends, HTTPException, Request, status
 
+from src.domain.exceptions import DomainError
+from src.domain.policies.admin import AdminPolicy
+from src.domain.policies.user import UserPolicy
 from src.domain.uow.unit_of_work import UnitOfWork
+from src.web.auth.exceptions import InvalidCredentialsError
 from src.web.auth.services.auth_service import (
     AdminAuthService,
     UserAuthService,
 )
-from src.web.auth.services.services import AuthManager, TokenService
-from src.web.auth.storage import TokenStorageMemory
+from src.web.auth.services.services import TokenService
+from src.web.auth.services.shared_sessions import SharedSessionAuthManager
 from src.web.auth.tokens import AccessToken
 from src.web.config import Settings
 from src.web.dependencies.scheme import (
@@ -20,20 +24,6 @@ from src.web.dependencies.services import (
     get_settings,
     get_uow,
 )
-
-
-# ---------------------------------------------------------------------
-# Token storages
-# ---------------------------------------------------------------------
-#
-# Storage must not be created inside get_auth_manager_*(),
-# otherwise every request receives a new empty storage.
-#
-# Admin and User authentication are intentionally separate.
-#
-
-_admin_token_storage = TokenStorageMemory()
-_user_token_storage = TokenStorageMemory()
 
 
 # ---------------------------------------------------------------------
@@ -95,10 +85,10 @@ def require_current_user(
 def get_auth_manager_admin(
     uow: UnitOfWork = Depends(get_uow),
     settings: Settings = Depends(get_settings),
-) -> AuthManager:
-    return AuthManager(
+) -> SharedSessionAuthManager:
+    return SharedSessionAuthManager(
+        uow=uow,
         auth_service=AdminAuthService(uow=uow),
-        token_storage=_admin_token_storage,
         subject_type="admin",
         settings=settings
 
@@ -108,10 +98,10 @@ def get_auth_manager_admin(
 def get_auth_manager_user(
     uow: UnitOfWork = Depends(get_uow),
     settings: Settings = Depends(get_settings),
-) -> AuthManager:
-    return AuthManager(
+) -> SharedSessionAuthManager:
+    return SharedSessionAuthManager(
+        uow=uow,
         auth_service=UserAuthService(uow=uow),
-        token_storage=_user_token_storage,
         subject_type="user",
         settings = settings
     )
@@ -130,30 +120,45 @@ def get_current_admin(
     request: Request,
     token: str = Depends(admin_oauth2_scheme),
     settings: Settings = Depends(get_settings),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> None:
     access_token = TokenService.verify_access_token(
         token,
         settings=settings,
     )
 
-    request.state.employee = EmployeeID(
-        employee_id=access_token.get_admin_id(),
-    )
+    employee_id = access_token.get_admin_id()
+    try:
+        state = uow.admins.get_login_state(admin_id=employee_id)
+        AdminPolicy.ensure_login_state_is_valid(
+            admin_enabled=state.admin_enabled,
+            account_enabled=state.account_enabled,
+        )
+    except DomainError as exc:
+        raise InvalidCredentialsError() from exc
+    request.state.employee = EmployeeID(employee_id=employee_id)
 
 
 def get_current_user(
     request: Request,
     token: str = Depends(user_oauth2_scheme),
     settings: Settings = Depends(get_settings),
+    uow: UnitOfWork = Depends(get_uow),
 ) -> None:
     access_token = TokenService.verify_access_token(
         token,
         settings=settings,
     )
 
-    request.state.employee = EmployeeID(
-        employee_id=access_token.get_user_id(),
-    )
+    employee_id = access_token.get_user_id()
+    with uow:
+        try:
+            user = uow.users.get(user_id=employee_id)
+            client = uow.clients.get(client_id=user.client_id)
+            UserPolicy.ensure_login_is_still_valid(user=user, client=client)
+        except DomainError as exc:
+            raise InvalidCredentialsError() from exc
+    request.state.employee = EmployeeID(employee_id=employee_id)
 
 
 def get_employee_id_from_request(

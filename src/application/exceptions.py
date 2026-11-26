@@ -21,6 +21,10 @@ class ApplicationValidateError(ApplicationError):
     """"""
 
 
+class TicketInputValidationError(ApplicationValidateError):
+    """Invalid input to an internal ticket command."""
+
+
 class ApplicationStoreError(ApplicationError):
     """"""
 

@@ -6,7 +6,9 @@ like email, phone, address, name, login, and password.
 """
 
 import hashlib
+import hmac
 import re
+import secrets
 from dataclasses import dataclass, field
 
 from typing import TypeVar, Generic, ClassVar, Self
@@ -214,8 +216,8 @@ class Description(ValueObject[str]):
         MAX_LENGTH: Maximum allowed description length
     """
     value: str
-    MIN_LENGTH: ClassVar[int] = 2
-    MAX_LENGTH: ClassVar[int] = 1000
+    MIN_LENGTH: ClassVar[int] = 0
+    MAX_LENGTH: ClassVar[int] = 4000
 
     def _validate(self) -> str:
         """Validate description length and content.
@@ -236,6 +238,28 @@ class Description(ValueObject[str]):
             raise ValueError(f"Description cannot exceed {self.MAX_LENGTH} characters")
 
         return new_value
+
+
+@dataclass(frozen=True, order=True)
+class TextOfTicket(ValueObject[str]):
+
+    value: str
+    MIN_LENGTH: ClassVar[int] = 2
+    MAX_LENGTH: ClassVar[int] = 4000
+
+    def _validate(self) -> str:
+
+        new_value = self.value.strip()
+
+
+        if len(new_value) < self.MIN_LENGTH:
+            raise ValueError(f"TextOfTicket must be at least {self.MIN_LENGTH} characters")
+
+        if len(new_value) > self.MAX_LENGTH:
+            raise ValueError(f"TextOfTicket cannot exceed {self.MAX_LENGTH} characters")
+
+        return new_value
+
 
 
 @dataclass(frozen=True, order=True)
@@ -317,33 +341,33 @@ class Login(ValueObject[str]):
     def __str__(self) -> str:
         return str(self.value)
 
+_PASSWORD_HASH_SCHEME = "pbkdf2_sha256_v1"
+_PASSWORD_HASH_ITERATIONS = 600_000
+
+
 def hash_password(plain: str) -> str:
-    """Hash a plain text password.
-
-    Args:
-        plain: Plain text password
-
-    Returns:
-        SHA-256 hash of the password
-
-    Warning:
-        This is a simple hash. In production, use a proper password
-        hashing algorithm like bcrypt, scrypt, or Argon2.
-    """
-    return hashlib.sha256(plain.encode("utf-8")).hexdigest()
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", plain.encode(), salt, _PASSWORD_HASH_ITERATIONS)
+    return f"{_PASSWORD_HASH_SCHEME}${salt.hex()}${digest.hex()}"
 
 
 def verify_password(plain: str, password_hash: str) -> bool:
-    """Verify a plain password against a hash.
+    plain_bytes = plain.encode()
+    if re.fullmatch(r"[a-f0-9]{64}", password_hash):
+        legacy_digest = hashlib.sha256(plain_bytes).hexdigest()
+        return hmac.compare_digest(legacy_digest, password_hash)
 
-    Args:
-        plain: Plain text password to verify
-        password_hash: Hash to compare against
-
-    Returns:
-        True if password matches hash
-    """
-    return hash_password(plain) == password_hash
+    parts = password_hash.split("$")
+    if len(parts) != 3 or parts[0] != _PASSWORD_HASH_SCHEME:
+        return False
+    try:
+        salt, expected = map(bytes.fromhex, parts[1:])
+    except ValueError:
+        return False
+    if len(salt) != 16 or len(expected) != 32:
+        return False
+    actual = hashlib.pbkdf2_hmac("sha256", plain_bytes, salt, _PASSWORD_HASH_ITERATIONS)
+    return hmac.compare_digest(actual, expected)
 
 
 @dataclass(frozen=True, slots=True)

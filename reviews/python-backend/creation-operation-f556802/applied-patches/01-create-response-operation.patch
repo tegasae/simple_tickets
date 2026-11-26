@@ -1,0 +1,563 @@
+diff --git a/src/web/idempotency.py b/src/web/idempotency.py
+index 8a18bb9c192d1d86d0d9bc208af84d585b67065a..605bae8f66c6ec29198c24097dfc3bfaa6c95f9c 100644
+--- a/src/web/idempotency.py
++++ b/src/web/idempotency.py
+@@ -4,7 +4,7 @@ from datetime import UTC, datetime
+ import hmac
+ import json
+ import logging
+-from typing import Annotated, TypeVar
++from typing import Annotated, Protocol, TypeVar
+ 
+ from fastapi import Depends, Header, HTTPException, Request, Response
+ from pydantic import BaseModel
+@@ -22,6 +22,15 @@ from utils.db.exceptions import DBOperationError
+ logger = logging.getLogger(__name__)
+ RESULT_TTL = 24 * 60 * 60
+ T = TypeVar("T", bound=BaseModel)
++ResponseT = TypeVar("ResponseT", bound=BaseModel, covariant=True)
++
++
++class CreationOperation(Protocol[ResponseT]):
++    """Create a resource or check access to the stored result of that creation."""
++
++    def authorize_replay(self) -> None: ...
++
++    def execute(self, *, join_transaction: bool) -> ResponseT: ...
+ 
+ 
+ def timestamp() -> float:
+@@ -118,12 +127,11 @@ def create_response(
+     command: str,
+     payload: BaseModel,
+     status_code: int,
+-    authorize: Callable[[], object],
+-    execute: Callable[[bool], T],
++    operation: CreationOperation[T],
+     target_id: int | None = None,
+ ) -> T | Response:
+     if idempotency_key is None:
+-        return execute(False)
++        return operation.execute(join_transaction=False)
+ 
+     key = CreationKey(employee_id=employee_id, key=idempotency_key)
+     fingerprint = _fingerprint(request, payload, command=command, target_id=target_id)
+@@ -132,14 +140,14 @@ def create_response(
+             now = timestamp()
+             record = uow.creation_results.get(key)
+             if record is not None and (record.expires_at is None or record.expires_at > now):
+-                result = _replay(record, fingerprint, authorize)
++                result = _replay(record, fingerprint, operation.authorize_replay)
+             else:
+                 if record is not None:
+                     uow.creation_results.forget_expired(key, now=now)
+                 # Claim before any business write, so an entity-level unique
+                 # constraint cannot hide an already processed duplicate.
+                 uow.creation_results.reserve(key, fingerprint=fingerprint)
+-                data = execute(True)
++                data = operation.execute(join_transaction=True)
+                 result = CreationResult(fingerprint, status_code, data.model_dump_json(by_alias=True))
+                 uow.creation_results.complete(key, result=result)
+     except CreationAlreadyReserved:
+@@ -149,7 +157,7 @@ def create_response(
+             record = uow.creation_results.get(key)
+             if record is None or (record.expires_at is not None and record.expires_at <= timestamp()):
+                 raise TransientPersistenceError("Creation result is unavailable")
+-            result = _replay(record, fingerprint, authorize)
++            result = _replay(record, fingerprint, operation.authorize_replay)
+ 
+     _maintain(uow)
+     return Response(result.body, status_code=result.status_code, media_type="application/json")
+diff --git a/src/web/routers/admin/admins.py b/src/web/routers/admin/admins.py
+index d1b7203b2c333797d5adaf53e575b99e7aaa13ad..42e58cff2f2da4a6665b7d75406362b3483011eb 100644
+--- a/src/web/routers/admin/admins.py
++++ b/src/web/routers/admin/admins.py
+@@ -1,11 +1,14 @@
+ # src/web/routers/admin/admins.py
+ 
++from dataclasses import dataclass
++
+ from fastapi import APIRouter, Depends, status
+ 
+ from fastapi import Request, Response
+ 
+-from src.web.idempotency import IdempotencyKey, create_response
++from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
+ from src.application.dto.employee_dto import AdminDTO
++from src.application.services.admin_service import AdminApplicationService
+ 
+ from src.web.dependencies.auth import (
+     get_current_admin,
+@@ -44,6 +47,22 @@ router = APIRouter(
+ 
+ 
+ 
++@dataclass(frozen=True)
++class CreateAdminOperation(CreationOperation[AdminResponse]):
++    service: AdminApplicationService
++    dto: AdminDTO
++
++    def authorize_replay(self) -> None:
++        self.service.require_create_access(self.dto)
++
++    def execute(self, *, join_transaction: bool) -> AdminResponse:
++        result = self.service.create_admin(
++            admin_dto=self.dto,
++            join_transaction=join_transaction,
++        )
++        return AdminResponse.from_dto(result)
++
++
+ # ---------------------------------------------------------------------
+ # Endpoints
+ # ---------------------------------------------------------------------
+@@ -72,10 +91,7 @@ def create_admin(
+         request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+         employee_id=actor_admin_id, command="admin.create",
+         payload=admin_request, status_code=201,
+-        authorize=lambda: service.require_create_access(dto),
+-        execute=lambda join: AdminResponse.from_dto(
+-            service.create_admin(admin_dto=dto, join_transaction=join),
+-        ),
++        operation=CreateAdminOperation(service, dto),
+     )
+ 
+ 
+diff --git a/src/web/routers/admin/clients.py b/src/web/routers/admin/clients.py
+index 3bd63efa5f8dd6677045c0caf2244aaa55be26a3..30a52f7555e602934abe71412aec742c4e9944ed 100644
+--- a/src/web/routers/admin/clients.py
++++ b/src/web/routers/admin/clients.py
+@@ -1,9 +1,12 @@
++from dataclasses import dataclass
++
+ from fastapi import APIRouter, Depends, status
+ 
+ from fastapi import Request, Response
+ 
+-from src.web.idempotency import IdempotencyKey, create_response
++from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
+ from src.application.dto.client_dto import ClientDTO
++from src.application.services.client_service import ClientApplicationService
+ 
+ from src.web.dependencies.auth import (
+     get_current_admin,
+@@ -58,6 +61,22 @@ handlers = {
+ 
+ 
+ 
++@dataclass(frozen=True)
++class CreateClientOperation(CreationOperation[ClientResponse]):
++    service: ClientApplicationService
++    dto: ClientDTO
++
++    def authorize_replay(self) -> None:
++        self.service.require_create_access(self.dto)
++
++    def execute(self, *, join_transaction: bool) -> ClientResponse:
++        result = self.service.create_client(
++            dto_client=self.dto,
++            join_transaction=join_transaction,
++        )
++        return ClientResponse.from_dto(result)
++
++
+ # -------------------------------
+ # Endpoints
+ # -------------------------------
+@@ -86,10 +105,7 @@ def create_client(
+         request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+         employee_id=actor_admin_id, command="client.create",
+         payload=client_request, status_code=201,
+-        authorize=lambda: service.require_create_access(dto),
+-        execute=lambda join: ClientResponse.from_dto(
+-            service.create_client(dto_client=dto, join_transaction=join),
+-        ),
++        operation=CreateClientOperation(service, dto),
+     )
+ 
+ 
+diff --git a/src/web/routers/admin/departments.py b/src/web/routers/admin/departments.py
+index 9dc721a41a4d952000296670c9ed71b483a17d9e..80769959164a8ac4366bb14aa67bf38062f11968 100644
+--- a/src/web/routers/admin/departments.py
++++ b/src/web/routers/admin/departments.py
+@@ -1,3 +1,4 @@
++from dataclasses import dataclass
+ from typing import Annotated
+ 
+ from fastapi import Path
+@@ -8,8 +9,9 @@ from fastapi import APIRouter, Depends, status
+ 
+ from fastapi import Request, Response
+ 
+-from src.web.idempotency import IdempotencyKey, create_response
++from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
+ from src.application.dto.department_dto import DepartmentDTO
++from src.application.services.department_service import DepartmentApplicationService
+ from src.web.dependencies.auth import get_current_admin, get_employee_id_from_request
+ from src.web.dependencies.services import get_application_service_factory
+ 
+@@ -40,6 +42,22 @@ router = APIRouter(
+ 
+ 
+ 
++@dataclass(frozen=True)
++class CreateDepartmentOperation(CreationOperation[DepartmentResponse]):
++    service: DepartmentApplicationService
++    dto: DepartmentDTO
++
++    def authorize_replay(self) -> None:
++        self.service.require_create_access(self.dto)
++
++    def execute(self, *, join_transaction: bool) -> DepartmentResponse:
++        result = self.service.create_department(
++            department_dto=self.dto,
++            join_transaction=join_transaction,
++        )
++        return DepartmentResponse.from_dto(result)
++
++
+ # -------------------------
+ # Endpoints
+ # -------------------------
+@@ -66,10 +84,7 @@ def create_department(
+         request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+         employee_id=actor_admin_id, command="department.create",
+         payload=request, status_code=201,
+-        authorize=lambda: service.require_create_access(dto),
+-        execute=lambda join: DepartmentResponse.from_dto(
+-            service.create_department(department_dto=dto, join_transaction=join),
+-        ),
++        operation=CreateDepartmentOperation(service, dto),
+     )
+ 
+ 
+diff --git a/src/web/routers/admin/roles.py b/src/web/routers/admin/roles.py
+index de6ea51c2402a43cd91d067069f17d4f7cba4763..e41e4b4cba8c45cd3284a0486c29f07f94f87fff 100644
+--- a/src/web/routers/admin/roles.py
++++ b/src/web/routers/admin/roles.py
+@@ -1,13 +1,17 @@
+ # src/web/routers/admin/role.py
+ 
+-
++from dataclasses import dataclass
+ 
+ from fastapi import APIRouter, Depends, status
+ 
+ from fastapi import Request, Response
+ 
+-from src.web.idempotency import IdempotencyKey, create_response
++from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
+ from src.application.dto.roles_dto import RoleDTO
++from src.application.services.role_service import (
++    AdminRoleApplicationService,
++    UserRoleApplicationService,
++)
+ from src.domain.rbac.permissions import AdminPermission, UserPermission
+ from src.web.dependencies.auth import (
+     get_current_admin,
+@@ -81,6 +85,22 @@ def get_user_permissions():
+ # Admin role endpoints
+ # ---------------------------------------------------------------------
+ 
++@dataclass(frozen=True)
++class CreateAdminRoleOperation(CreationOperation[AdminRoleResponse]):
++    service: AdminRoleApplicationService
++    dto: RoleDTO
++
++    def authorize_replay(self) -> None:
++        self.service.require_create_access(self.dto)
++
++    def execute(self, *, join_transaction: bool) -> AdminRoleResponse:
++        result = self.service.create_role(
++            role_dto=self.dto,
++            join_transaction=join_transaction,
++        )
++        return AdminRoleResponse.from_dto(result)
++
++
+ @router.post(
+     "/admin",
+     response_model=AdminRoleResponse,
+@@ -104,10 +124,7 @@ def create_admin_role(
+         request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+         employee_id=actor_admin_id, command="role.admin.create",
+         payload=role_request, status_code=201,
+-        authorize=lambda: service.require_create_access(dto),
+-        execute=lambda join: AdminRoleResponse.from_dto(
+-            service.create_role(role_dto=dto, join_transaction=join),
+-        ),
++        operation=CreateAdminRoleOperation(service=service, dto=dto),
+     )
+ 
+ 
+@@ -176,6 +193,22 @@ def delete_admin_role(
+ # User role endpoints
+ # ---------------------------------------------------------------------
+ 
++@dataclass(frozen=True)
++class CreateUserRoleOperation(CreationOperation[UserRoleResponse]):
++    service: UserRoleApplicationService
++    dto: RoleDTO
++
++    def authorize_replay(self) -> None:
++        self.service.require_create_access(self.dto)
++
++    def execute(self, *, join_transaction: bool) -> UserRoleResponse:
++        result = self.service.create_role(
++            role_dto=self.dto,
++            join_transaction=join_transaction,
++        )
++        return UserRoleResponse.from_dto(result)
++
++
+ @router.post(
+     "/user",
+     response_model=UserRoleResponse,
+@@ -199,10 +232,7 @@ def create_user_role(
+         request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+         employee_id=actor_admin_id, command="role.user.create",
+         payload=role_request, status_code=201,
+-        authorize=lambda: service.require_create_access(dto),
+-        execute=lambda join: UserRoleResponse.from_dto(
+-            service.create_role(role_dto=dto, join_transaction=join),
+-        ),
++        operation=CreateUserRoleOperation(service=service, dto=dto),
+     )
+ 
+ 
+diff --git a/src/web/routers/admin/tickets.py b/src/web/routers/admin/tickets.py
+index 4bdf4234ac99f48019a329800e9421f701ac7e48..d99270f3a2e79113c9793691c9e10232da4cb5fb 100644
+--- a/src/web/routers/admin/tickets.py
++++ b/src/web/routers/admin/tickets.py
+@@ -1,6 +1,6 @@
+ # src/web/routers/admin/tickets.py
+ 
+-
++from dataclasses import dataclass
+ 
+ 
+ 
+@@ -8,8 +8,9 @@ from fastapi import APIRouter, Depends, status
+ 
+ from fastapi import Request, Response
+ 
+-from src.web.idempotency import IdempotencyKey, create_response
++from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
+ from src.application.dto.ticket_dto import TicketDTO
++from src.application.services.ticket_service import TicketApplicationService
+ from src.web.dependencies.auth import (
+     get_current_admin,
+     get_employee_id_from_request,
+@@ -65,6 +66,22 @@ router = APIRouter(
+ # =====================================================================
+ 
+ 
++@dataclass(frozen=True)
++class CreateTicketOperation(CreationOperation[TicketResponse]):
++    service: TicketApplicationService
++    dto: TicketDTO
++
++    def authorize_replay(self) -> None:
++        self.service.require_create_access(self.dto)
++
++    def execute(self, *, join_transaction: bool) -> TicketResponse:
++        result = self.service.create_ticket(
++            ticket_dto=self.dto,
++            join_transaction=join_transaction,
++        )
++        return TicketResponse.from_dto(result)
++
++
+ @router.post(
+     "/",
+     response_model=TicketResponse,
+@@ -92,10 +109,7 @@ def create_ticket(
+         request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+         employee_id=actor_admin_id, command="ticket.admin.create",
+         payload=request, status_code=201,
+-        authorize=lambda: service.require_create_access(dto),
+-        execute=lambda join: TicketResponse.from_dto(
+-            service.create_ticket(ticket_dto=dto, join_transaction=join),
+-        ),
++        operation=CreateTicketOperation(service=service, dto=dto),
+     )
+ 
+ 
+@@ -374,6 +388,22 @@ def get_ticket(
+ # =====================================================================
+ 
+ 
++@dataclass(frozen=True)
++class AddTicketCommentOperation(CreationOperation[TicketResponse]):
++    service: TicketApplicationService
++    dto: TicketDTO
++
++    def authorize_replay(self) -> None:
++        self.service.require_comment_access(self.dto)
++
++    def execute(self, *, join_transaction: bool) -> TicketResponse:
++        result = self.service.add_comment(
++            ticket_dto=self.dto,
++            join_transaction=join_transaction,
++        )
++        return TicketResponse.from_dto(result)
++
++
+ @router.post(
+     "/{ticket_id}/comments",
+     response_model=TicketResponse,
+@@ -404,10 +434,7 @@ def add_comment(
+         employee_id=actor_admin_id, command="ticket.admin.comment",
+         payload=request, status_code=200,
+         target_id=ticket_id,
+-        authorize=lambda: service.require_comment_access(dto),
+-        execute=lambda join: TicketResponse.from_dto(
+-            service.add_comment(ticket_dto=dto, join_transaction=join),
+-        ),
++        operation=AddTicketCommentOperation(service=service, dto=dto),
+     )
+ 
+ 
+diff --git a/src/web/routers/admin/users.py b/src/web/routers/admin/users.py
+index 4f924ebcb38d9c5698c7a1c29c76370b49565e15..40bd7ecc847345a3f99f88147c9fec115a7e7fa6 100644
+--- a/src/web/routers/admin/users.py
++++ b/src/web/routers/admin/users.py
+@@ -1,11 +1,14 @@
+ # src/web/routers/admin/users.py
+ 
++from dataclasses import dataclass
++
+ from fastapi import APIRouter, Depends, status
+ 
+ from fastapi import Request, Response
+ 
+-from src.web.idempotency import IdempotencyKey, create_response
++from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
+ from src.application.dto.employee_dto import UserDTO
++from src.application.services.user_service import UserApplicationService
+ from src.web.dependencies.auth import (
+     get_current_admin,
+     get_employee_id_from_request,
+@@ -65,6 +68,22 @@ handlers = {
+ 
+ 
+ 
++@dataclass(frozen=True)
++class CreateUserOperation(CreationOperation[UserResponse]):
++    service: UserApplicationService
++    dto: UserDTO
++
++    def authorize_replay(self) -> None:
++        self.service.require_create_access(self.dto)
++
++    def execute(self, *, join_transaction: bool) -> UserResponse:
++        result = self.service.create_user(
++            user_dto=self.dto,
++            join_transaction=join_transaction,
++        )
++        return UserResponse.from_dto(result)
++
++
+ # ---------------------------------------------------------------------
+ # Endpoints
+ # ---------------------------------------------------------------------
+@@ -93,10 +112,7 @@ def create_user(
+         request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+         employee_id=actor_admin_id, command="user.create",
+         payload=user_request, status_code=201,
+-        authorize=lambda: service.require_create_access(dto),
+-        execute=lambda join: UserResponse.from_dto(
+-            service.create_user(user_dto=dto, join_transaction=join),
+-        ),
++        operation=CreateUserOperation(service, dto),
+     )
+ 
+ 
+diff --git a/src/web/routers/user/tickets.py b/src/web/routers/user/tickets.py
+index d81d54db3fce48a068d9d2419a3a6d8febffb683..3c16896858a5045b44bc9e596119cce3f4f4f5fa 100644
+--- a/src/web/routers/user/tickets.py
++++ b/src/web/routers/user/tickets.py
+@@ -1,10 +1,12 @@
+ # src/web/routers/user/tickets.py
+ 
++from dataclasses import dataclass
++
+ from fastapi import APIRouter, Depends, HTTPException, status
+ 
+ from fastapi import Request, Response
+ 
+-from src.web.idempotency import IdempotencyKey, create_response
++from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
+ from src.application.dto.ticket_dto import (
+     TicketUserDTO,
+     TicketUserResponseDTO,
+@@ -111,6 +113,22 @@ def to_user_ticket_responses(
+ # =====================================================================
+ 
+ 
++@dataclass(frozen=True)
++class CreateUserTicketOperation(CreationOperation[TicketUserResponse]):
++    service: TicketUserApplicationService
++    dto: TicketUserDTO
++
++    def authorize_replay(self) -> None:
++        self.service.require_create_access(self.dto)
++
++    def execute(self, *, join_transaction: bool) -> TicketUserResponse:
++        created = self.service.create_from_user(
++            ticket_user_dto=self.dto,
++            join_transaction=join_transaction,
++        )
++        return TicketUserResponse.from_dto(created)
++
++
+ @router.post(
+     "/",
+     response_model=TicketUserResponse,
+@@ -138,10 +156,7 @@ def create_ticket(
+             request=http_request, idempotency_key=idempotency_key, uow=service.uow,
+             employee_id=user_id, command="ticket.user.create",
+             payload=request, status_code=201,
+-            authorize=lambda: service.require_create_access(dto),
+-            execute=lambda join: TicketUserResponse.from_dto(
+-                service.create_from_user(ticket_user_dto=dto, join_transaction=join),
+-            ),
++            operation=CreateUserTicketOperation(service=service, dto=dto),
+         )
+     except (DomainError, PermissionError) as exc:
+         raise _domain_error(exc) from exc
+@@ -303,6 +318,22 @@ def get_ticket(
+ # =====================================================================
+ 
+ 
++@dataclass(frozen=True)
++class AddUserTicketCommentOperation(CreationOperation[TicketUserResponse]):
++    service: TicketUserApplicationService
++    dto: TicketUserDTO
++
++    def authorize_replay(self) -> None:
++        self.service.require_comment_access(self.dto)
++
++    def execute(self, *, join_transaction: bool) -> TicketUserResponse:
++        updated_ticket = self.service.add_comment(
++            ticket_user_dto=self.dto,
++            join_transaction=join_transaction,
++        )
++        return TicketUserResponse.from_dto(updated_ticket)
++
++
+ @router.post(
+     "/{ticket_user_id}/comments",
+     response_model=TicketUserResponse,
+@@ -333,10 +364,7 @@ def add_comment(
+             employee_id=user_id, command="ticket.user.comment",
+             payload=request, status_code=200,
+             target_id=ticket_user_id,
+-            authorize=lambda: service.require_comment_access(dto),
+-            execute=lambda join: TicketUserResponse.from_dto(
+-                service.add_comment(ticket_user_dto=dto, join_transaction=join),
+-            ),
++            operation=AddUserTicketCommentOperation(service=service, dto=dto),
+         )
+     except (DomainError, PermissionError) as exc:
+         raise _domain_error(exc) from exc

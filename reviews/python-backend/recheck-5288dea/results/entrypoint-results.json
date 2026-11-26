@@ -1,0 +1,57 @@
+[
+  {
+    "label": "default-collect",
+    "command": [
+      "python",
+      "-m",
+      "pytest",
+      "--collect-only",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "exit_code": 2,
+    "summary": [
+      "=========================== short test summary info ============================",
+      "ERROR reviews/python-backend/recheck-d497e75/tests/test_recheck_workflows.py",
+      "ERROR reviews/python-backend/recheck-d497e75/tests/test_refresh_storage.py",
+      "!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!!"
+    ]
+  },
+  {
+    "label": "pyramid-explicit",
+    "command": [
+      "bash",
+      "run_pyramid.sh",
+      "--collect-only",
+      "-p",
+      "no:cacheprovider",
+      "last_review_tests"
+    ],
+    "exit_code": 0,
+    "summary": [
+      "last_review_tests/test_rbac_and_validation.py::test_description_creation_uses_normalized_domain_limit[admin]",
+      "last_review_tests/test_rbac_and_validation.py::test_description_creation_uses_normalized_domain_limit[user]",
+      "",
+      "70 tests collected in 0.10s"
+    ]
+  },
+  {
+    "label": "coverage-explicit",
+    "command": [
+      "bash",
+      "run_coverage.sh",
+      "--collect-only",
+      "-p",
+      "no:cacheprovider",
+      "last_review_tests"
+    ],
+    "exit_code": 0,
+    "summary": [
+      "src/web/routers/user/tickets.py                                 104    104      0      0     0%   3-472",
+      "---------------------------------------------------------------------------------------------------------",
+      "TOTAL                                                          6515   4937   1174     23    21%",
+      "70 tests collected in 1.07s"
+    ]
+  }
+]

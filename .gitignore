@@ -1,23 +1,6 @@
-<<<<<<< HEAD
-.git
-.idea
-.venv
-.venv*
-__pycache__
-**/__pycache__
-*.pyc
-.pytest_cache
-.env
-.env.*
-*.zip
-db/*.db-wal
-db/*.db-shm
-db/*.db-journal
-=======
 .venv/
 .idea/
 *.pyc
 *.iml
 .coverage
-*.db
->>>>>>> api-new-client-scheme
+

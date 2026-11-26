@@ -8,6 +8,8 @@ from src.application.dto.ticket_dto import (
     TicketUserResponseDTO,
 )
 from src.application.helper.actor_helper import EmployeeActorHelper
+from src.domain.client import Client
+from src.domain.department import Department
 
 from src.domain.employee import User
 from src.domain.exceptions import DomainOperationError
@@ -18,6 +20,7 @@ from src.domain.services.ticket_user_service import TicketUserService
 from src.domain.ticket import Ticket
 from src.domain.ticket_user import TicketUser
 from src.domain.uow.unit_of_work import UnitOfWork
+
 
 
 class TicketUserApplicationService:
@@ -82,6 +85,7 @@ class TicketUserApplicationService:
         self,
         *,
         ticket_user_dto: TicketUserDTO,
+        join_transaction: bool = False,
     ) -> TicketUserResponseDTO:
         """
         User creates a new TicketUser.
@@ -105,11 +109,8 @@ class TicketUserApplicationService:
         Internal Ticket represents User-originated workflow actor as 0.
         """
 
-        with self.uow:
-            actor = self.actor.require_actor_user(
-                actor_user_id=ticket_user_dto.actor_user_id,
-                permission=UserPermission.TICKET_OPERATION,
-            )
+        with self.uow.transaction(join=join_transaction):
+            actor = self.require_create_access(ticket_user_dto)
 
             if ticket_user_dto.ticket_user_id != 0:
                 raise DomainOperationError(
@@ -124,21 +125,33 @@ class TicketUserApplicationService:
                     "User cannot create TicketUser "
                     "for another User"
                 )
-
-            self._validate_create_references(
-                actor=actor,
-                ticket_user_dto=ticket_user_dto,
-            )
-
             # ----------------------------------------------------------
             # Create TicketUser first.
             # ----------------------------------------------------------
 
+
+            contact_user=User.create_empty()
+
+
+
+
+
+            client=self.uow.clients.get_by_user_id(user_id=actor.employee_id)
+
+            self.uow.clients.touch(client)
+
+            self.uow.users.touch(actor)
+
+            if ticket_user_dto.contact_user_id:
+                contact_user=self.uow.users.get(user_id=ticket_user_dto.contact_user_id)
+                self.uow.users.touch(contact_user)
+
+
             ticket_user = self.ticket_user_service.create(
-                client_id=ticket_user_dto.client_id,
-                user_id=actor.employee_id,
+                client=client,
+                user=actor,
                 text_of_ticket=ticket_user_dto.text_of_ticket,
-                contact_user_id=ticket_user_dto.contact_user_id,
+                contact_user=contact_user,
                 description=ticket_user_dto.description,
                 comment=ticket_user_dto.comment,
             )
@@ -147,8 +160,7 @@ class TicketUserApplicationService:
                 ticket_user
             )
 
-            if saved_ticket_user is None:
-                saved_ticket_user = ticket_user
+
 
             if saved_ticket_user.ticket_user_id <= 0:
                 raise DomainOperationError(
@@ -164,32 +176,28 @@ class TicketUserApplicationService:
             # with user_id.
             # ----------------------------------------------------------
 
+            department=Department.create_empty()
+            if ticket_user_dto.department_id:
+                department=self.uow.departments.get(department_id=ticket_user_dto.department_id)
             ticket = self.ticket_service.create_from_ticket_user(
-                client_id=saved_ticket_user.client_id,
-                user_id=saved_ticket_user.user_id,
-                user_ticket_id=saved_ticket_user.ticket_user_id,
-                text_of_ticket=saved_ticket_user.text_of_ticket,
-                contact_user_id=(
-                    saved_ticket_user.contact_user_id
-                ),
+                client=client,
+                user=actor,
+                ticket_user=saved_ticket_user,
+                text_of_ticket=saved_ticket_user.text_of_ticket.value,
+                contact_user=contact_user,
                 description=ticket_user_dto.description,
-                department_id=ticket_user_dto.department_id,
+                department=department,
                 remote_work_recommended=(
                     ticket_user_dto.remote_work_recommended
                 ),
                 urgency=ticket_user_dto.urgency,
             )
 
-            self.ticket_sync_service.ensure_consistent(
-                ticket,
-                saved_ticket_user,
-            )
+
 
             self.uow.tickets.save(
                 ticket
             )
-
-            self.uow.commit()
 
             return TicketUserAssembler.to_dto(
                 saved_ticket_user
@@ -199,20 +207,21 @@ class TicketUserApplicationService:
     # TicketUser data
     # ==================================================================
 
+    def require_create_access(self, ticket_user_dto: TicketUserDTO) -> User:
+        actor = self.actor.require_actor_user(
+            actor_user_id=ticket_user_dto.actor_user_id,
+            permission=UserPermission.TICKET_OPERATION,
+        )
+        return actor
+
     def add_comment(
         self,
         *,
         ticket_user_dto: TicketUserDTO,
+        join_transaction: bool = False,
     ) -> TicketUserResponseDTO:
-        with self.uow:
-            ticket_user = self._get_ticket_user(
-                ticket_user_dto.ticket_user_id,
-            )
-
-            actor = self._require_operation_access(
-                actor_user_id=ticket_user_dto.actor_user_id,
-                ticket_user=ticket_user,
-            )
+        with self.uow.transaction(join=join_transaction):
+            ticket_user, actor = self.require_comment_access(ticket_user_dto)
 
             self.ticket_user_service.add_comment(
                 ticket_user=ticket_user,
@@ -222,7 +231,19 @@ class TicketUserApplicationService:
 
             return self._save_ticket_user(
                 ticket_user=ticket_user,
+                commit=not join_transaction,
             )
+
+    def require_comment_access(self, ticket_user_dto: TicketUserDTO) -> tuple[TicketUser, User]:
+        ticket_user = self._get_ticket_user(
+            ticket_user_dto.ticket_user_id,
+        )
+
+        actor = self._require_operation_access(
+            actor_user_id=ticket_user_dto.actor_user_id,
+            ticket_user=ticket_user,
+        )
+        return ticket_user, actor
 
     def update_description(
         self,
@@ -245,7 +266,6 @@ class TicketUserApplicationService:
 
             self.ticket_user_service.update_description(
                 ticket_user=ticket_user,
-                actor_employee_id=actor.employee_id,
                 description=ticket_user_dto.description,
             )
 
@@ -271,16 +291,17 @@ class TicketUserApplicationService:
                 ticket_user_dto.ticket_user_id,
             )
 
-            actor = self._require_operation_access(
+            self._require_operation_access(
                 actor_user_id=ticket_user_dto.actor_user_id,
                 ticket_user=ticket_user,
             )
+            contact_user_id = ticket_user_dto.contact_user_id
+            if contact_user_id < 0:
+                raise DomainOperationError("contact_user_id cannot be negative")
 
-            self._validate_contact_user(
-                contact_user_id=ticket_user_dto.contact_user_id,
-                client_id=ticket_user.client_id,
-                main_user_id=ticket_user.user_id,
-            )
+            client = self.uow.clients.get(ticket_user.client_id)
+            contact_user = self.uow.users.get(contact_user_id or ticket_user.user_id)
+            self.uow.users.touch(contact_user)
 
             ticket = self._get_linked_ticket(
                 ticket_user=ticket_user,
@@ -289,8 +310,8 @@ class TicketUserApplicationService:
             self.ticket_user_service.change_contact_user(
                 ticket_user=ticket_user,
                 ticket=ticket,
-                actor_employee_id=actor.employee_id,
-                contact_user_id=ticket_user_dto.contact_user_id,
+                client=client,
+                contact_user=contact_user,
             )
 
             return self._save_pair(
@@ -347,7 +368,7 @@ class TicketUserApplicationService:
             self.ticket_user_service.confirm_by_user(
                 ticket_user=ticket_user,
                 ticket=ticket,
-                actor_employee_id=actor.employee_id,
+                user=actor,
                 comment=ticket_user_dto.comment,
             )
 
@@ -401,7 +422,7 @@ class TicketUserApplicationService:
             self.ticket_user_service.cancel_by_user(
                 ticket_user=ticket_user,
                 ticket=ticket,
-                actor_employee_id=actor.employee_id,
+                user=actor,
                 comment=ticket_user_dto.comment,
             )
 
@@ -486,20 +507,11 @@ class TicketUserApplicationService:
                 client_id=target_user.client_id,
             )
 
-            ticket_users = self.uow.user_tickets.get_all()
-
-            return self._to_dto_list(
-                [
-                    ticket_user
-                    for ticket_user in ticket_users
-                    if (
-                        ticket_user.client_id
-                        == target_user.client_id
-                        and ticket_user.user_id
-                        == target_user.employee_id
-                    )
-                ]
-            )
+            ticket_users = self.uow.user_tickets.get_by_user_id(target_user.employee_id)
+            return self._to_dto_list([
+                ticket_user for ticket_user in ticket_users
+                if ticket_user.client_id == target_user.client_id
+            ])
 
     def get_all(
         self,
@@ -529,15 +541,7 @@ class TicketUserApplicationService:
                     "of another Client"
                 )
 
-            ticket_users = self.uow.user_tickets.get_all()
-
-            return self._to_dto_list(
-                [
-                    ticket_user
-                    for ticket_user in ticket_users
-                    if ticket_user.client_id == actor.client_id
-                ]
-            )
+            return self._to_dto_list(self.uow.user_tickets.get_by_client_id(actor.client_id))
 
     def get_open(
         self,
@@ -568,31 +572,15 @@ class TicketUserApplicationService:
                 permission=UserPermission.TICKET_VIEW_ALL,
             )
 
-            ticket_users = self.uow.user_tickets.get_all()
-
             if view_all:
-                ticket_users = [
-                    ticket_user
-                    for ticket_user in ticket_users
-                    if (
-                        ticket_user.client_id == actor.client_id
-                        and not ticket_user.is_closed
-                    )
-                ]
+                ticket_users = self.uow.user_tickets.get_by_client_id(actor.client_id)
             else:
-                ticket_users = [
-                    ticket_user
-                    for ticket_user in ticket_users
-                    if (
-                        ticket_user.client_id == actor.client_id
-                        and ticket_user.user_id == actor.employee_id
-                        and not ticket_user.is_closed
-                    )
-                ]
+                ticket_users = self.uow.user_tickets.get_by_user_id(actor.employee_id)
 
-            return self._to_dto_list(
-                ticket_users
-            )
+            return self._to_dto_list([
+                ticket_user for ticket_user in ticket_users
+                if ticket_user.client_id == actor.client_id and not ticket_user.is_closed
+            ])
 
     def get_closed(
         self,
@@ -623,31 +611,15 @@ class TicketUserApplicationService:
                 permission=UserPermission.TICKET_VIEW_ALL,
             )
 
-            ticket_users = self.uow.user_tickets.get_all()
-
             if view_all:
-                ticket_users = [
-                    ticket_user
-                    for ticket_user in ticket_users
-                    if (
-                        ticket_user.client_id == actor.client_id
-                        and ticket_user.is_closed
-                    )
-                ]
+                ticket_users = self.uow.user_tickets.get_by_client_id(actor.client_id)
             else:
-                ticket_users = [
-                    ticket_user
-                    for ticket_user in ticket_users
-                    if (
-                        ticket_user.client_id == actor.client_id
-                        and ticket_user.user_id == actor.employee_id
-                        and ticket_user.is_closed
-                    )
-                ]
+                ticket_users = self.uow.user_tickets.get_by_user_id(actor.employee_id)
 
-            return self._to_dto_list(
-                ticket_users
-            )
+            return self._to_dto_list([
+                ticket_user for ticket_user in ticket_users
+                if ticket_user.client_id == actor.client_id and ticket_user.is_closed
+            ])
 
     # ==================================================================
     # Access scope
@@ -886,19 +858,16 @@ class TicketUserApplicationService:
         self,
         *,
         ticket_user: TicketUser,
+        commit: bool = True,
     ) -> TicketUserResponseDTO:
         saved_ticket_user = self.uow.user_tickets.save(
             ticket_user
         )
 
-        self.uow.commit()
-
-        if saved_ticket_user is None:
-            saved_ticket_user = ticket_user
-
-        return TicketUserAssembler.to_dto(
-            saved_ticket_user
-        )
+        response = TicketUserAssembler.to_dto(saved_ticket_user)
+        if commit:
+            self.uow.commit()
+        return response
 
     def _save_pair(
         self,
@@ -914,14 +883,9 @@ class TicketUserApplicationService:
             ticket
         )
 
+        response = TicketUserAssembler.to_dto(saved_ticket_user)
         self.uow.commit()
-
-        if saved_ticket_user is None:
-            saved_ticket_user = ticket_user
-
-        return TicketUserAssembler.to_dto(
-            saved_ticket_user
-        )
+        return response
 
     @staticmethod
     def _to_dto_list(

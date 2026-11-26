@@ -1,12 +1,12 @@
 # src/adapters/repositories/mappers/ticket_mapper.py
 from datetime import timedelta
 
-from src.adapters.repositories.mappers.auxiliary import datetime_to_db, dt_from_sqlite
+from src.domain.datetime_check import datetime_to_db, datetime_from_db
 from src.domain.statuses.ticket_status import TicketStatus
 from src.domain.statuses.ticket_status_record import TicketStatusRecord
-from src.domain.ticket import Ticket, TicketUrgency
-from src.domain.ticket_components import Comment
-
+from src.domain.ticket import Ticket
+from src.domain.ticket_components import Comment, TicketUrgency, create_comment
+from src.domain.value_objects import CommonComment
 
 
 class TicketMapper:
@@ -54,7 +54,7 @@ class TicketMapper:
         statuses: list[TicketStatusRecord],
         comments: list[Comment],
     ) -> Ticket:
-        date_created = dt_from_sqlite(row["date_created"])
+        date_created = datetime_from_db(row["date_created"])
 
         if date_created is None:
             raise ValueError(
@@ -72,16 +72,19 @@ class TicketMapper:
             description=row["description"] or "",
             date_created=date_created,
             remote_work_recommended=bool(row["remote_work_recommended"]),
-            urgency=TicketUrgency(row["urgency_level"]),
+            urgency=(
+                TicketUrgency.NORMAL if row["urgency_level"] in (0, "0")
+                else TicketUrgency(row["urgency_level"])
+            ),
             version=row["version"] or 0,
-            planned_at=dt_from_sqlite(row["planned_at"]),
+            planned_at=datetime_from_db(row["planned_at"]),
             statuses=statuses,
             comments=comments,
         )
 
     @staticmethod
     def row_to_comment(row: dict) -> Comment:
-        date_created = dt_from_sqlite(row["date_created"])
+        date_created = datetime_from_db(row["date_created"])
 
         if date_created is None:
             raise ValueError(
@@ -92,13 +95,13 @@ class TicketMapper:
         return Comment(
             comment_id=row["ticket_comment_id"],
             employee_id=row["employee_id"],
-            comment=row["comment"] or "",
+            comment=CommonComment(row["comment"]),
             date_created=date_created,
         )
 
     @staticmethod
     def row_to_status_record(row: dict) -> TicketStatusRecord:
-        date_created = dt_from_sqlite(row["date_created"])
+        date_created = datetime_from_db(row["date_created"])
 
         if date_created is None:
             raise ValueError(
@@ -113,14 +116,14 @@ class TicketMapper:
             date_created=date_created,
             executor_id=row["executor_id"] or 0,
             work_is_remote=bool(row["work_is_remote"]),
-            actual_started_at=dt_from_sqlite(
+            actual_started_at=datetime_from_db(
                 row["actual_started_at"]
             ),
-            actual_finished_at=dt_from_sqlite(
+            actual_finished_at=datetime_from_db(
                 row["actual_finished_at"]
             ),
-            duration= timedelta(seconds=row["duration"]) or timedelta(seconds=0),
-            comment=row["comment"] or "",
+            duration=timedelta(seconds=row["duration"] or 0),
+            comment=create_comment(row["comment"]),
         )
 
     @staticmethod
@@ -132,8 +135,8 @@ class TicketMapper:
             "contact_user_id": ticket.contact_user_id or None,
             "user_ticket_id": ticket.user_ticket_id or None,
             "department_id": ticket.department_id or None,
-            "text_of_ticket": ticket.text_of_ticket,
-            "description": ticket.description or None,
+            "text_of_ticket": ticket.text_of_ticket.value,
+            "description": ticket.description.value or None,
             "date_created": datetime_to_db(ticket.date_created),
             "remote_work_recommended": int(ticket.remote_work_recommended),
             "planned_at":  datetime_to_db(ticket.planned_at),
@@ -166,7 +169,7 @@ class TicketMapper:
     ) -> dict:
         return {
             "ticket_id": ticket_id,
-            "actor_employee_id": record.actor_employee_id,
+            "actor_employee_id": record.actor_employee_id if record.actor_employee_id else None,
             "status": record.status.value,
             "date_created": datetime_to_db(
                 record.date_created

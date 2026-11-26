@@ -42,6 +42,7 @@ class TicketUserRepositorySQLite(
     """
 
 
+
     # --------------------------------
     # Load helpers
     # --------------------------------
@@ -360,6 +361,7 @@ class TicketUserRepositorySQLite(
                 f"Failed to delete TicketUser "
                 f"{ticket_id}: {exc}"
             ) from exc
+
 
     # --------------------------------
     # Reference checks

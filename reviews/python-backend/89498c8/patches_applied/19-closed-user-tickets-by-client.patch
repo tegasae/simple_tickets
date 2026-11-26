@@ -1,0 +1,12 @@
+diff --git a/src/adapters/repositories/gateways/ticket_user_gateway.py b/src/adapters/repositories/gateways/ticket_user_gateway.py
+--- a/src/adapters/repositories/gateways/ticket_user_gateway.py
++++ b/src/adapters/repositories/gateways/ticket_user_gateway.py
+@@ -34,7 +34,7 @@
+     SELECT_BY_FINISHED_USER_ID=BASE_SELECT + """
+     WHERE user_id=:user_id AND date_finished is not NULL"""
+     SELECT_BY_FINISHED_CLIENT_ID = BASE_SELECT + """
+-    WHERE user_id=:user_id AND date_finished is NULL"""
++    WHERE client_id=:client_id AND date_finished is not NULL"""
+ 
+ 
+ 

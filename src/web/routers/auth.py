@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordRequestForm
 
 from src.domain.account import Account
 from src.web.auth.models import RefreshRequest, LogoutRequest, LoginRequest
-from src.web.auth.services.services import AuthManager
+from src.web.auth.services.shared_sessions import SharedSessionAuthManager
 
 from src.web.dependencies.auth import get_auth_manager_admin, get_auth_manager_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logout_bearer = HTTPBearer(auto_error=False)
 
 
 def _verify_account_password(entity, plain_password: str) -> None:
@@ -69,9 +70,9 @@ def _verify_account_password(entity, plain_password: str) -> None:
 
 ####
 @router.post("/admin/login")
-async def login(
+def login(
         form_data: OAuth2PasswordRequestForm = Depends(),
-        auth_manager: AuthManager = Depends(get_auth_manager_admin)
+        auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_admin)
 ):
     #
     scopes = form_data.scopes if form_data.scopes else []
@@ -80,9 +81,9 @@ async def login(
 
 
 @router.post("/admin/refresh")
-async def refresh(
+def refresh(
         refresh_request: RefreshRequest,
-        auth_manager: AuthManager = Depends(get_auth_manager_admin)
+        auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_admin)
 ):
     refresh_request = RefreshRequest(refresh_token=refresh_request.refresh_token)
     return auth_manager.refresh(refresh_request=refresh_request)
@@ -90,23 +91,23 @@ async def refresh(
 
 
 @router.post("/admin/logout")
-async def logout(
+def logout(
     logout_request: LogoutRequest,
-    auth_manager: AuthManager = Depends(
-        get_auth_manager_admin,
-    ),
+    auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_admin),
+    bearer: HTTPAuthorizationCredentials | None = Depends(logout_bearer),
 ):
     auth_manager.logout(
         logout_request=logout_request,
+        access_token=bearer.credentials if bearer else None,
     )
     return {"message": "Logged out successfully"}
 
 
 
 @router.post("/user/login")
-async def login_user(
+def login_user(
         form_data: OAuth2PasswordRequestForm = Depends(),
-        auth_manager: AuthManager = Depends(get_auth_manager_user)
+        auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_user)
 ):
     #
     scopes = form_data.scopes if form_data.scopes else []
@@ -115,21 +116,24 @@ async def login_user(
 
 
 @router.post("/user/refresh")
-async def refresh_user(
+def refresh_user(
         refresh_request: RefreshRequest,
-        auth_manager: AuthManager = Depends(get_auth_manager_user)
+        auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_user)
 ):
     refresh_request = RefreshRequest(refresh_token=refresh_request.refresh_token)
     return auth_manager.refresh(refresh_request=refresh_request)
 
 
 @router.post("/user/logout")
-async def logout(
-        logout_request: LogoutRequest,
-        auth_manager: AuthManager = Depends(get_auth_manager_user)
+def logout_user(
+    logout_request: LogoutRequest,
+    auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_user),
+    bearer: HTTPAuthorizationCredentials | None = Depends(logout_bearer),
 ):
-
-    auth_manager.logout(logout_request=logout_request)
+    auth_manager.logout(
+        logout_request=logout_request,
+        access_token=bearer.credentials if bearer else None,
+    )
     return {"message": "Logged out successfully"}
 
 

@@ -1,0 +1,55 @@
+diff --git a/src/adapters/repositories/gateways/ticket_gateway.py b/src/adapters/repositories/gateways/ticket_gateway.py
+--- a/src/adapters/repositories/gateways/ticket_gateway.py
++++ b/src/adapters/repositories/gateways/ticket_gateway.py
+@@ -170,9 +170,9 @@
+     remote_work_recommended= :remote_work_recommended,
+     current_executor_id = :current_executor_id,
+     date_finished = :date_finished,
+-    version = version + 1
+-    WHERE ticket_id = :ticket_id
+-    AND version = :version
++    version = COALESCE(version, 0) + 1
++    WHERE ticket_id = :ticket_id
++    AND COALESCE(version, 0) = :version
+     """
+ 
+     DELETE = """
+@@ -217,9 +217,9 @@
+ 
+     TOUCH = """
+         UPDATE tickets
+-        SET version = version + 1
++        SET version = COALESCE(version, 0) + 1
+         WHERE ticket_id = :ticket_id
+-          AND version = :version
++          AND COALESCE(version, 0) = :version
+     """
+ 
+ 
+diff --git a/src/adapters/repositories/gateways/ticket_user_gateway.py b/src/adapters/repositories/gateways/ticket_user_gateway.py
+--- a/src/adapters/repositories/gateways/ticket_user_gateway.py
++++ b/src/adapters/repositories/gateways/ticket_user_gateway.py
+@@ -73,9 +73,9 @@
+         contact_user_id = :contact_user_id,
+         description = :description,
+         date_finished = :date_finished,
+-        version = version + 1
++        version = COALESCE(version, 0) + 1
+     WHERE user_ticket_id = :user_ticket_id
+-      AND version = :version
++      AND COALESCE(version, 0) = :version
+     """
+ 
+     DELETE = """
+@@ -99,9 +99,9 @@
+ 
+     TOUCH = """
+         UPDATE user_tickets
+-        SET version = version + 1
++        SET version = COALESCE(version, 0) + 1
+         WHERE user_ticket_id = :user_ticket_id
+-          AND version = :version
++          AND COALESCE(version, 0) = :version
+     """
+ 
+ 

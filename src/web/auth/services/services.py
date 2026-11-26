@@ -1,4 +1,5 @@
 
+from datetime import timezone
 from typing import Any
 
 from src.web.auth.exceptions import (
@@ -58,11 +59,10 @@ class TokenService:
             scope=scope or [],
         )
 
+        response = token_pair.encode(settings=self.settings)
+        self.token_storage.cleanup_expired_tokens()
         self.token_storage.put(token_pair.refresh_token)
-
-        return token_pair.encode(
-            settings=self.settings,
-        )
+        return response
 
     def renew_tokens(
         self,
@@ -73,8 +73,8 @@ class TokenService:
 
         Refresh-token rotation:
             - validate old refresh token;
-            - remove old refresh token;
-            - issue a new access + refresh token pair.
+            - build and encode a new token pair;
+            - atomically replace the old refresh token.
         """
         old_refresh_token = self.token_storage.get(
             old_refresh_token_id
@@ -83,14 +83,28 @@ class TokenService:
         if not old_refresh_token.is_valid():
             raise TokenError("Invalid refresh token")
 
-        self.token_storage.delete(old_refresh_token_id)
-
-        return self.create_token_pair(
+        token_pair = JWTToken.create(
+            settings=self.settings,
             username=old_refresh_token.username,
             subject_id=old_refresh_token.subject_id,
             subject_type=old_refresh_token.subject_type,
+            client_id=old_refresh_token.client_id,
             scope=old_refresh_token.scope,
         )
+        # Rotation changes the credential, not the session's original dates.
+        # Legacy naive metadata is interpreted as UTC, as in is_valid().
+        absolute_end = old_refresh_token.expires_at
+        if absolute_end.tzinfo is None:
+            absolute_end = absolute_end.replace(tzinfo=timezone.utc)
+        initial_start = old_refresh_token.created_at
+        if initial_start.tzinfo is None:
+            initial_start = initial_start.replace(tzinfo=timezone.utc)
+        token_pair.refresh_token.created_at = initial_start
+        token_pair.refresh_token.expires_at = absolute_end
+        token_pair.access_token.exp = min(token_pair.access_token.exp, absolute_end)
+        response = token_pair.encode(settings=self.settings)
+        self.token_storage.replace(old_refresh_token_id, token_pair.refresh_token)
+        return response
 
     @staticmethod
     def verify_access_token(
@@ -237,7 +251,8 @@ class AuthManager:
         )
 
         if not self.auth_service.validate_user_exists(
-            login_request=login_request
+            login_request=login_request,
+            expected_subject_id=refresh_token.subject_id,
         ):
             raise UserNotValidError(
                 username=refresh_token.username
@@ -251,19 +266,32 @@ class AuthManager:
         self,
         *,
         logout_request: LogoutRequest,
+        access_token: str | None = None,
     ) -> None:
         """
         Logout by revoking refresh tokens.
         """
         if logout_request.refresh_token:
-            self.token_service.revoke_token(
-                logout_request.refresh_token
-            )
+            refresh_token = self.token_storage.get(logout_request.refresh_token)
+            if refresh_token.subject_type != self.subject_type:
+                raise TokenError("Refresh token subject type mismatch")
+            self.token_service.revoke_token(logout_request.refresh_token)
             return
 
         if logout_request.username:
-            self.token_service.revoke_user_tokens(
-                logout_request.username
+            if access_token is None:
+                raise TokenError("Access token is required")
+            principal = self.token_service.verify_access_token(
+                access_token, settings=self.token_service.settings,
+            )
+            subject_id = (
+                principal.get_admin_id() if self.subject_type == "admin"
+                else principal.get_user_id()
+            )
+            self.token_storage.revoke_user_tokens(
+                logout_request.username,
+                subject_id=subject_id,
+                subject_type=self.subject_type,
             )
             return
 

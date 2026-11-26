@@ -5,10 +5,11 @@ from src.application.dto.employee_dto import (
     UserDTO,
     UserResponseDTO,
 )
+from src.application.exceptions import ApplicationValidateError
 from src.application.helper.actor_helper import EmployeeActorHelper
 from src.application.helper.employee_helper import EmployeeHelper
 
-from src.domain.employee import User
+from src.domain.employee import Admin, User
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.ticket_sync_service import TicketSyncService
@@ -60,103 +61,6 @@ class UserApplicationService:
             ticket_sync_service=self.ticket_sync_service,
         )
 
-    # ==================================================================
-    # Helpers
-    # ==================================================================
-
-    def _save_and_to_dto(
-        self,
-        user: User,
-    ) -> UserResponseDTO:
-        saved_user = self.uow.users.save(
-            user
-        )
-
-        return UserAssembler.to_dto(
-            saved_user
-        )
-
-    def _get_related_tickets(
-        self,
-        *,
-        user_id: int,
-    ) -> list[Ticket]:
-        """
-        Load all Tickets related to User.
-
-        User may be referenced as:
-        - Ticket.user_id;
-        - Ticket.contact_user_id.
-
-        The same Ticket may occur in both collections.
-        UserService performs deduplication.
-        """
-
-        owned_tickets = self.uow.tickets.get_by_user_id(
-            user_id=user_id,
-        )
-
-        contact_tickets = (
-            self.uow.tickets.get_by_contact_user_id(
-                contact_user_id=user_id,
-            )
-        )
-
-        return owned_tickets + contact_tickets
-
-    def _load_linked_ticket_users(
-        self,
-        *,
-        tickets: list[Ticket],
-    ) -> dict[int, TicketUser]:
-        """
-        Load TicketUser aggregates linked to supplied Tickets.
-
-        Mapping:
-
-            TicketUser.user_ticket_id -> TicketUser
-
-        Application layer does not decide which TicketUser
-        aggregates must actually change.
-        """
-
-        result: dict[int, TicketUser] = {}
-
-        for ticket in tickets:
-            if ticket.user_ticket_id == 0:
-                continue
-
-            if ticket.user_ticket_id in result:
-                continue
-
-            ticket_user = self.uow.user_tickets.get(
-                ticket_user_id=ticket.user_ticket_id,
-            )
-
-            result[ticket_user.ticket_user_id] = ticket_user
-
-        return result
-
-    def _has_ticket_references(
-        self,
-        *,
-        user_id: int,
-    ) -> bool:
-        """
-        Return True when User is referenced by at least one Ticket
-        either as User or as contact User.
-        """
-
-        if self.uow.tickets.get_by_user_id(
-            user_id=user_id,
-        ):
-            return True
-
-        return bool(
-            self.uow.tickets.get_by_contact_user_id(
-                contact_user_id=user_id,
-            )
-        )
 
     # ==================================================================
     # Create
@@ -166,12 +70,10 @@ class UserApplicationService:
         self,
         *,
         user_dto: UserDTO,
+        join_transaction: bool = False,
     ) -> UserResponseDTO:
-        with self.uow:
-            actor = self.actor.require_actor_admin(
-                actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.USER_OPERATION,
-            )
+        with self.uow.transaction(join=join_transaction):
+            actor = self.require_create_access(user_dto)
 
             self.helper.ensure_login_is_free(
                 login=user_dto.login,
@@ -183,7 +85,6 @@ class UserApplicationService:
 
             user = self.user_service.create(
                 client=client,
-                employee_id=0,
                 first_name=user_dto.first_name,
                 last_name=user_dto.last_name,
                 email=user_dto.email,
@@ -208,7 +109,7 @@ class UserApplicationService:
                         user_dto.roles
                     ),
                     required_permission=(
-                        AdminPermission.USER_OPERATION
+                        AdminPermission.ROLE_USER_ASSIGN
                     ),
                 )
 
@@ -224,6 +125,19 @@ class UserApplicationService:
     # ==================================================================
     # Update
     # ==================================================================
+
+    def require_create_access(self, user_dto: UserDTO) -> Admin:
+        actor = self.actor.require_actor_admin(
+            actor_admin_id=user_dto.actor_admin_id,
+            permission=AdminPermission.USER_OPERATION,
+        )
+
+        if user_dto.roles:
+            self.actor.require_actor_admin(
+                actor_admin_id=user_dto.actor_admin_id,
+                permission=AdminPermission.ROLE_USER_ASSIGN,
+            )
+        return actor
 
     def update_user(
         self,
@@ -301,9 +215,12 @@ class UserApplicationService:
                 client
             )
 
-            return self._save_and_to_dto(
-                user
+            saved_user = self.uow.users.save(user)
+            self.uow.refresh_sessions.revoke_subject(
+                subject_type="user",
+                subject_id=saved_user.employee_id,
             )
+            return UserAssembler.to_dto(saved_user)
 
     def detach_account(
         self,
@@ -336,6 +253,48 @@ class UserApplicationService:
             return self._save_and_to_dto(
                 user
             )
+    def enable_account(
+        self,
+        *,
+        user_dto:UserDTO
+    )->UserResponseDTO:
+        with self.uow:
+            self.actor.require_actor_admin(
+                actor_admin_id=user_dto.actor_admin_id,
+                permission=AdminPermission.USER_OPERATION,
+            )
+
+            user = self.uow.users.get(
+                user_id=user_dto.employee_id,
+            )
+
+            client = self.uow.clients.get(
+                client_id=user.client_id,
+            )
+            UserService.enable_account(user=user, client=client)
+            return self._save_and_to_dto(user)
+
+    def disable_account(self,*,
+        user_dto: UserDTO
+    )->UserResponseDTO:
+        with self.uow:
+            self.actor.require_actor_admin(
+                actor_admin_id=user_dto.actor_admin_id,
+                permission=AdminPermission.USER_OPERATION,
+            )
+
+            user = self.uow.users.get(
+                user_id=user_dto.employee_id,
+            )
+
+
+            UserService.disable_account(user=user)
+            saved_user = self.uow.users.save(user)
+            self.uow.refresh_sessions.revoke_subject(
+                subject_type="user",
+                subject_id=saved_user.employee_id,
+            )
+            return UserAssembler.to_dto(saved_user)
 
     def change_password(
         self,
@@ -348,10 +307,6 @@ class UserApplicationService:
                 permission=AdminPermission.USER_OPERATION,
             )
 
-            if not user_dto.password:
-                raise DomainOperationError(
-                    "Password is required"
-                )
 
             user = self.uow.users.get(
                 user_id=user_dto.employee_id,
@@ -371,9 +326,12 @@ class UserApplicationService:
                 client
             )
 
-            return self._save_and_to_dto(
-                user
+            saved_user = self.uow.users.save(user)
+            self.uow.refresh_sessions.revoke_subject(
+                subject_type="user",
+                subject_id=saved_user.employee_id,
             )
+            return UserAssembler.to_dto(saved_user)
 
     # ==================================================================
     # Roles
@@ -387,7 +345,7 @@ class UserApplicationService:
         with self.uow:
             actor = self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.USER_OPERATION,
+                permission=AdminPermission.ROLE_USER_ASSIGN,
             )
 
             user = self.uow.users.get(
@@ -412,7 +370,7 @@ class UserApplicationService:
                     user_dto.roles
                 ),
                 required_permission=(
-                    AdminPermission.USER_OPERATION
+                    AdminPermission.ROLE_USER_ASSIGN
                 ),
             )
 
@@ -432,7 +390,7 @@ class UserApplicationService:
         with self.uow:
             actor = self.actor.require_actor_admin(
                 actor_admin_id=user_dto.actor_admin_id,
-                permission=AdminPermission.USER_OPERATION,
+                permission=AdminPermission.ROLE_USER_ASSIGN
             )
 
             user = self.uow.users.get(
@@ -448,7 +406,7 @@ class UserApplicationService:
                     user_dto.roles
                 ),
                 required_permission=(
-                    AdminPermission.USER_OPERATION
+                    AdminPermission.ROLE_USER_ASSIGN
                 ),
             )
 
@@ -554,9 +512,12 @@ class UserApplicationService:
                     ticket_user
                 )
 
-            return self._save_and_to_dto(
-                user
+            saved_user = self.uow.users.save(user)
+            self.uow.refresh_sessions.revoke_subject(
+                subject_type="user",
+                subject_id=saved_user.employee_id,
             )
+            return UserAssembler.to_dto(saved_user)
 
     # ==================================================================
     # Delete
@@ -591,6 +552,7 @@ class UserApplicationService:
                 ),
             )
 
+            self.uow.users.touch(user)
             self.uow.users.delete(
                 user.employee_id,
             )
@@ -676,3 +638,98 @@ class UserApplicationService:
                     client_id=user_dto.client_id,
                 )
             ]
+
+    # ==================================================================
+    # Helpers
+    # ==================================================================
+
+    def _save_and_to_dto(
+        self,
+        user: User,
+    ) -> UserResponseDTO:
+        saved_user = self.uow.users.save(user)
+        return UserAssembler.to_dto(
+            saved_user
+        )
+
+    def _get_related_tickets(
+        self,
+        *,
+        user_id: int,
+    ) -> list[Ticket]:
+        """
+        Load all Tickets related to User.
+
+        User may be referenced as:
+        - Ticket.user_id;
+        - Ticket.contact_user_id.
+
+        The same Ticket may occur in both collections.
+        UserService performs deduplication.
+        """
+
+        owned_tickets = self.uow.tickets.get_by_user_id(
+            user_id=user_id,
+        )
+
+        contact_tickets = (
+            self.uow.tickets.get_by_contact_user_id(
+                contact_user_id=user_id,
+            )
+        )
+
+        return owned_tickets + contact_tickets
+
+    def _load_linked_ticket_users(
+        self,
+        *,
+        tickets: list[Ticket],
+    ) -> dict[int, TicketUser]:
+        """
+        Load TicketUser aggregates linked to supplied Tickets.
+
+        Mapping:
+
+            TicketUser.user_ticket_id -> TicketUser
+
+        Application layer does not decide which TicketUser
+        aggregates must actually change.
+        """
+
+        result: dict[int, TicketUser] = {}
+
+        for ticket in tickets:
+            if ticket.user_ticket_id == 0:
+                continue
+
+            if ticket.user_ticket_id in result:
+                continue
+
+            ticket_user = self.uow.user_tickets.get(
+                ticket_user_id=ticket.user_ticket_id,
+            )
+
+            result[ticket_user.ticket_user_id] = ticket_user
+
+        return result
+
+    def _has_ticket_references(
+        self,
+        *,
+        user_id: int,
+    ) -> bool:
+        """
+        Return True when User is referenced by at least one Ticket
+        either as User or as contact User.
+        """
+
+        if self.uow.tickets.get_by_user_id(
+            user_id=user_id,
+        ):
+            return True
+
+        return bool(
+            self.uow.tickets.get_by_contact_user_id(
+                contact_user_id=user_id,
+            )
+        )

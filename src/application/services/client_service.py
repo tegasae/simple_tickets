@@ -5,10 +5,11 @@ from src.application.dto.client_dto import (
     ClientDTO,
     ClientResponseDTO,
 )
-from src.application.exceptions import ApplicationValidateError
+from src.application.exceptions import ApplicationStoreError, ApplicationValidateError
 from src.application.helper.actor_helper import EmployeeActorHelper
 
 from src.domain.client import Client
+from src.domain.employee import Admin
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.client_service import ClientService
 from src.domain.services.ticket_sync_service import TicketSyncService
@@ -46,9 +47,7 @@ class ClientApplicationService:
 
         self.ticket_sync_service = TicketSyncService()
 
-        self.client_service = ClientService(
-            ticket_sync_service=self.ticket_sync_service,
-        )
+        self.client_service = ClientService()
 
 
     # ==================================================================
@@ -58,12 +57,10 @@ class ClientApplicationService:
     def create_client(
         self,
         dto_client: ClientDTO,
+        join_transaction: bool = False,
     ) -> ClientResponseDTO:
-        with self.uow:
-            actor = self.actor.require_actor_admin_any(
-                actor_admin_id=dto_client.actor_admin_id,
-                permissions=(AdminPermission.CLIENT_OPERATION,AdminPermission.CLIENT_CREATE,AdminPermission.CLIENT_DECISION),
-            )
+        with self.uow.transaction(join=join_transaction):
+            actor = self.require_create_access(dto_client)
 
             client = self.client_service.create(
                 name=dto_client.name,
@@ -81,6 +78,13 @@ class ClientApplicationService:
     # ==================================================================
     # Update
     # ==================================================================
+
+    def require_create_access(self, dto_client: ClientDTO) -> Admin:
+        actor = self.actor.require_actor_admin_any(
+            actor_admin_id=dto_client.actor_admin_id,
+            permissions=(AdminPermission.CLIENT_OPERATION,AdminPermission.CLIENT_CREATE,AdminPermission.CLIENT_DECISION),
+        )
+        return actor
 
     def update(
         self,
@@ -201,8 +205,9 @@ class ClientApplicationService:
             # Save only dependent aggregates that were actually changed.
 
             for user in result.users:
-                self.uow.users.save(
-                    user
+                self.uow.users.save(user)
+                self.uow.refresh_sessions.revoke_subject(
+                    subject_type="user", subject_id=user.employee_id,
                 )
 
             for ticket in result.tickets:
@@ -320,7 +325,7 @@ class ClientApplicationService:
             client
         )
         if not saved_client:
-            raise ApplicationValidateError(f"The client {client.client_id} cannot be saved")
+            raise ApplicationStoreError(f"The client {client.client_id} cannot be saved")
         return ClientAssembler.to_dto(
             saved_client
         )

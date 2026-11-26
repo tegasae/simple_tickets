@@ -3,7 +3,7 @@
 from src.adapters.repositories.base_repository import BaseRepository
 from src.adapters.repositories.exceptions import (
     OptimisticLockError,
-    NotFoundError, PersistenceError,
+    NotFoundError, UniqueConstraintError,
 )
 
 from src.adapters.repositories.gateways.department_gateway import DepartmentGateway
@@ -82,7 +82,7 @@ class DepartmentRepositorySQLite(BaseRepository, DepartmentRepository):
                 raise OptimisticLockError(
                     f"Department {department.department_id} version mismatch"
                 )
-        except PersistenceError:
+        except UniqueConstraintError:
             raise ItemAlreadyExistsError(item_name=str(department.name))
 
         department.version += 1

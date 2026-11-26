@@ -60,21 +60,26 @@ class DepartmentApplicationService:
         self,
         *,
         department_dto: DepartmentDTO,
+        join_transaction: bool = False,
     ) -> DepartmentResponseDTO:
-        with self.uow:
-            self.actor.require_actor_admin(
-                actor_admin_id=department_dto.actor_admin_id,
-                permission=AdminPermission.DEPARTMENT_OPERATION,
-            )
+        with self.uow.transaction(join=join_transaction):
+            self.require_create_access(department_dto)
 
             department = self.department_service.create(
                 name=department_dto.name,
-                enabled=True,
+                enabled=department_dto.enabled,
             )
 
             return self._save_and_to_dto(
                 department=department,
+                commit=not join_transaction,
             )
+
+    def require_create_access(self, department_dto: DepartmentDTO) -> None:
+        self.actor.require_actor_admin(
+            actor_admin_id=department_dto.actor_admin_id,
+            permission=AdminPermission.DEPARTMENT_OPERATION,
+        )
 
     def update(
         self,
@@ -280,12 +285,14 @@ class DepartmentApplicationService:
         self,
         *,
         department: Department,
+        commit: bool = True,
     ) -> DepartmentResponseDTO:
         saved_department = self.uow.departments.save(
             department
         )
 
-        self.uow.commit()
+        if commit:
+            self.uow.commit()
         """Нет, это если None, значит не сохранился"""
         if saved_department is None:
             raise ApplicationStoreError(f"Department {department.department_id} can't save")

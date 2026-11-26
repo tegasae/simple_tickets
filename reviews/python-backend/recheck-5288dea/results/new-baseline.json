@@ -1,0 +1,442 @@
+{
+  "exit_code": 1,
+  "command": [
+    "/tmp/tickets-bbf7a39-venv/bin/python",
+    "-m",
+    "pytest",
+    "-c",
+    "pytest.ini",
+    "-o",
+    "addopts=",
+    "-p",
+    "no:cacheprovider",
+    "-q",
+    "--tb=short",
+    "--junitxml=/tmp/tickets-audit4/new-baseline.xml",
+    "recheck_tests"
+  ],
+  "counts": {
+    "passed": 49,
+    "failed": 55,
+    "error": 0,
+    "skipped": 0
+  },
+  "cases": [
+    {
+      "test": "recheck_tests.test_admin_refresh_revocation::test_admin_lifecycle_permanently_rejects_old_refresh[password-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_admin_refresh_revocation::test_admin_lifecycle_permanently_rejects_old_refresh[password-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_admin_refresh_revocation::test_admin_lifecycle_permanently_rejects_old_refresh[employee_disable_enable-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_admin_refresh_revocation::test_admin_lifecycle_permanently_rejects_old_refresh[employee_disable_enable-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[client-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[client-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[department-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[department-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[admin-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[admin-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[user-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[user-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[admin_role-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[admin_role-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[user_role-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[user_role-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[admin_ticket-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[admin_ticket-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[user_ticket-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[user_ticket-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[admin_comment-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[admin_comment-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[user_comment-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[user_comment-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[admin_with_account-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[admin_with_account-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[user_with_account-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_same_key_replays_original_success_with_one_business_effect[user_with_account-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_creation_accepts_omitted_optional_key[client]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_creation_accepts_omitted_optional_key[department]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_creation_accepts_omitted_optional_key[admin]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_creation_accepts_omitted_optional_key[user]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_creation_accepts_omitted_optional_key[admin_role]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_creation_accepts_omitted_optional_key[user_role]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_creation_accepts_omitted_optional_key[admin_ticket]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_creation_accepts_omitted_optional_key[user_ticket]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_creation_accepts_omitted_optional_key[admin_comment]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_creation_accepts_omitted_optional_key[user_comment]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_creation_accepts_omitted_optional_key[admin_with_account]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_creation_accepts_omitted_optional_key[user_with_account]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[no-key-client]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[no-key-department]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[no-key-admin]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[no-key-user]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[no-key-admin_role]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[no-key-user_role]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[no-key-admin_ticket]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[no-key-user_ticket]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[no-key-admin_comment]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[no-key-user_comment]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[no-key-admin_with_account]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[no-key-user_with_account]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[different-keys-client]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[different-keys-department]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[different-keys-admin]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[different-keys-user]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[different-keys-admin_role]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[different-keys-user_role]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[different-keys-admin_ticket]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[different-keys-user_ticket]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[different-keys-admin_comment]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[different-keys-user_comment]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[different-keys-admin_with_account]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_creation_idempotency::test_separate_commands_keep_ordinary_creation_semantics[different-keys-user_with_account]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_staff_is_the_actual_initial_actor_but_owner_is_preserved",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_admin_comment_and_status_comment_are_plain_strings",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_account_lifecycle_permanently_rejects_old_refresh[password-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_account_lifecycle_permanently_rejects_old_refresh[password-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_account_lifecycle_permanently_rejects_old_refresh[employee_disable_enable-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_account_lifecycle_permanently_rejects_old_refresh[employee_disable_enable-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_account_lifecycle_permanently_rejects_old_refresh[account_disable_enable-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_account_lifecycle_permanently_rejects_old_refresh[account_disable_enable-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_account_lifecycle_permanently_rejects_old_refresh[detach_reattach-memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_account_lifecycle_permanently_rejects_old_refresh[detach_reattach-sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_same_optional_idempotency_key_returns_one_created_pair[memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_same_optional_idempotency_key_returns_one_created_pair[sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_same_key_different_body_is_conflict",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_no_key_and_different_keys_keep_intentionally_distinct_requests",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_current_contracts::test_disabled_client_active_pair_can_finish_and_be_finalized_by_admin",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_executor_guard::test_new_assignment_advances_the_executor_guard_version[self]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_executor_guard::test_new_assignment_advances_the_executor_guard_version[other]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_executor_guard::test_new_assignment_advances_the_executor_guard_version[remote_self]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_executor_guard::test_guard_failure_rolls_back_assignment_and_both_histories[self]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_executor_guard::test_guard_failure_rolls_back_assignment_and_both_histories[remote_self]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_history_and_json::test_admin_registration_records_initiator_separately_from_owner",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_history_and_json::test_user_creation_preserves_owner_actor_and_system_internal_origin",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_history_and_json::test_standalone_admin_creation_preserves_admin_history",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_history_and_json::test_factory_calls_without_optional_actor_remain_compatible",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_history_and_json::test_factory_explicit_initiator_owns_creation_record_and_comment",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_history_and_json::test_reading_legacy_created_actor_does_not_rewrite_history",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_history_and_json::test_admin_response_comment_contract_includes_empty_and_status_text[user]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_history_and_json::test_admin_response_comment_contract_includes_empty_and_status_text[admin_for_user]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_history_and_json::test_admin_response_comment_contract_includes_empty_and_status_text[standalone]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_session_lifetime::test_central_default_lifetimes",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_session_lifetime::test_several_rotations_preserve_initial_dates[memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_session_lifetime::test_several_rotations_preserve_initial_dates[sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_session_lifetime::test_refresh_at_absolute_expiry_is_rejected_without_replacement[memory]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_session_lifetime::test_refresh_at_absolute_expiry_is_rejected_without_replacement[sqlite]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_session_lifetime::test_legacy_naive_dates_remain_supported_and_bound_access[memory]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_session_lifetime::test_legacy_naive_dates_remain_supported_and_bound_access[sqlite]",
+      "status": "failed"
+    },
+    {
+      "test": "recheck_tests.test_session_lifetime::test_encode_failure_preserves_old_refresh_for_retry[memory]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_session_lifetime::test_encode_failure_preserves_old_refresh_for_retry[sqlite]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_session_lifetime::test_storage_failure_preserves_old_refresh_for_retry[memory]",
+      "status": "passed"
+    },
+    {
+      "test": "recheck_tests.test_session_lifetime::test_storage_failure_preserves_old_refresh_for_retry[sqlite]",
+      "status": "passed"
+    }
+  ]
+}

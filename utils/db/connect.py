@@ -3,6 +3,7 @@ from typing import Self
 
 from .exceptions import DBConnectError, DBOperationError
 from .query import Query
+from .sqlite_errors import operation_error
 logger = logging.getLogger(__name__)
 
 
@@ -55,7 +56,7 @@ class Connection:
                 logger.debug("Transaction started")
                 return True
             except Exception as e:
-                raise DBOperationError(f"Failed to begin transaction: {str(e)}")
+                raise operation_error(e, operation="begin") from e
         return False
 
     def commit(self) -> bool:
@@ -70,7 +71,7 @@ class Connection:
                 logger.debug("Transaction committed")
                 return True
             except Exception as e:
-                raise DBOperationError(f"Failed to commit transaction: {str(e)}")
+                raise operation_error(e, operation="commit") from e
         else:
             logger.warning("No active transaction to commit")
             return False

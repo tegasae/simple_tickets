@@ -17,9 +17,7 @@ Only statuses explicitly marked with ``user_action=True`` are produced
 by a User action.
 """
 
-from dataclasses import dataclass
 from enum import StrEnum
-from typing import Final
 
 
 class TicketStatus(StrEnum):
@@ -32,11 +30,12 @@ class TicketStatus(StrEnum):
     -----
     CREATED
         Ticket was created directly by an Admin.
-
+    CREATED_FROM_USER_REQUEST Пользователь сделал запрос на заявку, по телефону или передал
     CREATED_FROM_TICKET_USER
         Ticket was created from a TicketUser request.
         The action is attributed to the User.
-
+    #CREATED_FROM_SUSPENDED_TICKET
+    #    A ticket was created when the ticket was placed in SUSPENDED status because a client or user was disabled.
     REJECTED
         Ticket was rejected by an Admin.
         A comment explaining the reason is required.
@@ -95,7 +94,9 @@ class TicketStatus(StrEnum):
     """
 
     CREATED = "created"
+    CREATED_FROM_REQUEST_USER = "created_from_request_user"
     CREATED_FROM_TICKET_USER = "created_from_ticket_user"
+
 
     REJECTED = "rejected"
     ACCEPTED = "accepted"
@@ -116,117 +117,6 @@ class TicketStatus(StrEnum):
     CANCELLED_BY_USER = "cancelled_by_user"
 
 
-@dataclass(frozen=True, slots=True)
-class TicketStatusRule:
-    """
-    Intrinsic rules of a Ticket status.
-
-    These rules describe the payload and origin of a status itself.
-    They do not describe allowed transitions between statuses.
-
-    Attributes
-    ----------
-    user_action:
-        ``True`` if the status represents an action performed by a User.
-
-        ``False`` means that the action is performed by an Admin.
-
-        Admin is intentionally the default because most Ticket workflow
-        actions are administrative actions.
-
-    requires_comment:
-        ``True`` if the status record must contain a non-empty comment.
-
-    requires_executor:
-        ``True`` if the status record must contain a valid ``executor_id``.
-
-    allows_work_data:
-        ``True`` if the status record may contain actual work information:
-
-        - ``actual_started_at``;
-        - ``actual_finished_at``;
-        - ``duration``.
-
-        This flag only declares that such data is allowed for the status.
-        Validation of valid combinations of these fields belongs to the
-        status-record payload validation.
-
-     requires_work_mode True if kind of work has to set
-    """
-
-    user_action: bool = False
-    requires_comment: bool = False
-    requires_executor: bool = False
-    allows_work_data: bool = False
-    requires_work_mode:bool = False
-    can_change_data: bool = False
-    has_executor:bool=False
-
-TICKET_STATUS_RULES: Final[dict[TicketStatus, TicketStatusRule]] = {
-    TicketStatus.CREATED: TicketStatusRule(can_change_data=True),
-
-    TicketStatus.CREATED_FROM_TICKET_USER: TicketStatusRule(
-        user_action=True,
-        can_change_data=True
-    ),
-
-    TicketStatus.REJECTED: TicketStatusRule(
-        requires_comment=True,
-    ),
-
-    TicketStatus.ACCEPTED: TicketStatusRule(can_change_data=True),
-
-    TicketStatus.DEFERRED: TicketStatusRule(
-        requires_comment=True,
-        can_change_data=True
-    ),
-
-    TicketStatus.SUSPENDED: TicketStatusRule(),
-
-    TicketStatus.ASSIGNED: TicketStatusRule(
-        requires_executor=True,
-        has_executor=True
-    ),
-
-    TicketStatus.AT_WORK: TicketStatusRule(
-        allows_work_data=True,
-        requires_work_mode=True,
-        has_executor=True
-
-    ),
-
-    TicketStatus.PAUSED: TicketStatusRule(has_executor=True),
-
-    TicketStatus.READY_FOR_REVIEW: TicketStatusRule(has_executor=True),
-
-    TicketStatus.CONFIRMED_BY_USER: TicketStatusRule(
-        user_action=True,
-    ),
-
-    TicketStatus.EXECUTED: TicketStatusRule(),
-
-    TicketStatus.CANCELLED: TicketStatusRule(
-        requires_comment=True,
-    ),
-
-    TicketStatus.CANCELLED_BY_USER: TicketStatusRule(
-        user_action=True,
-    ),
-}
 
 
-def _validate_ticket_status_rules() -> None:
-    missing: list[TicketStatus] = [
-        status
-        for status in TicketStatus
-        if status not in TICKET_STATUS_RULES
-    ]
 
-    if missing:
-        raise RuntimeError(
-            "Ticket statuses without rules: "
-            + ", ".join(map(str, missing))
-        )
-
-
-_validate_ticket_status_rules()

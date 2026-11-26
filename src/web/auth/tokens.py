@@ -197,6 +197,7 @@ class RefreshToken(BaseModel):
         default_factory=lambda: secrets.token_urlsafe(32)
     )
 
+    stored_hash: str | None = Field(default=None, exclude=True, repr=False)
     subject_id: int
     subject_type: SubjectType
     username: str
@@ -240,7 +241,7 @@ class RefreshToken(BaseModel):
 
     @property
     def token_hash(self) -> str:
-        return hash_token(self.token_id)
+        return self.stored_hash or hash_token(self.token_id)
 
     def mark_used(self) -> None:
         self.used = True

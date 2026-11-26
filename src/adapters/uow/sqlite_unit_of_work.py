@@ -7,12 +7,14 @@ from types import TracebackType
 from typing import Self
 
 from src.adapters.repositories.admin import AdminRepositorySQLite
+from src.adapters.repositories.creation_result_repository import CreationResultRepositorySQLite
 from src.adapters.repositories.client_repository import (
     ClientRepositorySQLite,
 )
 from src.adapters.repositories.department_repository import (
     DepartmentRepositorySQLite,
 )
+from src.adapters.repositories.refresh_session_repository import RefreshSessionRepositorySQLite
 from src.adapters.repositories.role_repository import (
     RoleRepositorySQLite,
 )
@@ -47,6 +49,8 @@ class SQLiteUnitOfWork(UnitOfWork):
         self._active = False
         self._completed = False
 
+        self.creation_results = CreationResultRepositorySQLite(self.connection)
+        self.refresh_sessions = RefreshSessionRepositorySQLite(self.connection)
         self.admins = AdminRepositorySQLite(conn=self.connection)
         self.users = UserRepositorySQLite(conn=self.connection)
         self.clients = ClientRepositorySQLite(conn=self.connection)
@@ -79,7 +83,8 @@ class SQLiteUnitOfWork(UnitOfWork):
                 "Cannot nest SQLiteUnitOfWork contexts"
             )
 
-        self.connection.begin_transaction()
+        if not self.connection.begin_transaction():
+            raise RuntimeError("Connection already has an active transaction")
 
         self._active = True
         self._completed = False
@@ -106,20 +111,25 @@ class SQLiteUnitOfWork(UnitOfWork):
         try:
             if exc_type is None:
                 if not self._completed:
-                    self.commit()
+                    try:
+                        self.commit()
+                    except DBOperationError:
+                        self._rollback_after_error()
+                        raise
             elif not self._completed:
-                try:
-                    self.rollback()
-                except DBOperationError:
-                    logger.exception(
-                        "Failed to roll back SQLite transaction "
-                        "after an application exception"
-                    )
+                self._rollback_after_error()
         finally:
             self._active = False
             self._completed = False
 
         return False
+
+    def _rollback_after_error(self) -> None:
+        try:
+            self.rollback()
+        except DBOperationError:
+            logger.exception("Failed to roll back SQLite transaction")
+
     # --------------------------------
     # Transaction control
     # --------------------------------

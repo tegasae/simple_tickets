@@ -1,17 +1,18 @@
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
 COPY requirements.txt .
-
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src ./src
 COPY utils ./utils
 
-ENV DATABASE_URL=/app/db/admins.db
+# Тестовая база этого релиза, НЕ рабочая база.
+COPY db/admins.db /app/bootstrap/admins.db
 
-VOLUME ["/app/db-docker"]
+# Рабочая БД монтируется с application-server.
+ENV DATABASE_URL=/app/db/admins.db
 
 EXPOSE 8000
 

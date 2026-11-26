@@ -4,6 +4,7 @@ from typing import Iterable, Type, Generic
 from src.adapters.repositories.base_repository import BaseRepository
 from src.adapters.repositories.gateways.role_gateway import RoleGateway
 from src.domain.exceptions import ItemNotFoundError
+from src.adapters.repositories.exceptions import PersistenceError
 from src.domain.rbac.role_repository import RoleRepository
 from src.domain.rbac.role_new import Role
 from src.domain.rbac.typevar import P
@@ -33,6 +34,8 @@ class RoleRepositorySQLite(BaseRepository,RoleRepository[P], Generic[P]):
             er=self._exec(RoleGateway.INSERT_ROLE,RoleMapper.role_params(role,is_admin=self.is_admin))
             role.role_id=er.last_row_id
             return role
+        except PersistenceError:
+            raise
         except Exception as e:
             raise DBOperationError(f"Failed to add role: {e}")
 
@@ -83,6 +86,8 @@ class RoleRepositorySQLite(BaseRepository,RoleRepository[P], Generic[P]):
     def delete(self, role_id: int):
         try:
             self._exec(RoleGateway.DELETE_ROLE,params={"role_id": role_id,"is_admin":self.is_admin})
+        except PersistenceError:
+            raise
         except Exception as e:
             raise DBOperationError(f"Failed to delete role {role_id}: {e}")
 

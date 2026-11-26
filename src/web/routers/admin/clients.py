@@ -1,6 +1,12 @@
+from dataclasses import dataclass
+
 from fastapi import APIRouter, Depends, status
 
+from fastapi import Request, Response
+
+from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
 from src.application.dto.client_dto import ClientDTO
+from src.application.services.client_service import ClientApplicationService
 
 from src.web.dependencies.auth import (
     get_current_admin,
@@ -55,6 +61,22 @@ handlers = {
 
 
 
+@dataclass(frozen=True)
+class CreateClientOperation(CreationOperation[ClientResponse]):
+    service: ClientApplicationService
+    dto: ClientDTO
+
+    def authorize_replay(self) -> None:
+        self.service.require_create_access(self.dto)
+
+    def execute(self, *, join_transaction: bool) -> ClientResponse:
+        result = self.service.create_client(
+            dto_client=self.dto,
+            join_transaction=join_transaction,
+        )
+        return ClientResponse.from_dto(result)
+
+
 # -------------------------------
 # Endpoints
 # -------------------------------
@@ -67,20 +89,25 @@ handlers = {
     description="Create a new client.",
 )
 def create_client(
+    http_request: Request,
+    idempotency_key: IdempotencyKey,
     client_request: ClientCreateRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-)->ClientResponse:
+) -> ClientResponse | Response:
 
-
-    dto=ClientDTO(
+    dto = ClientDTO(
         actor_admin_id=actor_admin_id,
         **client_request.model_dump(),
     )
+    service = asf.client_service()
+    return create_response(
+        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+        employee_id=actor_admin_id, command="client.create",
+        payload=client_request, status_code=201,
+        operation=CreateClientOperation(service, dto),
+    )
 
-    response_dto = asf.client_service().create_client(dto_client=dto)
-
-    return ClientResponse.from_dto(response_dto)
 
 
 @router.get(

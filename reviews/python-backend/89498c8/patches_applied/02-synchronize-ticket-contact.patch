@@ -1,0 +1,106 @@
+diff --git a/src/domain/services/ticket_user_service.py b/src/domain/services/ticket_user_service.py
+--- a/src/domain/services/ticket_user_service.py
++++ b/src/domain/services/ticket_user_service.py
+@@ -52,15 +52,19 @@
+         related internal Ticket after TicketUser receives its identifier.
+         """
+         if client.is_empty():
+-            DomainOperationError("The client can't be empty when the Ticket is created")
++            raise DomainOperationError("The client can't be empty when the Ticket is created")
+         client.ensure_enabled()
+         user.can_do_operation()
+         contact_user.can_do_operation()
++        if user.client_id != client.client_id or (
++            not contact_user.is_empty() and contact_user.client_id != client.client_id
++        ):
++            raise DomainOperationError("TicketUser and its users must belong to the same Client")
+         return TicketUser.create(
+             client_id=client.client_id,
+             user_id=user.employee_id,
+             text_of_ticket=text_of_ticket,
+-            contact_user_id=user.employee_id,
++            contact_user_id=contact_user.employee_id,
+             description=description,
+             comment=comment,
+         )
+@@ -117,23 +121,19 @@
+         Structural consistency is required before modification. Editing
+         contact data does not itself require a workflow transition.
+         """
+-        contact_user.can_do_operation()
+-        if client.is_empty():
+-            DomainOperationError(f"The client can't be empty in ticket user {ticket_user.ticket_user_id}")
++        if client.is_empty() or client.client_id != ticket_user.client_id:
++            raise DomainOperationError("Client does not match TicketUser")
+         client.ensure_enabled()
+         contact_user.can_do_operation()
+-        if client.client_id!=contact_user.client_id:
+-            DomainOperationError(f"The ticket user {ticket_user.ticket_user_id} has the cliebt {ticket_user.client_id}  "
+-                                 f"and the user has the client {contact_user.client_id}")
++        if contact_user.client_id != client.client_id:
++            raise DomainOperationError("Contact User does not belong to TicketUser Client")
+         self._require_linked_ticket(
+             ticket_user=ticket_user,
+             ticket=ticket,
+         )
++        ticket.change_contact_user(contact_user_id=contact_user.employee_id)
+         ticket_user.change_contact_user(contact_user_id=contact_user.employee_id)
+-        self._ticket_sync_service.sync_from_ticket(
+-            ticket,
+-            ticket_user
+-        )
++        self._ticket_sync_service.sync_from_ticket(ticket, ticket_user)
+ 
+     # ==================================================================
+     # User workflow
+diff --git a/src/application/services/ticket_user_service.py b/src/application/services/ticket_user_service.py
+--- a/src/application/services/ticket_user_service.py
++++ b/src/application/services/ticket_user_service.py
+@@ -280,15 +280,17 @@
+                 ticket_user_dto.ticket_user_id,
+             )
+ 
+-            actor = self._require_operation_access(
++            self._require_operation_access(
+                 actor_user_id=ticket_user_dto.actor_user_id,
+                 ticket_user=ticket_user,
+             )
+-
+-            contact_user=User.create_empty()
+-            client=Client.create_empty()
+-
+-
++            contact_user_id = ticket_user_dto.contact_user_id
++            if contact_user_id < 0:
++                raise DomainOperationError("contact_user_id cannot be negative")
++
++            client = self.uow.clients.get(ticket_user.client_id)
++            contact_user = self.uow.users.get(contact_user_id or ticket_user.user_id)
++            self.uow.users.touch(contact_user)
+ 
+             ticket = self._get_linked_ticket(
+                 ticket_user=ticket_user,
+diff --git a/src/domain/services/ticket_service.py b/src/domain/services/ticket_service.py
+--- a/src/domain/services/ticket_service.py
++++ b/src/domain/services/ticket_service.py
+@@ -166,9 +166,10 @@
+         ticket: Ticket,
+         ticket_user: TicketUser | None,
+     ) -> None:
+-        if user.is_empty():
+-            raise DomainOperationError(f"This ticket can't have empty user because Ticket {ticket} has TicketUser {ticket_user}")
+-        user.can_do_operation()
++        if not user.is_empty():
++            user.can_do_operation()
++            if user.client_id != ticket.client_id:
++                raise DomainOperationError("Contact User does not belong to Ticket Client")
+ 
+         ticket.change_contact_user(contact_user_id=user.employee_id)
+         self._ticket_sync_service.sync_from_ticket(ticket, ticket_user)
+@@ -394,4 +395,6 @@
+         client.ensure_enabled()
+         user.can_do_operation()
+         contact_user.can_do_operation()
++        if not contact_user.is_empty() and contact_user.client_id != client.client_id:
++            raise DomainOperationError("Contact User does not belong to Ticket Client")
+         department.ensure_enabled()

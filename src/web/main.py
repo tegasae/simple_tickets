@@ -1,10 +1,20 @@
+from src.adapters.repositories.exceptions import TransientPersistenceError
+from utils.db.exceptions import DBTransientError
 import uvicorn
 from fastapi import FastAPI
 
+from src.adapters.repositories.exceptions import NotFoundError as RepositoryNotFoundError
 from src.adapters.repositories.exceptions import OptimisticLockError
-from src.domain.exceptions import ItemValidationError, DomainOperationError, ItemAlreadyExistsError, ItemNotFoundError
-from src.web.auth.exceptions import TokenError, TokenNotFoundError, TokenExpiredError, UserNotValidError, \
-    InvalidCredentialsError
+from src.application.exceptions import ApplicationValidateError
+from src.domain.exceptions import (
+    AuthenticationError,
+    AuthorizationError,
+    DomainOperationError,
+    ItemAlreadyExistsError,
+    ItemNotFoundError,
+    ItemValidationError,
+)
+from src.web.auth.exceptions import AuthError, AuthPermissionError
 from src.web.execeptions.exception_handlers import ExceptionHandlerRegistry
 
 from src.web.routers import admin
@@ -21,17 +31,16 @@ from src.web.routers.admin.users import router as admin_users_router
 from src.web.routers.admin.tickets import router as admin_tickets_router
 from src.web.routers.admin.roles import router as admin_roles_router
 
-from src.web.config import get_settings
-
-
+from src.web.config import Settings
 
 
 def create_app() -> FastAPI:
-    settings=get_settings()
+    #settings=get_settings()
+    settings = Settings()
 
     app1 = FastAPI(title=settings.APP_NAME)
+    # noinspection PyUnresolvedReferences
     app1.state.settings = settings
-
     app1.include_router(auth_router)
     app1.include_router(admin_clients_router)
     app1.include_router(admin_admins_router)
@@ -47,32 +56,38 @@ def create_app() -> FastAPI:
         expose_traceback=False,
         expose_error_type=True,
     )
+
     registry.add_all_standard_handlers(
         exceptions={
-            TokenError: 401,
-            TokenNotFoundError: 401,
-            TokenExpiredError: 401,
-            UserNotValidError: 401,
-            InvalidCredentialsError: 401,
-            ItemValidationError: 400,
+            AuthPermissionError: 403,
+            ApplicationValidateError: 400,
+            AuthenticationError: 401,
+            AuthorizationError: 403,
             PermissionError: 403,
-            ValueError: 400,
-            ItemAlreadyExistsError: 400,
-            DomainOperationError:400,
-            OptimisticLockError:500,
-            ItemNotFoundError: 404
+            ItemValidationError: 400,
+            DomainOperationError: 400,
+            ItemAlreadyExistsError: 409,
+            OptimisticLockError: 409,
+            ItemNotFoundError: 404,
+            RepositoryNotFoundError: 404,
         }
     )
-    registry.add_all_handlers_from_module(
-        module_name="src.domain.exceptions",
-        exceptions=admin.clients.handlers,
-    )
-
-
+    for exception_type in (DBTransientError, TransientPersistenceError):
+        registry.add_standard_handler(
+            exception_type=exception_type,
+            status_code=503,
+            public_detail="Database temporarily unavailable",
+        )
 
     registry.add_standard_handler(
+        exception_type=AuthError,
+        status_code=401,
+        public_detail="Invalid credentials or session",
+    )
+    registry.add_standard_handler(
         exception_type=Exception,
-        status_code=500
+        status_code=500,
+        public_detail="Internal server error",
     )
 
     registry.register_all()
@@ -87,10 +102,9 @@ def create_app() -> FastAPI:
 app = create_app()
 if __name__ == "__main__":
     uvicorn.run(
-        "main:app",
+        "src.web.main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True,  # Enable auto-reload during development
+        reload=True,  # Development entry point.
         log_level="info",
-        workers=4
     )

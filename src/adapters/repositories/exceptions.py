@@ -18,3 +18,11 @@ class OptimisticLockError(RepositoryError):
 
 class PersistenceError(RepositoryError):
     """Raised when persistence operation fails (SQL error, constraint, etc.)."""
+
+
+class TransientPersistenceError(PersistenceError):
+    """The transaction was rejected because of temporary contention."""
+
+
+class UniqueConstraintError(PersistenceError):
+    """An operation violated a unique database constraint."""

@@ -1,0 +1,13 @@
+diff --git a/src/application/services/ticket_service.py b/src/application/services/ticket_service.py
+--- a/src/application/services/ticket_service.py
++++ b/src/application/services/ticket_service.py
+@@ -977,7 +977,8 @@
+             )
+ 
+             self.uow.tickets.delete(ticket_id=ticket_dto.ticket_id)
+-            self.uow.user_tickets.delete(ticket_id=ticket_user.ticket_user_id)
++            if ticket_user is not None:
++                self.uow.user_tickets.delete(ticket_id=ticket_user.ticket_user_id)
+             self.uow.commit()
+ 
+     # ==================================================================

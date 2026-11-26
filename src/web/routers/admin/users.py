@@ -1,8 +1,14 @@
 # src/web/routers/admin/users.py
 
+from dataclasses import dataclass
+
 from fastapi import APIRouter, Depends, status
 
+from fastapi import Request, Response
+
+from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
 from src.application.dto.employee_dto import UserDTO
+from src.application.services.user_service import UserApplicationService
 from src.web.dependencies.auth import (
     get_current_admin,
     get_employee_id_from_request,
@@ -62,6 +68,22 @@ handlers = {
 
 
 
+@dataclass(frozen=True)
+class CreateUserOperation(CreationOperation[UserResponse]):
+    service: UserApplicationService
+    dto: UserDTO
+
+    def authorize_replay(self) -> None:
+        self.service.require_create_access(self.dto)
+
+    def execute(self, *, join_transaction: bool) -> UserResponse:
+        result = self.service.create_user(
+            user_dto=self.dto,
+            join_transaction=join_transaction,
+        )
+        return UserResponse.from_dto(result)
+
+
 # ---------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------
@@ -74,17 +96,25 @@ handlers = {
     description="Create a new user.",
 )
 def create_user(
+    http_request: Request,
+    idempotency_key: IdempotencyKey,
     user_request: UserCreateRequest,
     asf=Depends(get_application_service_factory),
     actor_admin_id: int = Depends(get_employee_id_from_request),
-)->UserResponse:
+) -> UserResponse | Response:
 
+    dto = UserDTO(
+        actor_admin_id=actor_admin_id,
+        **user_request.model_dump(),
+    )
+    service = asf.user_service()
+    return create_response(
+        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+        employee_id=actor_admin_id, command="user.create",
+        payload=user_request, status_code=201,
+        operation=CreateUserOperation(service, dto),
+    )
 
-    dto = UserDTO(actor_admin_id=actor_admin_id, **user_request.model_dump())
-
-    response_dto = asf.user_service().create_user(user_dto=dto)
-
-    return UserResponse.from_dto(response_dto)
 
 
 @router.get(
@@ -155,6 +185,27 @@ def get_user(
     return UserResponse.from_dto(response_dto)
 
 
+@router.get(
+    "/client/{client_id}",
+    response_model=list[UserResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Get users by client",
+    description="Get users by client.",
+)
+def get_by_client(
+    client_id: int,
+    asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
+)->list[UserResponse]:
+
+    dto=UserDTO(actor_admin_id=actor_admin_id,
+        client_id=client_id)
+    response_dtos = asf.user_service().get_by_client_id(user_dto=dto)
+
+    return UserResponse.from_dtos(response_dtos)
+
+
+
 
 @router.put(
     "/{employee_id}",
@@ -216,6 +267,52 @@ def detach_account(
     response_dto = asf.user_service().detach_account(user_dto=dto)
 
     return UserResponse.from_dto(response_dto)
+
+@router.patch(
+    "/{employee_id}/account/enable",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Enable user account",
+    description="Enable user account.",
+)
+def enable_account(
+    employee_id: int,
+    asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
+)->UserResponse:
+    dto = UserDTO(
+        actor_admin_id=actor_admin_id,
+        employee_id=employee_id,
+    )
+
+    response_dto = asf.user_service().enable_account(user_dto=dto)
+
+    return UserResponse.from_dto(response_dto)
+
+
+@router.patch(
+    "/{employee_id}/account/disable",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Disable user account",
+    description="Disable user account.",
+)
+
+
+def disable_account(
+    employee_id: int,
+    asf=Depends(get_application_service_factory),
+    actor_admin_id: int = Depends(get_employee_id_from_request),
+)->UserResponse:
+    dto = UserDTO(
+        actor_admin_id=actor_admin_id,
+        employee_id=employee_id,
+    )
+
+    response_dto = asf.user_service().disable_account(user_dto=dto)
+
+    return UserResponse.from_dto(response_dto)
+
 
 
 @router.patch(

@@ -1,0 +1,33 @@
+--- a/src/application/services/user_service.py
++++ b/src/application/services/user_service.py
+@@ -76,6 +76,12 @@
+                 actor_admin_id=user_dto.actor_admin_id,
+                 permission=AdminPermission.USER_OPERATION,
+             )
++
++            if user_dto.roles:
++                self.actor.require_actor_admin(
++                    actor_admin_id=user_dto.actor_admin_id,
++                    permission=AdminPermission.ROLE_USER_ASSIGN,
++                )
+ 
+             self.helper.ensure_login_is_free(
+                 login=user_dto.login,
+@@ -111,7 +117,7 @@
+                         user_dto.roles
+                     ),
+                     required_permission=(
+-                        AdminPermission.USER_OPERATION
++                        AdminPermission.ROLE_USER_ASSIGN
+                     ),
+                 )
+ 
+@@ -384,7 +390,7 @@
+                     user_dto.roles
+                 ),
+                 required_permission=(
+-                    AdminPermission.ROLE_ASSIGN
++                    AdminPermission.ROLE_USER_ASSIGN
+                 ),
+             )
+ 

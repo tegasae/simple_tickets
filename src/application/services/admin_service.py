@@ -68,17 +68,16 @@ class AdminApplicationService:
         self,
         *,
         admin_dto: AdminDTO,
+        join_transaction: bool = False,
     ) -> AdminResponseDTO:
-        with self.uow:
-            actor = self.actor.require_actor_admin(
-                actor_admin_id=admin_dto.actor_admin_id,
-                permission=AdminPermission.ADMIN_OPERATION,
-            )
+        with self.uow.transaction(join=join_transaction):
+            actor = self.require_create_access(admin_dto)
 
             self.helper.ensure_login_is_free(
                 login=admin_dto.login,
             )
 
+            department = Department.create_empty()
             if admin_dto.department_id:
                 department = self.uow.departments.get(
                     department_id=admin_dto.department_id,
@@ -87,12 +86,11 @@ class AdminApplicationService:
                 self.uow.departments.touch(
                     department
                 )
-            else:
-                department=Department.create_empty()
+
+
 
             admin = AdminService.create(
                 department=department,
-                employee_id=0,
                 job_title=admin_dto.job_title,
                 first_name=admin_dto.first_name,
                 last_name=admin_dto.last_name,
@@ -130,6 +128,19 @@ class AdminApplicationService:
     # ==================================================================
     # Update
     # ==================================================================
+
+    def require_create_access(self, admin_dto: AdminDTO) -> Admin:
+        actor = self.actor.require_actor_admin(
+            actor_admin_id=admin_dto.actor_admin_id,
+            permission=AdminPermission.ADMIN_OPERATION,
+        )
+
+        if admin_dto.roles:
+            self.actor.require_actor_admin(
+                actor_admin_id=admin_dto.actor_admin_id,
+                permission=AdminPermission.ROLE_ASSIGN,
+            )
+        return actor
 
     def update_admin(
         self,
@@ -204,9 +215,12 @@ class AdminApplicationService:
                 enabled_account=admin_dto.enable_account,
             )
 
-            return self._save_and_to_dto(
-                admin
+            saved_admin = self.uow.admins.save(admin)
+            self.uow.refresh_sessions.revoke_subject(
+                subject_type="admin",
+                subject_id=saved_admin.employee_id,
             )
+            return AdminAssembler.to_dto(saved_admin)
 
     def detach_account(
         self,
@@ -219,9 +233,14 @@ class AdminApplicationService:
                 permission=AdminPermission.ADMIN_OPERATION,
             )
 
+            if admin_dto.actor_admin_id == admin_dto.employee_id:
+                raise ApplicationValidateError(f"The actor can't detach themselves ")
+
             admin = self.uow.admins.get(
                 admin_id=admin_dto.employee_id,
             )
+
+
 
             AdminService.detach_account(
                 admin=admin,
@@ -231,6 +250,41 @@ class AdminApplicationService:
                 admin
             )
 
+    def enable_account(self,*,admin_dto: AdminDTO) -> AdminResponseDTO:
+        with self.uow:
+            self.actor.require_actor_admin(
+                actor_admin_id=admin_dto.actor_admin_id,
+                permission=AdminPermission.ADMIN_OPERATION,
+            )
+
+            admin = self.uow.admins.get(
+                admin_id=admin_dto.employee_id,
+            )
+            AdminService.enable_account(admin=admin)
+            return self._save_and_to_dto(
+                admin
+            )
+
+
+    def disable_account(self,*,admin_dto: AdminDTO) -> AdminResponseDTO:
+        with self.uow:
+            self.actor.require_actor_admin(
+                actor_admin_id=admin_dto.actor_admin_id,
+                permission=AdminPermission.ADMIN_OPERATION,
+            )
+            if admin_dto.actor_admin_id == admin_dto.employee_id:
+                raise ApplicationValidateError(f"The actor can't disable the account themselves ")
+
+            admin = self.uow.admins.get(
+                admin_id=admin_dto.employee_id,
+            )
+            AdminService.disable_account(admin=admin)
+            saved_admin = self.uow.admins.save(admin)
+            self.uow.refresh_sessions.revoke_subject(
+                subject_type="admin",
+                subject_id=saved_admin.employee_id,
+            )
+            return AdminAssembler.to_dto(saved_admin)
     def change_password(
         self,
         *,
@@ -253,9 +307,12 @@ class AdminApplicationService:
                 password=admin_dto.password,
             )
 
-            return self._save_and_to_dto(
-                admin
+            saved_admin = self.uow.admins.save(admin)
+            self.uow.refresh_sessions.revoke_subject(
+                subject_type="admin",
+                subject_id=saved_admin.employee_id,
             )
+            return AdminAssembler.to_dto(saved_admin)
 
     # ==================================================================
     # Role operations
@@ -362,9 +419,19 @@ class AdminApplicationService:
                 admin_id=admin_dto.employee_id,
             )
 
+            department = Department.create_empty()
+            if admin.department_id:
+                department = self.uow.departments.get(
+                    department_id=admin.department_id,
+                )
+
             AdminService.enable(
                 admin=admin,
+                department=department,
             )
+
+            if not department.is_empty():
+                self.uow.departments.touch(department)
 
             return self._save_and_to_dto(
                 admin
@@ -380,7 +447,8 @@ class AdminApplicationService:
                 actor_admin_id=admin_dto.actor_admin_id,
                 permission=AdminPermission.ADMIN_OPERATION,
             )
-
+            if admin_dto.actor_admin_id == admin_dto.employee_id:
+                raise ApplicationValidateError(f"The actor can't disable themselves ")
             admin = self.uow.admins.get(
                 admin_id=admin_dto.employee_id,
             )
@@ -394,9 +462,12 @@ class AdminApplicationService:
                 ),
             )
 
-            return self._save_and_to_dto(
-                admin
+            saved_admin = self.uow.admins.save(admin)
+            self.uow.refresh_sessions.revoke_subject(
+                subject_type="admin",
+                subject_id=saved_admin.employee_id,
             )
+            return AdminAssembler.to_dto(saved_admin)
 
     # ==================================================================
     # Department
@@ -527,6 +598,7 @@ class AdminApplicationService:
                 ),
             )
 
+            self.uow.admins.touch(admin)
             self.uow.admins.delete(
                 admin_id=admin.employee_id,
             )
@@ -602,12 +674,7 @@ class AdminApplicationService:
         self,
         admin: Admin,
     ) -> AdminResponseDTO:
-        try:
-            saved_admin = self.uow.admins.save(
-                admin
-            )
-        except:
-            raise ApplicationValidateError(f"The admin {admin.employee_id} was not saved")
+        saved_admin = self.uow.admins.save(admin)
         return AdminAssembler.to_dto(
             saved_admin
         )

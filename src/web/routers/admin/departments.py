@@ -1,8 +1,17 @@
+from dataclasses import dataclass
+from typing import Annotated
+
+from fastapi import Path
+
 # src/web/routers/admin/departments.py
 
 from fastapi import APIRouter, Depends, status
 
+from fastapi import Request, Response
+
+from src.web.idempotency import CreationOperation, IdempotencyKey, create_response
 from src.application.dto.department_dto import DepartmentDTO
+from src.application.services.department_service import DepartmentApplicationService
 from src.web.dependencies.auth import get_current_admin, get_employee_id_from_request
 from src.web.dependencies.services import get_application_service_factory
 
@@ -33,6 +42,22 @@ router = APIRouter(
 
 
 
+@dataclass(frozen=True)
+class CreateDepartmentOperation(CreationOperation[DepartmentResponse]):
+    service: DepartmentApplicationService
+    dto: DepartmentDTO
+
+    def authorize_replay(self) -> None:
+        self.service.require_create_access(self.dto)
+
+    def execute(self, *, join_transaction: bool) -> DepartmentResponse:
+        result = self.service.create_department(
+            department_dto=self.dto,
+            join_transaction=join_transaction,
+        )
+        return DepartmentResponse.from_dto(result)
+
+
 # -------------------------
 # Endpoints
 # -------------------------
@@ -43,20 +68,25 @@ router = APIRouter(
     status_code=status.HTTP_201_CREATED,
 )
 def create_department(
+    http_request: Request,
+    idempotency_key: IdempotencyKey,
     request: DepartmentCreateRequest,
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
-)->DepartmentResponse:
+) -> DepartmentResponse | Response:
 
-    dto=DepartmentDTO(
+    dto = DepartmentDTO(
         actor_admin_id=actor_admin_id,
-        **request.model_dump()
+        **request.model_dump(),
     )
-    result = asf.department_service().create_department(
-        department_dto=dto,
+    service = asf.department_service()
+    return create_response(
+        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
+        employee_id=actor_admin_id, command="department.create",
+        payload=request, status_code=201,
+        operation=CreateDepartmentOperation(service, dto),
     )
 
-    return DepartmentResponse.from_dto(result)
 
 
 @router.get(
@@ -84,7 +114,7 @@ def get_all_departments(
     response_model=DepartmentResponse,
 )
 def get_department(
-    department_id: int,
+    department_id: Annotated[int, Path(gt=0)],
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 )->DepartmentResponse:
@@ -105,7 +135,7 @@ def get_department(
     response_model=DepartmentResponse,
 )
 def update_department(
-    department_id: int,
+    department_id: Annotated[int, Path(gt=0)],
     request: DepartmentUpdateRequest,
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
@@ -130,7 +160,7 @@ def update_department(
     response_model=DepartmentResponse,
 )
 def enable_department(
-    department_id: int,
+    department_id: Annotated[int, Path(gt=0)],
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 )->DepartmentResponse:
@@ -151,7 +181,7 @@ def enable_department(
     response_model=DepartmentResponse,
 )
 def disable_department(
-    department_id: int,
+    department_id: Annotated[int, Path(gt=0)],
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 )->DepartmentResponse:
@@ -173,7 +203,7 @@ def disable_department(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 def delete_department(
-    department_id: int,
+    department_id: Annotated[int, Path(gt=0)],
     actor_admin_id: int = Depends(get_employee_id_from_request),
     asf=Depends(get_application_service_factory),
 ):
