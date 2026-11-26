@@ -27,18 +27,23 @@ class Application:
     user_id: int
     admin_id: int
     admin_headers: dict[str, str] = field(repr=False)
+    user_headers: dict[str, str] = field(repr=False)
     user_login: str = field(repr=False)
     user_password: str = field(repr=False)
     user_refresh: str = field(repr=False)
     admin_refresh: str = field(repr=False)
 
 
-@pytest.fixture
-def application(tmp_path, monkeypatch):
+def create_database(tmp_path: Path) -> Path:
     database = tmp_path / "test.sqlite3"
     with closing(sqlite3.connect(database)) as db:
         db.executescript(SCHEMA.read_text(encoding="utf-8"))
+    return database
 
+
+@pytest.fixture
+def application(tmp_path, monkeypatch):
+    database = create_database(tmp_path)
     admin_login = "operator" + secrets.token_hex(5)
     user_login = "requester" + secrets.token_hex(5)
     admin_password = "Aa1!" + secrets.token_hex(12)
@@ -84,6 +89,7 @@ def application(tmp_path, monkeypatch):
             user_id=user.employee_id,
             admin_id=admin.employee_id,
             admin_headers={"Authorization": "Bearer " + admin_auth.json()["access_token"]},
+            user_headers={"Authorization": "Bearer " + user_auth.json()["access_token"]},
             user_login=user_login,
             user_password=user_password,
             user_refresh=user_auth.json()["refresh_token"],

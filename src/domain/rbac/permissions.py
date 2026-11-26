@@ -32,6 +32,7 @@ class AdminPermission(PermissionBase):
     TICKET_SET_REMOTE_RECOMMENDATION = "ticket.set_remote_recommendation"  # изменение рекомендации
     TICKET_AT_WORK_RETROSPECTIVE = "ticket.at_work_retrospective"   # имеет право вносить данные по работе ретроспективно
     TICKET_CANCELLED="ticket.canceled"                              # имеет право снимать заявки cancel или reject
+    TICKET_DELETE = "ticket.delete"                                 # физическое удаление заявки
     TICKET_EXECUTED = "ticket.executed"                             # имеет право переводить в executed
     ROLE_ASSIGN="role.assign"                                       # имеет право работать с ролями Admin-ов
     ROLE_USER_ASSIGN = "role_user.assign"                           # имеет право работать с ролями User-ов

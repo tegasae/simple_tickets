@@ -1024,7 +1024,7 @@ class TicketApplicationService:
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=ticket_dto.actor_admin_id,
-                permission=AdminPermission.TICKET_CANCELLED,
+                permission=AdminPermission.TICKET_DELETE,
             )
 
             ticket = self._get_ticket(

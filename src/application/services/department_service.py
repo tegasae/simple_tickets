@@ -67,7 +67,7 @@ class DepartmentApplicationService:
 
             department = self.department_service.create(
                 name=department_dto.name,
-                enabled=True,
+                enabled=department_dto.enabled,
             )
 
             return self._save_and_to_dto(
