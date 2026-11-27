@@ -1,6 +1,6 @@
 # Документация Simple Tickets Frontend v3
 
-Актуальное направление — рабочее место Admin в ветке `frontend_new`. Для запуска I1–I4 используйте [README frontend v3](../README.md). Итоги и условия продолжения приведены в [статусе проекта](PROJECT_STATUS.md). [План реализации](IMPLEMENTATION_PLAN.md) · [AGENTS.md](../../AGENTS.md).
+Актуальное направление — рабочее место Admin в ветке `frontend_new`. Для запуска I1–I4 используйте [README frontend v3](../README.md). Итоги и условия продолжения приведены в [статусе проекта](PROJECT_STATUS.md). [План реализации](IMPLEMENTATION_PLAN.md) · [AGENTS.md](../../AGENTS.md.frontend).
 
 | Документ | Содержание |
 |---|---|
