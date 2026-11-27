@@ -9,6 +9,8 @@
 | [ITERATION_2_REPORT.md](ITERATION_2_REPORT.md) | Рабочие вкладки, команды записи, результаты приёмки I2 и условия перехода к I3 |
 | [ITERATION_3_REPORT.md](ITERATION_3_REPORT.md) | Рабочие переходы, горячая линия, сверка истории и результаты приёмки I3 |
 | [ITERATION_4_REPORT.md](ITERATION_4_REPORT.md) | Административные справочники, аккаунты, роли, отмена и удаление |
+| [RUNTIME_CONFIGURATION.md](RUNTIME_CONFIGURATION.md) | Публикация тем, языков и подписей интерфейса без пересборки |
+| [APPEARANCE_REPORT.md](APPEARANCE_REPORT.md) | Реализация и результаты проверок BK-013/014 |
 | [DECISIONS.md](DECISIONS.md) | Ответы владельца, статусы DEC, альтернативы и открытые вопросы |
 | [CONSILIUM_LOG.md](CONSILIUM_LOG.md) | Консилиумы, разногласия и результаты рецензирования |
 | [INITIAL_RESEARCH_REPORT.md](INITIAL_RESEARCH_REPORT.md) | Историческое заключение этапа 1. Поправка по query приведена в API_CONTRACT |

@@ -1,9 +1,19 @@
 import { locale, t } from "../../shared/i18n/messages.js";
 
-const dateFormatter = new Intl.DateTimeFormat(locale, {
-  year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
-});
-const numberFormatter = new Intl.NumberFormat(locale);
+let formatters;
+
+function localFormatters() {
+  if (formatters?.locale !== locale) {
+    formatters = {
+      locale,
+      date: new Intl.DateTimeFormat(locale, {
+        year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+      }),
+      number: new Intl.NumberFormat(locale),
+    };
+  }
+  return formatters;
+}
 
 export function normalizeStatus(value) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
@@ -26,11 +36,11 @@ export function timestamp(value) {
 
 export function formatDateTime(value) {
   const time = timestamp(value);
-  return time === null ? t("common.missing") : dateFormatter.format(time);
+  return time === null ? t("common.missing") : localFormatters().date.format(time);
 }
 
 export function formatNumber(value) {
-  return numberFormatter.format(value);
+  return localFormatters().number.format(value);
 }
 
 export function normalizeTicket(ticket) {

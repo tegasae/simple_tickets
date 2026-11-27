@@ -8,13 +8,15 @@ import DirectoryActions from "../features/admin/DirectoryActions.jsx";
 import DirectoryPage from "../features/admin/DirectoryPage.jsx";
 import { canDirectory, DIRECTORIES } from "../features/admin/directoryModel.js";
 import { useDirectoryMutations } from "../features/admin/useDirectoryMutations.js";
+import AppearanceControls from "../features/appearance/AppearanceControls.jsx";
+import { useAppearance } from "../features/appearance/useAppearance.js";
 import TicketPage from "../features/tickets/TicketPage.jsx";
 import { CloseDraftDialog, NewTicketPage, RelatedPage, WorkTabs } from "../features/tickets/WorkPages.jsx";
 import { useNewTicket } from "../features/tickets/useNewTicket.js";
 import { useTicketWork } from "../features/tickets/useTicketWork.js";
 import { availableActions } from "../features/tickets/workflow/policy.js";
 import { allowedFields, canCreateTicket, canPostComment, hasEdits, hasNewDraft, hasWorkflowInput, isDirty } from "../features/tickets/workspaceState.js";
-import { errorText, t } from "../shared/i18n/messages.js";
+import { errorText, getMessageRevision, subscribeMessages, t } from "../shared/i18n/messages.js";
 import { ErrorPanel, RouteLink, Shell, StatePanel } from "./layout.jsx";
 import LoginPage from "./LoginPage.jsx";
 import { directoryPath, queuePath, readRoute, ticketPath } from "./routes.js";
@@ -68,7 +70,7 @@ function TicketResource({ api, route, work, record, onBackRelated, ...props }) {
   return <TicketPage id={id} result={result} work={work} record={record} {...props} />;
 }
 
-function Workspace({ session, snapshot, route, navigate }) {
+function Workspace({ session, snapshot, route, navigate, appearance }) {
   const api = useMemo(() => createTicketsApi(session), [session]);
   const referencesApi = useMemo(() => createReferencesApi(session), [session]);
   const directoryApi = useMemo(() => createDirectoryApi(session), [session]);
@@ -127,11 +129,10 @@ function Workspace({ session, snapshot, route, navigate }) {
     }
   }, [route, navigate, canCreate, canView, directories.length, home, checkingPermissions]);
 
-  useEffect(() => {
-    const key = directoryRoute ? DIRECTORIES[directoryRoute.resource].labelKey
-      : route.page === "newTicket" ? "work.newTicket" : ticket ? "ticket.title" : "queue.title";
-    document.title = `${t(key)} · ${t("app.name")}`;
-  }, [route.page, ticket, directoryRoute?.resource]);
+  const titleKey = directoryRoute ? DIRECTORIES[directoryRoute.resource].labelKey
+    : route.page === "newTicket" ? "work.newTicket" : ticket ? "ticket.title" : "queue.title";
+  const title = `${t(titleKey)} · ${t("app.name")}`;
+  useEffect(() => { document.title = title; }, [title]);
 
   useLayoutEffect(() => {
     const previous = previousRoute.current;
@@ -325,7 +326,7 @@ function Workspace({ session, snapshot, route, navigate }) {
 
   return <Shell canView={canView && !checkingPermissions} canCreate={canCreate && !checkingPermissions}
     directoryLinks={checkingPermissions ? [] : directories} activeDirectory={directoryRoute?.resource} queueHref={queueHref} navigate={navigate}
-    storageAvailable={snapshot.storageAvailable} onLogout={() => session.logout()}>
+    appearance={appearance} storageAvailable={snapshot.storageAvailable} onLogout={() => session.logout()}>
     {canView && !checkingPermissions && <WorkTabs ids={work.openIds} activeId={ticket} record={work.record} navigate={navigate} requestClose={requestClose} />}
     {canView && !checkingPermissions && route.page === "queue" && removedTicket && <p role="status">{t("workflow.ticketRemoved", { id: removedTicket })}</p>}
     {content}
@@ -337,8 +338,15 @@ function Workspace({ session, snapshot, route, navigate }) {
 
 export default function App({ session }) {
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot);
+  useSyncExternalStore(subscribeMessages, getMessageRevision);
+  const appearanceSettings = useAppearance();
+  const appearance = <AppearanceControls {...appearanceSettings} />;
   const [booting, setBooting] = useState(true);
   const [route, setRoute] = useState(currentRoute);
+  const idleTitle = t("app.name");
+  useEffect(() => {
+    if (booting || snapshot.phase === "restoring" || snapshot.phase === "error") document.title = idleTitle;
+  }, [booting, snapshot.phase, idleTitle]);
 
   useEffect(() => {
     let active = true;
@@ -372,6 +380,7 @@ export default function App({ session }) {
       </main>
     );
   }
-  if (snapshot.phase !== "authenticated") return <LoginPage snapshot={snapshot} session={session} />;
-  return <Workspace key={snapshot.actorId ?? "admin"} session={session} snapshot={snapshot} route={route} navigate={navigate} />;
+  if (snapshot.phase !== "authenticated") return <LoginPage snapshot={snapshot} session={session} appearance={appearance} />;
+  return <Workspace key={snapshot.actorId ?? "admin"} session={session} snapshot={snapshot} route={route} navigate={navigate}
+    appearance={appearance} />;
 }

@@ -20,7 +20,7 @@ export function Brand({ subtitle = "app.workspace" }) {
   );
 }
 
-export function Shell({ queueHref, navigate, canView, canCreate, directoryLinks, activeDirectory, storageAvailable, onLogout, children }) {
+export function Shell({ queueHref, navigate, canView, canCreate, directoryLinks, activeDirectory, appearance, storageAvailable, onLogout, children }) {
   return (
     <>
       <a className="skip-link" href="#workspace">{t("app.skip")}</a>
@@ -35,6 +35,7 @@ export function Shell({ queueHref, navigate, canView, canCreate, directoryLinks,
                 aria-current={activeDirectory === resource ? "true" : undefined} className="nav-link">{t(labelKey)}</RouteLink>)}
             </nav>
           )}
+          {appearance}
           <button className="btn logout" type="button" onClick={onLogout}>{t("session.logout")}</button>
         </div>
       </header>

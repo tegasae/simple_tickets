@@ -2,15 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { Brand } from "./layout.jsx";
 import { errorText, t } from "../shared/i18n/messages.js";
 
-export default function LoginPage({ snapshot, session }) {
+export default function LoginPage({ snapshot, session, appearance }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [clearedError, setClearedError] = useState(null);
   const loginField = useRef(null);
+  const title = `${t("login.title")} · ${t("app.name")}`;
+  useEffect(() => { document.title = title; }, [title]);
   useEffect(() => {
-    document.title = `${t("login.title")} · ${t("app.name")}`;
     if (document.activeElement === document.body) loginField.current?.focus();
   }, []);
 
@@ -44,6 +45,7 @@ export default function LoginPage({ snapshot, session }) {
     <main className="login-page">
       <section className="login-card">
         <Brand />
+        {appearance}
         <h1>{t("login.title")}</h1>
         <form className="login-form" onSubmit={submit}>
           <label htmlFor="username">{t("login.username")}</label>

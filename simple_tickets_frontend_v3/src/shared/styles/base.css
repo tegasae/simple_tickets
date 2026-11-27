@@ -1,23 +1,11 @@
+@import './themes.css';
+
 * { box-sizing: border-box; }
 
 :root {
   font-family: Arial, Helvetica, sans-serif;
-  color-scheme: light;
-  --bg: #f4f6f8;
-  --panel: #fff;
-  --panel-soft: #f6f8fb;
-  --text: #20242a;
-  --muted: #49576b;
-  --line: #d4d9e2;
-  --line-strong: #73839a;
-  --accent: #245bc6;
-  --accent-dark: #153e94;
-  --accent-soft: #eaf1fe;
-  --danger: #9b231b;
-  --danger-soft: #fff1ef;
-  --radius: 12px;
-  --radius-sm: 8px;
-  --control-height: 40px;
+  color-scheme: var(--scheme);
+  accent-color: var(--accent);
 }
 
 html, body, #root { min-height: 100%; margin: 0; }
@@ -29,8 +17,7 @@ a { color: var(--accent-dark); text-underline-offset: .18em; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled, button[aria-disabled="true"] { cursor: not-allowed; opacity: .58; }
-button[aria-disabled="true"]:hover { background: var(--panel); border-color: var(--line-strong); }
-:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 input, select {
   width: 100%;
   min-width: 0;
@@ -41,6 +28,7 @@ input, select {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
 }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 
 .btn {
   display: inline-flex;
@@ -54,9 +42,9 @@ input, select {
   color: var(--text);
   text-align: center;
 }
-.btn:hover:not(:disabled) { border-color: var(--accent); background: var(--panel-soft); }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn-primary:hover:not(:disabled) { background: var(--accent-dark); color: #fff; }
+.btn:hover:not(:disabled):not([aria-disabled="true"]) { border-color: var(--focus); background: var(--panel-soft); }
+.btn-primary { background: var(--accent); border-color: var(--focus); color: var(--on-accent); }
+.btn-primary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--accent-hover); color: var(--on-accent); }
 .btn-quiet { border-color: transparent; color: var(--accent-dark); background: transparent; }
 .muted { color: var(--muted); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -83,8 +71,8 @@ input, select {
   flex: 0 0 2.4rem;
   height: 2.4rem;
   font-weight: 700;
-  color: #fff;
-  background: var(--accent-dark);
+  color: var(--on-accent);
+  background: var(--accent-hover);
   border-radius: var(--radius-sm);
 }
 .brand strong, .brand div span { display: block; }
@@ -112,7 +100,7 @@ input, select {
   background: var(--panel);
   text-decoration: none;
 }
-.queue-tab[aria-current] { color: var(--accent-dark); border-color: var(--accent); font-weight: 600; background: var(--accent-soft); }
+.queue-tab[aria-current] { color: var(--accent-dark); border-color: var(--focus); font-weight: 600; background: var(--accent-soft); }
 .queue-controls { display: grid; gap: .7rem; padding: .95rem; }
 .search-form { display: grid; gap: .35rem; width: min(100%, 37rem); }
 .search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
@@ -121,7 +109,7 @@ input, select {
 .filter-field, .page-size { display: grid; gap: .2rem; }
 .active-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
 .search-value { max-width: 100%; overflow-wrap: anywhere; color: var(--muted); }
-.filter-chip { color: var(--accent-dark); background: var(--accent-soft); min-height: 34px; padding: .3rem .6rem; border: 1px solid var(--accent); border-radius: var(--radius-sm); }
+.filter-chip { color: var(--accent-dark); background: var(--accent-soft); min-height: 34px; padding: .3rem .6rem; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); }
 
 .table-wrap { overflow-x: auto; }
 .table-hint { display: none; padding: 0 .65rem .55rem; color: var(--muted); font-size: .85rem; }
@@ -157,7 +145,7 @@ tr:hover td, tr:focus-within td { background: var(--panel-soft); }
 .metadata dt { color: var(--muted); }
 .metadata dd { margin: 0; font-weight: 600; }
 .history-controls { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .75rem; }
-.history-controls [aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-dark); }
+.history-controls [aria-pressed="true"] { background: var(--accent-soft); border-color: var(--focus); color: var(--accent-dark); }
 .timeline { list-style: none; margin: 0; padding: 0; }
 .timeline li { padding: .55rem 0; border-top: 1px solid var(--line); }
 .timeline li div { display: flex; flex-wrap: wrap; gap: .25rem .75rem; }
@@ -166,7 +154,7 @@ tr:hover td, tr:focus-within td { background: var(--panel-soft); }
 .work-tabs { margin-bottom: 1rem; }
 .work-tabs ul { display: flex; flex-wrap: wrap; gap: .4rem; padding: 0; margin: 0; list-style: none; }
 .work-tab { display: inline-flex; min-width: 0; max-width: 100%; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); }
-.work-tab:has([aria-current]) { background: var(--accent-soft); border-color: var(--accent); }
+.work-tab:has([aria-current]) { background: var(--accent-soft); border-color: var(--focus); }
 .work-tab-link { display: flex; gap: .5rem; align-items: center; min-width: 0; min-height: var(--control-height); padding: .35rem .5rem .35rem .7rem; color: var(--accent-dark); font-size: .94rem; }
 .work-tab-link span:first-child { max-width: clamp(14ch, 24vw, 32ch); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .work-tab-close { flex: 0 0 2.35rem; min-height: var(--control-height); border: 0; border-left: 1px solid var(--line); background: transparent; color: var(--text); }
@@ -174,7 +162,7 @@ tr:hover td, tr:focus-within td { background: var(--panel-soft); }
 .ticket-edit-button { margin-inline-start: .6rem; }
 .ticket-edit-panel { margin-bottom: .8rem; }
 .work-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: 1rem; }
-.draft-dialog { width: min(calc(100% - 2rem), 33rem); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.2rem; color: var(--text); }
+.draft-dialog { width: min(calc(100% - 2rem), 33rem); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.2rem; color: var(--text); background: var(--panel); }
 .draft-dialog::backdrop { background: rgb(18 30 47 / .54); }
 .confirmation-dialog { overflow-wrap: anywhere; }
 .confirmation-dialog .work-actions { justify-content: flex-end; }

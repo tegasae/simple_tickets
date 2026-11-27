@@ -5,7 +5,7 @@ import { normalizeStatus } from "./model.js";
 import { allowedFields, canPostComment, hasEdits, isUnknownWrite, operationKey, withinReplayWindow } from "./workspaceState.js";
 import { availableActions } from "./workflow/policy.js";
 import { confirmsWorkflow, sameWorkflowHistory, sameWorkflowState } from "./workflow/receipts.js";
-import { errorText, t } from "../../shared/i18n/messages.js";
+import { errorKey } from "../../shared/i18n/messages.js";
 
 const emptyRecord = Object.freeze({
   title: "", status: "", closed: false, revision: 0, history: false,
@@ -269,7 +269,7 @@ export function useTicketWork(api, session, canView, permissions, onChanged, { w
     const controller = start(id);
     if (!controller) return;
     const signal = workflowApi.bindSignal(controller.signal);
-    const feedback = (status, key) => ({ status, message: t(key) });
+    const feedback = (status, key) => ({ status, message: { key } });
     let intent = null;
     update(id, { workflowFeedback: null });
     try {
@@ -329,14 +329,14 @@ export function useTicketWork(api, session, canView, permissions, onChanged, { w
       if (!current(id, controller) || signal.aborted) return;
       if (pending?.action === "deleteTicket") {
         remember(id, latest);
-        update(id, { workflowFeedback: { status: "unconfirmed", message: t("workflow.deleteStillUnconfirmed") } });
+        update(id, { workflowFeedback: { status: "unconfirmed", message: { key: "workflow.deleteStillUnconfirmed" } } });
         return;
       }
       const observed = pending && confirmsWorkflow(latest, pending.before, pending.action, pending.payload, actorId);
       const unchanged = pending && !observed && sameWorkflowHistory(pending.before, latest);
-      const feedback = observed ? { status: "success", message: t("workflow.observed") }
-        : pending ? { status: "unconfirmed", message: t(unchanged ? "workflow.stillUnconfirmed" : "workflow.differentState") }
-          : { status: "success", message: t("workflow.reloaded") };
+      const feedback = observed ? { status: "success", message: { key: "workflow.observed" } }
+        : pending ? { status: "unconfirmed", message: { key: unchanged ? "workflow.stillUnconfirmed" : "workflow.differentState" } }
+          : { status: "success", message: { key: "workflow.reloaded" } };
       remember(id, latest);
       update(id, (entry) => ({
         ...entry, workflowFeedback: feedback,
@@ -352,7 +352,7 @@ export function useTicketWork(api, session, canView, permissions, onChanged, { w
           onChanged();
           return true;
         }
-        update(id, { workflowFeedback: { status: pending ? "unconfirmed" : "conflict", message: errorText(error) } });
+        update(id, { workflowFeedback: { status: pending ? "unconfirmed" : "conflict", message: { key: errorKey(error) } } });
         reportError(error);
       }
     } finally {

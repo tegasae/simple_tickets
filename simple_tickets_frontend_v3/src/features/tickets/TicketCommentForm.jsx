@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from "react";
-import { t } from "../../shared/i18n/messages.js";
+import { renderMessage, t } from "../../shared/i18n/messages.js";
 import "./fields.css";
 
 const MAX_COMMENT_LENGTH = 1000;
@@ -18,7 +18,7 @@ export default function TicketCommentForm({
   const errorId = `${inputId}-error`;
   const field = useRef(null);
   const [validation, setValidation] = useState("");
-  const problem = validation || error;
+  const problem = renderMessage(validation) || error;
 
   function submit(event) {
     event.preventDefault();
@@ -26,8 +26,8 @@ export default function TicketCommentForm({
     const comment = value.trim();
     if (!comment || Array.from(comment).length > MAX_COMMENT_LENGTH) {
       setValidation(!comment
-        ? t("ticketForm.commentRequired")
-        : t("ticketForm.commentLength", { max: MAX_COMMENT_LENGTH }));
+        ? { key: "ticketForm.commentRequired" }
+        : { key: "ticketForm.commentLength", params: { max: MAX_COMMENT_LENGTH } });
       field.current?.focus();
       return;
     }

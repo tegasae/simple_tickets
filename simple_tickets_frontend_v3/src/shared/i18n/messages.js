@@ -1,13 +1,16 @@
 import { fieldMessages } from "../../features/tickets/fieldMessages.js";
 import { workflowMessages } from "../../features/tickets/workflow/workflowMessages.js";
 import { directoryMessages } from "../../features/admin/directoryMessages.js";
+import { appearanceMessages } from "../../features/appearance/appearanceMessages.js";
 
-export const locale = "ru-RU";
+export const DEFAULT_LOCALE = "ru-RU";
+export let locale = DEFAULT_LOCALE;
 
-const messages = Object.freeze({
+export const referenceMessages = Object.freeze({
   ...fieldMessages,
   ...workflowMessages,
   ...directoryMessages,
+  ...appearanceMessages,
   "app.name": "Simple Tickets",
   "app.mark": "ST",
   "app.workspace": "Рабочее место сотрудника",
@@ -220,16 +223,124 @@ const messages = Object.freeze({
   "urgency.maintenance": "Обслуживание",
 });
 
+const PLACEHOLDER = /\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
+const listeners = new Set();
+let overrides = Object.freeze(Object.create(null));
+let revision = 0;
+
+function isRecord(value) {
+  if (value === null || typeof value !== "object") return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function hasExactFields(value, fields) {
+  return isRecord(value) && Object.keys(value).length === fields.length &&
+    fields.every((field) => Object.hasOwn(value, field));
+}
+
+function isLocaleId(value) {
+  if (typeof value !== "string" || value.length > 63 || !/^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/.test(value)) return false;
+  try {
+    return Intl.getCanonicalLocales(value)[0] === value;
+  } catch {
+    return false;
+  }
+}
+
+export function validateLanguageCatalog(raw) {
+  if (!hasExactFields(raw, ["version", "defaultLanguage", "languages"]) || raw.version !== 1 ||
+      !isLocaleId(raw.defaultLanguage) || !Array.isArray(raw.languages)) return null;
+
+  const seen = new Set();
+  const languages = [];
+  for (const language of raw.languages) {
+    if (!hasExactFields(language, ["id", "label"]) || !isLocaleId(language.id) || seen.has(language.id) ||
+        typeof language.label !== "string" || !language.label.trim() || language.label.length > 100 ||
+        /\p{Cc}/u.test(language.label)) return null;
+    seen.add(language.id);
+    languages.push(Object.freeze({ id: language.id, label: language.label.trim() }));
+  }
+  if (!seen.has(raw.defaultLanguage)) return null;
+  return Object.freeze({ defaultLanguage: raw.defaultLanguage, languages: Object.freeze(languages) });
+}
+
+function placeholderNames(text) {
+  const names = new Set();
+  const literal = text.replace(PLACEHOLDER, (_, name) => {
+    names.add(name);
+    return "";
+  });
+  return /[{}]/.test(literal) ? null : names;
+}
+
+function hasMatchingPlaceholders(key, value) {
+  const expected = placeholderNames(referenceMessages[key]);
+  const actual = placeholderNames(value);
+  return expected !== null && actual !== null && expected.size === actual.size &&
+    [...expected].every((name) => actual.has(name));
+}
+
+function validMessages(raw, omitDefaults = false) {
+  const clean = Object.create(null);
+  if (isRecord(raw)) {
+    for (const [key, value] of Object.entries(raw)) {
+      if (Object.hasOwn(referenceMessages, key) && typeof value === "string" && value.trim() &&
+          (!omitDefaults || value !== referenceMessages[key]) && hasMatchingPlaceholders(key, value)) {
+        clean[key] = value;
+      }
+    }
+  }
+  return Object.freeze(clean);
+}
+
+export function validateDictionary(raw, expectedId) {
+  if (!hasExactFields(raw, ["version", "language", "messages"]) || raw.version !== 1 ||
+      !isLocaleId(expectedId) || raw.language !== expectedId || !isRecord(raw.messages)) return null;
+  return validMessages(raw.messages);
+}
+
+export function getMessageRevision() {
+  return revision;
+}
+
+export function subscribeMessages(listener) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function applyMessages(language, dictionary) {
+  const validLanguage = isLocaleId(language);
+  const nextLocale = validLanguage ? language : DEFAULT_LOCALE;
+  const next = validMessages(validLanguage ? dictionary : null, true);
+  const keys = Object.keys(next);
+  if (nextLocale === locale && keys.length === Object.keys(overrides).length &&
+      keys.every((key) => next[key] === overrides[key])) return false;
+
+  locale = nextLocale;
+  overrides = next;
+  revision += 1;
+  for (const listener of listeners) listener();
+  return true;
+}
+
 export function t(key, parameters = {}, fallback = key) {
-  const message = Object.hasOwn(messages, key) ? messages[key] : fallback;
-  return message.replace(/\{(\w+)\}/g, (placeholder, name) =>
-    Object.hasOwn(parameters, name) ? String(parameters[name]) : placeholder,
+  const message = overrides[key] ?? (Object.hasOwn(referenceMessages, key) ? referenceMessages[key] : fallback);
+  return message.replace(PLACEHOLDER, (placeholder, name) =>
+    parameters != null && Object.hasOwn(parameters, name) ? String(parameters[name]) : placeholder,
   );
 }
 
-export function errorText(error) {
-  if (error?.code === "timeout") return t("error.timeout");
-  if (error?.code === "network" || error?.status === 0) return t("error.network");
-  if (error?.status === 503) return t("error.busy");
-  return t("error.generic");
+export function renderMessage(value) {
+  if (typeof value === "string") return value;
+  return typeof value?.key === "string" ? t(value.key, value.params) : "";
 }
+
+export function errorKey(error) {
+  if (error?.code === "timeout") return "error.timeout";
+  if (error?.code === "network" || error?.status === 0) return "error.network";
+  if (error?.status === 503) return "error.busy";
+  return "error.generic";
+}
+
+export const errorText = (error) => t(errorKey(error));

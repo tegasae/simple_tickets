@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { ConfirmationDialog } from "../../../app/layout.jsx";
-import { t } from "../../../shared/i18n/messages.js";
+import { renderMessage, t } from "../../../shared/i18n/messages.js";
 import { normalizeStatus } from "../model.js";
 import { allowedExecutors, availableActions, defaultWorkMode, workModes } from "./policy.js";
 import "./workflow.css";
@@ -59,7 +59,7 @@ function Field({ label, name, error, hint, required, children }) {
         "aria-describedby": describedBy || undefined,
       })}
       {hint && <p id={`${id}-hint`} className="workflow-hint">{hint}</p>}
-      {error && <p id={`${id}-error`} className="field-error">{error}</p>}
+      {error && <p id={`${id}-error`} className="field-error">{renderMessage(error)}</p>}
     </div>
   );
 }
@@ -169,15 +169,15 @@ function buildPayload(form, candidates, modes) {
   const comment = (form.comment ?? "").trim();
   const errors = {};
   const payload = comment ? { comment } : {};
-  if (REQUIRES_REASON.has(action) && !comment) errors.comment = t("workflow.reasonRequired");
+  if (REQUIRES_REASON.has(action) && !comment) errors.comment = { key: "workflow.reasonRequired" };
   else if (Array.from(comment).length > MAX_COMMENT_LENGTH) {
-    errors.comment = t("workflow.commentTooLong", { max: MAX_COMMENT_LENGTH });
+    errors.comment = { key: "workflow.commentTooLong", params: { max: MAX_COMMENT_LENGTH } };
   }
   if (action === ASSIGN) {
     if (candidates.some((admin) => admin.employee_id === form.executorId)) {
       payload.executor_id = form.executorId;
     } else {
-      errors.executorId = t("workflow.executorRequired");
+      errors.executorId = { key: "workflow.executorRequired" };
     }
   }
   if (modes.length) payload.work_is_remote = modes.length === 1 ? modes[0] : Boolean(form.remote);
@@ -185,9 +185,9 @@ function buildPayload(form, candidates, modes) {
     if (form.retroMode === "interval") {
       const start = readLocalTime(form.startLocal);
       const finish = readLocalTime(form.finishLocal);
-      if (!Number.isFinite(start)) errors.startLocal = t("workflow.invalidInterval");
+      if (!Number.isFinite(start)) errors.startLocal = { key: "workflow.invalidInterval" };
       else if (!Number.isFinite(finish) || finish <= start || finish > Date.now()) {
-        errors.finishLocal = t("workflow.invalidInterval");
+        errors.finishLocal = { key: "workflow.invalidInterval" };
       } else {
         payload.actual_started_at = new Date(start).toISOString();
         payload.actual_finished_at = new Date(finish).toISOString();
@@ -196,11 +196,11 @@ function buildPayload(form, candidates, modes) {
       const hours = Number(form.hours ?? "");
       const minutes = Number(form.minutes ?? "");
       const duration = hours * 3600 + minutes * 60;
-      if (!Number.isSafeInteger(hours) || hours < 0) errors.hours = t("workflow.invalidDuration");
+      if (!Number.isSafeInteger(hours) || hours < 0) errors.hours = { key: "workflow.invalidDuration" };
       else if (!Number.isSafeInteger(minutes) || minutes < 0 || minutes > 59) {
-        errors.minutes = t("workflow.invalidDuration");
+        errors.minutes = { key: "workflow.invalidDuration" };
       } else if (!Number.isSafeInteger(duration) || duration <= 0) {
-        errors.hours = t("workflow.invalidDuration");
+        errors.hours = { key: "workflow.invalidDuration" };
       } else {
         payload.duration = duration;
       }
@@ -248,7 +248,7 @@ function ActionForm({
       aria-labelledby={`${id}-heading`} aria-busy={busy}>
       <h3 id={`${id}-heading`} tabIndex={-1} ref={heading}>{t(`workflow.${action}`)}</h3>
       <p>{t(`workflow.${action}.help`)}</p>
-      <p className="visually-hidden" aria-live="assertive" aria-atomic="true">{Object.values(errors)[0] ?? ""}</p>
+      <p className="visually-hidden" aria-live="assertive" aria-atomic="true">{renderMessage(Object.values(errors)[0])}</p>
       {!allowed && <p role="status" className="workflow-hint">{t("workflow.actionUnavailable")}</p>}
       {action === ASSIGN && (
         <ExecutorField catalog={catalog} candidates={candidates} value={form.executorId}
@@ -377,7 +377,7 @@ export default function WorkflowPanel({
       {feedback && (
         <div className="workflow-feedback" data-error={feedback.status !== "success" || undefined}>
           <p role={feedback.status === "success" ? "status" : "alert"}>
-            {feedback.message || t(FEEDBACK_KEYS[feedback.status] ?? "error.generic")}
+            {renderMessage(feedback.message) || t(FEEDBACK_KEYS[feedback.status] ?? "error.generic")}
           </p>
           {blocked && onReload && (
             <button className="btn workflow-retry" type="button" aria-disabled={busy}

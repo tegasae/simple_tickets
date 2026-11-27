@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "defaultTheme": "classic",
+  "themes": [
+    {
+      "id": "classic",
+      "label": "Классика",
+      "tokens": {
+        "--bg": "#f4f6f8",
+        "--panel": "#ffffff",
+        "--panel-soft": "#f6f8fb",
+        "--text": "#20242a",
+        "--muted": "#49576b",
+        "--line": "#d4d9e2",
+        "--line-strong": "#73839a",
+        "--accent": "#245bc6",
+        "--accent-dark": "#153e94",
+        "--accent-soft": "#eaf1fe",
+        "--danger": "#9b231b",
+        "--danger-soft": "#fff1ef",
+        "--on-accent": "#ffffff",
+        "--focus": "#245bc6",
+        "--accent-hover": "#153e94",
+        "--radius": "12px",
+        "--radius-sm": "8px",
+        "--control-height": "40px",
+        "--scheme": "light"
+      }
+    },
+    {
+      "id": "onec",
+      "label": "1С 8.3",
+      "tokens": {
+        "--bg": "#ece9dc",
+        "--panel": "#f5f4ed",
+        "--panel-soft": "#e7e4d7",
+        "--text": "#1e1e1e",
+        "--muted": "#555555",
+        "--line": "#aaa696",
+        "--line-strong": "#7b735b",
+        "--accent": "#f1c34c",
+        "--accent-dark": "#5b450d",
+        "--accent-soft": "#faebba",
+        "--danger": "#a11e15",
+        "--danger-soft": "#fff0e8",
+        "--on-accent": "#2e250b",
+        "--focus": "#654516",
+        "--accent-hover": "#e3ae2e",
+        "--radius": "3px",
+        "--radius-sm": "2px",
+        "--control-height": "40px",
+        "--scheme": "light"
+      }
+    },
+    {
+      "id": "futuristic",
+      "label": "Футуризм",
+      "tokens": {
+        "--bg": "#050713",
+        "--panel": "#10162e",
+        "--panel-soft": "#182241",
+        "--text": "#edf6ff",
+        "--muted": "#a1b4d0",
+        "--line": "#36476e",
+        "--line-strong": "#7f94bb",
+        "--accent": "#00e5ff",
+        "--accent-dark": "#b6a8ff",
+        "--accent-soft": "#24264c",
+        "--danger": "#ff80aa",
+        "--danger-soft": "#3e1a39",
+        "--on-accent": "#071425",
+        "--focus": "#79e9ff",
+        "--accent-hover": "#6bf0ff",
+        "--radius": "22px",
+        "--radius-sm": "14px",
+        "--control-height": "44px",
+        "--scheme": "dark"
+      }
+    },
+    {
+      "id": "barbie",
+      "label": "Barbie",
+      "tokens": {
+        "--bg": "#fff0f8",
+        "--panel": "#ffffff",
+        "--panel-soft": "#fff5fb",
+        "--text": "#4b1838",
+        "--muted": "#794563",
+        "--line": "#e8b0cd",
+        "--line-strong": "#a5547f",
+        "--accent": "#f43f9e",
+        "--accent-dark": "#921056",
+        "--accent-soft": "#fce2f0",
+        "--danger": "#a51a40",
+        "--danger-soft": "#fff0f2",
+        "--on-accent": "#241322",
+        "--focus": "#a70b63",
+        "--accent-hover": "#ff75bc",
+        "--radius": "24px",
+        "--radius-sm": "14px",
+        "--control-height": "44px",
+        "--scheme": "light"
+      }
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { RouteLink, StatePanel } from "../../app/layout.jsx";
 import { directoryPath } from "../../app/routes.js";
 import { useRemoteData } from "../../app/useRemoteData.js";
-import { errorText, locale, t } from "../../shared/i18n/messages.js";
+import { errorText, locale, renderMessage, t } from "../../shared/i18n/messages.js";
 import { formatDateTime } from "../tickets/model.js";
 import { canDirectory, DIRECTORIES, directoryFormValues, directoryLabel } from "./directoryModel.js";
 import "./directory.css";
@@ -393,7 +393,8 @@ function DirectoryEditor({
   const localErrors = Array.isArray(feedback?.fields)
     ? Object.fromEntries(feedback.fields.map((field) => [field, t("directory.validation")]))
     : feedback?.fields ?? {};
-  const errors = { ...localErrors, ...issues };
+  const errors = Object.fromEntries(Object.entries({ ...localErrors, ...issues })
+    .map(([name, problem]) => [name, renderMessage(problem)]));
   const title = t(creating ? `directory.create.${resource}` : "directory.editTitle");
 
   useEffect(() => {
@@ -423,18 +424,18 @@ function DirectoryEditor({
       const name = field.name;
       const value = values[name];
       if (field.type === "permissions") {
-        if (!Array.isArray(value) || !value.length) problems[name] = t("directory.requirePermission");
+        if (!Array.isArray(value) || !value.length) problems[name] = { key: "directory.requirePermission" };
       } else if (referenceResources[name]) {
         const choices = references[name];
         if ((field.required || value > 0)
           && (choices?.phase !== "ready" || !choices.data.some((row) => row[name] === value && row.enabled))) {
-          problems[name] = t("directory.requireChoice");
+          problems[name] = { key: "directory.requireChoice" };
         }
       } else if (field.required && !String(value ?? "").trim()) {
-        problems[name] = t("directory.required");
+        problems[name] = { key: "directory.required" };
       } else if (["name", "first_name", "last_name"].includes(name) && String(value ?? "").trim()) {
         const length = Array.from(value.trim()).length;
-        if (length < 2 || length > 100) problems[name] = t("directory.nameLength");
+        if (length < 2 || length > 100) problems[name] = { key: "directory.nameLength" };
       }
     }
     return problems;
@@ -454,7 +455,7 @@ function DirectoryEditor({
         else if (creating) {
           setValues(directoryFormValues(resource, "create"));
           setLocalFeedback({
-            ...result, message: t(savedId ? "directory.issuedId" : "directory.created", { id: savedId }),
+            ...result, message: { key: savedId ? "directory.issuedId" : "directory.created", params: { id: savedId } },
           });
           heading.current?.focus();
         }
@@ -516,7 +517,7 @@ function DirectoryEditor({
     setBaseline(conflict.latest);
     setConflict(null);
     setIssues({});
-    setLocalFeedback({ status: "success", message: t("directory.rebased") });
+    setLocalFeedback({ status: "success", message: { key: "directory.rebased" } });
     onClearConflict?.();
     heading.current?.focus();
   }
@@ -528,7 +529,7 @@ function DirectoryEditor({
       <div className="panel detail-panel">
         {feedback && <div className="directory-feedback">
           <p role={feedback.status === "success" ? "status" : "alert"}>
-            {feedback.message || t(feedbackKeys[feedback.status] ?? "error.generic")}
+            {renderMessage(feedback.message) || t(feedbackKeys[feedback.status] ?? "error.generic")}
           </p>
           {feedback.status === "unconfirmed" && canRead && onCheckWrite && <button className="btn directory-retry"
             type="button" aria-disabled={mutating}

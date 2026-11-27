@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { ConfirmationDialog } from "../../app/layout.jsx";
 import { directoryPath } from "../../app/routes.js";
 import { useRemoteData } from "../../app/useRemoteData.js";
-import { t } from "../../shared/i18n/messages.js";
+import { renderMessage, t } from "../../shared/i18n/messages.js";
 import { canDirectory, canDirectoryAction, directoryLabel } from "./directoryModel.js";
 
 function CommandPanel({ action, label, busy, canSubmit = true, onSubmit, onCancel, children }) {
@@ -179,7 +179,7 @@ export default function DirectoryActions({ api, mutations, resource, id, record,
   return <section className="panel directory-actions-panel" aria-label={t("directory.actionsTitle")}>
     <h2>{t("directory.actionsTitle")}</h2>
     {feedback && <div className="directory-action-feedback">
-      <p role={["success", "notice"].includes(feedback.status) ? "status" : "alert"}>{feedback.message}</p>
+      <p role={["success", "notice"].includes(feedback.status) ? "status" : "alert"}>{renderMessage(feedback.message)}</p>
       {passwordPending && <button type="button" className="btn" disabled={busy}
         onClick={() => mutations.stopPasswordCheck(resource, id)}>{t("directory.passwordStopCheck")}</button>}
       {!passwordPending && feedback.status === "unconfirmed" && <button type="button" className="btn" disabled={busy}

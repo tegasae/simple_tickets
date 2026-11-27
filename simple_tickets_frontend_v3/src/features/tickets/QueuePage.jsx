@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { ErrorPanel, RouteLink, StatePanel } from "../../app/layout.jsx";
 import { queueOptions, queuePath, sizeOptions } from "../../app/routes.js";
-import { t } from "../../shared/i18n/messages.js";
+import { getMessageRevision, t } from "../../shared/i18n/messages.js";
 import { formatDateTime, formatNumber, normalizeTicket, paginate, selectTickets, statusLabel, urgencyLabel } from "./model.js";
 
 function SortHeading({ column, route, updateRoute }) {
@@ -22,9 +22,10 @@ export default function QueuePage({
   route, result, navigate, updateRoute, criteria, setCriteria, openTicket, returnFocus, onFocusRestored, canHotline,
 }) {
   const rows = useMemo(() => (result.data ?? []).map(normalizeTicket), [result.data]);
+  const messages = getMessageRevision();
   const { search, status, urgency } = criteria;
   const filtered = useMemo(() => selectTickets(rows, { search, status, urgency, sort: route.sort }),
-    [rows, search, status, urgency, route.sort]);
+    [rows, search, status, urgency, route.sort, messages]);
   const page = paginate(filtered, route.number, route.size);
   const hasRows = filtered.length > 0;
   const range = hasRows ? t("queue.range", {

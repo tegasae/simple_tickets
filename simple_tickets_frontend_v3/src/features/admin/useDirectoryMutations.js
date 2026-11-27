@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/transport.js";
-import { errorText, t } from "../../shared/i18n/messages.js";
+import { errorKey } from "../../shared/i18n/messages.js";
 import { isUnknownWrite, operationKey, withinReplayWindow } from "../tickets/workspaceState.js";
 import { canDirectory, canDirectoryAction, directoryFormValues, directoryPayload, DIRECTORIES } from "./directoryModel.js";
 
@@ -28,8 +28,8 @@ function snapshotFields(resource, record) {
     .map((key) => [key, record[key]]));
 }
 
-function feedback(status, key, extra) {
-  return { status, message: t(key), ...extra };
+function feedback(status, key, extra, params) {
+  return { status, message: { key, params }, ...extra };
 }
 
 function expectedCommand(action, data) {
@@ -127,7 +127,7 @@ export function useDirectoryMutations(api, session, onChanged) {
       } else if (error?.status === 400 && request?.removing) {
         result = feedback("rejected", "directory.deleteBlocked");
       } else {
-        result = { status: "rejected", message: error?.status === 403 ? t("work.writeForbidden") : errorText(error) };
+        result = feedback("rejected", error?.status === 403 ? "work.writeForbidden" : errorKey(error));
       }
       if (!ownPermissions && denied) {
         void session.reloadPermissions().catch(() => {});
@@ -249,15 +249,15 @@ export function useDirectoryMutations(api, session, onChanged) {
           const { roles, granted } = pending.expectation;
           const applied = roles.filter((id) => record.roles.includes(id) === granted);
           const remaining = roles.filter((id) => !applied.includes(id));
-          result = { status: "unconfirmed", record, message: t(applied.length ? "directory.rolesPartial" : "directory.rolesPending",
-            { applied: applied.join(", "), remaining: remaining.join(", ") }) };
+          result = feedback("unconfirmed", applied.length ? "directory.rolesPartial" : "directory.rolesPending", { record },
+            { applied: applied.join(", "), remaining: remaining.join(", ") });
         }
       }
     } catch (error) {
       if (pending.removing && error?.status === 404 && canDirectory(resource, "read", session.getSnapshot().permissions)) {
         result = feedback("success", "directory.recordMissing", { removed: true });
       } else {
-        result = { status: "unconfirmed", message: errorText(error) };
+        result = feedback("unconfirmed", errorKey(error));
       }
     } finally {
       finish(key, work.controller);

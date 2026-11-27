@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { locale, t } from "../../shared/i18n/messages.js";
+import { locale, renderMessage, t } from "../../shared/i18n/messages.js";
 import { urgencyLabel } from "./model.js";
 import "./fields.css";
 
@@ -258,7 +258,8 @@ export default function TicketFields({
     option(row, row.employee_id, [row.first_name, row.last_name].filter(Boolean).join(" ")));
   const departmentOptions = departments.rows.map((row) => option(row, row.department_id, row.name));
   const requiredContact = !creating && values.user_id > 0;
-  const issues = { ...fieldErrors, ...validation };
+  const issues = Object.fromEntries(Object.entries({ ...fieldErrors, ...validation })
+    .map(([name, problem]) => [name, renderMessage(problem)]));
   const hasIssues = Object.values(issues).some(Boolean);
 
   function update(name, value) {
@@ -269,7 +270,7 @@ export default function TicketFields({
       return next;
     });
     if (name === "client_id" && value !== values.client_id) {
-      setReferenceNotice(values.user_id || values.contact_user_id ? t("ticketForm.clientChanged") : "");
+      setReferenceNotice(values.user_id || values.contact_user_id ? "ticketForm.clientChanged" : "");
     }
     onChange(name, value);
   }
@@ -285,23 +286,23 @@ export default function TicketFields({
     const problems = {};
     if (creating) {
       if (!clientOptions.some((item) => item.id === values.client_id && item.enabled)) {
-        problems.client_id = t("ticketForm.clientRequired");
+        problems.client_id = { key: "ticketForm.clientRequired" };
       }
       const length = codePoints(values.text_of_ticket);
       if (length < 2 || length > MAX_TEXT_LENGTH) {
-        problems.text_of_ticket = t("ticketForm.subjectLength", { max: MAX_TEXT_LENGTH });
+        problems.text_of_ticket = { key: "ticketForm.subjectLength", params: { max: MAX_TEXT_LENGTH } };
       }
       if (codePoints(values.comment) > MAX_COMMENT_LENGTH) {
-        problems.comment = t("ticketForm.commentLength", { max: MAX_COMMENT_LENGTH });
+        problems.comment = { key: "ticketForm.commentLength", params: { max: MAX_COMMENT_LENGTH } };
       }
     }
     if (canOperate) {
       if (codePoints(values.description) > MAX_TEXT_LENGTH) {
-        problems.description = t("ticketForm.descriptionLength", { max: MAX_TEXT_LENGTH });
+        problems.description = { key: "ticketForm.descriptionLength", params: { max: MAX_TEXT_LENGTH } };
       }
-      if (requiredContact && !values.contact_user_id) problems.contact_user_id = t("ticketForm.chooseContact");
+      if (requiredContact && !values.contact_user_id) problems.contact_user_id = { key: "ticketForm.chooseContact" };
       if (elements.namedItem("planned_at")?.validity.badInput) {
-        problems.planned_at = t("ticketForm.invalidDate");
+        problems.planned_at = { key: "ticketForm.invalidDate" };
       }
     }
     setValidation(problems);
@@ -310,11 +311,12 @@ export default function TicketFields({
     else onSubmit();
   }
 
+  const invalidNames = Object.keys(fieldErrors).filter((name) => fieldErrors[name]).join(" ");
   useEffect(() => {
     if (busy || locked) return;
-    const name = Object.keys(fieldErrors).find((key) => fieldErrors[key] && form.current?.elements.namedItem(key));
+    const name = invalidNames.split(" ").find((key) => key && form.current?.elements.namedItem(key));
     if (name) form.current?.elements.namedItem(name)?.focus();
-  }, [fieldErrors, busy, locked]);
+  }, [invalidNames, busy, locked]);
 
   function catalogField(name, label, catalog, options, { required = false, extra } = {}) {
     const hint = catalog.phase === "ready" && !options.some((item) => item.enabled)
@@ -386,7 +388,7 @@ export default function TicketFields({
         </div>}
         {creating && textField("comment", t("ticketForm.comment"), 3)}
       </div>
-      <p className="visually-hidden" role="status" aria-atomic="true">{referenceNotice}</p>
+      <p className="visually-hidden" role="status" aria-atomic="true">{referenceNotice && t(referenceNotice)}</p>
       {(!hideSubmit || onCancel) && <div className="ticket-form-actions">
         {!hideSubmit && <button className="btn btn-primary" type="submit" aria-disabled={busy}>
           {busy ? t("ticketForm.saving") : submitLabel ?? t(creating ? "ticketForm.createSubmit" : "ticketForm.editSubmit")}

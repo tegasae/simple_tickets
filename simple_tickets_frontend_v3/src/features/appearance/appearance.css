@@ -1,0 +1,38 @@
+.appearance-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: .35rem .65rem;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.login-card .appearance-controls {
+  margin-block-start: 1rem;
+}
+
+.appearance-control {
+  display: grid;
+  gap: .2rem;
+  inline-size: clamp(7rem, 32vw, 10rem);
+  max-inline-size: 100%;
+  color: var(--muted);
+  font-size: .88rem;
+  overflow-wrap: anywhere;
+}
+
+.appearance-control select {
+  max-inline-size: 100%;
+  text-overflow: ellipsis;
+}
+
+.appearance-status {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: .88rem;
+  overflow-wrap: anywhere;
+}
+
+.appearance-status:empty {
+  position: absolute;
+}
