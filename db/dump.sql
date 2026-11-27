@@ -7,7 +7,7 @@ CREATE TABLE departments (
     version INTEGER NOT NULL DEFAULT 0,
     date_created TEXT
 );
-INSERT INTO departments VALUES(2,'Суппорт',1,41,'2026-07-27T16:02:50.257132');
+INSERT INTO departments VALUES(2,'Суппорт',1,42,'2026-07-27T16:02:50.257132');
 INSERT INTO departments VALUES(3,'1С',1,9,'2026-07-27T16:03:05.569976');
 INSERT INTO departments VALUES(5,'Веб',1,6,'2026-09-07T17:04:25.825200');
 INSERT INTO departments VALUES(8,'efref',1,4,'2026-10-06T17:32:04.774745');
@@ -24,10 +24,10 @@ CREATE TABLE employees (
 	version INTEGER NOT NULL DEFAULT 0,
 	is_admin INTEGER);
 INSERT INTO employees VALUES(122,'Alice','Brown','alice.brown@example.com','+1 555 100 9999','2026-05-19 13:29:27+00:00',NULL,1,12,1);
-INSERT INTO employees VALUES(181,'Тэга','','','','2026-09-08T14:11:07+00:00',NULL,1,16,1);
+INSERT INTO employees VALUES(181,'Тэга','','','','2026-09-08T14:11:07+00:00',NULL,1,19,1);
 INSERT INTO employees VALUES(184,'Роман','Новичихин','','','2026-09-09 12:45:17.526999+00:00',NULL,0,5,0);
 INSERT INTO employees VALUES(199,'Пользователь 1','','','','2026-09-15 14:20:02.897155+00:00',NULL,0,19,0);
-INSERT INTO employees VALUES(200,'Пользователь 2','','','','2026-09-15 15:29:01.063413+00:00',NULL,1,10,0);
+INSERT INTO employees VALUES(200,'Пользователь 2','','','','2026-09-15 15:29:01.063413+00:00',NULL,1,11,0);
 INSERT INTO employees VALUES(210,'Пользователь 1 клиента 2','','','','2026-10-01 18:41:33.728954+00:00',NULL,1,16,0);
 INSERT INTO employees VALUES(211,'Пользователь 2 Клиента 2','','','','2026-10-01 18:41:54.906240+00:00',NULL,0,5,0);
 INSERT INTO employees VALUES(212,'Пользователь клиента 3','','','','2026-10-01 21:22:37.069747+00:00',NULL,1,2,0);
@@ -38,7 +38,7 @@ INSERT INTO employees VALUES(219,'string','','','','2026-10-26 20:50:04.448261+0
 INSERT INTO employees VALUES(220,'Обычный пользователь','','','','2026-11-20 19:14:51.730199+00:00',NULL,1,3,1);
 INSERT INTO employees VALUES(221,'Обычный инженер','','','','2026-11-20 19:37:57.089254+00:00',NULL,1,8,1);
 INSERT INTO employees VALUES(222,'Опытный инженер','','','','2026-11-20 19:40:21.912237+00:00',NULL,1,4,1);
-INSERT INTO employees VALUES(223,'Обычный инженер с работой на удаленке','','','','2026-11-20 19:43:49.300517+00:00',NULL,1,7,1);
+INSERT INTO employees VALUES(223,'Обычный инженер с работой на удаленке','','','','2026-11-20 19:43:49.300517+00:00',NULL,1,17,1);
 INSERT INTO employees VALUES(224,'Менеджер','','','','2026-11-20 19:45:17.195260+00:00',NULL,1,5,1);
 INSERT INTO employees VALUES(225,'Руководитель отдела','','','','2026-11-20 19:47:26.660021+00:00',NULL,1,1,1);
 INSERT INTO employees VALUES(226,'Обычный пользователь клиента','','','','2026-11-20 19:53:56.816347+00:00',NULL,1,10,0);
@@ -118,7 +118,7 @@ CREATE TABLE clients (
 	date_created TEXT, description TEXT DEFAULT (''),
 	CONSTRAINT clients_admins_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict
 );
-INSERT INTO clients VALUES(32,181,'Клиент 1','','','1',1,40,'2026-09-08T14:13:04.962258','');
+INSERT INTO clients VALUES(32,181,'Клиент 1','','','1',1,41,'2026-09-08T14:13:04.962258','');
 INSERT INTO clients VALUES(34,122,'Клиент даже не знаю как назвать','','','',1,4,'2026-09-09T12:45:02.670365','Не совсем обычный клиент');
 INSERT INTO clients VALUES(36,122,'Клиент 2','','','Телефон',1,31,'2026-09-09T13:50:55.389754','Обычный клиент');
 INSERT INTO clients VALUES(38,181,'Клиент 3','','','',1,3,'2026-10-01T18:22:15.734425+00:00','Плановые по средам');
@@ -150,7 +150,7 @@ INSERT INTO roles VALUES(75,'Менеджер','client.view,ticket.accepted,tick
 INSERT INTO roles VALUES(76,'Инженер с право удаленки','admin.view,client.view,ticket.at_work,ticket.at_work_remote,ticket.at_work_retrospective,ticket.created,ticket.operation,ticket.view,user.view','Инженер с правом удаленки',0,'2026-10-05T12:16:24+00:00',1,0);
 INSERT INTO roles VALUES(77,'Инженер','admin.view,client.view,ticket.at_work,ticket.at_work_remote,ticket.at_work_retrospective,ticket.created,ticket.view,user.view','Инженер',0,'2026-10-05T12:16:45+00:00',1,0);
 INSERT INTO roles VALUES(78,'string','client.view','efrf',0,'2026-10-09T15:07:29+00:00',1,0);
-INSERT INTO roles VALUES(80,'Обычный пользователь','admin.view,client.view,department.view,ticket.created,ticket.view','Базовая роль, все остальные основаны на ней',0,'2026-11-19 13:14:10.653809+00:00',1,0);
+INSERT INTO roles VALUES(80,'Обычный пользователь','admin.view,client.view,department.view,ticket.created,ticket.view, user.view','Базовая роль, все остальные основаны на ней',0,'2026-11-19 13:14:10.653809+00:00',1,0);
 INSERT INTO roles VALUES(81,'Обычный инженер','ticket.at_work,ticket.at_work_retrospective,ticket.created,ticket.view','Обычный инженер, может выполнять заявки, основывается на базовой роли',0,'2026-11-19 13:18:04.438066+00:00',1,0);
 INSERT INTO roles VALUES(82,'Опытный инженер','ticket.accepted,ticket.executed','Опытный инженер, может подтверждать заявки и подтверждать выполнение, основывается на роли обычного инженера',0,'2026-11-19 13:21:06.478717+00:00',1,0);
 INSERT INTO roles VALUES(83,'Удаленщик','ticket.at_work_remote','Работа на горячей линии, добавляется к ролям инженеров',0,'2026-11-19 13:38:31.616620+00:00',1,0);
@@ -398,7 +398,6 @@ INSERT INTO tickets VALUES(1,36,NULL,NULL,NULL,3,'string',NULL,'2026-09-30T19:14
 INSERT INTO tickets VALUES(2,36,NULL,NULL,NULL,NULL,'string',NULL,'2026-09-30T19:40:27.310056+00:00',0,'2026-10-01T12:00:00+00:00','normal',0,NULL,0);
 INSERT INTO tickets VALUES(3,36,NULL,NULL,NULL,NULL,'string',NULL,'2026-09-30T19:40:44.861466+00:00',0,'2026-10-01T12:00:00+00:00','normal',122,NULL,1);
 INSERT INTO tickets VALUES(4,36,NULL,NULL,NULL,2,'string',NULL,'2026-09-30T19:41:59.381170+00:00',0,'2026-10-01T12:00:00+00:00','normal',0,'2026-10-01T16:44:30.772533+00:00',3);
-INSERT INTO tickets VALUES(5,36,NULL,NULL,NULL,3,'string',NULL,'2026-10-01T13:30:22.571755+00:00',0,'2026-10-01T13:30:07.599000+00:00','normal',0,'2026-10-01T14:16:45.787360+00:00',11);
 INSERT INTO tickets VALUES(6,36,NULL,NULL,NULL,NULL,'string',NULL,'2026-10-01T14:18:02.727712+00:00',0,'2026-10-01T13:30:07.599000+00:00','normal',0,'2026-10-01T14:21:52.567390+00:00',2);
 INSERT INTO tickets VALUES(7,36,NULL,NULL,NULL,3,'string',NULL,'2026-10-01T14:42:15.345594+00:00',0,'2026-10-01T13:30:07.599000+00:00','normal',0,NULL,3);
 INSERT INTO tickets VALUES(8,36,NULL,NULL,NULL,3,'string',NULL,'2026-10-01T14:42:35.006642+00:00',0,'2026-10-01T13:30:07.599000+00:00','normal',0,NULL,0);
@@ -442,8 +441,9 @@ INSERT INTO tickets VALUES(52,41,NULL,NULL,NULL,NULL,'Заявка от ново
 INSERT INTO tickets VALUES(53,40,226,226,24,NULL,'Заявка с комментарием',NULL,'2026-11-23T10:46:29.894998+00:00',0,'2026-11-23T10:40:22.499000+00:00','normal',0,NULL,0);
 INSERT INTO tickets VALUES(54,40,226,227,25,NULL,'Заявка с комментарием',NULL,'2026-11-23T11:44:03.560853+00:00',0,'2026-11-23T10:40:22.499000+00:00','normal',0,NULL,0);
 INSERT INTO tickets VALUES(55,40,226,226,26,NULL,'string',NULL,'2026-11-24T12:15:13.453971+00:00',0,NULL,'normal',0,NULL,0);
-INSERT INTO tickets VALUES(56,32,NULL,NULL,NULL,2,'Заявка для горячей линии',NULL,'2026-11-27T14:45:39.862918+00:00',1,NULL,'normal',0,NULL,0);
-INSERT INTO tickets VALUES(57,32,NULL,218,NULL,2,'Просто заявка',NULL,'2026-11-27T14:45:50.182337+00:00',0,NULL,'normal',0,NULL,3);
+INSERT INTO tickets VALUES(56,32,NULL,NULL,NULL,2,'Заявка для горячей линии',NULL,'2026-11-27T14:45:39.862918+00:00',1,NULL,'normal',223,NULL,2);
+INSERT INTO tickets VALUES(57,32,NULL,218,NULL,2,'Просто заявка',NULL,'2026-11-27T14:45:50.182337+00:00',0,NULL,'normal',223,NULL,4);
+INSERT INTO tickets VALUES(58,32,NULL,200,NULL,2,'Заявка от инженера',NULL,'2026-11-27T15:06:59.135476+00:00',0,NULL,'normal',0,NULL,1);
 CREATE TABLE ticket_status_records (
     status_id INTEGER PRIMARY KEY AUTOINCREMENT,
     ticket_id INTEGER NOT NULL,
@@ -476,17 +476,6 @@ INSERT INTO ticket_status_records VALUES(5,3,181,'created','2026-09-30T19:40:44.
 INSERT INTO ticket_status_records VALUES(6,3,181,'accepted','2026-09-30T19:40:44.861684+00:00',NULL,NULL,NULL,NULL,'fergferg',0);
 INSERT INTO ticket_status_records VALUES(7,4,181,'created','2026-09-30T19:41:59.381170+00:00',NULL,NULL,NULL,NULL,'',0);
 INSERT INTO ticket_status_records VALUES(8,4,181,'accepted','2026-09-30T19:41:59.381423+00:00',NULL,NULL,NULL,NULL,'fergferg',0);
-INSERT INTO ticket_status_records VALUES(9,5,181,'created','2026-10-01T13:30:22.571755+00:00',NULL,NULL,NULL,NULL,'',0);
-INSERT INTO ticket_status_records VALUES(10,5,181,'accepted','2026-10-01T13:30:22.571881+00:00',NULL,NULL,NULL,NULL,'',0);
-INSERT INTO ticket_status_records VALUES(11,5,181,'deferred','2026-10-01T13:32:34.928571+00:00',NULL,NULL,NULL,NULL,'string',0);
-INSERT INTO ticket_status_records VALUES(12,5,181,'assigned','2026-10-01T13:35:19.933224+00:00',181,NULL,NULL,NULL,'',0);
-INSERT INTO ticket_status_records VALUES(13,5,181,'accepted','2026-10-01T13:35:44.728090+00:00',NULL,NULL,NULL,NULL,'',0);
-INSERT INTO ticket_status_records VALUES(14,5,181,'assigned','2026-10-01T13:36:27.499376+00:00',181,NULL,NULL,NULL,'',0);
-INSERT INTO ticket_status_records VALUES(15,5,181,'assigned','2026-10-01T13:38:03.672245+00:00',181,NULL,NULL,NULL,'',0);
-INSERT INTO ticket_status_records VALUES(17,5,181,'paused','2026-10-01T13:53:45.017393+00:00',NULL,NULL,NULL,NULL,'',0);
-INSERT INTO ticket_status_records VALUES(18,5,181,'at_work','2026-10-01T14:13:34.431025+00:00',NULL,NULL,NULL,0,'',0);
-INSERT INTO ticket_status_records VALUES(19,5,181,'ready_for_review','2026-10-01T14:16:45.787148+00:00',NULL,NULL,NULL,NULL,'',0);
-INSERT INTO ticket_status_records VALUES(20,5,181,'executed','2026-10-01T14:16:45.787360+00:00',NULL,NULL,NULL,NULL,'',0);
 INSERT INTO ticket_status_records VALUES(21,6,181,'created','2026-10-01T14:18:02.727712+00:00',NULL,NULL,NULL,NULL,'',0);
 INSERT INTO ticket_status_records VALUES(22,6,181,'accepted','2026-10-01T14:18:02.727981+00:00',NULL,NULL,NULL,NULL,'',0);
 INSERT INTO ticket_status_records VALUES(23,6,181,'assigned','2026-10-01T14:19:04.877698+00:00',181,NULL,NULL,NULL,'',0);
@@ -720,6 +709,11 @@ INSERT INTO ticket_status_records VALUES(294,56,224,'created','2026-11-27T14:45:
 INSERT INTO ticket_status_records VALUES(295,56,224,'accepted','2026-11-27T14:45:39.863127+00:00',NULL,NULL,NULL,NULL,'',0);
 INSERT INTO ticket_status_records VALUES(296,57,224,'created','2026-11-27T14:45:50.182337+00:00',NULL,NULL,NULL,NULL,'',0);
 INSERT INTO ticket_status_records VALUES(297,57,224,'accepted','2026-11-27T14:45:50.182550+00:00',NULL,NULL,NULL,NULL,'',0);
+INSERT INTO ticket_status_records VALUES(298,57,181,'assigned','2026-11-27T15:00:48.633675+00:00',223,NULL,NULL,NULL,'',0);
+INSERT INTO ticket_status_records VALUES(299,56,223,'assigned','2026-11-27T15:04:20.546928+00:00',223,NULL,NULL,NULL,'',0);
+INSERT INTO ticket_status_records VALUES(300,56,223,'at_work','2026-11-27T15:04:20.546928+00:00',NULL,NULL,NULL,1,'',0);
+INSERT INTO ticket_status_records VALUES(301,56,223,'ready_for_review','2026-11-27T15:04:32.648790+00:00',NULL,NULL,NULL,NULL,'',0);
+INSERT INTO ticket_status_records VALUES(302,58,223,'created','2026-11-27T15:06:59.135476+00:00',NULL,NULL,NULL,NULL,'',0);
 CREATE TABLE auth_refresh_sessions (
     token_hash TEXT NOT NULL PRIMARY KEY,
     account_id INTEGER NOT NULL,
@@ -733,7 +727,12 @@ CREATE TABLE auth_refresh_sessions (
 );
 INSERT INTO auth_refresh_sessions VALUES('459072c561f66fb26def04009d0e2e3afddf5310461417892f8f0fa2524cedf4',606,224,'admin','manager',1795790593.971915,1796395393.971915,'[]');
 INSERT INTO auth_refresh_sessions VALUES('1c86ad0b789eeb079b4e6c2960e02c2c4448a3370c4f90e7ecb61cb26677b7cf',606,224,'admin','manager',1795790679.62087798,1796395479.62087798,'[]');
-INSERT INTO auth_refresh_sessions VALUES('0576c9dcb0518182bd78d98b4f73e656be315113fd570fd97b390f722f3a384a',525,181,'admin','tega',1795790821.31715202,1796395621.31715202,'[]');
+INSERT INTO auth_refresh_sessions VALUES('289f3193f86851d79e7f8eab0155f90e8201812560f1927750bd3b3082e0ac9f',525,181,'admin','tega',1795792057.2876091,1796396857.2876091,'[]');
+INSERT INTO auth_refresh_sessions VALUES('a26117b0a4c0e45518b6660c15b77b89fc1277d01c0f8a75a1c9a3c873a52b63',604,223,'admin','remote_engineer',1795792158.53990101,1796396958.53990101,'[]');
+INSERT INTO auth_refresh_sessions VALUES('9ae14b11dc6f47e5ecb8b6e628ade935f8f89aab959e919bd125e8aa97f919f1',604,223,'admin','remote_engineer',1795792261.16097593,1796397061.16097593,'[]');
+INSERT INTO auth_refresh_sessions VALUES('d9cd4e820b02b27be2c147b5788a233c3e7209331fd4c4b75cf72ec8fc738e3b',604,223,'admin','remote_engineer',1795792661.7411611,1796397461.7411611,'[]');
+INSERT INTO auth_refresh_sessions VALUES('415a7985814f2b4f1a72a7361ceeeb2c76390bd5a42bcedcad57eb9b57802929',604,223,'admin','remote_engineer',1795792914.92608809,1796397714.92608809,'[]');
+INSERT INTO auth_refresh_sessions VALUES('5feb93031b769333cc8db2029c528875ad7468482c561624ffbc04df020e0fa0',604,223,'admin','remote_engineer',1795793163.91259002,1796397963.91259002,'[]');
 CREATE TABLE creation_results (
     employee_id INTEGER NOT NULL,
     idempotency_key TEXT NOT NULL,
@@ -747,6 +746,7 @@ CREATE TABLE creation_results (
 );
 INSERT INTO creation_results VALUES(224,'d2072fc50c4e6b5bd4eeb3687725196a','aa905a3441983df5c12cc8b988509a2cd04b179ad9535ba1b000ec233c7e33d3',201,'{"ticket_id":56,"client_id":32,"user_id":0,"contact_user_id":0,"user_ticket_id":0,"department_id":2,"text_of_ticket":"Заявка для горячей линии","description":"","date_created":"2026-11-27T14:45:39.862918Z","date_finished":null,"planned_at":null,"remote_work_recommended":true,"urgency":"normal","current_executor_id":0,"last_executor_id":0,"is_closed":false,"time_spent":0,"statuses":[{"id":294,"status":"created","actor_id":224,"executor_id":0,"date_created":"2026-11-27T14:45:39.862918Z","actual_started_at":null,"actual_finished_at":null,"duration":"PT0S","work_is_remote":null,"comment":""},{"id":295,"status":"accepted","actor_id":224,"executor_id":0,"date_created":"2026-11-27T14:45:39.863127Z","actual_started_at":null,"actual_finished_at":null,"duration":"PT0S","work_is_remote":null,"comment":""}],"comments":[]}',1795877139.87646198);
 INSERT INTO creation_results VALUES(224,'2199b40557108a37199342f34a01f28e','5594219a376bd2fe221a85d4fda7606552628422f3ee455146cf82a5c37b1c12',201,'{"ticket_id":57,"client_id":32,"user_id":0,"contact_user_id":0,"user_ticket_id":0,"department_id":0,"text_of_ticket":"Просто заявка","description":"","date_created":"2026-11-27T14:45:50.182337Z","date_finished":null,"planned_at":null,"remote_work_recommended":false,"urgency":"normal","current_executor_id":0,"last_executor_id":0,"is_closed":false,"time_spent":0,"statuses":[{"id":296,"status":"created","actor_id":224,"executor_id":0,"date_created":"2026-11-27T14:45:50.182337Z","actual_started_at":null,"actual_finished_at":null,"duration":"PT0S","work_is_remote":null,"comment":""},{"id":297,"status":"accepted","actor_id":224,"executor_id":0,"date_created":"2026-11-27T14:45:50.182550Z","actual_started_at":null,"actual_finished_at":null,"duration":"PT0S","work_is_remote":null,"comment":""}],"comments":[]}',1795877150.19042301);
+INSERT INTO creation_results VALUES(223,'82c6c5e5a2f7c5bf8dcbb9a3a431f81e','8ed812848e6dc45868f2b4923c7620d9891bf8c678f47f0918ecd0fb171305be',201,'{"ticket_id":58,"client_id":32,"user_id":0,"contact_user_id":0,"user_ticket_id":0,"department_id":2,"text_of_ticket":"Заявка от инженера","description":"","date_created":"2026-11-27T15:06:59.135476Z","date_finished":null,"planned_at":null,"remote_work_recommended":false,"urgency":"normal","current_executor_id":0,"last_executor_id":0,"is_closed":false,"time_spent":0,"statuses":[{"id":302,"status":"created","actor_id":223,"executor_id":0,"date_created":"2026-11-27T15:06:59.135476Z","actual_started_at":null,"actual_finished_at":null,"duration":"PT0S","work_is_remote":null,"comment":""}],"comments":[]}',1795878419.14786505);
 DELETE FROM sqlite_sequence;
 INSERT INTO sqlite_sequence VALUES('accounts',626);
 INSERT INTO sqlite_sequence VALUES('clients',41);
@@ -754,8 +754,8 @@ INSERT INTO sqlite_sequence VALUES('departments',9);
 INSERT INTO sqlite_sequence VALUES('employees',230);
 INSERT INTO sqlite_sequence VALUES('roles',88);
 INSERT INTO sqlite_sequence VALUES('ticket_comments',17);
-INSERT INTO sqlite_sequence VALUES('ticket_status_records',297);
-INSERT INTO sqlite_sequence VALUES('tickets',57);
+INSERT INTO sqlite_sequence VALUES('ticket_status_records',302);
+INSERT INTO sqlite_sequence VALUES('tickets',58);
 INSERT INTO sqlite_sequence VALUES('user_tickets',26);
 INSERT INTO sqlite_sequence VALUES('user_tickets_comment',6);
 INSERT INTO sqlite_sequence VALUES('user_tickets_status_record',113);
