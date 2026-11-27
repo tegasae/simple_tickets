@@ -13,6 +13,7 @@
 | [APPEARANCE_REPORT.md](APPEARANCE_REPORT.md) | Реализация и результаты проверок BK-013/014 |
 | [RELEASE_ACCEPTANCE_REPORT.md](RELEASE_ACCEPTANCE_REPORT.md) | Кандидат I5, профиль стенда, измерения и условия эксплуатационного допуска |
 | [DECISIONS.md](DECISIONS.md) | Ответы владельца, статусы DEC, альтернативы и открытые вопросы |
+| [OWNER_ANSWERS.md](OWNER_ANSWERS.md) | Архив ответов владельца после первого консилиума |
 | [CONSILIUM_LOG.md](CONSILIUM_LOG.md) | Консилиумы, разногласия и результаты рецензирования |
 | [INITIAL_RESEARCH_REPORT.md](INITIAL_RESEARCH_REPORT.md) | Историческое заключение этапа 1. Поправка по query приведена в API_CONTRACT |
 | [BACKEND_ANALYSIS.md](BACKEND_ANALYSIS.md) | Архитектура, модели, правила и ограничения неизменяемого backend |

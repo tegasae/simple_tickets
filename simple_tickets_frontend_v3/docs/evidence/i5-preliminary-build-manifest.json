@@ -1,0 +1,29 @@
+{
+  "identical_files": 6,
+  "artifact": {
+    "assets/index-BKkkH2-j.js": {
+      "bytes": 370572,
+      "sha256": "a2959d7a222cc50cfa7b443ff82df252e6a55f32c6023b30d504f17bf1bc4785"
+    },
+    "assets/index-FPb8vgSX.css": {
+      "bytes": 17452,
+      "sha256": "efedbf98cc0616f3ad0cee07e0246c2fad8bb720028725b9f29f0174d9641f95"
+    },
+    "config/locales/ru-RU.json": {
+      "bytes": 33496,
+      "sha256": "8d1cadc0c5889ed09c899faa540ebe64ad28e77b625015b0cf66801a4b301f0a"
+    },
+    "config/locales.json": {
+      "bytes": 120,
+      "sha256": "d94adc8904ae4929ce5efd6a8c4179d95ffaf62159b570363a71bf4565b6a452"
+    },
+    "config/themes.json": {
+      "bytes": 2870,
+      "sha256": "e36d922b9627ba562cefec45366213b436c3562ce49e7919331981516d9525b0"
+    },
+    "index.html": {
+      "bytes": 387,
+      "sha256": "0498421a0077d61f5d48333174cb8d8cf0336fd336fc22d747cda86e39fdb1c9"
+    }
+  }
+}
