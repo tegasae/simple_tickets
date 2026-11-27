@@ -39,7 +39,7 @@ const appearanceConfig = {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'BACKEND_');
-  const target = process.env.BACKEND_BASE_URL || env.BACKEND_BASE_URL || 'http://127.0.0.1:18080';
+  const target = process.env.BACKEND_BASE_URL || env.BACKEND_BASE_URL || 'http://127.0.0.1:8000';
   const proxy = {
     '^/api(?:/|$)': {
       target,
