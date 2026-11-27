@@ -92,6 +92,67 @@ class BrowserSmoke(unittest.TestCase):
         expect(page.get_by_role("heading", name="Вход сотрудника")).to_be_visible()
         self.assertFalse(page.evaluate("(key) => !!sessionStorage.getItem(key)", REFRESH_KEY))
 
+    def test_same_origin_popup_rotates_copied_refresh_and_opener_requires_login_after_reload(self):
+        page = self.page()
+        page.goto(ORIGIN + "/tickets?queue=open")
+        self.login(page, "reader")
+        expect(page.get_by_role("table", name="Заявки")).to_be_visible()
+        refresh_url = ORIGIN + "/api/auth/admin/refresh"
+        with page.context.expect_event("response", predicate=lambda response: response.url == refresh_url) as rotated:
+            with page.expect_popup() as opened:
+                page.evaluate("() => { window.open(location.href); }")
+            popup = opened.value
+        self.assertEqual(rotated.value.status, 200)
+        expect(popup.get_by_role("table", name="Заявки")).to_be_visible()
+        self.assertTrue(popup.evaluate("""(key) => {
+            const initial = window.opener?.sessionStorage.getItem(key);
+            const rotated = sessionStorage.getItem(key);
+            return Boolean(initial && rotated && initial !== rotated);
+        }""", REFRESH_KEY))
+
+        protected_requests = []
+        page.on("request", lambda request: protected_requests.append(urlsplit(request.url).path)
+                if "/api/admin/tickets" in urlsplit(request.url).path else None)
+        with page.expect_response(refresh_url) as rejected:
+            page.reload()
+        self.assertEqual(rejected.value.status, 401)
+        expect(page.get_by_role("heading", name="Вход сотрудника")).to_be_visible()
+        expect(page.get_by_role("table", name="Заявки")).to_have_count(0)
+        self.assertFalse(page.evaluate("(key) => !!sessionStorage.getItem(key)", REFRESH_KEY))
+        self.assertEqual(protected_requests, [])
+
+        popup.get_by_role("row").filter(has_text="Проверка печати").get_by_role("link").click()
+        expect(popup.get_by_role("heading", name="Проверка печати")).to_be_visible()
+        with popup.expect_response(refresh_url) as still_active:
+            popup.reload()
+        self.assertEqual(still_active.value.status, 200)
+        expect(popup.get_by_role("heading", name="Проверка печати")).to_be_visible()
+
+    def test_invalid_login_returns_keyboard_focus_to_password_for_retry(self):
+        page = self.page()
+        page.goto(ORIGIN + "/tickets/1")
+        username = page.get_by_label("Логин", exact=True)
+        password = page.get_by_label("Пароль", exact=True)
+        username.fill(ACCOUNTS["reader"]["username"])
+        password.fill("Aa1!IncorrectSyntheticPassword")
+        page.keyboard.press("Tab")
+        page.keyboard.press("Tab")
+        submit = page.get_by_role("button", name="Войти", exact=True)
+        expect(submit).to_be_focused()
+        login_url = ORIGIN + "/api/auth/admin/login"
+        with page.expect_response(login_url) as rejected:
+            page.keyboard.press("Enter")
+        self.assertEqual(rejected.value.status, 401)
+        expect(page.get_by_role("alert")).to_contain_text("Не удалось войти. Проверьте логин и пароль.")
+        expect(password).to_have_value("")
+        expect(password).to_be_focused()
+        self.assertTrue(username.input_value() == ACCOUNTS["reader"]["username"], "login name was not retained")
+        password.fill(ACCOUNTS["reader"]["password"])
+        with page.expect_response(login_url) as accepted:
+            password.press("Enter")
+        self.assertEqual(accepted.value.status, 200)
+        expect(page.get_by_role("heading", name="Проверка печати")).to_be_visible()
+
     def test_restricted_admin_direct_route_makes_no_ticket_request(self):
         page = self.page()
         ticket_requests = []

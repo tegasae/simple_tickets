@@ -86,10 +86,21 @@ test('transport sends Admin login, rotating refresh, logout and Bearer with thei
 test('transport maps HTTP, network and invalid success responses without exposing the body', async () => {
   const privateText = 'private fixture diagnostic';
   const api = createApi({ fetchImpl: async () => new Response(privateText, { status: 503 }) });
+  const internalError = createApi({ fetchImpl: async () => Response.json({ detail: privateText }, { status: 500 }) });
+  const badGateway = createApi({ fetchImpl: async () => new Response(`<html>${privateText}</html>`, {
+    status: 502, headers: { 'Content-Type': 'text/html' },
+  }) });
   const brokenResponse = createApi({ fetchImpl: async () => new Response(privateText, { status: 200 }) });
   const offlineApi = createApi({ fetchImpl: async () => { throw new Error(privateText); } });
 
-  for (const [client, status, code] of [[api, 503, 'unavailable'], [brokenResponse, 200, 'invalid-response'], [offlineApi, 0, 'network']]) {
+  const expected = [
+    [api, 503, 'unavailable'],
+    [internalError, 500, 'http'],
+    [badGateway, 502, 'http'],
+    [brokenResponse, 200, 'invalid-response'],
+    [offlineApi, 0, 'network'],
+  ];
+  for (const [client, status, code] of expected) {
     await assert.rejects(client.get(TICKET_PATH, { accessToken: 'fixture-access' }), error => {
       assert.equal(error.status, status);
       assert.equal(error.code, code);
@@ -569,4 +580,42 @@ test('a failed strict permissions check keeps the same workspace suspended until
   assert.equal(await session.recheckPermissions(), true);
   assert.equal(session.getSnapshot().checkingPermissions, false);
   assert.deepEqual(session.getSnapshot().permissions, []);
+});
+
+test('a refresh with unavailable storage keeps a strict permissions check suspended', async () => {
+  const started = deferred();
+  const retried = deferred();
+  let requests = 0;
+  let storageFails = false;
+  const session = createSession({
+    storage: {
+      getItem: () => null,
+      setItem: () => { if (storageFails) throw new Error('Storage unavailable'); },
+      removeItem: () => {},
+    },
+    api: {
+      login: async () => tokenPair('initial'),
+      refresh: async () => tokenPair('rotated'),
+      mutate: async () => ({ employee_id: 17, roles: [] }),
+      get: async (path) => {
+        assert.equal(path, PERMISSIONS_PATH);
+        requests += 1;
+        if (requests === 1) return { permissions: ['admin.view', 'role.assign'] };
+        if (requests === 2) throw httpError(401);
+        started.resolve();
+        return retried.promise;
+      },
+    },
+  });
+  assert.equal(await session.login('operator', 'fixture'), true);
+  storageFails = true;
+  const write = session.mutate('/admin/admins/17/roles', { method: 'DELETE', json: { roles: [24] } });
+  await started.promise;
+  assert.equal(session.getSnapshot().storageAvailable, false);
+  assert.equal(session.getSnapshot().checkingPermissions, true);
+  await assert.rejects(session.get('/admin/admins/17'), { code: 'stale-permissions' });
+  retried.reject(httpError(503));
+  await write;
+  assert.equal(session.getSnapshot().checkingPermissions, true);
+  assert.equal(session.getSnapshot().error.status, 503);
 });

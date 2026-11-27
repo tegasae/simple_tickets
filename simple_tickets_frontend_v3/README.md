@@ -64,3 +64,9 @@ python -B tests/browser_i4.py '<путь к credentials.json>'
 ```bash
 python -B tests/browser_appearance.py '<путь к credentials.json>'
 ```
+
+Браузерный замер очереди использует production-сборку и отдельные синтетические ответы. Он показывает время обработки списка, локального поиска и переключения карточек. [Результаты I5](docs/RELEASE_ACCEPTANCE_REPORT.md).
+
+```bash
+python -B tests/browser_performance.py --dist dist
+```

@@ -11,6 +11,7 @@
 | [ITERATION_4_REPORT.md](ITERATION_4_REPORT.md) | Административные справочники, аккаунты, роли, отмена и удаление |
 | [RUNTIME_CONFIGURATION.md](RUNTIME_CONFIGURATION.md) | Публикация тем, языков и подписей интерфейса без пересборки |
 | [APPEARANCE_REPORT.md](APPEARANCE_REPORT.md) | Реализация и результаты проверок BK-013/014 |
+| [RELEASE_ACCEPTANCE_REPORT.md](RELEASE_ACCEPTANCE_REPORT.md) | Кандидат I5, профиль стенда, измерения и условия эксплуатационного допуска |
 | [DECISIONS.md](DECISIONS.md) | Ответы владельца, статусы DEC, альтернативы и открытые вопросы |
 | [CONSILIUM_LOG.md](CONSILIUM_LOG.md) | Консилиумы, разногласия и результаты рецензирования |
 | [INITIAL_RESEARCH_REPORT.md](INITIAL_RESEARCH_REPORT.md) | Историческое заключение этапа 1. Поправка по query приведена в API_CONTRACT |

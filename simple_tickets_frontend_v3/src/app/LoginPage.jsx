@@ -9,6 +9,9 @@ export default function LoginPage({ snapshot, session, appearance }) {
   const [submitting, setSubmitting] = useState(false);
   const [clearedError, setClearedError] = useState(null);
   const loginField = useRef(null);
+  const passwordField = useRef(null);
+  const submitButton = useRef(null);
+  const restorePasswordFocus = useRef(false);
   const title = `${t("login.title")} · ${t("app.name")}`;
   useEffect(() => { document.title = title; }, [title]);
   useEffect(() => {
@@ -16,6 +19,13 @@ export default function LoginPage({ snapshot, session, appearance }) {
   }, []);
 
   const pending = submitting || snapshot.phase === "authenticating";
+  useEffect(() => {
+    if (pending || !restorePasswordFocus.current) return;
+    restorePasswordFocus.current = false;
+    if (document.activeElement === submitButton.current || document.activeElement === document.body) {
+      passwordField.current?.focus();
+    }
+  }, [pending]);
   const problem = snapshot.error !== clearedError ? snapshot.error : null;
   const status = problem?.status;
   let message = "";
@@ -33,7 +43,7 @@ export default function LoginPage({ snapshot, session, appearance }) {
     setClearedError(null);
     setSubmitting(true);
     try {
-      await session.login(username.trim(), password);
+      restorePasswordFocus.current = !(await session.login(username.trim(), password));
     } finally {
       setSubmitting(false);
       setPassword("");
@@ -54,7 +64,7 @@ export default function LoginPage({ snapshot, session, appearance }) {
             onChange={(event) => { setUsername(event.target.value); setClearedError(snapshot.error); }} />
           <label htmlFor="password">{t("login.password")}</label>
           <div className="password-row">
-            <input id="password" name="password" autoComplete="current-password" required value={password}
+            <input ref={passwordField} id="password" name="password" autoComplete="current-password" required value={password}
               type={visible ? "text" : "password"} aria-describedby={message ? "login-error" : undefined}
               onChange={(event) => { setPassword(event.target.value); setClearedError(snapshot.error); }} />
             <button className="btn" type="button" onClick={() => setVisible(!visible)}>
@@ -63,7 +73,7 @@ export default function LoginPage({ snapshot, session, appearance }) {
           </div>
           {message && <p className="field-error" id="login-error" role="alert">{message}</p>}
           {logoutWarning && <p className="field-error" role="status">{t("session.logoutUnconfirmed")}</p>}
-          <button className="btn btn-primary" disabled={pending} aria-busy={pending}>
+          <button ref={submitButton} className="btn btn-primary" aria-disabled={pending} aria-busy={pending}>
             {t(pending ? "login.pending" : "login.submit")}
           </button>
         </form>

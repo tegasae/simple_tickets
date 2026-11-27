@@ -149,6 +149,7 @@ export function createSession({ api = createApi(), storage = browserStorage() } 
     if (snapshot.phase === 'authenticated' && snapshot.storageAvailable !== storageAvailable) {
       publish('authenticated', {
         permissions: snapshot.permissions,
+        checkingPermissions: snapshot.checkingPermissions,
         actorId: snapshot.actorId,
         error: snapshot.error,
       });
