@@ -1,0 +1,197 @@
+{
+  "chromium": "156.0.8078.79",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "samples_per_metric": 20,
+  "discarded_warmup_samples": 3,
+  "tiers": [
+    {
+      "tickets": 100,
+      "encoded_queue_bytes": 197780,
+      "mean_history_records": 3.27,
+      "mean_comments": 2.0,
+      "first_login_and_queue_ms": 89.69999999925494,
+      "queue_reload": {
+        "rows": {
+          "min": 25,
+          "max": 25
+        },
+        "commit_ms": {
+          "p50": 14.1,
+          "p95": 20.9
+        },
+        "two_frames_ms": {
+          "p50": 40.4,
+          "p95": 42.3
+        },
+        "resource_ms": {
+          "p50": 1.9,
+          "p95": 3.1
+        },
+        "resource_to_commit_ms": {
+          "p50": 6.5,
+          "p95": 9.9
+        },
+        "resource_to_two_frames_ms": {
+          "p50": 32.8,
+          "p95": 34.7
+        },
+        "encoded_body_bytes": {
+          "min": 197780,
+          "max": 197780
+        },
+        "ticket_reads": {
+          "min": 1,
+          "max": 1
+        }
+      },
+      "search": {
+        "rows": {
+          "min": 10,
+          "max": 10
+        },
+        "commit_ms": {
+          "p50": 3.0,
+          "p95": 4.6
+        },
+        "two_frames_ms": {
+          "p50": 26.1,
+          "p95": 31.6
+        },
+        "ticket_reads": {
+          "min": 0,
+          "max": 0
+        }
+      },
+      "work_tab_switch": {
+        "rows": {
+          "min": 0,
+          "max": 0
+        },
+        "commit_ms": {
+          "p50": 7.9,
+          "p95": 8.7
+        },
+        "two_frames_ms": {
+          "p50": 27.5,
+          "p95": 28.3
+        },
+        "resource_ms": {
+          "p50": 1.4,
+          "p95": 3.5
+        },
+        "resource_to_commit_ms": {
+          "p50": 3.8,
+          "p95": 5
+        },
+        "resource_to_two_frames_ms": {
+          "p50": 24.0,
+          "p95": 25.2
+        },
+        "encoded_body_bytes": {
+          "min": 1499,
+          "max": 2080
+        },
+        "ticket_reads": {
+          "min": 1,
+          "max": 1
+        }
+      }
+    },
+    {
+      "tickets": 5000,
+      "encoded_queue_bytes": 9966600,
+      "mean_history_records": 3.29,
+      "mean_comments": 2.0,
+      "first_login_and_queue_ms": 163,
+      "queue_reload": {
+        "rows": {
+          "min": 25,
+          "max": 25
+        },
+        "commit_ms": {
+          "p50": 124.2,
+          "p95": 254.1
+        },
+        "two_frames_ms": {
+          "p50": 130.8,
+          "p95": 260.3
+        },
+        "resource_ms": {
+          "p50": 31.8,
+          "p95": 47.8
+        },
+        "resource_to_commit_ms": {
+          "p50": 84.0,
+          "p95": 185.7
+        },
+        "resource_to_two_frames_ms": {
+          "p50": 90.6,
+          "p95": 199.4
+        },
+        "encoded_body_bytes": {
+          "min": 9966600,
+          "max": 9966600
+        },
+        "ticket_reads": {
+          "min": 1,
+          "max": 1
+        }
+      },
+      "search": {
+        "rows": {
+          "min": 25,
+          "max": 25
+        },
+        "commit_ms": {
+          "p50": 55.3,
+          "p95": 63.3
+        },
+        "two_frames_ms": {
+          "p50": 64.8,
+          "p95": 71.2
+        },
+        "ticket_reads": {
+          "min": 0,
+          "max": 0
+        }
+      },
+      "work_tab_switch": {
+        "rows": {
+          "min": 0,
+          "max": 0
+        },
+        "commit_ms": {
+          "p50": 7.8,
+          "p95": 9.8
+        },
+        "two_frames_ms": {
+          "p50": 26.7,
+          "p95": 28.3
+        },
+        "resource_ms": {
+          "p50": 1.4,
+          "p95": 3.6
+        },
+        "resource_to_commit_ms": {
+          "p50": 3.6,
+          "p95": 5.6
+        },
+        "resource_to_two_frames_ms": {
+          "p50": 22.8,
+          "p95": 24.6
+        },
+        "encoded_body_bytes": {
+          "min": 1502,
+          "max": 2093
+        },
+        "ticket_reads": {
+          "min": 1,
+          "max": 1
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "defaultLanguage": "ru-RU",
+  "languages": [
+    { "id": "ru-RU", "label": "Русский" }
+  ]
+}

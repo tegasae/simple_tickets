@@ -1,0 +1,21 @@
+:root {
+  --bg: #f4f6f8;
+  --panel: #ffffff;
+  --panel-soft: #f6f8fb;
+  --text: #20242a;
+  --muted: #49576b;
+  --line: #d4d9e2;
+  --line-strong: #73839a;
+  --accent: #245bc6;
+  --accent-dark: #153e94;
+  --accent-hover: #153e94;
+  --accent-soft: #eaf1fe;
+  --on-accent: #ffffff;
+  --focus: #245bc6;
+  --danger: #9b231b;
+  --danger-soft: #fff1ef;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --control-height: 40px;
+  --scheme: light;
+}
