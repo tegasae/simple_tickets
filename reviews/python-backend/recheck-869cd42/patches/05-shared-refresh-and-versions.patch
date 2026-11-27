@@ -1,0 +1,947 @@
+diff --git a/db/schema.sql b/db/schema.sql
+index 24dcb33..84b5f2c 100644
+--- a/db/schema.sql
++++ b/db/schema.sql
+@@ -3,5 +3,5 @@ CREATE TABLE departments (
+     name TEXT NOT NULL,
+     enabled INTEGER DEFAULT 1,
+-    version INTEGER DEFAULT 0,
++    version INTEGER NOT NULL DEFAULT 0,
+     date_created TEXT
+ );
+@@ -15,5 +15,5 @@ CREATE TABLE employees (
+ 	address TEXT,
+ 	enabled INTEGER DEFAULT (1),
+-	version INTEGER DEFAULT 0,
++	version INTEGER NOT NULL DEFAULT 0,
+ 	is_admin INTEGER);
+ CREATE TABLE admins (
+@@ -46,5 +46,5 @@ CREATE TABLE clients (
+ 	email TEXT,
+ 	phone TEXT,
+-	enabled INTEGER, version INTEGER DEFAULT 0,
++	enabled INTEGER, version INTEGER NOT NULL DEFAULT 0,
+ 	date_created TEXT, description TEXT DEFAULT (''),
+ 	CONSTRAINT clients_admins_FK FOREIGN KEY (admin_id) REFERENCES employees(employee_id) on delete restrict
+@@ -185,2 +185,20 @@ ON ticket_comments(ticket_id, ticket_comment_id);
+ CREATE INDEX idx_ticket_comments_employee_id
+ ON ticket_comments(employee_id);
++
++CREATE TABLE auth_refresh_sessions (
++    token_hash TEXT NOT NULL PRIMARY KEY,
++    account_id INTEGER NOT NULL,
++    subject_id INTEGER NOT NULL,
++    subject_type TEXT NOT NULL CHECK (subject_type IN ('admin', 'user')),
++    username TEXT NOT NULL,
++    created_at DOUBLE PRECISION NOT NULL,
++    expires_at DOUBLE PRECISION NOT NULL,
++    scope TEXT NOT NULL,
++    FOREIGN KEY (account_id) REFERENCES accounts(account_id) ON DELETE CASCADE
++);
++CREATE INDEX idx_auth_refresh_sessions_subject
++    ON auth_refresh_sessions(subject_type, subject_id);
++CREATE INDEX idx_auth_refresh_sessions_account
++    ON auth_refresh_sessions(account_id);
++CREATE INDEX idx_auth_refresh_sessions_expiry
++    ON auth_refresh_sessions(expires_at);
+diff --git a/scripts/migrate_backend_storage.py b/scripts/migrate_backend_storage.py
+new file mode 100644
+index 0000000..a133246
+--- /dev/null
++++ b/scripts/migrate_backend_storage.py
+@@ -0,0 +1,127 @@
++"""Upgrade an existing SQLite database using db/schema.sql as the reference.
++
++Run during a deployment window with application writers stopped.
++"""
++import argparse
++from contextlib import closing
++from pathlib import Path
++import sqlite3
++
++VERSION_TABLES = ("departments", "employees", "clients")
++STORAGE_TABLES = ("auth_refresh_sessions",)
++SCHEMA = Path(__file__).resolve().parents[1] / "db" / "schema.sql"
++
++
++def _quote(name: str) -> str:
++    return '"' + name.replace('"', '""') + '"'
++
++
++def _ddl(db: sqlite3.Connection, name: str) -> str:
++    row = db.execute(
++        "SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = ?", (name,),
++    ).fetchone()
++    if row is None:
++        raise ValueError(f"Missing expected table {name}")
++    return row[0]
++
++
++def _columns(db: sqlite3.Connection, table: str) -> dict[str, tuple]:
++    return {row[1]: row for row in db.execute(f"PRAGMA table_xinfo({_quote(table)})")}
++
++
++def _fix_version(
++    db: sqlite3.Connection, reference: sqlite3.Connection, table: str,
++) -> int:
++    original = _columns(db, table)
++    canonical = _columns(reference, table)
++    if original.keys() != canonical.keys():
++        raise ValueError(f"Unexpected columns in {table}. Inspect its schema before upgrading.")
++    version = original["version"]
++    if version[3]:
++        if version[4] != "0":
++            raise ValueError(f"Unexpected version default in {table}")
++        return 0
++
++    declaration = f"CREATE TABLE {table} "
++    existing = _ddl(db, table)
++    # Accept only the supported old DDL. Preserve unknown schema by refusing
++    # an unreviewed rewrite, even when column names match.
++    expected = _ddl(reference, table)
++    prior = expected.replace("version INTEGER NOT NULL DEFAULT 0", "version INTEGER DEFAULT 0")
++    if existing != prior or not expected.startswith(declaration):
++        raise ValueError(f"Unexpected DDL for {table}. Review the upgrade first.")
++
++    auxiliary = db.execute(
++        """SELECT sql FROM sqlite_schema
++           WHERE tbl_name = ? AND type IN ('index', 'trigger') AND sql IS NOT NULL
++           ORDER BY type, name""",
++        (table,),
++    ).fetchall()
++    sequence = db.execute("SELECT seq FROM sqlite_sequence WHERE name = ?", (table,)).fetchone()
++    old_sql = _quote(table)
++    new_name = f"__version_upgrade_{table}"
++    new_sql = _quote(new_name)
++    target_columns = ", ".join(_quote(name) for name in original)
++    projection = ", ".join(
++        'COALESCE("version", 0)' if name == "version" else _quote(name) for name in original
++    )
++    changed = db.execute(f"SELECT COUNT(*) FROM {old_sql} WHERE version IS NULL").fetchone()[0]
++    db.execute(expected.replace(declaration, f"CREATE TABLE {new_sql} ", 1))
++    db.execute(f"INSERT INTO {new_sql} ({target_columns}) SELECT {projection} FROM {old_sql}")
++    db.execute(f"DROP TABLE {old_sql}")
++    db.execute(f"ALTER TABLE {new_sql} RENAME TO {old_sql}")
++    for (statement,) in auxiliary:
++        db.execute(statement)
++    if sequence:
++        db.execute("DELETE FROM sqlite_sequence WHERE name = ?", (table,))
++        db.execute("INSERT INTO sqlite_sequence(name, seq) VALUES (?, ?)", (table, sequence[0]))
++    return changed
++
++
++def migrate(db: sqlite3.Connection, *, schema: Path = SCHEMA) -> dict[str, int]:
++    """Apply the schema change atomically. Report normalized rows per table."""
++    if db.in_transaction:
++        raise ValueError("The migration requires its own transaction")
++    was_enabled = db.execute("PRAGMA foreign_keys").fetchone()[0]
++    with closing(sqlite3.connect(":memory:")) as reference:
++        reference.executescript(schema.read_text(encoding="utf-8"))
++        db.execute("PRAGMA foreign_keys=OFF")
++        try:
++            with db:
++                db.execute("BEGIN IMMEDIATE")
++                changed = {table: _fix_version(db, reference, table) for table in VERSION_TABLES}
++                for table in STORAGE_TABLES:
++                    present = db.execute(
++                        "SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?", (table,),
++                    ).fetchone()
++                    if present:
++                        if _ddl(db, table) != _ddl(reference, table):
++                            raise ValueError(f"Unexpected DDL for {table}")
++                    else:
++                        db.execute(_ddl(reference, table))
++                    indexes = reference.execute(
++                        "SELECT sql FROM sqlite_schema WHERE tbl_name = ? AND type = 'index' AND sql IS NOT NULL",
++                        (table,),
++                    )
++                    for (statement,) in indexes:
++                        db.execute(statement.replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ", 1))
++                if db.execute("PRAGMA foreign_key_check").fetchone() is not None:
++                    raise ValueError("Foreign key validation failed. The migration was rolled back.")
++        finally:
++            db.execute(f"PRAGMA foreign_keys={int(was_enabled)}")
++    return changed
++
++
++def main() -> None:
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("database", type=Path, help="Path to the existing main SQLite file")
++    args = parser.parse_args()
++    uri = args.database.resolve(strict=True).as_uri() + "?mode=rw"
++    with closing(sqlite3.connect(uri, uri=True)) as db:
++        counts = migrate(db)
++    for table, count in counts.items():
++        print(f"{table}: {count} NULL versions normalized")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/src/adapters/repositories/gateways/refresh_session_gateway.py b/src/adapters/repositories/gateways/refresh_session_gateway.py
+new file mode 100644
+index 0000000..b2a1764
+--- /dev/null
++++ b/src/adapters/repositories/gateways/refresh_session_gateway.py
+@@ -0,0 +1,30 @@
++class RefreshSessionGateway:
++    """SQL statements for refresh sessions in the main SQLite database."""
++
++    SELECT_BY_HASH = """
++        SELECT account_id, subject_id, subject_type, username,
++               created_at, expires_at, scope
++        FROM auth_refresh_sessions
++        WHERE token_hash = :token_hash
++    """
++
++    INSERT = """
++        INSERT INTO auth_refresh_sessions
++            (token_hash, account_id, subject_id, subject_type, username,
++             created_at, expires_at, scope)
++        VALUES (:token_hash, :account_id, :subject_id, :subject_type, :username,
++                :created_at, :expires_at, :scope)
++    """
++
++    DELETE_BY_HASH = """
++        DELETE FROM auth_refresh_sessions WHERE token_hash = :token_hash
++    """
++
++    DELETE_BY_SUBJECT = """
++        DELETE FROM auth_refresh_sessions
++        WHERE subject_type = :subject_type AND subject_id = :subject_id
++    """
++
++    DELETE_EXPIRED = """
++        DELETE FROM auth_refresh_sessions WHERE expires_at <= :now
++    """
+diff --git a/src/adapters/repositories/mappers/refresh_session_mapper.py b/src/adapters/repositories/mappers/refresh_session_mapper.py
+new file mode 100644
+index 0000000..cb861c3
+--- /dev/null
++++ b/src/adapters/repositories/mappers/refresh_session_mapper.py
+@@ -0,0 +1,45 @@
++import json
++from datetime import UTC, datetime
++
++from src.domain.repositories.refresh_session_repository import RefreshSession
++
++
++class RefreshSessionMapper:
++    VARS = [
++        "account_id",
++        "subject_id",
++        "subject_type",
++        "username",
++        "created_at",
++        "expires_at",
++        "scope",
++    ]
++
++    @staticmethod
++    def row_to_session(row: dict) -> RefreshSession:
++        return RefreshSession(
++            account_id=row["account_id"],
++            subject_id=row["subject_id"],
++            subject_type=row["subject_type"],
++            username=row["username"],
++            created_at=datetime.fromtimestamp(row["created_at"], UTC),
++            expires_at=datetime.fromtimestamp(row["expires_at"], UTC),
++            scope=tuple(json.loads(row["scope"])),
++        )
++
++    @staticmethod
++    def session_params(token_hash: str, session: RefreshSession) -> dict[str, str | int | float]:
++        return {
++            "token_hash": token_hash,
++            "account_id": session.account_id,
++            "subject_id": session.subject_id,
++            "subject_type": session.subject_type,
++            "username": session.username,
++            "created_at": session.created_at.timestamp(),
++            "expires_at": session.expires_at.timestamp(),
++            "scope": json.dumps(session.scope),
++        }
++
++    @staticmethod
++    def expiry_params(now: datetime) -> dict[str, float]:
++        return {"now": now.timestamp()}
+diff --git a/src/adapters/repositories/refresh_session_repository.py b/src/adapters/repositories/refresh_session_repository.py
+new file mode 100644
+index 0000000..960608b
+--- /dev/null
++++ b/src/adapters/repositories/refresh_session_repository.py
+@@ -0,0 +1,49 @@
++from datetime import datetime
++
++from src.adapters.repositories.base_repository import BaseRepository
++from src.adapters.repositories.gateways.refresh_session_gateway import RefreshSessionGateway
++from src.adapters.repositories.mappers.refresh_session_mapper import RefreshSessionMapper
++from src.domain.repositories.refresh_session_repository import (
++    RefreshSession,
++    RefreshSessionRepository,
++    SubjectType,
++)
++from utils.db.connect import Connection
++
++
++class RefreshSessionRepositorySQLite(BaseRepository, RefreshSessionRepository):
++    def __init__(self, connection: Connection) -> None:
++        super().__init__(connection)
++
++    def get(self, token_hash: str) -> RefreshSession | None:
++        row = self._get_one(
++            RefreshSessionGateway.SELECT_BY_HASH,
++            var=RefreshSessionMapper.VARS,
++            params={"token_hash": token_hash},
++        )
++        return RefreshSessionMapper.row_to_session(row) if row else None
++
++    def add(self, token_hash: str, session: RefreshSession) -> None:
++        self._exec(
++            RefreshSessionGateway.INSERT,
++            RefreshSessionMapper.session_params(token_hash, session),
++        )
++
++    def remove(self, token_hash: str) -> bool:
++        result = self._exec(
++            RefreshSessionGateway.DELETE_BY_HASH,
++            {"token_hash": token_hash},
++        )
++        return result.rowcount == 1
++
++    def revoke_subject(self, *, subject_type: SubjectType, subject_id: int) -> None:
++        self._exec(
++            RefreshSessionGateway.DELETE_BY_SUBJECT,
++            {"subject_type": subject_type, "subject_id": subject_id},
++        )
++
++    def remove_expired(self, *, now: datetime) -> None:
++        self._exec(
++            RefreshSessionGateway.DELETE_EXPIRED,
++            RefreshSessionMapper.expiry_params(now),
++        )
+diff --git a/src/adapters/uow/sqlite_unit_of_work.py b/src/adapters/uow/sqlite_unit_of_work.py
+index 50209ff..1f2746a 100644
+--- a/src/adapters/uow/sqlite_unit_of_work.py
++++ b/src/adapters/uow/sqlite_unit_of_work.py
+@@ -14,4 +14,5 @@ from src.adapters.repositories.department_repository import (
+     DepartmentRepositorySQLite,
+ )
++from src.adapters.repositories.refresh_session_repository import RefreshSessionRepositorySQLite
+ from src.adapters.repositories.role_repository import (
+     RoleRepositorySQLite,
+@@ -48,4 +49,5 @@ class SQLiteUnitOfWork(UnitOfWork):
+         self._completed = False
+ 
++        self.refresh_sessions = RefreshSessionRepositorySQLite(self.connection)
+         self.admins = AdminRepositorySQLite(conn=self.connection)
+         self.users = UserRepositorySQLite(conn=self.connection)
+diff --git a/src/application/services/admin_service.py b/src/application/services/admin_service.py
+index 1fdef0f..7a6087f 100644
+--- a/src/application/services/admin_service.py
++++ b/src/application/services/admin_service.py
+@@ -205,7 +205,5 @@ class AdminApplicationService:
+             )
+ 
+-            return self._save_and_to_dto(
+-                admin
+-            )
++            return self._save_and_to_dto(admin, revoke_refresh=True)
+ 
+     def detach_account(
+@@ -266,7 +264,5 @@ class AdminApplicationService:
+             )
+             AdminService.disable_account(admin=admin)
+-            return self._save_and_to_dto(
+-                admin
+-            )
++            return self._save_and_to_dto(admin, revoke_refresh=True)
+     def change_password(
+         self,
+@@ -291,7 +287,5 @@ class AdminApplicationService:
+             )
+ 
+-            return self._save_and_to_dto(
+-                admin
+-            )
++            return self._save_and_to_dto(admin, revoke_refresh=True)
+ 
+     # ==================================================================
+@@ -443,7 +437,5 @@ class AdminApplicationService:
+             )
+ 
+-            return self._save_and_to_dto(
+-                admin
+-            )
++            return self._save_and_to_dto(admin, revoke_refresh=True)
+ 
+     # ==================================================================
+@@ -576,4 +568,5 @@ class AdminApplicationService:
+             )
+ 
++            self.uow.admins.touch(admin)
+             self.uow.admins.delete(
+                 admin_id=admin.employee_id,
+@@ -650,6 +643,12 @@ class AdminApplicationService:
+         self,
+         admin: Admin,
++        *,
++        revoke_refresh: bool = False,
+     ) -> AdminResponseDTO:
+         saved_admin = self.uow.admins.save(admin)
++        if revoke_refresh:
++            self.uow.refresh_sessions.revoke_subject(
++                subject_type="admin", subject_id=saved_admin.employee_id,
++            )
+         return AdminAssembler.to_dto(
+             saved_admin
+diff --git a/src/application/services/client_service.py b/src/application/services/client_service.py
+index 0bacac1..e8a2d22 100644
+--- a/src/application/services/client_service.py
++++ b/src/application/services/client_service.py
+@@ -200,6 +200,7 @@ class ClientApplicationService:
+ 
+             for user in result.users:
+-                self.uow.users.save(
+-                    user
++                self.uow.users.save(user)
++                self.uow.refresh_sessions.revoke_subject(
++                    subject_type="user", subject_id=user.employee_id,
+                 )
+ 
+diff --git a/src/application/services/user_service.py b/src/application/services/user_service.py
+index d64f1bd..ba84f4d 100644
+--- a/src/application/services/user_service.py
++++ b/src/application/services/user_service.py
+@@ -211,7 +211,5 @@ class UserApplicationService:
+             )
+ 
+-            return self._save_and_to_dto(
+-                user
+-            )
++            return self._save_and_to_dto(user, revoke_refresh=True)
+ 
+     def detach_account(
+@@ -282,5 +280,5 @@ class UserApplicationService:
+ 
+             UserService.disable_account(user=user)
+-            return self._save_and_to_dto(user)
++            return self._save_and_to_dto(user, revoke_refresh=True)
+ 
+     def change_password(
+@@ -314,7 +312,5 @@ class UserApplicationService:
+             )
+ 
+-            return self._save_and_to_dto(
+-                user
+-            )
++            return self._save_and_to_dto(user, revoke_refresh=True)
+ 
+     # ==================================================================
+@@ -497,7 +493,5 @@ class UserApplicationService:
+                 )
+ 
+-            return self._save_and_to_dto(
+-                user
+-            )
++            return self._save_and_to_dto(user, revoke_refresh=True)
+ 
+     # ==================================================================
+@@ -534,4 +528,5 @@ class UserApplicationService:
+             )
+ 
++            self.uow.users.touch(user)
+             self.uow.users.delete(
+                 user.employee_id,
+@@ -627,6 +622,12 @@ class UserApplicationService:
+         self,
+         user: User,
++        *,
++        revoke_refresh: bool = False,
+     ) -> UserResponseDTO:
+         saved_user = self.uow.users.save(user)
++        if revoke_refresh:
++            self.uow.refresh_sessions.revoke_subject(
++                subject_type="user", subject_id=saved_user.employee_id,
++            )
+         return UserAssembler.to_dto(
+             saved_user
+diff --git a/src/domain/repositories/refresh_session_repository.py b/src/domain/repositories/refresh_session_repository.py
+new file mode 100644
+index 0000000..f493483
+--- /dev/null
++++ b/src/domain/repositories/refresh_session_repository.py
+@@ -0,0 +1,41 @@
++from abc import ABC, abstractmethod
++from dataclasses import dataclass
++from datetime import datetime
++from typing import Literal
++
++SubjectType = Literal["admin", "user"]
++
++
++@dataclass(frozen=True)
++class RefreshSession:
++    account_id: int
++    subject_id: int
++    subject_type: SubjectType
++    username: str
++    created_at: datetime
++    expires_at: datetime
++    scope: tuple[str, ...]
++
++
++class RefreshSessionRepository(ABC):
++    """Operate on hashes and metadata in the caller's transaction."""
++
++    @abstractmethod
++    def get(self, token_hash: str) -> RefreshSession | None:
++        raise NotImplementedError
++
++    @abstractmethod
++    def add(self, token_hash: str, session: RefreshSession) -> None:
++        raise NotImplementedError
++
++    @abstractmethod
++    def remove(self, token_hash: str) -> bool:
++        raise NotImplementedError
++
++    @abstractmethod
++    def revoke_subject(self, *, subject_type: SubjectType, subject_id: int) -> None:
++        raise NotImplementedError
++
++    @abstractmethod
++    def remove_expired(self, *, now: datetime) -> None:
++        raise NotImplementedError
+diff --git a/src/domain/uow/unit_of_work.py b/src/domain/uow/unit_of_work.py
+index d97d6df..eeaac6c 100644
+--- a/src/domain/uow/unit_of_work.py
++++ b/src/domain/uow/unit_of_work.py
+@@ -2,4 +2,5 @@
+ 
+ from abc import ABC, abstractmethod
++from contextlib import nullcontext
+ from types import TracebackType
+ from typing import ContextManager, Self
+@@ -12,4 +13,5 @@ from src.domain.repositories.department_repository import (
+     DepartmentRepository,
+ )
++from src.domain.repositories.refresh_session_repository import RefreshSessionRepository
+ from src.domain.repositories.ticket_repository import TicketRepository
+ from src.domain.repositories.ticket_user_repository import (
+@@ -35,4 +37,5 @@ class UnitOfWork(ContextManager[Self], ABC):
+     user_tickets: TicketUserRepository
+     departments: DepartmentRepository
++    refresh_sessions: RefreshSessionRepository
+ 
+     roles_admin: RoleRepository[AdminPermission]
+@@ -74,3 +77,11 @@ class UnitOfWork(ContextManager[Self], ABC):
+     def is_active(self) -> bool:
+         """Return True while the UnitOfWork owns an active transaction."""
+-        raise NotImplementedError
+\ No newline at end of file
++        raise NotImplementedError
++
++    def transaction(self, *, join: bool = False) -> ContextManager[Self]:
++        """Join only when the command passes ownership explicitly."""
++        if not join:
++            return self
++        if not self.is_active():
++            raise RuntimeError("An active UnitOfWork is required")
++        return nullcontext(self)
+diff --git a/src/web/auth/models.py b/src/web/auth/models.py
+index bbb4586..950e571 100644
+--- a/src/web/auth/models.py
++++ b/src/web/auth/models.py
+@@ -28,4 +28,5 @@ class LoginRequest(BaseModel):
+ class UserAuth(BaseModel):
+     id: int
++    account_id: int = 0
+     username: str
+     scope: list[str] = Field(default_factory=list)
+\ No newline at end of file
+diff --git a/src/web/auth/services/auth_service.py b/src/web/auth/services/auth_service.py
+index 0e00837..1c6211b 100644
+--- a/src/web/auth/services/auth_service.py
++++ b/src/web/auth/services/auth_service.py
+@@ -27,5 +27,7 @@ class AuthServiceAbstract(ABC):
+     def authenticate_user(
+         self,
+-        login_request: LoginRequest
++        login_request: LoginRequest,
++        *,
++        for_session: bool = False,
+     ) -> UserAuth:
+         raise NotImplementedError
+@@ -37,4 +39,6 @@ class AuthServiceAbstract(ABC):
+         *,
+         expected_subject_id: int | None = None,
++        expected_account_id: int | None = None,
++        for_session: bool = False,
+     ) -> bool:
+         raise NotImplementedError
+@@ -66,5 +70,7 @@ class AdminAuthService(AuthServiceAbstract):
+     def authenticate_user(
+         self,
+-        login_request:LoginRequest
++        login_request: LoginRequest,
++        *,
++        for_session: bool = False,
+     ) -> UserAuth:
+         """
+@@ -78,5 +84,5 @@ class AdminAuthService(AuthServiceAbstract):
+                 if admin or account exists but is disabled.
+         """
+-        with self.uow:
++        with self.uow.transaction(join=for_session):
+             try:
+                 admin = self.uow.admins.find_by_login(login=login_request.username)
+@@ -86,6 +92,9 @@ class AdminAuthService(AuthServiceAbstract):
+                 raise InvalidCredentialsError() from exc
+ 
++            if for_session:
++                self.uow.admins.touch(admin)
+             return UserAuth(
+                 id=admin.employee_id,
++                account_id=admin.account.account_id,
+                 username=str(admin.account.login),
+                 scope=self._scope(admin),
+@@ -97,4 +106,6 @@ class AdminAuthService(AuthServiceAbstract):
+             *,
+             expected_subject_id: int | None = None,
++            expected_account_id: int | None = None,
++            for_session: bool = False,
+     ) -> bool:
+         """
+@@ -103,5 +114,5 @@ class AdminAuthService(AuthServiceAbstract):
+         Used during refresh-token flow.
+         """
+-        with self.uow:
++        with self.uow.transaction(join=for_session):
+             try:
+                 admin = self.uow.admins.find_by_login(login=login_request.username)
+@@ -109,6 +120,10 @@ class AdminAuthService(AuthServiceAbstract):
+                     return False
+                 AdminPolicy.ensure_login_is_still_valid(admin=admin)
++                if expected_account_id is not None and admin.account.account_id != expected_account_id:
++                    return False
+             except DomainError:
+                 return False
++            if for_session:
++                self.uow.admins.touch(admin)
+         return True
+ 
+@@ -140,5 +155,7 @@ class UserAuthService(AuthServiceAbstract):
+     def authenticate_user(
+         self,
+-        login_request:LoginRequest
++        login_request: LoginRequest,
++        *,
++        for_session: bool = False,
+     ) -> UserAuth:
+         """
+@@ -152,5 +169,5 @@ class UserAuthService(AuthServiceAbstract):
+                 if admin or account exists but is disabled.
+         """
+-        with self.uow:
++        with self.uow.transaction(join=for_session):
+             try:
+                 user = self.uow.users.find_by_login(login=login_request.username)
+@@ -161,6 +178,9 @@ class UserAuthService(AuthServiceAbstract):
+                 raise InvalidCredentialsError() from exc
+ 
++            if for_session:
++                self.uow.users.touch(user)
+             return UserAuth(
+                 id=user.employee_id,
++                account_id=user.account.account_id,
+                 username=str(user.account.login),
+                 scope=self._scope(user),
+@@ -172,4 +192,6 @@ class UserAuthService(AuthServiceAbstract):
+             *,
+             expected_subject_id: int | None = None,
++            expected_account_id: int | None = None,
++            for_session: bool = False,
+     ) -> bool:
+         """
+@@ -178,5 +200,5 @@ class UserAuthService(AuthServiceAbstract):
+         Used during refresh-token flow.
+         """
+-        with self.uow:
++        with self.uow.transaction(join=for_session):
+             try:
+                 user = self.uow.users.find_by_login(login=login_request.username)
+@@ -185,6 +207,10 @@ class UserAuthService(AuthServiceAbstract):
+                 client = self.uow.clients.get(client_id=user.client_id)
+                 UserPolicy.ensure_login_is_still_valid(user=user,client=client)
++                if expected_account_id is not None and user.account.account_id != expected_account_id:
++                    return False
+             except DomainError:
+                 return False
++            if for_session:
++                self.uow.users.touch(user)
+         return True
+ 
+diff --git a/src/web/auth/services/shared_sessions.py b/src/web/auth/services/shared_sessions.py
+new file mode 100644
+index 0000000..0e13815
+--- /dev/null
++++ b/src/web/auth/services/shared_sessions.py
+@@ -0,0 +1,107 @@
++from typing import Any
++
++from src.domain.repositories.refresh_session_repository import RefreshSession, SubjectType
++from src.domain.uow.unit_of_work import UnitOfWork
++from src.web.auth import tokens
++from src.web.auth.exceptions import TokenError, TokenNotFoundError
++from src.web.auth.models import LoginRequest, LogoutRequest, RefreshRequest
++from src.web.auth.services.auth_service import AuthServiceAbstract
++from src.web.auth.services.services import AuthManager, TokenService
++from src.web.config import Settings
++
++
++class SharedSessionAuthManager:
++    """Issue, rotate and revoke refresh sessions through the business UoW."""
++
++    def __init__(
++        self, *, uow: UnitOfWork, auth_service: AuthServiceAbstract,
++        subject_type: SubjectType, settings: Settings,
++    ) -> None:
++        self.uow = uow
++        self.auth_service = auth_service
++        self.subject_type = subject_type
++        self.settings = settings
++
++    def login(self, *, login_request: LoginRequest) -> dict[str, Any]:
++        with self.uow:
++            user = self.auth_service.authenticate_user(login_request, for_session=True)
++            scope = AuthManager._resolve_scope(
++                allowed_scope=user.scope, requested_scope=login_request.scope,
++            )
++            pair = tokens.JWTToken.create(
++                settings=self.settings, username=user.username, subject_id=user.id,
++                subject_type=self.subject_type, scope=scope,
++            )
++            credential = pair.refresh_token
++            session = RefreshSession(
++                account_id=user.account_id, subject_id=user.id, subject_type=self.subject_type,
++                username=user.username, created_at=credential.created_at,
++                expires_at=credential.expires_at, scope=tuple(scope),
++            )
++            response = self._encode(pair, session)
++            self.uow.refresh_sessions.remove_expired(now=tokens.utcnow())
++            self.uow.refresh_sessions.add(credential.token_hash, session)
++            return response
++
++    def refresh(self, *, refresh_request: RefreshRequest) -> dict[str, Any]:
++        with self.uow:
++            previous_hash = tokens.hash_token(refresh_request.refresh_token)
++            session = self._get(previous_hash)
++            if session.expires_at <= tokens.utcnow():
++                raise TokenError("Invalid refresh session")
++            if not self.auth_service.validate_user_exists(
++                LoginRequest(username=session.username),
++                expected_subject_id=session.subject_id,
++                expected_account_id=session.account_id,
++                for_session=True,
++            ):
++                raise TokenError("Invalid refresh session")
++
++            pair = tokens.JWTToken.create(
++                settings=self.settings, username=session.username, subject_id=session.subject_id,
++                subject_type=session.subject_type, scope=list(session.scope),
++            )
++            response = self._encode(pair, session)
++            if not self.uow.refresh_sessions.remove(previous_hash):
++                raise TokenNotFoundError()
++            self.uow.refresh_sessions.add(pair.refresh_token.token_hash, session)
++            return response
++
++    def logout(self, *, logout_request: LogoutRequest, access_token: str | None = None) -> None:
++        with self.uow:
++            if logout_request.refresh_token:
++                token_hash = tokens.hash_token(logout_request.refresh_token)
++                self._get(token_hash)
++                if not self.uow.refresh_sessions.remove(token_hash):
++                    raise TokenNotFoundError()
++                return
++
++            if not logout_request.username or access_token is None:
++                raise TokenError("Refresh token or authenticated username is required")
++
++            principal = TokenService.verify_access_token(access_token, settings=self.settings)
++            subject_id = (
++                principal.get_admin_id() if self.subject_type == "admin" else principal.get_user_id()
++            )
++            # A different username is a scoped no-op. The touch inside this check
++            # also serializes logout-all against issuance and rotation.
++            if self.auth_service.validate_user_exists(
++                LoginRequest(username=logout_request.username),
++                expected_subject_id=subject_id,
++                for_session=True,
++            ):
++                self.uow.refresh_sessions.revoke_subject(
++                    subject_type=self.subject_type, subject_id=subject_id,
++                )
++
++    def _get(self, token_hash: str) -> RefreshSession:
++        session = self.uow.refresh_sessions.get(token_hash)
++        if session is None or session.subject_type != self.subject_type:
++            raise TokenNotFoundError()
++        return session
++
++    def _encode(self, pair: tokens.JWTToken, session: RefreshSession) -> dict[str, Any]:
++        if session.expires_at <= tokens.utcnow():
++            raise TokenError("Invalid refresh session")
++        pair.access_token.exp = min(pair.access_token.exp, session.expires_at)
++        return pair.encode(settings=self.settings)
+diff --git a/src/web/config.py b/src/web/config.py
+index 2a03874..583a4ec 100644
+--- a/src/web/config.py
++++ b/src/web/config.py
+@@ -21,13 +21,8 @@ class Settings(BaseSettings):
+     JWT_ISSUER:str="simple - tickets"
+     JWT_AUDIENCE:str="simple - tickets - api"
++    # Accepted for deployment compatibility. FastAPI uses DATABASE_URL.
+     REFRESH_TOKEN_BACKEND: Literal["memory", "sqlite"] = "memory"
+     REFRESH_TOKEN_SQLITE_PATH: Path | None = None
+ 
+-    @model_validator(mode="after")
+-    def require_refresh_storage_path(self):
+-        if self.REFRESH_TOKEN_BACKEND == "sqlite" and self.REFRESH_TOKEN_SQLITE_PATH is None:
+-            raise ValueError("Configure REFRESH_TOKEN_SQLITE_PATH for persistent refresh sessions")
+-        return self
+-
+     @model_validator(mode="after")
+     def require_configured_signing_key(self):
+diff --git a/src/web/dependencies/auth.py b/src/web/dependencies/auth.py
+index 072cdcd..b046c70 100644
+--- a/src/web/dependencies/auth.py
++++ b/src/web/dependencies/auth.py
+@@ -13,6 +13,6 @@ from src.web.auth.services.auth_service import (
+     UserAuthService,
+ )
+-from src.web.auth.services.services import AuthManager, TokenService
+-from src.web.auth.storage import TokenStorage
++from src.web.auth.services.services import TokenService
++from src.web.auth.services.shared_sessions import SharedSessionAuthManager
+ from src.web.auth.tokens import AccessToken
+ from src.web.config import Settings
+@@ -27,8 +27,4 @@ from src.web.dependencies.services import (
+ 
+ 
+-def get_refresh_token_storage(request: Request) -> TokenStorage:
+-    return request.app.state.refresh_token_storage
+-
+-
+ # ---------------------------------------------------------------------
+ # Token principals
+@@ -90,9 +86,8 @@ def get_auth_manager_admin(
+     uow: UnitOfWork = Depends(get_uow),
+     settings: Settings = Depends(get_settings),
+-    storage: TokenStorage = Depends(get_refresh_token_storage),
+-) -> AuthManager:
+-    return AuthManager(
++) -> SharedSessionAuthManager:
++    return SharedSessionAuthManager(
++        uow=uow,
+         auth_service=AdminAuthService(uow=uow),
+-        token_storage=storage,
+         subject_type="admin",
+         settings=settings
+@@ -104,9 +99,8 @@ def get_auth_manager_user(
+     uow: UnitOfWork = Depends(get_uow),
+     settings: Settings = Depends(get_settings),
+-    storage: TokenStorage = Depends(get_refresh_token_storage),
+-) -> AuthManager:
+-    return AuthManager(
++) -> SharedSessionAuthManager:
++    return SharedSessionAuthManager(
++        uow=uow,
+         auth_service=UserAuthService(uow=uow),
+-        token_storage=storage,
+         subject_type="user",
+         settings = settings
+diff --git a/src/web/main.py b/src/web/main.py
+index 452326a..60d35eb 100644
+--- a/src/web/main.py
++++ b/src/web/main.py
+@@ -32,6 +32,4 @@ from src.web.routers.admin.tickets import router as admin_tickets_router
+ from src.web.routers.admin.roles import router as admin_roles_router
+ 
+-from src.web.auth.storage import TokenStorageMemory
+-from src.web.auth.storage_sqlite import TokenStorageSQLite
+ from src.web.config import Settings
+ 
+@@ -44,12 +42,4 @@ def create_app() -> FastAPI:
+     # noinspection PyUnresolvedReferences
+     app1.state.settings = settings
+-    if settings.REFRESH_TOKEN_BACKEND == "sqlite":
+-        path = settings.REFRESH_TOKEN_SQLITE_PATH
+-        if path is None:
+-            raise ValueError("Configure REFRESH_TOKEN_SQLITE_PATH")
+-        app1.state.refresh_token_storage = TokenStorageSQLite(path)
+-    else:
+-        app1.state.refresh_token_storage = TokenStorageMemory()
+-
+     app1.include_router(auth_router)
+     app1.include_router(admin_clients_router)
+@@ -116,5 +106,5 @@ if __name__ == "__main__":
+         host="0.0.0.0",
+         port=8000,
+-        reload=True,  # Development entry point, with process-local sessions.
++        reload=True,  # Development entry point.
+         log_level="info",
+     )
+diff --git a/src/web/routers/auth.py b/src/web/routers/auth.py
+index b030102..3b429dc 100644
+--- a/src/web/routers/auth.py
++++ b/src/web/routers/auth.py
+@@ -4,5 +4,5 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2Pas
+ from src.domain.account import Account
+ from src.web.auth.models import RefreshRequest, LogoutRequest, LoginRequest
+-from src.web.auth.services.services import AuthManager
++from src.web.auth.services.shared_sessions import SharedSessionAuthManager
+ 
+ from src.web.dependencies.auth import get_auth_manager_admin, get_auth_manager_user
+@@ -73,5 +73,5 @@ def _verify_account_password(entity, plain_password: str) -> None:
+ def login(
+         form_data: OAuth2PasswordRequestForm = Depends(),
+-        auth_manager: AuthManager = Depends(get_auth_manager_admin)
++        auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_admin)
+ ):
+     #
+@@ -84,5 +84,5 @@ def login(
+ def refresh(
+         refresh_request: RefreshRequest,
+-        auth_manager: AuthManager = Depends(get_auth_manager_admin)
++        auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_admin)
+ ):
+     refresh_request = RefreshRequest(refresh_token=refresh_request.refresh_token)
+@@ -94,5 +94,5 @@ def refresh(
+ def logout(
+     logout_request: LogoutRequest,
+-    auth_manager: AuthManager = Depends(get_auth_manager_admin),
++    auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_admin),
+     bearer: HTTPAuthorizationCredentials | None = Depends(logout_bearer),
+ ):
+@@ -108,5 +108,5 @@ def logout(
+ def login_user(
+         form_data: OAuth2PasswordRequestForm = Depends(),
+-        auth_manager: AuthManager = Depends(get_auth_manager_user)
++        auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_user)
+ ):
+     #
+@@ -119,5 +119,5 @@ def login_user(
+ def refresh_user(
+         refresh_request: RefreshRequest,
+-        auth_manager: AuthManager = Depends(get_auth_manager_user)
++        auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_user)
+ ):
+     refresh_request = RefreshRequest(refresh_token=refresh_request.refresh_token)
+@@ -128,5 +128,5 @@ def refresh_user(
+ def logout_user(
+     logout_request: LogoutRequest,
+-    auth_manager: AuthManager = Depends(get_auth_manager_user),
++    auth_manager: SharedSessionAuthManager = Depends(get_auth_manager_user),
+     bearer: HTTPAuthorizationCredentials | None = Depends(logout_bearer),
+ ):

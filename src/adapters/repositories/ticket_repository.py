@@ -269,7 +269,8 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             sql = TicketGateway.SELECT_BY_FINISHED
 
         return self._load_many_tickets(
-            sql
+            sql,
+            {"client_id": client_id} if client_id else None,
         )
 
 
@@ -434,11 +435,13 @@ class TicketRepositorySQLite(TicketRepository, BaseRepository):
             TicketMapper.TICKET_FIELDS,
             params,
         )
+        r=[]
+        for row in rows:
+            t=self._load_ticket(row)
+            r.append(t)
 
-        return [
-            self._load_ticket(row)
-            for row in rows
-        ]
+        return r
+
 
 
 '''

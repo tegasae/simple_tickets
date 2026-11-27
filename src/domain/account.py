@@ -6,10 +6,11 @@ for authentication and authorization.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Self
 
 from src.domain.value_objects import Login, Password, FakePassword
+from src.domain.exceptions import ItemValidationError
 
 
 @dataclass(slots=True)
@@ -27,7 +28,7 @@ class Account:
     login: Login
     password: Password
     enabled: bool = field(default=True)
-    date_created: datetime = field(default_factory=datetime.now)
+    date_created: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
     @classmethod
@@ -44,14 +45,17 @@ class Account:
             New Account instance
 
         Raises:
-            ValueError: If login or password validation fails
+            ItemValidationError: If login or password validation fails
         """
-        return cls(
-            account_id=account_id,
-            login=Login(login),
-            password=Password.from_plain(plain_password),
-            enabled=enabled
-        )
+        try:
+            return cls(
+                account_id=account_id,
+                login=Login(login),
+                password=Password.from_plain(plain_password),
+                enabled=enabled
+            )
+        except ValueError as exc:
+            raise ItemValidationError(str(exc)) from exc
 
     @classmethod
     def rehydrate(cls, account_id: int, login: str, password_hash: str,
@@ -73,13 +77,16 @@ class Account:
             login=Login(login),
             password=Password.from_hash(password_hash),
             enabled=enabled,
-            date_created=date_created or datetime.now(),
+            date_created=date_created or datetime.now(UTC),
         )
     def change_password(self, *, plain_password: str) -> Self:
         """Change account password.
         Args:"""
 
-        self.password = Password.from_plain(plain_password)
+        try:
+            self.password = Password.from_plain(plain_password)
+        except ValueError as exc:
+            raise ItemValidationError(str(exc)) from exc
         return self
 
     def verify_password(self, plain_password: str) -> bool:

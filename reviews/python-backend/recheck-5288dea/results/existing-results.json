@@ -1,0 +1,644 @@
+{
+  "prior60": {
+    "exit_code": 1,
+    "counts": {
+      "passed": 58,
+      "failed": 2,
+      "error": 0,
+      "skipped": 0
+    },
+    "cases": [
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_delete_standalone_ticket",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_delete_linked_ticket_and_history",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_user_create_persists_selected_contact_in_both_tickets",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_admin_create_persists_selected_contact_in_both_tickets[False]",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_admin_create_persists_selected_contact_in_both_tickets[True]",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_user_changes_and_resets_contact_in_both_tickets",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_batch_loads_full_projection_in_normal_column_order",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_closed_for_client_returns_only_closed_tickets",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_schema_initializes_empty_sqlite",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_user_comment_survives_reload",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_admin_user_account_updates_commit_in_both_directions",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_client_disable_preserves_in_progress_and_review_pairs",
+        "status": "failed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_user_disable_keeps_review_and_saves_linked_suspension",
+        "status": "failed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_ordinary_remote_assignment_in_own_department",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_invalid_urgency_is_rejected_by_http_model",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_future_date_with_offset_is_normalized_for_scheduling",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_retroactive_work_accepts_explicit_offset",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_read_legacy_null_duration_as_unspecified",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_closed_user_tickets_filter_uses_client_id",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_user_lists_fetch_only_scoped_roots",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_work_completion_can_be_confirmed_and_reloaded",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_admin_can_clear_contact_on_standalone_ticket",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_ticket_workflows::test_user_can_cancel_a_fresh_ticket_with_selected_contact",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_transactions::test_automatic_commit_failure_rolls_back_before_reuse",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_transactions::test_internal_ticket_assembly_failure_rolls_back",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_transactions::test_linked_ticket_assembly_failure_rolls_back_both",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_transactions::test_legacy_null_versions_advance_and_preserve_optimistic_lock",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_transactions::test_uow_cannot_take_over_another_open_sqlite_transaction",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_web_contracts::test_direct_web_launcher_uses_importable_asgi_target",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_web_contracts::test_missing_internal_ticket_is_a_404",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_web_contracts::test_typical_signing_configuration_loads_explicit_key",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_web_contracts::test_signing_config_has_no_implicit_key",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_web_contracts::test_own_user_session_can_be_closed_by_refresh_token",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_web_contracts::test_root_test_runner_propagates_pytest_status",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_web_contracts::test_new_password_hashes_are_salted_and_legacy_hash_remains_readable",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_web_contracts::test_active_user_can_list_own_tickets_and_log_out_by_authenticated_username",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_web_contracts::test_unexpected_error_has_generic_response",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_web_contracts::test_negative_admin_ticket_id_is_a_client_error",
+        "status": "passed"
+      },
+      {
+        "test": "old_review_tests.test_web_contracts::test_employee_write_conflict_keeps_its_http_status",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_disable_client_obeys_confirmed_review_policy",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_user_disable_persists_projected_suspension",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_reenable_does_not_reopen_suspended_ticket",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_text_is_validated_at_the_request_boundary[blank-/admin/tickets/]",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_text_is_validated_at_the_request_boundary[blank-/user/tickets/]",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_text_is_validated_at_the_request_boundary[short-/admin/tickets/]",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_text_is_validated_at_the_request_boundary[short-/user/tickets/]",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_text_is_validated_at_the_request_boundary[long-/admin/tickets/]",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_text_is_validated_at_the_request_boundary[long-/user/tickets/]",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_negative_department_path_is_a_client_error",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_seeded_legacy_default_urgency_is_normal",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_fresh_schema_default_and_link_foreign_key",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_whitespace_comment_is_a_client_error",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_admin_comment_preserves_the_author_in_the_user_history",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_workflow_error_names_the_statuses_without_dumping_the_aggregate",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_legacy_suspended_projection_does_not_block_client_disable",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_recheck_workflows::test_owner_disable_closes_both_tickets_awaiting_review",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_refresh_storage::test_new_app_instances_share_refresh_storage",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_refresh_storage::test_failed_encoding_keeps_previous_session_in_memory",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_refresh_storage::test_sqlite_rotation_rolls_back_if_insert_fails",
+        "status": "passed"
+      },
+      {
+        "test": "previous_recheck_tests.test_refresh_storage::test_memory_stores_belong_to_their_app_instance",
+        "status": "passed"
+      }
+    ],
+    "command": [
+      "/tmp/tickets-bbf7a39-venv/bin/python",
+      "-m",
+      "pytest",
+      "-c",
+      "pytest.ini",
+      "-o",
+      "addopts=",
+      "-p",
+      "no:cacheprovider",
+      "-q",
+      "--tb=short",
+      "--continue-on-collection-errors",
+      "--junitxml=/tmp/tickets-audit4/prior60-results.xml",
+      "old_review_tests",
+      "previous_recheck_tests"
+    ]
+  },
+  "last70": {
+    "exit_code": 0,
+    "counts": {
+      "passed": 70,
+      "failed": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "cases": [
+      {
+        "test": "last_review_tests.test_atomicity_and_contention::test_pair_command_rolls_back_when_second_aggregate_write_fails[create]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_atomicity_and_contention::test_pair_command_rolls_back_when_second_aggregate_write_fails[cancel]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_atomicity_and_contention::test_concurrent_description_patches_return_success_and_temporary_503",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_both_sides_change_contact_in_editable_pair[admin-created]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_both_sides_change_contact_in_editable_pair[admin-accepted]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_both_sides_change_contact_in_editable_pair[admin-deferred]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_both_sides_change_contact_in_editable_pair[user-created]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_both_sides_change_contact_in_editable_pair[user-accepted]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_both_sides_change_contact_in_editable_pair[user-deferred]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_contact_edit_does_not_open_other_internal_states[admin-assigned]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_contact_edit_does_not_open_other_internal_states[admin-at_work]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_contact_edit_does_not_open_other_internal_states[admin-paused]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_contact_edit_does_not_open_other_internal_states[admin-ready_for_review]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_contact_edit_does_not_open_other_internal_states[admin-executed]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_contact_edit_does_not_open_other_internal_states[admin-cancelled]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_contact_edit_does_not_open_other_internal_states[user-assigned]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_contact_edit_does_not_open_other_internal_states[user-at_work]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_contact_edit_does_not_open_other_internal_states[user-paused]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_contact_edit_does_not_open_other_internal_states[user-ready_for_review]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_contact_edit_does_not_open_other_internal_states[user-executed]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_contact_edit_does_not_open_other_internal_states[user-cancelled]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_contact_permission_does_not_expand_user_description_edit",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_admin_enable_requires_enabled_department_or_no_assignment[enable_department]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_admin_enable_requires_enabled_department_or_no_assignment[remove_department]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_contact_and_department::test_admin_without_department_can_be_enabled",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_current_workflows::test_review_pair_is_closed_when_owner_or_client_disabled[clients]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_current_workflows::test_review_pair_is_closed_when_owner_or_client_disabled[users]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_current_workflows::test_active_pair_survives_client_disable_and_can_finish",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_current_workflows::test_selected_contact_and_ordinary_comment_roundtrip",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_current_workflows::test_comment_created_by_staff_preserves_actual_author",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_current_workflows::test_refresh_is_bound_to_same_subject_after_login_is_reassigned[memory]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_current_workflows::test_refresh_is_bound_to_same_subject_after_login_is_reassigned[sqlite]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_database_error_classification::test_locked_insert_returns_temporary_error_without_duplicate_or_partial_data[departments]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_database_error_classification::test_locked_insert_returns_temporary_error_without_duplicate_or_partial_data[roles/admin]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_database_error_classification::test_locked_insert_returns_temporary_error_without_duplicate_or_partial_data[users]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_database_error_classification::test_commit_lock_is_rolled_back_before_503_and_new_request_can_succeed",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_database_error_classification::test_duplicate_department_is_still_conflict",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_database_error_classification::test_unknown_department_failure_is_not_reported_as_duplicate",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_role_assignment_predicate_checks_both_assignment_tables[none]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_role_assignment_predicate_checks_both_assignment_tables[admin]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_role_assignment_predicate_checks_both_assignment_tables[user]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_new_entity_dates_are_aware_utc_on_non_utc_host[department]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_new_entity_dates_are_aware_utc_on_non_utc_host[admin]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_new_entity_dates_are_aware_utc_on_non_utc_host[user]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_new_entity_dates_are_aware_utc_on_non_utc_host[account]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_new_employee_account_and_department_dates_keep_their_instant[UTC0]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_new_employee_account_and_department_dates_keep_their_instant[UTC-3]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_department_create_and_get_expose_the_same_aware_instant[UTC0]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_department_create_and_get_expose_the_same_aware_instant[UTC-3]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_rehydration_preserves_explicit_historical_timestamps[existing0]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_rehydration_preserves_explicit_historical_timestamps[existing1]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_account_rehydrate_without_a_date_generates_aware_utc",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_persistence_and_dates::test_creating_new_entities_does_not_rewrite_historical_database_dates",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_create_user_cannot_bypass_role_assignment_permission",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_revoke_user_role_does_not_require_admin_role_permission[False]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_revoke_user_role_does_not_require_admin_role_permission[True]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_short_password_is_client_error_and_does_not_change_account[admins]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_short_password_is_client_error_and_does_not_change_account[users]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_invalid_login_is_client_error_and_account_is_not_attached",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_unknown_permission_is_request_validation_error[admin]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_unknown_permission_is_request_validation_error[user]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_description_limit_is_client_error_and_preserves_value[admin]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_description_limit_is_client_error_and_preserves_value[user]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_expected_application_rejection_returns_client_error[self_disable]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_expected_application_rejection_returns_client_error[negative_client]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_expected_application_rejection_returns_client_error[assigned_role]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_expected_application_rejection_returns_client_error[system_role]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_delete_role_assigned_to_user_is_rejected_before_delete",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_description_creation_uses_normalized_domain_limit[admin]",
+        "status": "passed"
+      },
+      {
+        "test": "last_review_tests.test_rbac_and_validation::test_description_creation_uses_normalized_domain_limit[user]",
+        "status": "passed"
+      }
+    ],
+    "command": [
+      "/tmp/tickets-bbf7a39-venv/bin/python",
+      "-m",
+      "pytest",
+      "-c",
+      "pytest.ini",
+      "-o",
+      "addopts=",
+      "-p",
+      "no:cacheprovider",
+      "-q",
+      "--tb=short",
+      "--continue-on-collection-errors",
+      "--junitxml=/tmp/tickets-audit4/last70-results.xml",
+      "last_review_tests"
+    ]
+  },
+  "archive": {
+    "exit_code": 1,
+    "counts": {
+      "passed": 0,
+      "failed": 4,
+      "error": 6,
+      "skipped": 0
+    },
+    "cases": [
+      {
+        "test": "::archived_tests.adapters.repositories.mappers.test_datetime_mapper",
+        "status": "error"
+      },
+      {
+        "test": "::archived_tests.application.services.test_ticket_application_service",
+        "status": "error"
+      },
+      {
+        "test": "::archived_tests.application.services.test_ticket_user_application_service",
+        "status": "error"
+      },
+      {
+        "test": "::archived_tests.domain.test_ticket_creator_semantics",
+        "status": "error"
+      },
+      {
+        "test": "::archived_tests.domain.test_ticket_policy_links",
+        "status": "error"
+      },
+      {
+        "test": "::archived_tests.domain.test_ticket_status_record_actor",
+        "status": "error"
+      },
+      {
+        "test": "archived_tests.adapters.repositories.mappers.test_ticket_mappers::test_ticket_status_mapper_preserves_none_optional_datetimes",
+        "status": "failed"
+      },
+      {
+        "test": "archived_tests.adapters.repositories.mappers.test_ticket_mappers::test_ticket_mapper_serializes_zero_creator_admin_as_sql_null",
+        "status": "failed"
+      },
+      {
+        "test": "archived_tests.adapters.repositories.mappers.test_ticket_mappers::test_ticket_user_status_mapper_reads_comment_into_status_comment",
+        "status": "failed"
+      },
+      {
+        "test": "archived_tests.adapters.repositories.mappers.test_ticket_mappers::test_ticket_user_status_mapper_writes_status_comment_to_comment_column",
+        "status": "failed"
+      }
+    ],
+    "command": [
+      "/tmp/tickets-bbf7a39-venv/bin/python",
+      "-m",
+      "pytest",
+      "-c",
+      "pytest.ini",
+      "-o",
+      "addopts=",
+      "-p",
+      "no:cacheprovider",
+      "-q",
+      "--tb=short",
+      "--continue-on-collection-errors",
+      "--junitxml=/tmp/tickets-audit4/archive-results.xml",
+      "archived_tests"
+    ]
+  }
+}

@@ -1,11 +1,11 @@
-from __future__ import annotations
+
 
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from threading import Lock
 
-from src.web.auth.exceptions import TokenNotFoundError
-from src.web.auth.tokens import RefreshToken, hash_token
+from src.web.auth.exceptions import TokenError, TokenNotFoundError
+from src.web.auth.tokens import RefreshToken, SubjectType, hash_token
 
 
 class TokenStorage(ABC):
@@ -19,6 +19,11 @@ class TokenStorage(ABC):
 
     @abstractmethod
     def delete(self, token_id: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def replace(self, token_id: str, successor: RefreshToken) -> None:
+        """Atomically replace a valid refresh token with its successor."""
         raise NotImplementedError
 
     @abstractmethod
@@ -36,7 +41,10 @@ class TokenStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def revoke_user_tokens(self, username: str) -> int:
+    def revoke_user_tokens(
+        self, username: str, *, subject_id: int | None = None,
+        subject_type: SubjectType | None = None,
+    ) -> int:
         raise NotImplementedError
 
     @abstractmethod
@@ -62,34 +70,18 @@ class TokenStorageMemory(TokenStorage):
         - not shared between multiple workers/processes
     """
 
-    _instance: "TokenStorageMemory | None" = None
-    _instance_lock = Lock()
-
-    def __new__(cls, *args, **kwargs):
-        with cls._instance_lock:
-            if cls._instance is None:
-                cls._instance = super().__new__(cls)
-
-        return cls._instance
-
     def __init__(self) -> None:
-        if getattr(self, "_initialized", False):
-            return
-
         self._lock = Lock()
-
-        # Key: sha256(raw refresh token)
-        # Value: RefreshToken object
         self._refresh_tokens: dict[str, RefreshToken] = {}
-
-        self._initialized = True
 
     def put(self, refresh_token: RefreshToken) -> None:
         """
         Store refresh token by hash, not by raw token_id.
         """
         with self._lock:
-            self._refresh_tokens[refresh_token.token_hash] = refresh_token
+            if refresh_token.token_hash in self._refresh_tokens:
+                raise RuntimeError("Generated duplicate refresh token")
+            self._refresh_tokens[refresh_token.token_hash] = refresh_token.model_copy(deep=True)
 
     def get(self, token_id: str) -> RefreshToken:
         """
@@ -105,7 +97,7 @@ class TokenStorageMemory(TokenStorage):
             if token is None:
                 raise TokenNotFoundError()
 
-            return token
+            return token.model_copy(deep=True)
 
     def delete(self, token_id: str) -> None:
         """
@@ -118,6 +110,19 @@ class TokenStorageMemory(TokenStorage):
                 raise TokenNotFoundError()
 
             del self._refresh_tokens[token_hash]
+
+    def replace(self, token_id: str, successor: RefreshToken) -> None:
+        old_hash = hash_token(token_id)
+        with self._lock:
+            old = self._refresh_tokens.get(old_hash)
+            if old is None:
+                raise TokenNotFoundError()
+            if not old.is_valid():
+                raise TokenError("Invalid refresh token")
+            if successor.token_hash in self._refresh_tokens:
+                raise RuntimeError("Generated duplicate refresh token")
+            self._refresh_tokens[successor.token_hash] = successor.model_copy(deep=True)
+            del self._refresh_tokens[old_hash]
 
     def cleanup_expired_tokens(self) -> int:
         """
@@ -145,12 +150,15 @@ class TokenStorageMemory(TokenStorage):
         """
         with self._lock:
             return [
-                token
+                token.model_copy(deep=True)
                 for token in self._refresh_tokens.values()
                 if token.username == username
             ]
 
-    def revoke_user_tokens(self, username: str) -> int:
+    def revoke_user_tokens(
+        self, username: str, *, subject_id: int | None = None,
+        subject_type: SubjectType | None = None,
+    ) -> int:
         """
         Revoke all refresh tokens for username.
 
@@ -163,7 +171,11 @@ class TokenStorageMemory(TokenStorage):
 
         with self._lock:
             for token in self._refresh_tokens.values():
-                if token.username == username:
+                if (
+                    token.username == username
+                    and (subject_id is None or token.subject_id == subject_id)
+                    and (subject_type is None or token.subject_type == subject_type)
+                ):
                     token.revoke()
                     count += 1
 

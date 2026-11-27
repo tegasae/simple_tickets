@@ -21,9 +21,11 @@ class TicketUserGateway:
 
     SELECT_BY_USER_ID = BASE_SELECT + """
         WHERE user_id = :user_id
+        ORDER BY user_ticket_id
         """
     SELECT_BY_CLIENT_ID=BASE_SELECT+ """
-    WHERE client_id = :client_id"""
+    WHERE client_id = :client_id
+    ORDER BY user_ticket_id"""
 
     SELECT_BY_OPEN_USER_ID=BASE_SELECT +   """ 
     WHERE user_id=:user_id AND date_finished is NULL"""
@@ -34,7 +36,7 @@ class TicketUserGateway:
     SELECT_BY_FINISHED_USER_ID=BASE_SELECT + """
     WHERE user_id=:user_id AND date_finished is not NULL"""
     SELECT_BY_FINISHED_CLIENT_ID = BASE_SELECT + """
-    WHERE user_id=:user_id AND date_finished is NULL"""
+    WHERE client_id=:client_id AND date_finished is not NULL"""
 
 
 
@@ -73,14 +75,14 @@ class TicketUserGateway:
         contact_user_id = :contact_user_id,
         description = :description,
         date_finished = :date_finished,
-        version = version + 1
+        version = COALESCE(version, 0) + 1
     WHERE user_ticket_id = :user_ticket_id
-      AND version = :version
+      AND COALESCE(version, 0) = :version
     """
 
     DELETE = """
     DELETE FROM user_tickets
-    WHERE user_ticket_id = :ticket_id
+    WHERE user_ticket_id = :user_ticket_id
     """
 
     COUNT_BY_CLIENT_ID = """
@@ -99,9 +101,9 @@ class TicketUserGateway:
 
     TOUCH = """
         UPDATE user_tickets
-        SET version = version + 1
+        SET version = COALESCE(version, 0) + 1
         WHERE user_ticket_id = :user_ticket_id
-          AND version = :version
+          AND COALESCE(version, 0) = :version
     """
 
 
@@ -134,7 +136,7 @@ class TicketUserCommentGateway:
 
     DELETE_ALL = """
     DELETE FROM user_tickets_comment
-    WHERE ticket_user_id = :ticket_user_id
+    WHERE user_ticket_id = :user_ticket_id
     """
 
     EXISTS_BY_EMPLOYEE_ID = """

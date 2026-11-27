@@ -1,11 +1,23 @@
+from src.web.models.ticket_input import TicketDescriptionText
 # src/web/models/tickets.py
 
-from datetime import datetime, UTC
-from typing import Any
+from datetime import datetime, UTC, timedelta
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, Field
 
-from src.domain.ticket import TicketUrgency
+from src.domain.ticket_components import TicketUrgency
+from src.web.models.base_response import BaseResponse
+from src.web.models.ticket_input import (
+    RequiredTicketCommentText, TicketCommentText, TicketText,
+)
+
+
+def _to_utc(value: datetime) -> datetime:
+    return value.astimezone(UTC)
+
+
+UtcDatetime = Annotated[AwareDatetime, AfterValidator(_to_utc)]
 
 
 # =====================================================================
@@ -17,35 +29,19 @@ class TicketCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     client_id: int
-    text_of_ticket: str
-    description: str = ""
+    text_of_ticket: TicketText
+    description: TicketDescriptionText = ""
 
     user_id: int = 0
     contact_user_id: int = 0
     department_id: int = 0
 
     remote_work_recommended: bool = False
-    urgency: str = "normal"
+    urgency: TicketUrgency = TicketUrgency.NORMAL
 
-    planned_at: datetime | None = None
+    planned_at: UtcDatetime | None = None
 
-    comment: str = ""
-
-    @field_validator("planned_at")
-    @classmethod
-    def normalize_planned_at(
-        cls,
-        value: datetime | None,
-    ) -> datetime | None:
-        if value is None:
-            return None
-
-        if value.tzinfo is None:
-            raise ValueError(
-                "planned_at must contain timezone"
-            )
-
-        return value.astimezone(UTC)
+    comment: TicketCommentText = ""
 
 class TicketCreateForUserRequest(TicketCreateRequest):
     """
@@ -67,7 +63,7 @@ class TicketCreateForUserRequest(TicketCreateRequest):
 class TicketCommentBaseRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    comment: str = ""
+    comment: TicketCommentText = ""
 
 
 class TicketCommentRequest(TicketCommentBaseRequest):
@@ -75,7 +71,7 @@ class TicketCommentRequest(TicketCommentBaseRequest):
 
 
 class TicketRequiredCommentRequest(TicketCommentBaseRequest):
-    comment: str = Field(min_length=1)
+    comment: RequiredTicketCommentText
 
 
 class TicketAcceptRequest(TicketCommentRequest):
@@ -93,7 +89,7 @@ class TicketDeferRequest(TicketRequiredCommentRequest):
 class TicketDescriptionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    description: str = ""
+    description: TicketDescriptionText = ""
 
 
 class TicketContactUserRequest(BaseModel):
@@ -128,7 +124,7 @@ class TicketUrgencyRequest(BaseModel):
 class TicketScheduleRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    planned_at: datetime
+    planned_at: UtcDatetime
 
 
 # =====================================================================
@@ -142,7 +138,7 @@ class TicketAssignRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     executor_id: int = Field(gt=0)
-    comment: str = ""
+    comment: TicketCommentText = ""
 
 
 # =====================================================================
@@ -160,7 +156,7 @@ class TicketStartWorkRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     work_is_remote: bool = False
-    comment: str = ""
+    comment: TicketCommentText = ""
 
 
 class TicketStartRemoteWorkRequest(BaseModel):
@@ -172,7 +168,7 @@ class TicketStartRemoteWorkRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    comment: str = ""
+    comment: TicketCommentText = ""
 
 
 class TicketPauseWorkRequest(TicketCommentRequest):
@@ -183,15 +179,15 @@ class TicketResumeWorkRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     work_is_remote: bool = False
-    comment: str = ""
+    comment: TicketCommentText = ""
 
 
 class TicketFinishWorkRequest(TicketCommentRequest):
     """
     Finish current work.
 
-    Application layer may additionally perform EXECUTED when actor
-    has TICKET_EXECUTED.
+    Work moves to READY_FOR_REVIEW. A separate execute request
+    performs administrative finalization.
     """
 
     pass
@@ -212,17 +208,19 @@ class TicketCompleteWorkRetroactivelyRequest(BaseModel):
     is supplied.
     """
 
+
     model_config = ConfigDict(extra="forbid")
 
     work_is_remote: bool = False
 
-    actual_started_at: datetime | None = None
-    actual_finished_at: datetime | None = None
+    actual_started_at: UtcDatetime | None = None
+    actual_finished_at: UtcDatetime | None = None
 
-    duration: int=0
+    duration: timedelta = Field(
+            default_factory=timedelta
+        )
 
-    comment: str = ""
-
+    comment: TicketCommentText = ""
 
 # =====================================================================
 # Finalization
@@ -242,7 +240,7 @@ class TicketCancelRequest(TicketRequiredCommentRequest):
 # =====================================================================
 
 
-class TicketResponse(BaseModel):
+class TicketResponse(BaseResponse):
     """
     Web representation of internal Ticket.
 

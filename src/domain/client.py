@@ -4,14 +4,14 @@
 This module defines the Client entity for managing customer/client information.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, InitVar
 from datetime import datetime, UTC
 from typing import Self
 
 from src.domain.exceptions import ItemValidationError, DomainOperationError
 from src.domain.value_objects import Email, Address, Phone, Name, Empty, Description
 
-
+_EMPTY_CLIENT_TOKEN = object()
 @dataclass(kw_only=True)
 class Client:
     """Client entity representing a customer or client.
@@ -36,16 +36,34 @@ class Client:
     description: Description|Empty=field(default_factory=Empty)
     created_by_admin_id: int = 0
     enabled: bool = True
+    _is_empty: bool = field(
+        default=False,
+        init=False,
+        repr=False,
+        compare=False
+    )
 
+    _empty_token: InitVar[object | None] = None
 
     date_created: datetime = field(
         default_factory=lambda: datetime.now(UTC)
     )
     version: int = 0
 
-    def __post_init__(self):
+    def __post_init__(self,_empty_token: object | None):
+        if _empty_token is _EMPTY_CLIENT_TOKEN:
+            if self.client_id != 0 or self.created_by_admin_id != 0:
+                raise ItemValidationError("Invalid empty client")
+
+            self._is_empty = True
+            return
+
+        if _empty_token is not None:
+            raise ItemValidationError("Invalid empty client token")
+
         if self.client_id < 0:
             raise ItemValidationError("Invalid client ID")
+
         if self.created_by_admin_id <= 0:
             raise ItemValidationError("Invalid created admin ID")
 
@@ -59,7 +77,7 @@ class Client:
             address: str ="",
             phone: str ="",
             description:str="",
-            created_by_admin_id: int = 0,
+            created_by_admin_id,
             enabled: bool = True
     ) -> Self:
         """Create a new client.
@@ -129,7 +147,8 @@ class Client:
                   description: str = "",
                   created_by_admin_id: int = 0,
                   enabled: bool = True,
-                  date_created: datetime
+                  date_created: datetime,
+                  version:int
                   ):
         try:
             return cls(
@@ -141,10 +160,25 @@ class Client:
                 description=Description(description) if description else Empty(),
                 created_by_admin_id=created_by_admin_id,
                 enabled=enabled,
-                date_created=date_created
+                date_created=date_created,
+                version=version
             )
         except ValueError as e:
             raise ItemValidationError(f"Client rehydrate failed: {e}") from e
+
+    @classmethod
+    def create_empty(cls) -> Self:
+        return cls(
+            client_id=0,
+            name=Name("--"),
+            enabled=True,
+            created_by_admin_id=0,
+            _empty_token=_EMPTY_CLIENT_TOKEN
+        )
+
+    def is_empty(self)->bool:
+        return self._is_empty
+
 
     def disable(self) -> None:
         """Disable the client."""
@@ -163,53 +197,67 @@ class Client:
         if not self.enabled:
             raise DomainOperationError("Client is disabled")
 
-
     def update_contact_info(
             self,
+            *,
             name: str="",
             email: str="",
             address: str="",
-            phone: str ="",
-            description:str=""
+            phone: str="",
+            description: str=""
     ) -> None:
-        """Update client's contact information.
 
-        Args:
-            name: New name if not empty
-            email: New email (None to keep current)
-            address: New address (None to keep current)
-            phone: New phone (None to keep current)
-            description: New description
-        Raises:
-            DomainValidationError: If new values are invalid
-        """
+        if self._is_empty:
+            raise DomainOperationError(
+                "Cannot modify empty client"
+            )
+
         try:
+            new_name = (
+                Name(name) if name is not None
+                else self.name
+            )
 
-            self.name=Name(name)
-            if email is not None:
-                self.email = Email(email) if email else Empty()
+            new_email = (
+                Email(email) if email else Empty()
+            ) if email is not None else self.email
 
-            if address is not None:
-                self.address = Address(address) if address else Empty()
-            if phone is not None:
-                self.phone = Phone(phone) if phone else Empty()
-            if description is not None:
-                self.description = Description(description) if description else Empty()
+            new_address = (
+                Address(address) if address else Empty()
+            ) if address is not None else self.address
+
+            new_phone = (
+                Phone(phone) if phone else Empty()
+            ) if phone is not None else self.phone
+
+            new_description = (
+                Description(description) if description else Empty()
+            ) if description is not None else self.description
 
         except ValueError as e:
-            raise ItemValidationError(f"Invalid contact info: {e}") from e
+            raise ItemValidationError(
+                f"Invalid contact info: {e}"
+            ) from e
 
-
-
+        self.name = new_name
+        self.email = new_email
+        self.address = new_address
+        self.phone = new_phone
+        self.description = new_description
     def __eq__(self, other: object) -> bool:
-        """Clients are equal if they have the same client_id."""
         if not isinstance(other, Client):
-            return False
+            return NotImplemented
+
+        if self._is_empty or other._is_empty:
+            return self._is_empty and other._is_empty
+
+        if self.client_id == 0 or other.client_id == 0:
+            return self is other
+
         return self.client_id == other.client_id
 
-    def __hash__(self) -> int:
-        """Hash based on client_id."""
-        return hash(self.client_id)
+    __hash__= None
+
 
     def __str__(self) -> str:
         """String representation for display."""

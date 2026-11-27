@@ -1,0 +1,145 @@
+diff --git a/src/web/auth/storage.py b/src/web/auth/storage.py
+--- a/src/web/auth/storage.py
++++ b/src/web/auth/storage.py
+@@ -5,7 +5,7 @@
+ from threading import Lock
+ 
+ from src.web.auth.exceptions import TokenNotFoundError
+-from src.web.auth.tokens import RefreshToken, hash_token
++from src.web.auth.tokens import RefreshToken, SubjectType, hash_token
+ 
+ 
+ class TokenStorage(ABC):
+@@ -36,7 +36,10 @@
+         raise NotImplementedError
+ 
+     @abstractmethod
+-    def revoke_user_tokens(self, username: str) -> int:
++    def revoke_user_tokens(
++        self, username: str, *, subject_id: int | None = None,
++        subject_type: SubjectType | None = None,
++    ) -> int:
+         raise NotImplementedError
+ 
+     @abstractmethod
+@@ -150,7 +153,10 @@
+                 if token.username == username
+             ]
+ 
+-    def revoke_user_tokens(self, username: str) -> int:
++    def revoke_user_tokens(
++        self, username: str, *, subject_id: int | None = None,
++        subject_type: SubjectType | None = None,
++    ) -> int:
+         """
+         Revoke all refresh tokens for username.
+ 
+@@ -163,7 +169,11 @@
+ 
+         with self._lock:
+             for token in self._refresh_tokens.values():
+-                if token.username == username:
++                if (
++                    token.username == username
++                    and (subject_id is None or token.subject_id == subject_id)
++                    and (subject_type is None or token.subject_type == subject_type)
++                ):
+                     token.revoke()
+                     count += 1
+ 
+diff --git a/src/web/auth/services/services.py b/src/web/auth/services/services.py
+--- a/src/web/auth/services/services.py
++++ b/src/web/auth/services/services.py
+@@ -251,19 +251,32 @@
+         self,
+         *,
+         logout_request: LogoutRequest,
++        access_token: str | None = None,
+     ) -> None:
+         """
+         Logout by revoking refresh tokens.
+         """
+         if logout_request.refresh_token:
+-            self.token_service.revoke_token(
+-                logout_request.refresh_token
+-            )
++            refresh_token = self.token_storage.get(logout_request.refresh_token)
++            if refresh_token.subject_type != self.subject_type:
++                raise TokenError("Refresh token subject type mismatch")
++            self.token_service.revoke_token(logout_request.refresh_token)
+             return
+ 
+         if logout_request.username:
+-            self.token_service.revoke_user_tokens(
+-                logout_request.username
++            if access_token is None:
++                raise TokenError("Access token is required")
++            principal = self.token_service.verify_access_token(
++                access_token, settings=self.token_service.settings,
++            )
++            subject_id = (
++                principal.get_admin_id() if self.subject_type == "admin"
++                else principal.get_user_id()
++            )
++            self.token_storage.revoke_user_tokens(
++                logout_request.username,
++                subject_id=subject_id,
++                subject_type=self.subject_type,
+             )
+             return
+ 
+diff --git a/src/web/routers/auth.py b/src/web/routers/auth.py
+--- a/src/web/routers/auth.py
++++ b/src/web/routers/auth.py
+@@ -1,5 +1,5 @@
+ from fastapi import APIRouter, Depends, HTTPException, status
+-from fastapi.security import OAuth2PasswordRequestForm
++from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordRequestForm
+ 
+ from src.domain.account import Account
+ from src.web.auth.models import RefreshRequest, LogoutRequest, LoginRequest
+@@ -8,6 +8,7 @@
+ from src.web.dependencies.auth import get_auth_manager_admin, get_auth_manager_user
+ 
+ router = APIRouter(prefix="/auth", tags=["auth"])
++logout_bearer = HTTPBearer(auto_error=False)
+ 
+ 
+ def _verify_account_password(entity, plain_password: str) -> None:
+@@ -92,12 +93,12 @@
+ @router.post("/admin/logout")
+ async def logout(
+     logout_request: LogoutRequest,
+-    auth_manager: AuthManager = Depends(
+-        get_auth_manager_admin,
+-    ),
++    auth_manager: AuthManager = Depends(get_auth_manager_admin),
++    bearer: HTTPAuthorizationCredentials | None = Depends(logout_bearer),
+ ):
+     auth_manager.logout(
+         logout_request=logout_request,
++        access_token=bearer.credentials if bearer else None,
+     )
+     return {"message": "Logged out successfully"}
+ 
+@@ -124,12 +125,15 @@
+ 
+ 
+ @router.post("/user/logout")
+-async def logout(
+-        logout_request: LogoutRequest,
+-        auth_manager: AuthManager = Depends(get_auth_manager_user)
++async def logout_user(
++    logout_request: LogoutRequest,
++    auth_manager: AuthManager = Depends(get_auth_manager_user),
++    bearer: HTTPAuthorizationCredentials | None = Depends(logout_bearer),
+ ):
+-
+-    auth_manager.logout(logout_request=logout_request)
++    auth_manager.logout(
++        logout_request=logout_request,
++        access_token=bearer.credentials if bearer else None,
++    )
+     return {"message": "Logged out successfully"}
+ 
+ 

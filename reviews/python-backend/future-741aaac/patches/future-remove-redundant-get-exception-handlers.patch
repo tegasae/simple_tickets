@@ -1,0 +1,138 @@
+diff --git a/src/web/routers/user/tickets.py b/src/web/routers/user/tickets.py
+index d81d54db3fce48a068d9d2419a3a6d8febffb683..d908259d8c4adb50fba3aa615fe4a76e1aeb642c 100644
+--- a/src/web/routers/user/tickets.py
++++ b/src/web/routers/user/tickets.py
+@@ -166,19 +166,13 @@ def get_my_tickets(
+         get_application_ticket_user_service
+     ),
+ )->list[TicketUserResponse]:
+-    try:
+-
++    dto=TicketUserDTO(actor_user_id=user_id,user_id=user_id)
+ 
+-        dto=TicketUserDTO(actor_user_id=user_id,user_id=user_id)
+-
+-        response_dtos = service.get_by_user_id(
+-            ticket_user_dto=dto,
+-        )
++    response_dtos = service.get_by_user_id(
++        ticket_user_dto=dto,
++    )
+ 
+-        return TicketUserResponse.from_dtos(response_dtos)
+-
+-    except (DomainError, PermissionError) as exc:
+-        raise _domain_error(exc) from exc
++    return TicketUserResponse.from_dtos(response_dtos)
+ 
+ 
+ @router.get(
+@@ -195,20 +189,14 @@ def get_all_tickets(
+         get_application_ticket_user_service
+     ),
+ )->list[TicketUserResponse]:
+-    try:
+-
+-
+-        dto = TicketUserDTO(
+-            actor_user_id=user_id,
+-        )
+-        response_dtos = service.get_all(
+-            ticket_user_dto=dto,
+-        )
+-
+-        return TicketUserResponse.from_dtos(response_dtos)
++    dto = TicketUserDTO(
++        actor_user_id=user_id,
++    )
++    response_dtos = service.get_all(
++        ticket_user_dto=dto,
++    )
+ 
+-    except (DomainError, PermissionError) as exc:
+-        raise _domain_error(exc) from exc
++    return TicketUserResponse.from_dtos(response_dtos)
+ 
+ 
+ @router.get(
+@@ -225,19 +213,15 @@ def get_open_tickets(
+         get_application_ticket_user_service
+     ),
+ )->list[TicketUserResponse]:
+-    try:
+-        dto = TicketUserDTO(
+-            actor_user_id=user_id,
+-
+-        )
+-        response_dtos = service.get_open(
+-            ticket_user_dto=dto,
+-        )
++    dto = TicketUserDTO(
++        actor_user_id=user_id,
+ 
+-        return TicketUserResponse.from_dtos(response_dtos)
++    )
++    response_dtos = service.get_open(
++        ticket_user_dto=dto,
++    )
+ 
+-    except (DomainError, PermissionError) as exc:
+-        raise _domain_error(exc) from exc
++    return TicketUserResponse.from_dtos(response_dtos)
+ 
+ 
+ @router.get(
+@@ -254,19 +238,14 @@ def get_closed_tickets(
+         get_application_ticket_user_service
+     ),
+ )->list[TicketUserResponse]:
+-    try:
+-
+-        dto = TicketUserDTO(
+-            actor_user_id=user_id,
+-        )
+-        response_dtos = service.get_closed(
+-            ticket_user_dto=dto,
+-        )
+-
+-        return TicketUserResponse.from_dtos(response_dtos)
++    dto = TicketUserDTO(
++        actor_user_id=user_id,
++    )
++    response_dtos = service.get_closed(
++        ticket_user_dto=dto,
++    )
+ 
+-    except (DomainError, PermissionError) as exc:
+-        raise _domain_error(exc) from exc
++    return TicketUserResponse.from_dtos(response_dtos)
+ 
+ 
+ @router.get(
+@@ -284,18 +263,15 @@ def get_ticket(
+         get_application_ticket_user_service
+     ),
+ )->TicketUserResponse:
+-    try:
+-        dto = TicketUserDTO(
+-            actor_user_id=user_id,
+-            ticket_user_id=ticket_user_id,
+-        )
+-        response_dto = service.get_by_id(
+-            ticket_user_dto=dto,
+-        )
++    dto = TicketUserDTO(
++        actor_user_id=user_id,
++        ticket_user_id=ticket_user_id,
++    )
++    response_dto = service.get_by_id(
++        ticket_user_dto=dto,
++    )
+ 
+-        return TicketUserResponse.from_dto(response_dto)
+-    except (DomainError, PermissionError) as exc:
+-        raise _domain_error(exc) from exc
++    return TicketUserResponse.from_dto(response_dto)
+ 
+ 
+ # =====================================================================

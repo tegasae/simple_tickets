@@ -1,5 +1,23 @@
+
 # src/domain/services/ticket_user_service.py
 
+"""Domain facade for user-facing TicketUser operations.
+
+The application layer handles loading, authorization, locking, persistence,
+transactions and the creation of the linked internal Ticket.
+
+Commands mutate the supplied aggregates in place and return None. The create
+factory returns the newly constructed TicketUser.
+
+Before a User-side workflow operation, the linked Ticket/TicketUser pair must
+be structurally and workflow-consistent. TicketSyncService performs the
+cross-aggregate synchronization after the TicketUser command.
+
+If an operation fails after mutating an aggregate, the application layer must
+roll back the transaction and discard or restore the in-memory aggregates.
+"""
+from src.domain.client import Client
+from src.domain.employee import User
 from src.domain.exceptions import DomainOperationError
 from src.domain.services.ticket_sync_service import TicketSyncService
 from src.domain.ticket import Ticket
@@ -9,56 +27,9 @@ from src.domain.value_objects import CommonComment
 
 
 class TicketUserService:
-    """
-    Domain facade for TicketUser operations.
+    """Provide a domain entry point for user-facing TicketUser operations."""
 
-    Responsibilities:
-    - provides a single domain entry point for User-side TicketUser use cases;
-    - invokes TicketUser aggregate commands;
-    - validates linked Ticket / TicketUser pair before shared operations;
-    - synchronizes User-originated TicketUser workflow changes to Ticket;
-    - coordinates shared contact_user_id.
-
-    Does not handle:
-    - repositories;
-    - UnitOfWork;
-    - persistence;
-    - transactions;
-    - RBAC;
-    - permissions;
-    - loading aggregates;
-    - actor role checks.
-
-    Application layer decides whether an actor is allowed to invoke
-    a particular operation.
-
-    TicketUser remains responsible for:
-    - its workflow;
-    - transition validity;
-    - aggregate invariants;
-    - status-record payload.
-
-    TicketSyncService remains responsible for:
-    - Ticket / TicketUser structural consistency;
-    - TicketUser -> Ticket workflow synchronization;
-    - shared contact_user_id.
-
-    Admin-originated TicketUser workflow changes are intentionally not
-    exposed here.
-
-    They originate from Ticket and are synchronized through TicketService:
-
-        Ticket -> TicketUser
-
-    User-originated terminal actions originate here:
-
-        TicketUser -> Ticket
-    """
-
-    def __init__(
-        self,
-        ticket_sync_service: TicketSyncService,
-    ) -> None:
+    def __init__(self, ticket_sync_service: TicketSyncService) -> None:
         self._ticket_sync_service = ticket_sync_service
 
     # ==================================================================
@@ -68,42 +39,38 @@ class TicketUserService:
     @staticmethod
     def create(
         *,
-        client_id: int,
-        user_id: int,
         text_of_ticket: str,
-        contact_user_id: int = 0,
         description: str = "",
         comment: str = "",
+        client:Client,
+        user:User,
+        contact_user:User
     ) -> TicketUser:
+        """Create a User-initiated TicketUser with initial status CREATED.
+
+        The application layer coordinates creation and persistence of the
+        related internal Ticket after TicketUser receives its identifier.
         """
-        Create a new TicketUser initiated by User.
-
-        Initial workflow:
-
-            CREATED
-
-        The internal Ticket is not created here because its
-        user_ticket_id can be assigned only after TicketUser persistence
-        has generated ticket_user_id.
-
-        Application layer therefore coordinates:
-
-            TicketUserService.create(...)
-            repository.save(ticket_user)
-            TicketService.create_from_ticket_user(...)
-        """
-
+        if client.is_empty():
+            raise DomainOperationError("The client can't be empty when the Ticket is created")
+        client.ensure_enabled()
+        user.can_do_operation()
+        contact_user.can_do_operation()
+        if user.client_id != client.client_id or (
+            not contact_user.is_empty() and contact_user.client_id != client.client_id
+        ):
+            raise DomainOperationError("TicketUser and its users must belong to the same Client")
         return TicketUser.create(
-            client_id=client_id,
-            user_id=user_id,
+            client_id=client.client_id,
+            user_id=user.employee_id,
             text_of_ticket=text_of_ticket,
-            contact_user_id=contact_user_id,
+            contact_user_id=contact_user.employee_id,
             description=description,
             comment=comment,
         )
 
     # ==================================================================
-    # TicketUser data
+    # TicketUser-local data
     # ==================================================================
 
     @staticmethod
@@ -113,15 +80,7 @@ class TicketUserService:
         employee_id: int,
         comment: str,
     ) -> None:
-        """
-        Add ordinary TicketUser comment.
-
-        employee_id is the real User/Admin employee id.
-
-        No synchronization with internal Ticket is performed because
-        ordinary comments of Ticket and TicketUser are independent.
-        """
-
+        """Add an ordinary TicketUser comment; do not synchronize it."""
         ticket_user.add_comment(
             Comment(
                 employee_id=employee_id,
@@ -133,21 +92,15 @@ class TicketUserService:
     def update_description(
         *,
         ticket_user: TicketUser,
-        actor_employee_id: int,
         description: str,
     ) -> None:
-        """
-        Change TicketUser description.
+        """Update description without changing the current contact User.
 
-        Ticket.description and TicketUser.description are independent,
-        therefore internal Ticket is not changed.
+        TicketUser.update_details() replaces both fields, so pass the
+        existing contact_user_id explicitly.
         """
-
         ticket_user.update_details(
-            actor_employee_id=actor_employee_id,
             description=description,
-
-            # Preserve current contact User.
             contact_user_id=ticket_user.contact_user_id,
         )
 
@@ -160,37 +113,27 @@ class TicketUserService:
         *,
         ticket_user: TicketUser,
         ticket: Ticket,
-        actor_employee_id: int,
-        contact_user_id: int,
-    ) -> Ticket:
+        client:Client,
+        contact_user:User
+    ) -> None:
+        """Change the shared contact in both linked aggregates in place.
+
+        Structural consistency is required before modification. Editing
+        contact data does not itself require a workflow transition.
         """
-        Change shared contact_user_id.
-
-        contact_user_id is a permanent cross-aggregate invariant:
-
-            Ticket.contact_user_id
-                ==
-            TicketUser.contact_user_id
-
-        Therefore the change is delegated to TicketSyncService.
-
-        Returns modified Ticket so application layer knows that both
-        aggregates must be persisted.
-        """
-
+        if client.is_empty() or client.client_id != ticket_user.client_id:
+            raise DomainOperationError("Client does not match TicketUser")
+        client.ensure_enabled()
+        contact_user.can_do_operation()
+        if contact_user.client_id != client.client_id:
+            raise DomainOperationError("Contact User does not belong to TicketUser Client")
         self._require_linked_ticket(
             ticket_user=ticket_user,
             ticket=ticket,
         )
-
-        self._ticket_sync_service.change_contact_user(
-            ticket,
-            ticket_user,
-            actor_employee_id=actor_employee_id,
-            contact_user_id=contact_user_id,
-        )
-
-        return ticket
+        ticket.change_contact_user(contact_user_id=contact_user.employee_id)
+        ticket_user.change_contact_user(contact_user_id=contact_user.employee_id)
+        self._ticket_sync_service.sync_from_ticket(ticket, ticket_user)
 
     # ==================================================================
     # User workflow
@@ -201,107 +144,80 @@ class TicketUserService:
         *,
         ticket_user: TicketUser,
         ticket: Ticket,
-        actor_employee_id: int,
+        user:User,
         comment: str = "",
-    ) -> Ticket:
+    ) -> None:
+        """Synchronize User confirmation to the internal Ticket.
+
+        TicketUser: WAITING_FOR_CONFIRMATION -> CONFIRMED_BY_USER.
+        Ticket: READY_FOR_REVIEW -> CONFIRMED_BY_USER.
         """
-        User confirms completed work.
-
-        TicketUser:
-
-            WAITING_FOR_CONFIRMATION
-                -> CONFIRMED_BY_USER
-
-        Internal Ticket is then synchronized:
-
-            READY_FOR_REVIEW
-                -> CONFIRMED_BY_USER
-
-        TicketUser stores the real User actor id.
-
-        Internal Ticket uses its own User-action actor convention,
-        which is handled by TicketSyncService / Ticket.
-        """
-
+        user.can_do_operation()
         self._require_linked_ticket(
             ticket_user=ticket_user,
             ticket=ticket,
         )
 
+
+
         ticket_user.confirm_by_user(
-            actor_employee_id=actor_employee_id,
+            actor_employee_id=user.employee_id,
             comment=comment,
         )
 
+        # Preserve the existing comment-handling contract for now.
         self._ticket_sync_service.sync_from_ticket_user(
             ticket,
-            ticket_user,
-            comment=comment,
+            ticket_user
         )
-
-        return ticket
 
     def cancel_by_user(
         self,
         *,
         ticket_user: TicketUser,
         ticket: Ticket,
-        actor_employee_id: int,
+        user:User,
         comment: str = "",
-    ) -> Ticket:
+    ) -> None:
+        """Synchronize cancellation of a newly created User request.
+
+        TicketUser: CREATED -> CANCELLED_BY_USER only.
+        Ticket: CREATED_FROM_REQUEST_USER or CREATED_FROM_TICKET_USER
+                -> CANCELLED_BY_USER, subject to Ticket's own rules.
         """
-        User cancels the request.
-
-        TicketUser:
-
-            allowed non-terminal state
-                -> CANCELLED_BY_USER
-
-        Internal Ticket is synchronized:
-
-            -> CANCELLED_BY_USER
-        """
-
+        user.can_do_operation()
         self._require_linked_ticket(
             ticket_user=ticket_user,
             ticket=ticket,
         )
 
+
+
         ticket_user.cancel_by_user(
-            actor_employee_id=actor_employee_id,
+            actor_employee_id=user.employee_id,
             comment=comment,
         )
 
+        # Preserve the existing comment-handling contract for now.
         self._ticket_sync_service.sync_from_ticket_user(
             ticket,
             ticket_user,
-            comment=comment,
         )
-
-        return ticket
 
     # ==================================================================
     # Internal helpers
     # ==================================================================
-
+    @staticmethod
     def _require_linked_ticket(
-        self,
         *,
         ticket_user: TicketUser,
         ticket: Ticket,
-    ) -> Ticket:
-        """
-        Validate Ticket / TicketUser structural consistency before
-        TicketUser is mutated.
-
-        Existing TicketUser is expected to have a corresponding
-        internal Ticket.
-        """
+    ) -> None:
+        """Validate the structural relationship before shared operations."""
 
         if ticket_user.ticket_user_id <= 0:
             raise DomainOperationError(
-                "Existing linked TicketUser must have "
-                "positive ticket_user_id"
+                "Existing linked TicketUser must have positive ticket_user_id"
             )
 
         if ticket.user_ticket_id <= 0:
@@ -310,9 +226,3 @@ class TicketUserService:
                 "does not have linked internal Ticket"
             )
 
-        self._ticket_sync_service.ensure_consistent(
-            ticket,
-            ticket_user,
-        )
-
-        return ticket

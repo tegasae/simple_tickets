@@ -2,9 +2,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from utils.db.connect import Connection
-from utils.db.exceptions import DBOperationError
+from utils.db.exceptions import DBOperationError, DBTransientError, DBUniqueConstraintError
 
-from src.adapters.repositories.exceptions import PersistenceError, OptimisticLockError
+from src.adapters.repositories.exceptions import (
+    PersistenceError, OptimisticLockError, TransientPersistenceError, UniqueConstraintError,
+)
 
 
 @dataclass(frozen=True)
@@ -29,6 +31,10 @@ class BaseRepository:
         try:
             with self.conn.create_query(sql, var=var) as q:
                 return q.get_one_result(params)
+        except DBTransientError as e:
+            raise TransientPersistenceError("Temporary database contention") from e
+        except DBUniqueConstraintError as e:
+            raise UniqueConstraintError("Unique database constraint violated") from e
         except DBOperationError as e:
             raise PersistenceError(str(e)) from e
         except Exception as e:
@@ -38,6 +44,10 @@ class BaseRepository:
         try:
             with self.conn.create_query(sql, var=var) as q:
                 return q.get_result(params)
+        except DBTransientError as e:
+            raise TransientPersistenceError("Temporary database contention") from e
+        except DBUniqueConstraintError as e:
+            raise UniqueConstraintError("Unique database constraint violated") from e
         except DBOperationError as e:
             raise PersistenceError(str(e)) from e
         except Exception as e:
@@ -51,6 +61,10 @@ class BaseRepository:
             with self.conn.create_query(sql) as q:
                 last_row_id = q.set_result(params)
                 return ExecResult(last_row_id=int(last_row_id or 0), rowcount=int(q.count or 0))
+        except DBTransientError as e:
+            raise TransientPersistenceError("Temporary database contention") from e
+        except DBUniqueConstraintError as e:
+            raise UniqueConstraintError("Unique database constraint violated") from e
         except DBOperationError as e:
             raise PersistenceError(str(e)) from e
         except Exception as e:

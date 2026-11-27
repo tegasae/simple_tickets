@@ -30,21 +30,21 @@ class ClientGateway:
 
     SELECT_BASE = """
     SELECT
-        client_id,
-        name,
-        address,
-        email,
-        phone,
-        description,
-        admin_id,
-        enabled,
-        version,
-        date_created
+        clients.client_id,
+        clients.name,
+        clients.address,
+        clients.email,
+        clients.phone,
+        clients.description,
+        clients.admin_id,
+        clients.enabled,
+        clients.version,
+        clients.date_created
     FROM clients
     """
 
     SELECT_BY_ID = SELECT_BASE + " WHERE client_id = :client_id"
-
+    SELECT_BY_USER_ID = SELECT_BASE + " LEFT JOIN users u ON clients.client_id = u.client_id WHERE u.employee_id = :employee_id"
     EXISTS = """
     SELECT 1 AS one
     FROM clients

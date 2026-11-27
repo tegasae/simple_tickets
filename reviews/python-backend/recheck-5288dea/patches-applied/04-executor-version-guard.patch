@@ -1,0 +1,24 @@
+--- a/src/application/services/ticket_service.py
++++ b/src/application/services/ticket_service.py
+@@ -625,10 +625,9 @@
+                 comment=ticket_dto.comment,
+             )
+ 
+-            if executor.employee_id != actor.employee_id:
+-                self.uow.admins.touch(
+-                    executor
+-                )
++            self.uow.admins.touch(
++                executor
++            )
+ 
+             return self._save_and_to_dto(
+                 ticket=ticket,
+@@ -713,6 +712,7 @@
+ 
+             if ticket.current_status() == TicketStatus.ACCEPTED:
+                 self.ticket_service.ensure_can_assign(ticket=ticket, executor=actor)
++                self.uow.admins.touch(actor)
+ 
+             self.ticket_service.start_remote_work(
+                     ticket=ticket,

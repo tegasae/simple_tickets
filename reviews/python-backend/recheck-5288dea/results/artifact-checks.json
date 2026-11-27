@@ -1,0 +1,28 @@
+{
+  "packet_files_verified": 205,
+  "git_source_files_verified": 204,
+  "frozen_initial_reports_verified": 4,
+  "preexisting_files_preserved": 70,
+  "preexisting_diff_sha256": "fd54d271467c6ce607e76ba1b156bb3cc8cf8be23c591ae1b677c635a0abdc60",
+  "patches": [
+    {
+      "file": "patches/01-created-actor.patch",
+      "sha256": "236c8440d891f2260bb11ead51333d613b3b2b44fcc2c9c404f81402820f3ce9"
+    },
+    {
+      "file": "patches/02-admin-comment-json.patch",
+      "sha256": "09934cee3abe5feb90cde0ab67652fe514f54060ad663dcceec7524e802cd0e9"
+    },
+    {
+      "file": "patches/03-session-lifetime.patch",
+      "sha256": "e89f6112b96d2ce8dd3fedfe0c7b1019d2a5ad689c750ff6048b793c4924d533"
+    },
+    {
+      "file": "patches/04-executor-version-guard.patch",
+      "sha256": "14edcb9340146a2c5ba172e0cf0fdf157898ed422e87d3d0ff4c60efea9152b1"
+    }
+  ],
+  "published_patches_match_tested_source": true,
+  "json_python_and_coordinator_links": "passed",
+  "no_runtime_binary_or_jwt_values": "passed"
+}

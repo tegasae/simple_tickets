@@ -1,0 +1,33 @@
+diff --git a/src/application/helper/employee_helper.py b/src/application/helper/employee_helper.py
+--- a/src/application/helper/employee_helper.py
++++ b/src/application/helper/employee_helper.py
+@@ -1,6 +1,7 @@
+ from src.domain.exceptions import DomainOperationError
+ from src.domain.rbac.role import Authorizer, RoleManager
+ from src.domain.uow.unit_of_work import UnitOfWork
++from src.domain.value_objects import Login
+ 
+ 
+ class EmployeeHelper:
+@@ -19,9 +20,18 @@
+         return actor"""
+ 
+ 
+-    def ensure_login_is_free(self,*,login: str | None) -> None:
+-        if login and self.uow.users.exist_login(login):
+-            raise DomainOperationError(f"Login {login} already exists")
++    def ensure_login_is_free(self, *, login: str | None) -> None:
++        if not login:
++            return
++
++        try:
++            canonical_login = Login(login).value
++        except ValueError:
++            # Account creation reports invalid input in its usual validation order.
++            canonical_login = login
++
++        if self.uow.users.exist_login(canonical_login):
++            raise DomainOperationError(f"Login {canonical_login} already exists")
+ 
+ 
+     def get_role_manager_user(self) -> RoleManager:

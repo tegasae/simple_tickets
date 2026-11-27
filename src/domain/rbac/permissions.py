@@ -27,9 +27,12 @@ class AdminPermission(PermissionBase):
     TICKET_VIEW = "ticket.view"                                     # просмотр заявок
     TICKET_ACCEPTED = "ticket.accepted"                             # имеет право подтверждать заявки
     TICKET_AT_WORK = "ticket.at_work"                               # имеет право выполнять заявки
-    TICKET_AT_WORK_REMOTE = "ticket.at_work_remote"                 # имеет право выполнять заявки, который рекомендованы как удаленные
+    TICKET_AT_WORK_REMOTE = "ticket.at_work_remote"                 # самоназначение и удалённая работа по рекомендованным заявкам
+    TICKET_ASSIGN_EXECUTOR = "ticket.assign_executor"               # назначение другого сотрудника независимо от рекомендации
+    TICKET_SET_REMOTE_RECOMMENDATION = "ticket.set_remote_recommendation"  # изменение рекомендации
     TICKET_AT_WORK_RETROSPECTIVE = "ticket.at_work_retrospective"   # имеет право вносить данные по работе ретроспективно
     TICKET_CANCELLED="ticket.canceled"                              # имеет право снимать заявки cancel или reject
+    TICKET_DELETE = "ticket.delete"                                 # физическое удаление заявки
     TICKET_EXECUTED = "ticket.executed"                             # имеет право переводить в executed
     ROLE_ASSIGN="role.assign"                                       # имеет право работать с ролями Admin-ов
     ROLE_USER_ASSIGN = "role_user.assign"                           # имеет право работать с ролями User-ов

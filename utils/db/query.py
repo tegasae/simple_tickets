@@ -2,6 +2,7 @@ import time
 from typing import Dict, Any, Tuple
 
 from .exceptions import DBOperationError
+from .sqlite_errors import operation_error
 
 
 class Query:
@@ -23,8 +24,10 @@ class Query:
                 self.cur.execute(self.sql, self.params)
             else:
                 self.cur.execute(self.sql)
+        except DBOperationError:
+            raise
         except Exception as e:  # Catch broader exception
-            raise DBOperationError(str(e))
+            raise operation_error(e) from e
 
     def set_result(self, params: dict = None):
         try:
@@ -37,8 +40,10 @@ class Query:
             if self.cur.lastrowid:
                 self.last_row_id = self.cur.lastrowid
             return self.last_row_id
+        except DBOperationError:
+            raise
         except Exception as e:
-            raise DBOperationError(str(e))
+            raise operation_error(e) from e
 
     def get_result(self, params=None):
         try:
@@ -58,8 +63,10 @@ class Query:
             return r
 
 
+        except DBOperationError:
+            raise
         except Exception as e:  # Catch exceptions from both _execute AND fetchall
-            raise DBOperationError(str(e))
+            raise operation_error(e) from e
 
     def get_one_result(self, params=None) -> Dict[str | int, Any]:
         try:
@@ -74,8 +81,10 @@ class Query:
             else:
                 return dict(enumerate(self.result))  # Convert to dict with index keys
 
+        except DBOperationError:
+            raise
         except Exception as e:  # Catch exceptions from both _execute AND fetchall
-            raise DBOperationError(str(e))
+            raise operation_error(e) from e
 
     def get_one_result_tuple(self, params=None) -> Tuple:
         """Alternative method that returns empty tuple instead of None"""

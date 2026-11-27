@@ -1,0 +1,54 @@
+diff --git a/src/domain/ticket_user.py b/src/domain/ticket_user.py
+--- a/src/domain/ticket_user.py
++++ b/src/domain/ticket_user.py
+@@ -84,6 +84,7 @@
+         contact_user_id: int = 0,
+         description: str = "",
+         comment: str = "",
++        comment_author_id: int | None = None,
+ 
+     ) -> Self:
+         """Create a User-originated request, directly or through staff."""
+@@ -117,7 +118,7 @@
+         if comment.strip():
+             ticket_user.add_comment(
+                 Comment(
+-                    employee_id=user_id,
++                    employee_id=user_id if comment_author_id is None else comment_author_id,
+                     comment=CommonComment(comment),
+                     date_created=now,
+                 )
+diff --git a/src/domain/services/ticket_user_service.py b/src/domain/services/ticket_user_service.py
+--- a/src/domain/services/ticket_user_service.py
++++ b/src/domain/services/ticket_user_service.py
+@@ -44,7 +44,8 @@
+         comment: str = "",
+         client:Client,
+         user:User,
+-        contact_user:User
++        contact_user:User,
++        comment_author_id: int | None = None,
+     ) -> TicketUser:
+         """Create a User-initiated TicketUser with initial status CREATED.
+ 
+@@ -67,6 +68,7 @@
+             contact_user_id=contact_user.employee_id,
+             description=description,
+             comment=comment,
++            comment_author_id=comment_author_id,
+         )
+ 
+     # ==================================================================
+diff --git a/src/application/services/ticket_service.py b/src/application/services/ticket_service.py
+--- a/src/application/services/ticket_service.py
++++ b/src/application/services/ticket_service.py
+@@ -156,7 +156,8 @@
+                     comment=ticket_dto.comment,
+                     client=client,
+                     user=user,
+-                    contact_user=contact_user
++                    contact_user=contact_user,
++                    comment_author_id=actor.employee_id,
+                 )
+ 
+                 saved_ticket_user = self.uow.user_tickets.save(

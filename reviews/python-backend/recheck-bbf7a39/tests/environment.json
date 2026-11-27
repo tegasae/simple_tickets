@@ -1,0 +1,11 @@
+{
+  "python": "3.12.14",
+  "sqlite": "3.53.1",
+  "fastapi": "0.143.0",
+  "starlette": "1.8.0",
+  "pydantic": "2.14.1",
+  "pydantic-settings": "2.15.0",
+  "pytest": "9.2.0",
+  "httpx": "0.28.1",
+  "PyJWT": "2.15.1"
+}

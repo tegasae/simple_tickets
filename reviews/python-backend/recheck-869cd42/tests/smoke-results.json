@@ -1,0 +1,67 @@
+{
+  "snapshot": "869cd424b1b9f13babd720884a3cbb7e0f6a10bb",
+  "test_runtime": {
+    "python": "3.12.14",
+    "sqlite": "3.53.1"
+  },
+  "current": {
+    "ast_files": 167,
+    "ast": "passed",
+    "sql_prepared": 115,
+    "integrity_check": "ok",
+    "foreign_key_violations": 0,
+    "imports": [
+      "main",
+      "src.web.main",
+      "src.oauth2.main"
+    ],
+    "health_status": 200,
+    "openapi_status": 200,
+    "openapi_paths": 83
+  },
+  "patches_05_through_10": {
+    "ast_files": 173,
+    "ast": "passed",
+    "sql_prepared": 115,
+    "integrity_check": "ok",
+    "foreign_key_violations": 0,
+    "imports": [
+      "main",
+      "src.web.main",
+      "src.oauth2.main"
+    ],
+    "health_status": 200,
+    "openapi_status": 200,
+    "openapi_paths": 83
+  },
+  "migration_script_ast": "passed",
+  "creation_result_check": {
+    "reservation": "accepted",
+    "http_201_with_body": "accepted",
+    "http_400_with_body": "rejected",
+    "null_status_with_body": "rejected",
+    "http_201_without_body": "rejected"
+  },
+  "default_test_collection_exit": 5,
+  "revised_repositories_05_through_10": {
+    "ast_files": 177,
+    "ast": "passed",
+    "sql_prepared": 127,
+    "integrity_check": "ok",
+    "foreign_key_violations": 0,
+    "imports": [
+      "main",
+      "src.web.main",
+      "src.oauth2.main"
+    ],
+    "health_status": 200,
+    "openapi_status": 200,
+    "openapi_paths": 83
+  },
+  "revised_openapi_identical": true,
+  "revised_dump_validation": {
+    "rows": 536,
+    "integrity_check": "ok",
+    "foreign_key_violations": 0
+  }
+}

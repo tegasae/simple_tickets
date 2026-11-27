@@ -1,13 +1,13 @@
 # src/domain/department.py
 
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass, field, InitVar
+from datetime import UTC, datetime
 from typing import Self
 
 from src.domain.exceptions import ItemValidationError, DomainOperationError
 from src.domain.value_objects import Name
 
-
+_EMPTY_DEPARTMENT_TOKEN = object()
 @dataclass
 class Department:
     """
@@ -24,8 +24,10 @@ class Department:
     department_id: int
     name: Name
     enabled: bool = True
-    date_created: datetime = field(default_factory=datetime.now)
+    date_created: datetime = field(default_factory=lambda: datetime.now(UTC))
     version: int = 0
+    _is_empty: bool = field(default=False, init=False, repr=False,compare=False)
+    _empty_token: InitVar[object | None] = None
 
     @classmethod
     def create(
@@ -53,7 +55,7 @@ class Department:
         name: str,
         enabled: bool,
         date_created: datetime,
-        version: int = 0,
+        version: int,
     ) -> Self:
         """
         Restore Department from database.
@@ -72,14 +74,44 @@ class Department:
         except ValueError as e:
             raise ItemValidationError(f"Department validation failed: {e}") from e
 
-    def __post_init__(self) -> None:
+    def __post_init__(self,_empty_token: object | None) -> None:
+        if _empty_token is _EMPTY_DEPARTMENT_TOKEN:
+            if self.department_id != 0:
+                raise ItemValidationError(
+                    "Invalid empty department"
+                )
+
+            self._is_empty = True
+            return
+
+        if _empty_token is not None:
+            raise ItemValidationError(
+                "Invalid empty department token"
+            )
+
         if self.department_id < 0:
-            raise ItemValidationError("Department ID cannot be negative")
+            raise ItemValidationError(
+                "Department ID cannot be negative"
+            )
+
+        if self.version < 0:
+            raise ItemValidationError(
+                "Department version cannot be negative"
+            )
 
     @classmethod
     def create_empty(cls) -> Self:
-        department = cls(department_id=0, name=Name("--"), enabled=True)
-        return department
+        return cls(
+            department_id=0,
+            name=Name("--"),
+            enabled=True,
+            _empty_token=_EMPTY_DEPARTMENT_TOKEN
+        )
+
+
+    def is_empty(self) -> bool:
+        return self._is_empty
+
 
     def rename(self, name: str) -> None:
         self._ensure_enabled()

@@ -9,14 +9,21 @@ from src.application.dto.ticket_dto import (
 )
 from src.application.exceptions import ApplicationStoreError
 from src.application.helper.actor_helper import EmployeeActorHelper
+from src.domain.client import Client
+from src.domain.department import Department
+from src.domain.employee import Admin, User
 
 from src.domain.exceptions import DomainOperationError
 from src.domain.rbac.permissions import AdminPermission
 from src.domain.services.ticket_service import TicketService
 from src.domain.services.ticket_sync_service import TicketSyncService
-from src.domain.ticket import Ticket, TicketUrgency
+from src.domain.services.ticket_user_service import TicketUserService
+from src.domain.statuses.ticket_status import TicketStatus
+from src.domain.ticket import Ticket
+from src.domain.ticket_components import TicketUrgency
 from src.domain.ticket_user import TicketUser
 from src.domain.uow.unit_of_work import UnitOfWork
+
 
 
 class TicketApplicationService:
@@ -73,6 +80,7 @@ class TicketApplicationService:
             self,
             *,
             ticket_dto: TicketDTO,
+            join_transaction: bool = False,
     ) -> TicketResponseDTO:
         """
         Create internal Ticket.
@@ -97,7 +105,7 @@ class TicketApplicationService:
 
             then create linked internal Ticket:
 
-                Ticket.CREATED
+                Ticket.CREATED_FROM_USER_REQUEST
 
             Ticket is created by Admin, therefore its initial status
             is CREATED, not CREATED_FROM_TICKET_USER.
@@ -114,112 +122,89 @@ class TicketApplicationService:
                 TicketUser.CREATED -> IN_WORK
         """
 
-        with self.uow:
-            actor = self.actor.require_actor_admin_any(
-                actor_admin_id=ticket_dto.actor_admin_id,
-                permissions=(
-                    AdminPermission.TICKET_CREATED,
-                    AdminPermission.TICKET_OPERATION,
-                ),
-            )
+        with self.uow.transaction(join=join_transaction):
+            actor = self.require_create_access(ticket_dto)
 
 
-            self._validate_create_references(
-                ticket_dto=ticket_dto,
-            )
+            user=User.create_empty()
+            contact_user=User.create_empty()
+            client=Client.create_empty()
+            department=Department.create_empty()
+            ticket_user:TicketUser|None=None
+            if ticket_dto.client_id:
+                client=self.uow.clients.get(client_id=ticket_dto.client_id)
+                self.uow.clients.touch(client)
+            if ticket_dto.user_id:
+                user = self.uow.users.get(user_id=ticket_dto.user_id)
+                self.uow.users.touch(user)
+            if ticket_dto.contact_user_id:
+                contact_user=self.uow.users.get(user_id=ticket_dto.contact_user_id)
+                self.uow.users.touch(contact_user)
+            if ticket_dto.department_id:
+                department=self.uow.departments.get(department_id=ticket_dto.department_id)
+                self.uow.departments.touch(department)
 
-            ticket_user: TicketUser|None=None
-            user_ticket_id = 0
-
-
-            # --------------------------------------------------------------
-            # If User is specified, create TicketUser first.
-            # --------------------------------------------------------------
-
-            if ticket_dto.user_id > 0:
-                ticket_user = TicketUser.create(
-                    client_id=ticket_dto.client_id,
-                    user_id=ticket_dto.user_id,
-                    contact_user_id=ticket_dto.contact_user_id,
+            if not user.is_empty():
+                ticket_user1 = TicketUserService.create(
                     text_of_ticket=ticket_dto.text_of_ticket,
                     description=ticket_dto.description,
-                    comment=ticket_dto.comment,
+                    comment="",
+                    client=client,
+                    user=user,
+                    contact_user=contact_user
                 )
+                if ticket_dto.comment.strip():
+                    TicketUserService.add_comment(
+                        ticket_user=ticket_user1,
+                        employee_id=actor.employee_id,
+                        comment=ticket_dto.comment,
+                    )
 
                 saved_ticket_user = self.uow.user_tickets.save(
-                    ticket_user
-                )
+                        ticket_user1
+                    )
 
-                if saved_ticket_user is not None:
-                    ticket_user = saved_ticket_user
 
-                if ticket_user.ticket_user_id <= 0:
+
+                if ticket_user1.ticket_user_id <= 0:
                     raise ApplicationStoreError(
                         "TicketUser repository must assign "
                         "ticket_user_id before creating linked Ticket"
                     )
 
-                user_ticket_id = ticket_user.ticket_user_id
 
-            # --------------------------------------------------------------
-            # Resolve contact_user_id.
-            #
-            # TicketUser.create() may normalize:
-            #
-            #     contact_user_id == 0
-            #
-            # to:
-            #
-            #     contact_user_id == user_id
-            #
-            # Therefore linked Ticket must use the value from TicketUser.
-            # --------------------------------------------------------------
-
-            #contact_user_id = (
-            #    ticket_user.contact_user_id
-            #    if ticket_user is not None
-            #    else ticket_dto.contact_user_id
-            #)
-
-            # --------------------------------------------------------------
-            # Create internal Ticket.
-            #
-            # In both cases Ticket is created by Admin, therefore its
-            # initial status is CREATED.
-            # --------------------------------------------------------------
-
-            ticket = self.ticket_service.create(
-                client_id=ticket_dto.client_id,
-                admin_id=actor.employee_id,
-                text_of_ticket=ticket_dto.text_of_ticket,
-                ticket_user_id=user_ticket_id,
-                user_id=ticket_dto.user_id,
-                contact_user_id=ticket_dto.contact_user_id,
-                department_id=ticket_dto.department_id,
-                description=ticket_dto.description,
-                remote_work_recommended=(
-                    ticket_dto.remote_work_recommended
-                ),
-                urgency=TicketUrgency(
-                    ticket_dto.urgency
-                ),
-                planned_at=ticket_dto.planned_at,
-                comment=ticket_dto.comment,
-            )
-
-            # --------------------------------------------------------------
-            # Validate linked pair.
-            # --------------------------------------------------------------
-            changed_ticket_user: TicketUser | None = None
-            if ticket_dto.user_id>0:
-                self.ticket_sync_service.ensure_consistent(
-                    ticket,
-                    ticket_user,
+                ticket = self.ticket_service.create_from_user_request(
+                    client=client,
+                    admin=actor,
+                    user=user,
+                    contact_user=contact_user,
+                    department=department,
+                    ticket_user=saved_ticket_user,
+                    text_of_ticket=ticket_dto.text_of_ticket,
+                    description=ticket_dto.description,
+                    remote_work_recommended=ticket_dto.remote_work_recommended,
+                    urgency=TicketUrgency(ticket_dto.urgency),
+                    planned_at=ticket_dto.planned_at,
+                    comment=ticket_dto.comment,
                 )
-
-            # --------------------------------------------------------------
-            # Optional automatic acceptance.
-            # --------------------------------------------------------------
+                ticket_user=ticket_user1
+            else:
+                ticket = self.ticket_service.create(
+                    client=client,
+                    admin=actor,
+                    text_of_ticket=ticket_dto.text_of_ticket,
+                    contact_user=contact_user,
+                    department=department,
+                    description=ticket_dto.description,
+                    remote_work_recommended=(
+                        ticket_dto.remote_work_recommended
+                    ),
+                    urgency=TicketUrgency(
+                        ticket_dto.urgency
+                    ),
+                    planned_at=ticket_dto.planned_at,
+                    comment=ticket_dto.comment,
+                )
 
 
 
@@ -228,7 +213,7 @@ class TicketApplicationService:
                     permission=AdminPermission.TICKET_ACCEPTED,
             ):
 
-                changed_ticket_user = self.ticket_service.accept(
+                self.ticket_service.accept(
                     ticket=ticket,
                     ticket_user=ticket_user if ticket_user else None,
                     actor_employee_id=actor.employee_id,
@@ -237,26 +222,36 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
+                commit=not join_transaction,
             )
     # ==================================================================
     # Ticket data
     # ==================================================================
 
+    def require_create_access(self, ticket_dto: TicketDTO) -> Admin:
+        actor = self.actor.require_actor_admin_any(
+            actor_admin_id=ticket_dto.actor_admin_id,
+            permissions=(
+                AdminPermission.TICKET_CREATED,
+                AdminPermission.TICKET_OPERATION,
+            ),
+        )
+        if ticket_dto.remote_work_recommended:
+            self.actor.require_actor_admin(
+                actor_admin_id=actor.employee_id,
+                permission=AdminPermission.TICKET_SET_REMOTE_RECOMMENDATION,
+            )
+        return actor
+
     def add_comment(
         self,
         *,
         ticket_dto: TicketDTO,
+        join_transaction: bool = False,
     ) -> TicketResponseDTO:
-        with self.uow:
-            actor = self.actor.require_actor_admin(
-                actor_admin_id=ticket_dto.actor_admin_id,
-                permission=AdminPermission.TICKET_OPERATION,
-            )
-
-            ticket = self._get_ticket(
-                ticket_dto.ticket_id,
-            )
+        with self.uow.transaction(join=join_transaction):
+            ticket, actor = self.require_comment_access(ticket_dto)
 
             self.ticket_service.add_comment(
                 ticket=ticket,
@@ -266,7 +261,19 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
+                commit=not join_transaction,
             )
+
+    def require_comment_access(self, ticket_dto: TicketDTO) -> tuple[Ticket, Admin]:
+        actor = self.actor.require_actor_admin(
+            actor_admin_id=ticket_dto.actor_admin_id,
+            permission=AdminPermission.TICKET_OPERATION,
+        )
+
+        ticket = self._get_ticket(
+            ticket_dto.ticket_id,
+        )
+        return ticket, actor
 
     def update_description(
         self,
@@ -316,13 +323,11 @@ class TicketApplicationService:
                 raise DomainOperationError(
                     "department_id cannot be negative"
                 )
-
+            department=Department.create_empty()
             if ticket_dto.department_id > 0:
                 department = self.uow.departments.get(
                     ticket_dto.department_id,
                 )
-
-                department.ensure_enabled()
 
                 # Department is read-only, but its enabled state
                 # participates in the business decision.
@@ -332,7 +337,7 @@ class TicketApplicationService:
 
             self.ticket_service.change_department(
                 ticket=ticket,
-                department_id=ticket_dto.department_id,
+                department=department
             )
 
             return self._save_and_to_dto(
@@ -345,10 +350,15 @@ class TicketApplicationService:
         ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         with self.uow:
-            actor = self.actor.require_actor_admin(
+            self.actor.require_actor_admin(
                 actor_admin_id=ticket_dto.actor_admin_id,
                 permission=AdminPermission.TICKET_OPERATION,
             )
+
+            if ticket_dto.contact_user_id < 0:
+                raise DomainOperationError(
+                    "contact_user_id cannot be negative"
+                )
 
             ticket = self._get_ticket(
                 ticket_dto.ticket_id,
@@ -358,40 +368,28 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            if ticket_dto.contact_user_id < 0:
-                raise DomainOperationError(
-                    "contact_user_id cannot be negative"
-                )
 
+            contact_user=User.create_empty()
             if ticket_dto.contact_user_id > 0:
                 contact_user = self.uow.users.get(
                     ticket_dto.contact_user_id,
                 )
 
-                contact_user.can_do_operation()
-
-                if contact_user.client_id != ticket.client_id:
-                    raise DomainOperationError(
-                        "Contact User does not belong "
-                        "to Ticket Client"
-                    )
 
                 self.uow.users.touch(
                     contact_user
                 )
 
-            changed_ticket_user = (
-                self.ticket_service.change_contact_user(
+            self.ticket_service.change_contact_user(
+                    user=contact_user,
                     ticket=ticket,
-                    ticket_user=ticket_user,
-                    actor_employee_id=actor.employee_id,
-                    contact_user_id=ticket_dto.contact_user_id,
+                    ticket_user=ticket_user
                 )
-            )
+
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def set_remote_work_recommended(
@@ -402,7 +400,7 @@ class TicketApplicationService:
         with self.uow:
             self.actor.require_actor_admin(
                 actor_admin_id=ticket_dto.actor_admin_id,
-                permission=AdminPermission.TICKET_OPERATION,
+                permission=AdminPermission.TICKET_SET_REMOTE_RECOMMENDATION,
             )
 
             ticket = self._get_ticket(
@@ -525,7 +523,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.accept(
+            self.ticket_service.accept(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -534,7 +532,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def reject(
@@ -560,7 +558,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.reject(
+            self.ticket_service.reject(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -569,7 +567,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def defer(
@@ -591,7 +589,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.defer(
+            self.ticket_service.defer(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -600,7 +598,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def assign(
@@ -609,15 +607,7 @@ class TicketApplicationService:
         ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         with self.uow:
-            actor = self.actor.require_actor_admin(
-                actor_admin_id=ticket_dto.actor_admin_id,
-                permission=AdminPermission.TICKET_OPERATION,
-            )
-
-            if ticket_dto.executor_id <= 0:
-                raise DomainOperationError(
-                    "assign requires executor_id > 0"
-                )
+            ticket, actor = self.require_assign_access(ticket_dto)
 
             # If Admin assigns Ticket to himself, we already have
             # the loaded and validated aggregate in actor cache.
@@ -628,17 +618,11 @@ class TicketApplicationService:
                     ticket_dto.executor_id,
                 )
 
-                executor.can_do_operation()
-
-            ticket = self._get_ticket(
-                ticket_dto.ticket_id,
-            )
-
             ticket_user = self._load_linked_ticket_user(
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.assign(
+            self.ticket_service.assign(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -646,15 +630,40 @@ class TicketApplicationService:
                 comment=ticket_dto.comment,
             )
 
-            if executor.employee_id != actor.employee_id:
-                self.uow.admins.touch(
-                    executor
-                )
+            self.uow.admins.touch(
+                executor
+            )
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
+
+    def require_assign_access(self, ticket_dto: TicketDTO) -> tuple[Ticket, Admin]:
+        is_self_assignment = ticket_dto.executor_id == ticket_dto.actor_admin_id
+        permission = (
+            AdminPermission.TICKET_AT_WORK_REMOTE
+            if is_self_assignment
+            else AdminPermission.TICKET_ASSIGN_EXECUTOR
+        )
+        actor = self.actor.require_actor_admin(
+            actor_admin_id=ticket_dto.actor_admin_id,
+            permission=permission,
+        )
+
+        if ticket_dto.executor_id <= 0:
+            raise DomainOperationError("assign requires executor_id > 0")
+
+        ticket = self._get_ticket(ticket_dto.ticket_id)
+        if is_self_assignment:
+            ticket.require_remote_work_recommendation()
+            if ticket.current_executor_id() not in (0, actor.employee_id):
+                raise DomainOperationError("Ticket is assigned to another executor")
+            if ticket.current_status() not in (TicketStatus.ACCEPTED, TicketStatus.ASSIGNED):
+                raise DomainOperationError(
+                    "Remote self-assignment requires an accepted or assigned ticket"
+                )
+        return ticket, actor
 
     # ==================================================================
     # Work
@@ -685,7 +694,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.start_work(
+            self.ticket_service.start_work(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -695,7 +704,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def start_remote_work(
@@ -732,18 +741,21 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = (
-                self.ticket_service.start_remote_work(
+            if ticket.current_status() == TicketStatus.ACCEPTED:
+                self.ticket_service.ensure_can_assign(ticket=ticket, executor=actor)
+                self.uow.admins.touch(actor)
+
+            self.ticket_service.start_remote_work(
                     ticket=ticket,
                     ticket_user=ticket_user,
                     actor_employee_id=actor.employee_id,
                     comment=ticket_dto.comment,
                 )
-            )
+
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def pause_work(
@@ -752,20 +764,13 @@ class TicketApplicationService:
         ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         with self.uow:
-            actor = self.actor.require_actor_admin(
-                actor_admin_id=ticket_dto.actor_admin_id,
-                permission=AdminPermission.TICKET_AT_WORK,
-            )
-
-            ticket = self._get_ticket(
-                ticket_dto.ticket_id,
-            )
+            ticket, actor = self.require_pause_or_finish_access(ticket_dto)
 
             ticket_user = self._load_linked_ticket_user(
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.pause_work(
+            self.ticket_service.pause_work(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -774,7 +779,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def resume_work(
@@ -783,20 +788,13 @@ class TicketApplicationService:
         ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         with self.uow:
-            actor = self.actor.require_actor_admin(
-                actor_admin_id=ticket_dto.actor_admin_id,
-                permission=AdminPermission.TICKET_AT_WORK,
-            )
-
-            ticket = self._get_ticket(
-                ticket_dto.ticket_id,
-            )
+            ticket, actor = self.require_resume_work_access(ticket_dto)
 
             ticket_user = self._load_linked_ticket_user(
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.resume_work(
+            self.ticket_service.resume_work(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -806,8 +804,22 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
+
+    def require_resume_work_access(self, ticket_dto: TicketDTO) -> tuple[Ticket, Admin]:
+        if not ticket_dto.work_is_remote:
+            actor = self.actor.require_actor_admin(
+                actor_admin_id=ticket_dto.actor_admin_id,
+                permission=AdminPermission.TICKET_AT_WORK,
+            )
+            return self._get_ticket(ticket_dto.ticket_id), actor
+
+        actor, permission = self._require_work_actor(ticket_dto.actor_admin_id)
+        ticket = self._get_ticket(ticket_dto.ticket_id)
+        if permission == AdminPermission.TICKET_AT_WORK_REMOTE:
+            ticket.require_remote_work_recommendation()
+        return ticket, actor
 
     # ==================================================================
     # Completion
@@ -819,64 +831,68 @@ class TicketApplicationService:
         ticket_dto: TicketDTO,
     ) -> TicketResponseDTO:
         """
-        Requires TICKET_AT_WORK.
+        Requires general or remote work permission.
 
         Normal actor:
 
             AT_WORK
                 -> READY_FOR_REVIEW
 
-        Actor with TICKET_EXECUTED:
-
-            AT_WORK
-                -> READY_FOR_REVIEW
-                -> EXECUTED
+        Completing review is a separate operation.
         """
 
         with self.uow:
-            actor = self.actor.require_actor_admin(
-                actor_admin_id=ticket_dto.actor_admin_id,
-                permission=AdminPermission.TICKET_AT_WORK,
-            )
-
-            ticket = self._get_ticket(
-                ticket_dto.ticket_id,
-            )
+            ticket, actor = self.require_pause_or_finish_access(ticket_dto)
 
             ticket_user = self._load_linked_ticket_user(
                 ticket=ticket,
             )
 
-            changed_ticket_user = (
-                self.ticket_service.submit_for_review(
+
+            self.ticket_service.submit_for_review(
                     ticket=ticket,
                     ticket_user=ticket_user,
                     actor_employee_id=actor.employee_id,
                     comment=ticket_dto.comment,
                 )
-            )
 
-            if self.actor.has_admin_permission(
-                actor_admin_id=actor.employee_id,
-                permission=AdminPermission.TICKET_EXECUTED,
-            ):
-                executed_ticket_user = (
-                    self.ticket_service.execute(
-                        ticket=ticket,
-                        ticket_user=ticket_user,
-                        actor_employee_id=actor.employee_id,
-                    )
-                )
 
-                if executed_ticket_user is not None:
-                    changed_ticket_user = executed_ticket_user
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
-    def complete_work_retroactively(
+    def require_pause_or_finish_access(self, ticket_dto: TicketDTO) -> tuple[Ticket, Admin]:
+        actor, permission = self._require_work_actor(ticket_dto.actor_admin_id)
+        ticket = self._get_ticket(ticket_dto.ticket_id)
+        if permission == AdminPermission.TICKET_AT_WORK_REMOTE and (
+            ticket.current_executor_id() != actor.employee_id
+            or not ticket.current_status_record().work_is_remote
+        ):
+            raise DomainOperationError("Only the executor of the current remote work may do this")
+        return ticket, actor
+
+    def _require_work_actor(self, actor_admin_id: int) -> tuple[Admin, AdminPermission]:
+        permission = AdminPermission.TICKET_AT_WORK
+        try:
+            actor = self.actor.require_actor_admin(
+                actor_admin_id=actor_admin_id,
+                permission=permission,
+            )
+        except PermissionError as denied:
+            permission = AdminPermission.TICKET_AT_WORK_REMOTE
+            try:
+                actor = self.actor.require_actor_admin(
+                    actor_admin_id=actor_admin_id,
+                    permission=permission,
+                )
+            except PermissionError:
+                raise denied from None
+
+        return actor, permission
+
+    def register_work(
         self,
         *,
         ticket_dto: TicketDTO,
@@ -890,10 +906,7 @@ class TicketApplicationService:
                 -> AT_WORK
                 -> READY_FOR_REVIEW
 
-        Actor with TICKET_EXECUTED additionally performs:
 
-            READY_FOR_REVIEW
-                -> EXECUTED
         """
 
         with self.uow:
@@ -912,37 +925,22 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = (
-                self.ticket_service.complete_work_retroactively(
+            self.ticket_service.register_work(
                     ticket=ticket,
                     ticket_user=ticket_user,
                     actor_employee_id=actor.employee_id,
                     work_is_remote=ticket_dto.work_is_remote,
-                    started_at=ticket_dto.actual_started_at,
-                    finished_at=ticket_dto.actual_finished_at,
+                    actual_started_at=ticket_dto.actual_started_at,
+                    actual_finished_at=ticket_dto.actual_finished_at,
                     duration=ticket_dto.duration,
                     comment=ticket_dto.comment,
                 )
-            )
 
-            if self.actor.has_admin_permission(
-                actor_admin_id=actor.employee_id,
-                permission=AdminPermission.TICKET_EXECUTED,
-            ):
-                executed_ticket_user = (
-                    self.ticket_service.execute(
-                        ticket=ticket,
-                        ticket_user=ticket_user,
-                        actor_employee_id=actor.employee_id,
-                    )
-                )
 
-                if executed_ticket_user is not None:
-                    changed_ticket_user = executed_ticket_user
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     # ==================================================================
@@ -974,7 +972,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.execute(
+            self.ticket_service.execute(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -983,7 +981,7 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
 
     def cancel(
@@ -1009,7 +1007,7 @@ class TicketApplicationService:
                 ticket=ticket,
             )
 
-            changed_ticket_user = self.ticket_service.cancel(
+            self.ticket_service.cancel(
                 ticket=ticket,
                 ticket_user=ticket_user,
                 actor_employee_id=actor.employee_id,
@@ -1018,8 +1016,29 @@ class TicketApplicationService:
 
             return self._save_and_to_dto(
                 ticket=ticket,
-                ticket_user=changed_ticket_user,
+                ticket_user=ticket_user,
             )
+
+
+    def delete(self,*,ticket_dto: TicketDTO)->None:
+        with self.uow:
+            self.actor.require_actor_admin(
+                actor_admin_id=ticket_dto.actor_admin_id,
+                permission=AdminPermission.TICKET_DELETE,
+            )
+
+            ticket = self._get_ticket(
+                ticket_dto.ticket_id,
+            )
+
+            ticket_user = self._load_linked_ticket_user(
+                ticket=ticket,
+            )
+
+            self.uow.tickets.delete(ticket_id=ticket_dto.ticket_id)
+            if ticket_user is not None:
+                self.uow.user_tickets.delete(ticket_id=ticket_user.ticket_user_id)
+            self.uow.commit()
 
     # ==================================================================
     # Queries
@@ -1054,9 +1073,9 @@ class TicketApplicationService:
                 actor_admin_id=ticket_dto.actor_admin_id,
                 permission=AdminPermission.TICKET_VIEW,
             )
-
+            n=self.uow.tickets.get_all()
             return self._to_dto_list(
-                self.uow.tickets.get_all()
+                n
             )
 
     def get_by_client_id(
@@ -1174,115 +1193,7 @@ class TicketApplicationService:
                 self.uow.tickets.get_finished()
             )
 
-    # ==================================================================
-    # External reference validation
-    # ==================================================================
-    # TODO Перенести этот метод в domain сервис
-    # TODO Учесть, что из SUSPENDED, если не client disabled можно заявки перенести только в cancelled. Это тоже делать
-    # в доменном сервисе
-    def _validate_create_references(
-        self,
-        *,
-        ticket_dto: TicketDTO,
-    ) -> None:
-        """
-        Validate external aggregates referenced by a new Ticket.
-
-        Referenced aggregates are read-only in this use case,
-        therefore touch() protects the decision from concurrent change.
-        """
-
-        if ticket_dto.client_id <= 0:
-            raise DomainOperationError(
-                "client_id must be positive"
-            )
-
-        client = self.uow.clients.get(
-            ticket_dto.client_id,
-        )
-
-        if not client.enabled:
-            raise DomainOperationError(
-                "Cannot create Ticket for disabled Client"
-            )
-
-        user = None
-
-        if ticket_dto.user_id > 0:
-            user = self.uow.users.get(
-                ticket_dto.user_id,
-            )
-
-            user.can_do_operation()
-
-            if user.client_id != client.client_id:
-                raise DomainOperationError(
-                    "User does not belong to Ticket Client"
-                )
-
-        contact_user = None
-
-        if ticket_dto.contact_user_id > 0:
-            if (
-                user is not None
-                and user.employee_id
-                == ticket_dto.contact_user_id
-            ):
-                contact_user = user
-
-            else:
-                contact_user = self.uow.users.get(
-                    ticket_dto.contact_user_id,
-                )
-
-                contact_user.can_do_operation()
-
-                if contact_user.client_id != client.client_id:
-                    raise DomainOperationError(
-                        "Contact User does not belong "
-                        "to Ticket Client"
-                    )
-
-        department = None
-
-        if ticket_dto.department_id > 0:
-            department = self.uow.departments.get(
-                ticket_dto.department_id,
-            )
-
-            department.ensure_enabled()
-
-        # --------------------------------------------------------------
-        # Optimistic concurrency guards
-        # --------------------------------------------------------------
-
-        self.uow.clients.touch(
-            client
-        )
-
-        if user is not None:
-            self.uow.users.touch(
-                user
-            )
-
-        if (
-            contact_user is not None
-            and (
-                user is None
-                or contact_user.employee_id
-                != user.employee_id
-            )
-        ):
-            self.uow.users.touch(
-                contact_user
-            )
-
-        if department is not None:
-            self.uow.departments.touch(
-                department
-            )
-
-    # ==================================================================
+        # ==================================================================
     # Loading
     # ==================================================================
 
@@ -1327,6 +1238,7 @@ class TicketApplicationService:
         *,
         ticket: Ticket,
         ticket_user: TicketUser | None = None,
+        commit: bool = True,
     ) -> TicketResponseDTO:
         """
         Persist changed aggregates in the current UoW transaction.
@@ -1341,14 +1253,10 @@ class TicketApplicationService:
             ticket
         )
 
-        self.uow.commit()
-
-        #if saved_ticket is None:
-        #    saved_ticket = ticket
-
-        return TicketAssembler.to_dto(
-            saved_ticket
-        )
+        response = TicketAssembler.to_dto(saved_ticket)
+        if commit:
+            self.uow.commit()
+        return response
 
     @staticmethod
     def _to_dto_list(

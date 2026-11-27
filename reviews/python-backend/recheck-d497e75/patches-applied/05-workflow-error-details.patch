@@ -1,0 +1,24 @@
+diff --git a/src/domain/ticket.py b/src/domain/ticket.py
+--- a/src/domain/ticket.py
++++ b/src/domain/ticket.py
+@@ -410,7 +410,7 @@
+ 
+         if rule is None:
+             raise DomainOperationError(
+-                f"Ticket {self} status transition is not allowed: "
++                "Ticket status transition is not allowed: "
+                 f"{current_record.status.value} -> {record.status.value}"
+             )
+ 
+diff --git a/src/domain/ticket_user.py b/src/domain/ticket_user.py
+--- a/src/domain/ticket_user.py
++++ b/src/domain/ticket_user.py
+@@ -365,7 +365,7 @@
+ 
+         if record.status not in TICKET_USER_TRANSITIONS[current_record.status]:
+             raise DomainOperationError(
+-                f"TicketUser status transition is not allowed: f{record}"
++                "TicketUser status transition is not allowed: "
+                 f"{current_record.status.value} -> {record.status.value}"
+             )
+ 

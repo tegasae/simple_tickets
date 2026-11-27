@@ -15,6 +15,10 @@ class ClientRepository(ABC):
         raise NotImplementedError()
 
 
+    @abstractmethod
+    def get_by_user_id(self,user_id:int) -> Client:
+        raise NotImplementedError()
+
 
 
     @abstractmethod

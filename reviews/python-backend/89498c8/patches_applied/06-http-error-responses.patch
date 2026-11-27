@@ -1,0 +1,208 @@
+diff --git a/src/web/main.py b/src/web/main.py
+--- a/src/web/main.py
++++ b/src/web/main.py
+@@ -1,10 +1,18 @@
+ import uvicorn
+ from fastapi import FastAPI
+ 
++from src.adapters.repositories.exceptions import NotFoundError as RepositoryNotFoundError
+ from src.adapters.repositories.exceptions import OptimisticLockError
+-from src.domain.exceptions import ItemValidationError, DomainOperationError, ItemAlreadyExistsError, ItemNotFoundError
+-from src.web.auth.exceptions import TokenError, TokenNotFoundError, TokenExpiredError, UserNotValidError, \
+-    InvalidCredentialsError
++from src.application.exceptions import TicketInputValidationError
++from src.domain.exceptions import (
++    AuthenticationError,
++    AuthorizationError,
++    DomainOperationError,
++    ItemAlreadyExistsError,
++    ItemNotFoundError,
++    ItemValidationError,
++)
++from src.web.auth.exceptions import AuthError, AuthPermissionError
+ from src.web.execeptions.exception_handlers import ExceptionHandlerRegistry
+ 
+ from src.web.routers import admin
+@@ -48,31 +56,30 @@
+         expose_error_type=True,
+     )
+ 
+-#    registry.add_all_standard_handlers(
+-#        exceptions={
+-#            TokenError: 401,
+-#            TokenNotFoundError: 401,
+-#            TokenExpiredError: 401,
+-#            UserNotValidError: 401,
+-#            InvalidCredentialsError: 401,
+-#            ItemValidationError: 400,
+-#            PermissionError: 403,
+-#            ValueError: 400,
+-#            ItemAlreadyExistsError: 400,
+-#            DomainOperationError:400,
+-#            OptimisticLockError:500,
+-#            ItemNotFoundError: 404
+-#        }
+-#    )
+-#    registry.add_all_handlers_from_module(
+-#        module_name="src.domain.exceptions",
+-#        exceptions=admin.clients.handlers,
+-#    )
+-
+-
++    registry.add_all_standard_handlers(
++        exceptions={
++            AuthPermissionError: 403,
++            TicketInputValidationError: 400,
++            AuthenticationError: 401,
++            AuthorizationError: 403,
++            PermissionError: 403,
++            ItemValidationError: 400,
++            DomainOperationError: 400,
++            ItemAlreadyExistsError: 409,
++            OptimisticLockError: 409,
++            ItemNotFoundError: 404,
++            RepositoryNotFoundError: 404,
++        }
++    )
++    registry.add_standard_handler(
++        exception_type=AuthError,
++        status_code=401,
++        public_detail="Invalid credentials or session",
++    )
+     registry.add_standard_handler(
+         exception_type=Exception,
+-        status_code=500
++        status_code=500,
++        public_detail="Internal server error",
+     )
+ 
+     registry.register_all()
+diff --git a/src/web/execeptions/exception_handlers.py b/src/web/execeptions/exception_handlers.py
+--- a/src/web/execeptions/exception_handlers.py
++++ b/src/web/execeptions/exception_handlers.py
+@@ -96,6 +96,7 @@
+         *,
+         exception_type: type[Exception],
+         status_code: int,
++        public_detail: str | None = None,
+     ) -> None:
+         """
+         Add standard JSON handler for expected exceptions.
+@@ -128,8 +129,10 @@
+                 status_code=status_code,
+                 content=self._make_error_content(
+                     exc=exc,
+-                    detail=str(exc),
++                    detail=str(exc) if public_detail is None else public_detail,
++                    include_error_type=public_detail is None,
+                 ),
++                headers={"WWW-Authenticate": "Bearer"} if status_code == 401 else None,
+             )
+ 
+         self._handlers[exception_type] = handler
+@@ -325,6 +328,7 @@
+         *,
+         exc: Exception,
+         detail: str,
++        include_error_type: bool = True,
+     ) -> dict[str, Any]:
+         """
+         Build JSON response body.
+@@ -340,7 +344,7 @@
+             "detail": detail,
+         }
+ 
+-        if self.expose_error_type:
++        if self.expose_error_type and include_error_type:
+             content["error_type"] = exc.__class__.__name__
+ 
+         if self.expose_traceback:
+diff --git a/src/application/exceptions.py b/src/application/exceptions.py
+--- a/src/application/exceptions.py
++++ b/src/application/exceptions.py
+@@ -21,6 +21,10 @@
+     """"""
+ 
+ 
++class TicketInputValidationError(ApplicationValidateError):
++    """Invalid input to an internal ticket command."""
++
++
+ class ApplicationStoreError(ApplicationError):
+     """"""
+ 
+diff --git a/src/application/dto/ticket_dto.py b/src/application/dto/ticket_dto.py
+--- a/src/application/dto/ticket_dto.py
++++ b/src/application/dto/ticket_dto.py
+@@ -1,7 +1,7 @@
+ from dataclasses import dataclass, field
+ from datetime import datetime, timedelta
+ 
+-from src.application.exceptions import ApplicationValidateError
++from src.application.exceptions import TicketInputValidationError
+ from src.domain.ticket_components import TicketUrgency
+ 
+ 
+@@ -44,21 +44,19 @@
+ 
+     def __post_init__(self):
+         if self.ticket_id < 0:
+-            raise ApplicationValidateError("Ticket ID cannot be negative")
++            raise TicketInputValidationError("Ticket ID cannot be negative")
+         if self.actor_admin_id < 0:
+-            raise ApplicationValidateError("The actor admin ID is invalid")
+-        if self.ticket_id < 0:
+-            raise ApplicationValidateError("The ticket ID is invalid")
++            raise TicketInputValidationError("The actor admin ID is invalid")
+         if self.client_id < 0:
+-            raise ApplicationValidateError("The client ID is invalid")
++            raise TicketInputValidationError("The client ID is invalid")
+         if self.user_id < 0:
+-            raise ApplicationValidateError("The user ID is invalid")
++            raise TicketInputValidationError("The user ID is invalid")
+         if self.contact_user_id < 0:
+-            raise ApplicationValidateError("The contact user ID is invalid")
++            raise TicketInputValidationError("The contact user ID is invalid")
+         if self.user_ticket_id < 0:
+-            raise ApplicationValidateError("The user ticket ID is invalid")
++            raise TicketInputValidationError("The user ticket ID is invalid")
+         if self.department_id < 0:
+-            raise ApplicationValidateError("The department ID is invalid")
++            raise TicketInputValidationError("The department ID is invalid")
+ 
+         self.text_of_ticket=self.text_of_ticket.strip()
+ 
+diff --git a/src/application/services/admin_service.py b/src/application/services/admin_service.py
+--- a/src/application/services/admin_service.py
++++ b/src/application/services/admin_service.py
+@@ -640,12 +640,7 @@
+         self,
+         admin: Admin,
+     ) -> AdminResponseDTO:
+-        try:
+-            saved_admin = self.uow.admins.save(
+-                admin
+-            )
+-        except:
+-            raise ApplicationValidateError(f"The admin {admin.employee_id} was not saved")
++        saved_admin = self.uow.admins.save(admin)
+         return AdminAssembler.to_dto(
+             saved_admin
+         )
+diff --git a/src/application/services/user_service.py b/src/application/services/user_service.py
+--- a/src/application/services/user_service.py
++++ b/src/application/services/user_service.py
+@@ -625,12 +625,7 @@
+         self,
+         user: User,
+     ) -> UserResponseDTO:
+-        try:
+-            saved_user = self.uow.users.save(
+-                user
+-            )
+-        except:
+-            raise ApplicationValidateError(f"The user {user.employee_id} was not saved")
++        saved_user = self.uow.users.save(user)
+         return UserAssembler.to_dto(
+             saved_user
+         )

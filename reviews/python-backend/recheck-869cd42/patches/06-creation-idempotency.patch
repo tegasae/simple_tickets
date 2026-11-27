@@ -1,0 +1,1305 @@
+diff --git a/db/schema.sql b/db/schema.sql
+index 84b5f2c..3ef2910 100644
+--- a/db/schema.sql
++++ b/db/schema.sql
+@@ -203,2 +203,17 @@ CREATE INDEX idx_auth_refresh_sessions_account
+ CREATE INDEX idx_auth_refresh_sessions_expiry
+     ON auth_refresh_sessions(expires_at);
++
++CREATE TABLE creation_results (
++    subject_type TEXT NOT NULL CHECK (subject_type IN ('admin', 'user')),
++    subject_id INTEGER NOT NULL,
++    command TEXT NOT NULL,
++    idempotency_key TEXT NOT NULL,
++    fingerprint TEXT NOT NULL,
++    status_code INTEGER,
++    body TEXT,
++    expires_at DOUBLE PRECISION,
++    PRIMARY KEY (subject_type, subject_id, command, idempotency_key),
++    CHECK ((status_code IS NULL AND body IS NULL AND expires_at IS NULL)
++        OR (status_code IS NOT NULL AND status_code BETWEEN 200 AND 299 AND body IS NOT NULL))
++);
++CREATE INDEX idx_creation_results_expiry ON creation_results(expires_at);
+diff --git a/scripts/migrate_backend_storage.py b/scripts/migrate_backend_storage.py
+index a133246..f48afa3 100644
+--- a/scripts/migrate_backend_storage.py
++++ b/scripts/migrate_backend_storage.py
+@@ -9,5 +9,5 @@ import sqlite3
+ 
+ VERSION_TABLES = ("departments", "employees", "clients")
+-STORAGE_TABLES = ("auth_refresh_sessions",)
++STORAGE_TABLES = ("auth_refresh_sessions", "creation_results")
+ SCHEMA = Path(__file__).resolve().parents[1] / "db" / "schema.sql"
+ 
+diff --git a/src/adapters/repositories/creation_result_repository.py b/src/adapters/repositories/creation_result_repository.py
+new file mode 100644
+index 0000000..aea9b7b
+--- /dev/null
++++ b/src/adapters/repositories/creation_result_repository.py
+@@ -0,0 +1,63 @@
++from src.adapters.repositories.base_repository import BaseRepository
++from src.adapters.repositories.exceptions import UniqueConstraintError
++from src.adapters.repositories.gateways.creation_result_gateway import CreationResultGateway
++from src.adapters.repositories.mappers.creation_result_mapper import CreationResultMapper
++from src.domain.repositories.creation_result_repository import (
++    CreationAlreadyReserved, CreationKey, CreationResult, CreationResultRepository,
++)
++from utils.db.connect import Connection
++
++
++class CreationResultRepositorySQLite(BaseRepository, CreationResultRepository):
++    def __init__(self, connection: Connection) -> None:
++        super().__init__(connection)
++
++    def get(self, key: CreationKey) -> CreationResult | None:
++        row = self._get_one(
++            CreationResultGateway.SELECT_BY_KEY,
++            var=CreationResultMapper.RESULT_COLUMNS,
++            params=CreationResultMapper.key_params(key),
++        )
++        return CreationResultMapper.row_to_result(row) if row else None
++
++    def reserve(self, key: CreationKey, *, fingerprint: str) -> None:
++        try:
++            self._exec(
++                CreationResultGateway.INSERT_RESERVATION,
++                CreationResultMapper.key_params(key, fingerprint=fingerprint),
++            )
++        except UniqueConstraintError as exc:
++            raise CreationAlreadyReserved() from exc
++
++    def complete(self, key: CreationKey, *, result: CreationResult) -> None:
++        written = self._exec(
++            CreationResultGateway.COMPLETE,
++            CreationResultMapper.completion_params(key, result),
++        )
++        if written.rowcount != 1:
++            raise RuntimeError("Expected one reserved creation result")
++
++    def forget_expired(self, key: CreationKey, *, now: float) -> None:
++        self._exec(
++            CreationResultGateway.DELETE_EXPIRED_BY_KEY,
++            CreationResultMapper.key_params(key, now=now),
++        )
++
++    def pending_deadlines(self) -> list[CreationKey]:
++        rows = self._get_many(
++            CreationResultGateway.SELECT_PENDING_DEADLINES,
++            var=CreationResultMapper.KEY_COLUMNS,
++        )
++        return [CreationResultMapper.row_to_key(row) for row in rows]
++
++    def set_deadline(self, key: CreationKey, *, expires_at: float) -> None:
++        self._exec(
++            CreationResultGateway.SET_DEADLINE,
++            CreationResultMapper.key_params(key, expires_at=expires_at),
++        )
++
++    def prune_expired(self, *, now: float) -> None:
++        self._exec(
++            CreationResultGateway.DELETE_EXPIRED,
++            CreationResultMapper.expiry_params(now),
++        )
+diff --git a/src/adapters/repositories/gateways/creation_result_gateway.py b/src/adapters/repositories/gateways/creation_result_gateway.py
+new file mode 100644
+index 0000000..22d04a5
+--- /dev/null
++++ b/src/adapters/repositories/gateways/creation_result_gateway.py
+@@ -0,0 +1,39 @@
++class CreationResultGateway:
++    _KEY_FILTER = """
++        subject_type = :subject_type AND subject_id = :subject_id
++        AND command = :command AND idempotency_key = :key
++    """
++
++    SELECT_BY_KEY = f"""
++        SELECT fingerprint, status_code, body, expires_at
++        FROM creation_results WHERE {_KEY_FILTER}
++    """
++
++    INSERT_RESERVATION = """
++        INSERT INTO creation_results
++            (subject_type, subject_id, command, idempotency_key, fingerprint)
++        VALUES (:subject_type, :subject_id, :command, :key, :fingerprint)
++    """
++
++    COMPLETE = f"""
++        UPDATE creation_results SET status_code = :status_code, body = :body
++        WHERE {_KEY_FILTER} AND status_code IS NULL
++    """
++
++    DELETE_EXPIRED_BY_KEY = f"""
++        DELETE FROM creation_results WHERE {_KEY_FILTER} AND expires_at <= :now
++    """
++
++    SELECT_PENDING_DEADLINES = """
++        SELECT subject_type, subject_id, command, idempotency_key
++        FROM creation_results WHERE expires_at IS NULL AND status_code IS NOT NULL
++    """
++
++    SET_DEADLINE = f"""
++        UPDATE creation_results SET expires_at = :expires_at
++        WHERE {_KEY_FILTER} AND expires_at IS NULL AND status_code IS NOT NULL
++    """
++
++    DELETE_EXPIRED = """
++        DELETE FROM creation_results WHERE expires_at <= :now
++    """
+diff --git a/src/adapters/repositories/mappers/creation_result_mapper.py b/src/adapters/repositories/mappers/creation_result_mapper.py
+new file mode 100644
+index 0000000..0af5de3
+--- /dev/null
++++ b/src/adapters/repositories/mappers/creation_result_mapper.py
+@@ -0,0 +1,44 @@
++from typing import Any
++
++from src.domain.repositories.creation_result_repository import CreationKey, CreationResult
++
++
++class CreationResultMapper:
++    RESULT_COLUMNS = ["fingerprint", "status_code", "body", "expires_at"]
++    KEY_COLUMNS = ["subject_type", "subject_id", "command", "idempotency_key"]
++
++    @staticmethod
++    def row_to_result(row: dict[str, Any]) -> CreationResult:
++        return CreationResult(
++            fingerprint=row["fingerprint"],
++            status_code=row["status_code"],
++            body=row["body"],
++            expires_at=row["expires_at"],
++        )
++
++    @staticmethod
++    def row_to_key(row: dict[str, Any]) -> CreationKey:
++        return CreationKey(
++            subject_type=row["subject_type"],
++            subject_id=row["subject_id"],
++            command=row["command"],
++            key=row["idempotency_key"],
++        )
++
++    @staticmethod
++    def key_params(key: CreationKey, **values: object) -> dict[str, object]:
++        return {
++            **values,
++            "subject_type": key.subject_type,
++            "subject_id": key.subject_id,
++            "command": key.command,
++            "key": key.key,
++        }
++
++    @classmethod
++    def completion_params(cls, key: CreationKey, result: CreationResult) -> dict[str, object]:
++        return cls.key_params(key, status_code=result.status_code, body=result.body)
++
++    @staticmethod
++    def expiry_params(now: float) -> dict[str, float]:
++        return {"now": now}
+diff --git a/src/adapters/uow/sqlite_unit_of_work.py b/src/adapters/uow/sqlite_unit_of_work.py
+index 1f2746a..c5f0184 100644
+--- a/src/adapters/uow/sqlite_unit_of_work.py
++++ b/src/adapters/uow/sqlite_unit_of_work.py
+@@ -8,4 +8,5 @@ from typing import Self
+ 
+ from src.adapters.repositories.admin import AdminRepositorySQLite
++from src.adapters.repositories.creation_result_repository import CreationResultRepositorySQLite
+ from src.adapters.repositories.client_repository import (
+     ClientRepositorySQLite,
+@@ -49,4 +50,5 @@ class SQLiteUnitOfWork(UnitOfWork):
+         self._completed = False
+ 
++        self.creation_results = CreationResultRepositorySQLite(self.connection)
+         self.refresh_sessions = RefreshSessionRepositorySQLite(self.connection)
+         self.admins = AdminRepositorySQLite(conn=self.connection)
+diff --git a/src/application/services/admin_service.py b/src/application/services/admin_service.py
+index 7a6087f..25541e8 100644
+--- a/src/application/services/admin_service.py
++++ b/src/application/services/admin_service.py
+@@ -69,10 +69,8 @@ class AdminApplicationService:
+         *,
+         admin_dto: AdminDTO,
++        join_transaction: bool = False,
+     ) -> AdminResponseDTO:
+-        with self.uow:
+-            actor = self.actor.require_actor_admin(
+-                actor_admin_id=admin_dto.actor_admin_id,
+-                permission=AdminPermission.ADMIN_OPERATION,
+-            )
++        with self.uow.transaction(join=join_transaction):
++            actor = self.require_create_access(admin_dto)
+ 
+             self.helper.ensure_login_is_free(
+@@ -132,4 +130,17 @@ class AdminApplicationService:
+     # ==================================================================
+ 
++    def require_create_access(self, admin_dto: AdminDTO) -> Admin:
++        actor = self.actor.require_actor_admin(
++            actor_admin_id=admin_dto.actor_admin_id,
++            permission=AdminPermission.ADMIN_OPERATION,
++        )
++
++        if admin_dto.roles:
++            self.actor.require_actor_admin(
++                actor_admin_id=admin_dto.actor_admin_id,
++                permission=AdminPermission.ROLE_ASSIGN,
++            )
++        return actor
++
+     def update_admin(
+         self,
+diff --git a/src/application/services/client_service.py b/src/application/services/client_service.py
+index e8a2d22..2147810 100644
+--- a/src/application/services/client_service.py
++++ b/src/application/services/client_service.py
+@@ -10,4 +10,5 @@ from src.application.helper.actor_helper import EmployeeActorHelper
+ 
+ from src.domain.client import Client
++from src.domain.employee import Admin
+ from src.domain.rbac.permissions import AdminPermission
+ from src.domain.services.client_service import ClientService
+@@ -57,10 +58,8 @@ class ClientApplicationService:
+         self,
+         dto_client: ClientDTO,
++        join_transaction: bool = False,
+     ) -> ClientResponseDTO:
+-        with self.uow:
+-            actor = self.actor.require_actor_admin_any(
+-                actor_admin_id=dto_client.actor_admin_id,
+-                permissions=(AdminPermission.CLIENT_OPERATION,AdminPermission.CLIENT_CREATE,AdminPermission.CLIENT_DECISION),
+-            )
++        with self.uow.transaction(join=join_transaction):
++            actor = self.require_create_access(dto_client)
+ 
+             client = self.client_service.create(
+@@ -81,4 +80,11 @@ class ClientApplicationService:
+     # ==================================================================
+ 
++    def require_create_access(self, dto_client: ClientDTO) -> Admin:
++        actor = self.actor.require_actor_admin_any(
++            actor_admin_id=dto_client.actor_admin_id,
++            permissions=(AdminPermission.CLIENT_OPERATION,AdminPermission.CLIENT_CREATE,AdminPermission.CLIENT_DECISION),
++        )
++        return actor
++
+     def update(
+         self,
+diff --git a/src/application/services/department_service.py b/src/application/services/department_service.py
+index 0b3676b..beaff08 100644
+--- a/src/application/services/department_service.py
++++ b/src/application/services/department_service.py
+@@ -61,10 +61,8 @@ class DepartmentApplicationService:
+         *,
+         department_dto: DepartmentDTO,
++        join_transaction: bool = False,
+     ) -> DepartmentResponseDTO:
+-        with self.uow:
+-            self.actor.require_actor_admin(
+-                actor_admin_id=department_dto.actor_admin_id,
+-                permission=AdminPermission.DEPARTMENT_OPERATION,
+-            )
++        with self.uow.transaction(join=join_transaction):
++            self.require_create_access(department_dto)
+ 
+             department = self.department_service.create(
+@@ -75,6 +73,13 @@ class DepartmentApplicationService:
+             return self._save_and_to_dto(
+                 department=department,
++                commit=not join_transaction,
+             )
+ 
++    def require_create_access(self, department_dto: DepartmentDTO) -> None:
++        self.actor.require_actor_admin(
++            actor_admin_id=department_dto.actor_admin_id,
++            permission=AdminPermission.DEPARTMENT_OPERATION,
++        )
++
+     def update(
+         self,
+@@ -281,4 +286,5 @@ class DepartmentApplicationService:
+         *,
+         department: Department,
++        commit: bool = True,
+     ) -> DepartmentResponseDTO:
+         saved_department = self.uow.departments.save(
+@@ -286,5 +292,6 @@ class DepartmentApplicationService:
+         )
+ 
+-        self.uow.commit()
++        if commit:
++            self.uow.commit()
+         """Нет, это если None, значит не сохранился"""
+         if saved_department is None:
+diff --git a/src/application/services/role_service.py b/src/application/services/role_service.py
+index 789f132..9a4796b 100644
+--- a/src/application/services/role_service.py
++++ b/src/application/services/role_service.py
+@@ -63,4 +63,5 @@ class RoleApplicationService(Generic[T]):
+         *,
+         role_dto: RoleDTO,
++        join_transaction: bool = False,
+     ) -> RoleResponseDTO:
+ 
+@@ -68,8 +69,6 @@ class RoleApplicationService(Generic[T]):
+ 
+ 
+-        with self.uow:
+-            self._check_actor(
+-                actor_admin_id=role_dto.actor_admin_id,
+-            )
++        with self.uow.transaction(join=join_transaction):
++            self.require_create_access(role_dto)
+             role=self._service.create_role(name=role_dto.name,
+                                            permissions=role_dto.permissions,
+@@ -82,4 +81,7 @@ class RoleApplicationService(Generic[T]):
+             )
+ 
++    def require_create_access(self, role_dto: RoleDTO) -> None:
++        self._check_actor(actor_admin_id=role_dto.actor_admin_id)
++
+     def delete_role(
+         self,
+@@ -178,9 +180,13 @@ class AdminRoleApplicationService:
+         *,
+         role_dto: RoleDTO,
++        join_transaction: bool = False,
+     ) -> RoleResponseDTO:
+         return self._application_service.create_role(
+-            role_dto=role_dto,
++            role_dto=role_dto, join_transaction=join_transaction,
+         )
+ 
++    def require_create_access(self, role_dto: RoleDTO) -> None:
++        self._application_service.require_create_access(role_dto)
++
+     def delete_role(
+         self,
+@@ -229,9 +235,13 @@ class UserRoleApplicationService:
+         *,
+         role_dto: RoleDTO,
++        join_transaction: bool = False,
+     ) -> RoleResponseDTO:
+         return self._application_service.create_role(
+-            role_dto=role_dto,
++            role_dto=role_dto, join_transaction=join_transaction,
+         )
+ 
++    def require_create_access(self, role_dto: RoleDTO) -> None:
++        self._application_service.require_create_access(role_dto)
++
+     def delete_role(
+         self,
+diff --git a/src/application/services/ticket_service.py b/src/application/services/ticket_service.py
+index f4d0b4f..9537d14 100644
+--- a/src/application/services/ticket_service.py
++++ b/src/application/services/ticket_service.py
+@@ -12,5 +12,5 @@ from src.application.helper.actor_helper import EmployeeActorHelper
+ from src.domain.client import Client
+ from src.domain.department import Department
+-from src.domain.employee import User
++from src.domain.employee import Admin, User
+ 
+ from src.domain.exceptions import DomainOperationError
+@@ -81,4 +81,5 @@ class TicketApplicationService:
+             *,
+             ticket_dto: TicketDTO,
++            join_transaction: bool = False,
+     ) -> TicketResponseDTO:
+         """
+@@ -122,12 +123,6 @@ class TicketApplicationService:
+         """
+ 
+-        with self.uow:
+-            actor = self.actor.require_actor_admin_any(
+-                actor_admin_id=ticket_dto.actor_admin_id,
+-                permissions=(
+-                    AdminPermission.TICKET_CREATED,
+-                    AdminPermission.TICKET_OPERATION,
+-                ),
+-            )
++        with self.uow.transaction(join=join_transaction):
++            actor = self.require_create_access(ticket_dto)
+ 
+ 
+@@ -229,4 +224,5 @@ class TicketApplicationService:
+                 ticket=ticket,
+                 ticket_user=ticket_user,
++                commit=not join_transaction,
+             )
+     # ==================================================================
+@@ -234,18 +230,22 @@ class TicketApplicationService:
+     # ==================================================================
+ 
++    def require_create_access(self, ticket_dto: TicketDTO) -> Admin:
++        actor = self.actor.require_actor_admin_any(
++            actor_admin_id=ticket_dto.actor_admin_id,
++            permissions=(
++                AdminPermission.TICKET_CREATED,
++                AdminPermission.TICKET_OPERATION,
++            ),
++        )
++        return actor
++
+     def add_comment(
+         self,
+         *,
+         ticket_dto: TicketDTO,
++        join_transaction: bool = False,
+     ) -> TicketResponseDTO:
+-        with self.uow:
+-            actor = self.actor.require_actor_admin(
+-                actor_admin_id=ticket_dto.actor_admin_id,
+-                permission=AdminPermission.TICKET_OPERATION,
+-            )
+-
+-            ticket = self._get_ticket(
+-                ticket_dto.ticket_id,
+-            )
++        with self.uow.transaction(join=join_transaction):
++            ticket, actor = self.require_comment_access(ticket_dto)
+ 
+             self.ticket_service.add_comment(
+@@ -257,6 +257,18 @@ class TicketApplicationService:
+             return self._save_and_to_dto(
+                 ticket=ticket,
++                commit=not join_transaction,
+             )
+ 
++    def require_comment_access(self, ticket_dto: TicketDTO) -> tuple[Ticket, Admin]:
++        actor = self.actor.require_actor_admin(
++            actor_admin_id=ticket_dto.actor_admin_id,
++            permission=AdminPermission.TICKET_OPERATION,
++        )
++
++        ticket = self._get_ticket(
++            ticket_dto.ticket_id,
++        )
++        return ticket, actor
++
+     def update_description(
+         self,
+@@ -1186,4 +1198,5 @@ class TicketApplicationService:
+         ticket: Ticket,
+         ticket_user: TicketUser | None = None,
++        commit: bool = True,
+     ) -> TicketResponseDTO:
+         """
+@@ -1201,5 +1214,6 @@ class TicketApplicationService:
+ 
+         response = TicketAssembler.to_dto(saved_ticket)
+-        self.uow.commit()
++        if commit:
++            self.uow.commit()
+         return response
+ 
+diff --git a/src/application/services/ticket_user_service.py b/src/application/services/ticket_user_service.py
+index 7018e0d..6f095af 100644
+--- a/src/application/services/ticket_user_service.py
++++ b/src/application/services/ticket_user_service.py
+@@ -86,4 +86,5 @@ class TicketUserApplicationService:
+         *,
+         ticket_user_dto: TicketUserDTO,
++        join_transaction: bool = False,
+     ) -> TicketUserResponseDTO:
+         """
+@@ -109,9 +110,6 @@ class TicketUserApplicationService:
+         """
+ 
+-        with self.uow:
+-            actor = self.actor.require_actor_user(
+-                actor_user_id=ticket_user_dto.actor_user_id,
+-                permission=UserPermission.TICKET_OPERATION,
+-            )
++        with self.uow.transaction(join=join_transaction):
++            actor = self.require_create_access(ticket_user_dto)
+ 
+             if ticket_user_dto.ticket_user_id != 0:
+@@ -210,18 +208,19 @@ class TicketUserApplicationService:
+     # ==================================================================
+ 
++    def require_create_access(self, ticket_user_dto: TicketUserDTO) -> User:
++        actor = self.actor.require_actor_user(
++            actor_user_id=ticket_user_dto.actor_user_id,
++            permission=UserPermission.TICKET_OPERATION,
++        )
++        return actor
++
+     def add_comment(
+         self,
+         *,
+         ticket_user_dto: TicketUserDTO,
++        join_transaction: bool = False,
+     ) -> TicketUserResponseDTO:
+-        with self.uow:
+-            ticket_user = self._get_ticket_user(
+-                ticket_user_dto.ticket_user_id,
+-            )
+-
+-            actor = self._require_operation_access(
+-                actor_user_id=ticket_user_dto.actor_user_id,
+-                ticket_user=ticket_user,
+-            )
++        with self.uow.transaction(join=join_transaction):
++            ticket_user, actor = self.require_comment_access(ticket_user_dto)
+ 
+             self.ticket_user_service.add_comment(
+@@ -233,6 +232,18 @@ class TicketUserApplicationService:
+             return self._save_ticket_user(
+                 ticket_user=ticket_user,
++                commit=not join_transaction,
+             )
+ 
++    def require_comment_access(self, ticket_user_dto: TicketUserDTO) -> tuple[TicketUser, User]:
++        ticket_user = self._get_ticket_user(
++            ticket_user_dto.ticket_user_id,
++        )
++
++        actor = self._require_operation_access(
++            actor_user_id=ticket_user_dto.actor_user_id,
++            ticket_user=ticket_user,
++        )
++        return ticket_user, actor
++
+     def update_description(
+         self,
+@@ -848,4 +859,5 @@ class TicketUserApplicationService:
+         *,
+         ticket_user: TicketUser,
++        commit: bool = True,
+     ) -> TicketUserResponseDTO:
+         saved_ticket_user = self.uow.user_tickets.save(
+@@ -854,5 +866,6 @@ class TicketUserApplicationService:
+ 
+         response = TicketUserAssembler.to_dto(saved_ticket_user)
+-        self.uow.commit()
++        if commit:
++            self.uow.commit()
+         return response
+ 
+diff --git a/src/application/services/user_service.py b/src/application/services/user_service.py
+index ba84f4d..9b20235 100644
+--- a/src/application/services/user_service.py
++++ b/src/application/services/user_service.py
+@@ -10,5 +10,5 @@ from src.application.helper.actor_helper import EmployeeActorHelper
+ from src.application.helper.employee_helper import EmployeeHelper
+ 
+-from src.domain.employee import User
++from src.domain.employee import Admin, User
+ from src.domain.exceptions import DomainOperationError
+ from src.domain.rbac.permissions import AdminPermission
+@@ -71,16 +71,8 @@ class UserApplicationService:
+         *,
+         user_dto: UserDTO,
++        join_transaction: bool = False,
+     ) -> UserResponseDTO:
+-        with self.uow:
+-            actor = self.actor.require_actor_admin(
+-                actor_admin_id=user_dto.actor_admin_id,
+-                permission=AdminPermission.USER_OPERATION,
+-            )
+-
+-            if user_dto.roles:
+-                self.actor.require_actor_admin(
+-                    actor_admin_id=user_dto.actor_admin_id,
+-                    permission=AdminPermission.ROLE_USER_ASSIGN,
+-                )
++        with self.uow.transaction(join=join_transaction):
++            actor = self.require_create_access(user_dto)
+ 
+             self.helper.ensure_login_is_free(
+@@ -135,4 +127,17 @@ class UserApplicationService:
+     # ==================================================================
+ 
++    def require_create_access(self, user_dto: UserDTO) -> Admin:
++        actor = self.actor.require_actor_admin(
++            actor_admin_id=user_dto.actor_admin_id,
++            permission=AdminPermission.USER_OPERATION,
++        )
++
++        if user_dto.roles:
++            self.actor.require_actor_admin(
++                actor_admin_id=user_dto.actor_admin_id,
++                permission=AdminPermission.ROLE_USER_ASSIGN,
++            )
++        return actor
++
+     def update_user(
+         self,
+diff --git a/src/domain/repositories/creation_result_repository.py b/src/domain/repositories/creation_result_repository.py
+new file mode 100644
+index 0000000..729920a
+--- /dev/null
++++ b/src/domain/repositories/creation_result_repository.py
+@@ -0,0 +1,55 @@
++from abc import ABC, abstractmethod
++from dataclasses import dataclass
++
++from src.domain.repositories.refresh_session_repository import SubjectType
++
++
++@dataclass(frozen=True)
++class CreationKey:
++    subject_type: SubjectType
++    subject_id: int
++    command: str
++    key: str
++
++
++@dataclass(frozen=True)
++class CreationResult:
++    fingerprint: str
++    status_code: int
++    body: str
++    expires_at: float | None = None
++
++
++class CreationAlreadyReserved(Exception):
++    """Another transaction owns this scoped key."""
++
++
++class CreationResultRepository(ABC):
++    @abstractmethod
++    def get(self, key: CreationKey) -> CreationResult | None:
++        raise NotImplementedError
++
++    @abstractmethod
++    def reserve(self, key: CreationKey, *, fingerprint: str) -> None:
++        """Claim the key or raise CreationAlreadyReserved if it already exists."""
++        raise NotImplementedError
++
++    @abstractmethod
++    def complete(self, key: CreationKey, *, result: CreationResult) -> None:
++        raise NotImplementedError
++
++    @abstractmethod
++    def forget_expired(self, key: CreationKey, *, now: float) -> None:
++        raise NotImplementedError
++
++    @abstractmethod
++    def pending_deadlines(self) -> list[CreationKey]:
++        raise NotImplementedError
++
++    @abstractmethod
++    def set_deadline(self, key: CreationKey, *, expires_at: float) -> None:
++        raise NotImplementedError
++
++    @abstractmethod
++    def prune_expired(self, *, now: float) -> None:
++        raise NotImplementedError
+diff --git a/src/domain/uow/unit_of_work.py b/src/domain/uow/unit_of_work.py
+index eeaac6c..918f180 100644
+--- a/src/domain/uow/unit_of_work.py
++++ b/src/domain/uow/unit_of_work.py
+@@ -9,4 +9,5 @@ from src.domain.rbac.permissions import AdminPermission, UserPermission
+ from src.domain.rbac.role_repository import RoleRepository
+ from src.domain.repositories.admin_repository import AdminRepository
++from src.domain.repositories.creation_result_repository import CreationResultRepository
+ from src.domain.repositories.client_repository import ClientRepository
+ from src.domain.repositories.department_repository import (
+@@ -37,4 +38,5 @@ class UnitOfWork(ContextManager[Self], ABC):
+     user_tickets: TicketUserRepository
+     departments: DepartmentRepository
++    creation_results: CreationResultRepository
+     refresh_sessions: RefreshSessionRepository
+ 
+diff --git a/src/web/idempotency.py b/src/web/idempotency.py
+new file mode 100644
+index 0000000..fb47b59
+--- /dev/null
++++ b/src/web/idempotency.py
+@@ -0,0 +1,152 @@
++"""Execute a keyed creation once, using the service's UnitOfWork."""
++from collections.abc import Callable
++from datetime import UTC, datetime
++import hmac
++import json
++import logging
++from typing import Annotated, TypeVar
++
++from fastapi import Depends, Header, HTTPException, Request, Response
++from pydantic import BaseModel
++
++from src.adapters.repositories.exceptions import PersistenceError, TransientPersistenceError
++from src.domain.repositories.creation_result_repository import (
++    CreationAlreadyReserved, CreationKey, CreationResult,
++)
++from src.domain.repositories.refresh_session_repository import SubjectType
++from src.domain.uow.unit_of_work import UnitOfWork
++from src.domain.value_objects import Address, Description, Email, Login, Name, Phone
++from src.web.dependencies.services import get_settings
++from src.web.models.clients import ClientCreateRequest
++from utils.db.exceptions import DBOperationError
++
++logger = logging.getLogger(__name__)
++RESULT_TTL = 24 * 60 * 60
++T = TypeVar("T", bound=BaseModel)
++
++
++def timestamp() -> float:
++    return datetime.now(UTC).timestamp()
++
++
++def get_idempotency_key(
++    request: Request,
++    key: Annotated[str | None, Header(
++        alias="Idempotency-Key", min_length=1, max_length=128, pattern=r"^[!-~]+$",
++        description="Optional key for replaying a successful creation within 24 hours.",
++    )] = None,
++) -> str | None:
++    if len(request.headers.getlist("Idempotency-Key")) > 1:
++        raise HTTPException(status_code=422, detail="Supply at most one Idempotency-Key")
++    return key
++
++
++IdempotencyKey = Annotated[str | None, Depends(get_idempotency_key)]
++
++
++def _fingerprint(request: Request, payload: BaseModel, target_id: int | None) -> str:
++    body = payload.model_dump(mode="json")
++    domain_fields = {
++        "name": Name,
++        "first_name": Name,
++        "last_name": Name,
++        "login": Login,
++        "email": Email,
++        "phone": Phone,
++        "address": Address,
++    }
++    if isinstance(payload, ClientCreateRequest):
++        domain_fields["description"] = Description
++
++    for field, value_type in domain_fields.items():
++        value = body.get(field)
++        if value:
++            try:
++                body[field] = value_type(value).value
++            except ValueError:
++                # Keep invalid input distinct for the normal validation path.
++                pass
++
++    # These API arrays become sets in the business commands.
++    for field in ("roles", "permissions"):
++        if isinstance(body.get(field), list):
++            body[field] = sorted(set(body[field]))
++    canonical = json.dumps([target_id, body], ensure_ascii=False, sort_keys=True, separators=(",", ":"))
++    seed = get_settings(request).SECRET_KEY.encode()
++    fingerprint_key = hmac.digest(seed, b"simple_tickets/creation_fingerprint/v1", "sha256")
++    return hmac.new(fingerprint_key, canonical.encode(), "sha256").hexdigest()
++
++
++def _replay(
++    record: CreationResult, fingerprint: str, authorize: Callable[[], object],
++) -> CreationResult:
++    authorize()
++    if not hmac.compare_digest(record.fingerprint, fingerprint):
++        raise HTTPException(status_code=409, detail="Idempotency-Key already used for a different request")
++    if record.body is None or record.status_code is None:
++        raise TransientPersistenceError("Creation result is unavailable")
++    return record
++
++
++def _maintain(uow: UnitOfWork) -> None:
++    try:
++        with uow:
++            # A returned row is already committed. Start its retention only
++            # after observing that commit, including after a process restart.
++            pending = uow.creation_results.pending_deadlines()
++            now = timestamp()
++            for key in pending:
++                uow.creation_results.set_deadline(key, expires_at=now + RESULT_TTL)
++            uow.creation_results.prune_expired(now=now)
++    except (DBOperationError, PersistenceError):
++        # The business operation and response are already durable. The next
++        # keyed write or replay without a deadline can perform maintenance.
++        logger.warning("Creation result retention maintenance deferred")
++
++
++def create_response(
++    *,
++    request: Request,
++    idempotency_key: str | None,
++    uow: UnitOfWork,
++    subject_type: SubjectType,
++    subject_id: int,
++    command: str,
++    payload: BaseModel,
++    status_code: int,
++    authorize: Callable[[], object],
++    execute: Callable[[bool], T],
++    target_id: int | None = None,
++) -> T | Response:
++    if idempotency_key is None:
++        return execute(False)
++
++    key = CreationKey(subject_type, subject_id, command, idempotency_key)
++    fingerprint = _fingerprint(request, payload, target_id)
++    try:
++        with uow:
++            now = timestamp()
++            record = uow.creation_results.get(key)
++            if record is not None and (record.expires_at is None or record.expires_at > now):
++                result = _replay(record, fingerprint, authorize)
++            else:
++                if record is not None:
++                    uow.creation_results.forget_expired(key, now=now)
++                # Claim before any business write, so an entity-level unique
++                # constraint cannot hide an already processed duplicate.
++                uow.creation_results.reserve(key, fingerprint=fingerprint)
++                data = execute(True)
++                result = CreationResult(fingerprint, status_code, data.model_dump_json(by_alias=True))
++                uow.creation_results.complete(key, result=result)
++    except CreationAlreadyReserved:
++        # The failed transaction has rolled back. Only read the result of the
++        # committed operation; leave another HTTP attempt to the caller.
++        with uow:
++            record = uow.creation_results.get(key)
++            if record is None or (record.expires_at is not None and record.expires_at <= timestamp()):
++                raise TransientPersistenceError("Creation result is unavailable")
++            result = _replay(record, fingerprint, authorize)
++
++    if result.expires_at is None:
++        _maintain(uow)
++    return Response(result.body, status_code=result.status_code, media_type="application/json")
+diff --git a/src/web/routers/admin/admins.py b/src/web/routers/admin/admins.py
+index c64a73a..a11ea66 100644
+--- a/src/web/routers/admin/admins.py
++++ b/src/web/routers/admin/admins.py
+@@ -3,4 +3,7 @@
+ from fastapi import APIRouter, Depends, status
+ 
++from fastapi import Request, Response
++
++from src.web.idempotency import IdempotencyKey, create_response
+ from src.application.dto.employee_dto import AdminDTO
+ 
+@@ -54,14 +57,26 @@ router = APIRouter(
+ )
+ def create_admin(
++    http_request: Request,
++    idempotency_key: IdempotencyKey,
+     admin_request: AdminCreateRequest,
+     asf=Depends(get_application_service_factory),
+     actor_admin_id: int = Depends(get_employee_id_from_request),
+-)->AdminResponse:
+-
+-    dto=AdminDTO(actor_admin_id=actor_admin_id,**admin_request.model_dump())
++) -> AdminResponse | Response:
+ 
+-    response_dto = asf.admin_service().create_admin(admin_dto=dto)
++    dto = AdminDTO(
++        actor_admin_id=actor_admin_id,
++        **admin_request.model_dump(),
++    )
++    service = asf.admin_service()
++    return create_response(
++        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
++        subject_type="admin", subject_id=actor_admin_id, command="admin.create",
++        payload=admin_request, status_code=201,
++        authorize=lambda: service.require_create_access(dto),
++        execute=lambda join: AdminResponse.from_dto(
++            service.create_admin(admin_dto=dto, join_transaction=join),
++        ),
++    )
+ 
+-    return AdminResponse.from_dto(response_dto)
+ 
+ 
+diff --git a/src/web/routers/admin/clients.py b/src/web/routers/admin/clients.py
+index 6d8b1d8..1261dfc 100644
+--- a/src/web/routers/admin/clients.py
++++ b/src/web/routers/admin/clients.py
+@@ -1,4 +1,7 @@
+ from fastapi import APIRouter, Depends, status
+ 
++from fastapi import Request, Response
++
++from src.web.idempotency import IdempotencyKey, create_response
+ from src.application.dto.client_dto import ClientDTO
+ 
+@@ -68,18 +71,26 @@ handlers = {
+ )
+ def create_client(
++    http_request: Request,
++    idempotency_key: IdempotencyKey,
+     client_request: ClientCreateRequest,
+     asf=Depends(get_application_service_factory),
+     actor_admin_id: int = Depends(get_employee_id_from_request),
+-)->ClientResponse:
++) -> ClientResponse | Response:
+ 
+-
+-    dto=ClientDTO(
++    dto = ClientDTO(
+         actor_admin_id=actor_admin_id,
+         **client_request.model_dump(),
+     )
++    service = asf.client_service()
++    return create_response(
++        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
++        subject_type="admin", subject_id=actor_admin_id, command="client.create",
++        payload=client_request, status_code=201,
++        authorize=lambda: service.require_create_access(dto),
++        execute=lambda join: ClientResponse.from_dto(
++            service.create_client(dto_client=dto, join_transaction=join),
++        ),
++    )
+ 
+-    response_dto = asf.client_service().create_client(dto_client=dto)
+-
+-    return ClientResponse.from_dto(response_dto)
+ 
+ 
+diff --git a/src/web/routers/admin/departments.py b/src/web/routers/admin/departments.py
+index 7f3766c..7ea80e5 100644
+--- a/src/web/routers/admin/departments.py
++++ b/src/web/routers/admin/departments.py
+@@ -7,4 +7,7 @@ from fastapi import Path
+ from fastapi import APIRouter, Depends, status
+ 
++from fastapi import Request, Response
++
++from src.web.idempotency import IdempotencyKey, create_response
+ from src.application.dto.department_dto import DepartmentDTO
+ from src.web.dependencies.auth import get_current_admin, get_employee_id_from_request
+@@ -48,18 +51,26 @@ router = APIRouter(
+ )
+ def create_department(
++    http_request: Request,
++    idempotency_key: IdempotencyKey,
+     request: DepartmentCreateRequest,
+     actor_admin_id: int = Depends(get_employee_id_from_request),
+     asf=Depends(get_application_service_factory),
+-)->DepartmentResponse:
++) -> DepartmentResponse | Response:
+ 
+-    dto=DepartmentDTO(
++    dto = DepartmentDTO(
+         actor_admin_id=actor_admin_id,
+-        **request.model_dump()
++        **request.model_dump(),
+     )
+-    result = asf.department_service().create_department(
+-        department_dto=dto,
++    service = asf.department_service()
++    return create_response(
++        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
++        subject_type="admin", subject_id=actor_admin_id, command="department.create",
++        payload=request, status_code=201,
++        authorize=lambda: service.require_create_access(dto),
++        execute=lambda join: DepartmentResponse.from_dto(
++            service.create_department(department_dto=dto, join_transaction=join),
++        ),
+     )
+ 
+-    return DepartmentResponse.from_dto(result)
+ 
+ 
+diff --git a/src/web/routers/admin/roles.py b/src/web/routers/admin/roles.py
+index af39da5..1b9f19e 100644
+--- a/src/web/routers/admin/roles.py
++++ b/src/web/routers/admin/roles.py
+@@ -5,4 +5,7 @@
+ from fastapi import APIRouter, Depends, status
+ 
++from fastapi import Request, Response
++
++from src.web.idempotency import IdempotencyKey, create_response
+ from src.application.dto.roles_dto import RoleDTO
+ from src.domain.rbac.permissions import AdminPermission, UserPermission
+@@ -86,18 +89,26 @@ def get_user_permissions():
+ )
+ def create_admin_role(
++    http_request: Request,
++    idempotency_key: IdempotencyKey,
+     role_request: AdminRoleCreateRequest,
+     asf=Depends(get_application_service_factory),
+     actor_admin_id: int = Depends(get_employee_id_from_request),
+-)->AdminRoleResponse:
+-
+-
+-    dto=RoleDTO(actor_admin_id=actor_admin_id,**role_request.model_dump())
++) -> AdminRoleResponse | Response:
+ 
+-
+-    response_dto = asf.admin_role_service().create_role(
+-        role_dto=dto,
++    dto = RoleDTO(
++        actor_admin_id=actor_admin_id,
++        **role_request.model_dump(),
++    )
++    service = asf.admin_role_service()
++    return create_response(
++        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
++        subject_type="admin", subject_id=actor_admin_id, command="role.admin.create",
++        payload=role_request, status_code=201,
++        authorize=lambda: service.require_create_access(dto),
++        execute=lambda join: AdminRoleResponse.from_dto(
++            service.create_role(role_dto=dto, join_transaction=join),
++        ),
+     )
+ 
+-    return AdminRoleResponse.from_dto(response_dto)
+ 
+ 
+@@ -173,15 +184,26 @@ def delete_admin_role(
+ )
+ def create_user_role(
++    http_request: Request,
++    idempotency_key: IdempotencyKey,
+     role_request: UserRoleCreateRequest,
+     asf=Depends(get_application_service_factory),
+     actor_admin_id: int = Depends(get_employee_id_from_request),
+-)->UserRoleResponse:
++) -> UserRoleResponse | Response:
+ 
+-    dto = RoleDTO(actor_admin_id=actor_admin_id, **role_request.model_dump())
+-    response_dto = asf.user_role_service().create_role(
+-        role_dto=dto,
++    dto = RoleDTO(
++        actor_admin_id=actor_admin_id,
++        **role_request.model_dump(),
++    )
++    service = asf.user_role_service()
++    return create_response(
++        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
++        subject_type="admin", subject_id=actor_admin_id, command="role.user.create",
++        payload=role_request, status_code=201,
++        authorize=lambda: service.require_create_access(dto),
++        execute=lambda join: UserRoleResponse.from_dto(
++            service.create_role(role_dto=dto, join_transaction=join),
++        ),
+     )
+ 
+-    return UserRoleResponse.from_dto(response_dto)
+ 
+ 
+diff --git a/src/web/routers/admin/tickets.py b/src/web/routers/admin/tickets.py
+index 9cea9e4..cc01b14 100644
+--- a/src/web/routers/admin/tickets.py
++++ b/src/web/routers/admin/tickets.py
+@@ -7,4 +7,7 @@
+ from fastapi import APIRouter, Depends, status
+ 
++from fastapi import Request, Response
++
++from src.web.idempotency import IdempotencyKey, create_response
+ from src.application.dto.ticket_dto import TicketDTO
+ from src.web.dependencies.auth import (
+@@ -70,4 +73,6 @@ router = APIRouter(
+ )
+ def create_ticket(
++    http_request: Request,
++    idempotency_key: IdempotencyKey,
+     request: TicketCreateRequest,
+     asf=Depends(
+@@ -77,22 +82,21 @@ def create_ticket(
+         get_employee_id_from_request
+     ),
+-)->TicketResponse:
++) -> TicketResponse | Response:
++
+     dto = TicketDTO(
+         actor_admin_id=actor_admin_id,
+-        **request.model_dump()
++        **request.model_dump(),
+     )
+-
+-
+-    response_dto = (
+-        asf.ticket_service()
+-        .create_ticket(
+-            ticket_dto=dto,
+-        )
++    service = asf.ticket_service()
++    return create_response(
++        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
++        subject_type="admin", subject_id=actor_admin_id, command="ticket.admin.create",
++        payload=request, status_code=201,
++        authorize=lambda: service.require_create_access(dto),
++        execute=lambda join: TicketResponse.from_dto(
++            service.create_ticket(ticket_dto=dto, join_transaction=join),
++        ),
+     )
+ 
+-    return TicketResponse.from_dto(response_dto)
+-
+-
+-
+ 
+ # =====================================================================
+@@ -378,4 +382,6 @@ def get_ticket(
+ )
+ def add_comment(
++    http_request: Request,
++    idempotency_key: IdempotencyKey,
+     ticket_id: int,
+     request: TicketRequiredCommentRequest,
+@@ -386,18 +392,23 @@ def add_comment(
+         get_employee_id_from_request
+     ),
+-)->TicketResponse:
++) -> TicketResponse | Response:
++
+     dto = TicketDTO(
+         actor_admin_id=actor_admin_id,
+         ticket_id=ticket_id,
+-        **request.model_dump()
++        **request.model_dump(),
+     )
+-    response_dto = (
+-        asf.ticket_service()
+-        .add_comment(
+-            ticket_dto=dto,
+-        )
++    service = asf.ticket_service()
++    return create_response(
++        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
++        subject_type="admin", subject_id=actor_admin_id, command="ticket.admin.comment",
++        payload=request, status_code=200,
++        target_id=ticket_id,
++        authorize=lambda: service.require_comment_access(dto),
++        execute=lambda join: TicketResponse.from_dto(
++            service.add_comment(ticket_dto=dto, join_transaction=join),
++        ),
+     )
+ 
+-    return TicketResponse.from_dto(response_dto)
+ 
+ 
+diff --git a/src/web/routers/admin/users.py b/src/web/routers/admin/users.py
+index 4bd7330..81c1994 100644
+--- a/src/web/routers/admin/users.py
++++ b/src/web/routers/admin/users.py
+@@ -3,4 +3,7 @@
+ from fastapi import APIRouter, Depends, status
+ 
++from fastapi import Request, Response
++
++from src.web.idempotency import IdempotencyKey, create_response
+ from src.application.dto.employee_dto import UserDTO
+ from src.web.dependencies.auth import (
+@@ -75,15 +78,26 @@ handlers = {
+ )
+ def create_user(
++    http_request: Request,
++    idempotency_key: IdempotencyKey,
+     user_request: UserCreateRequest,
+     asf=Depends(get_application_service_factory),
+     actor_admin_id: int = Depends(get_employee_id_from_request),
+-)->UserResponse:
+-
++) -> UserResponse | Response:
+ 
+-    dto = UserDTO(actor_admin_id=actor_admin_id, **user_request.model_dump())
+-
+-    response_dto = asf.user_service().create_user(user_dto=dto)
++    dto = UserDTO(
++        actor_admin_id=actor_admin_id,
++        **user_request.model_dump(),
++    )
++    service = asf.user_service()
++    return create_response(
++        request=http_request, idempotency_key=idempotency_key, uow=asf.uow,
++        subject_type="admin", subject_id=actor_admin_id, command="user.create",
++        payload=user_request, status_code=201,
++        authorize=lambda: service.require_create_access(dto),
++        execute=lambda join: UserResponse.from_dto(
++            service.create_user(user_dto=dto, join_transaction=join),
++        ),
++    )
+ 
+-    return UserResponse.from_dto(response_dto)
+ 
+ 
+diff --git a/src/web/routers/user/tickets.py b/src/web/routers/user/tickets.py
+index b9615d9..9e25e1f 100644
+--- a/src/web/routers/user/tickets.py
++++ b/src/web/routers/user/tickets.py
+@@ -3,4 +3,7 @@
+ from fastapi import APIRouter, Depends, HTTPException, status
+ 
++from fastapi import Request, Response
++
++from src.web.idempotency import IdempotencyKey, create_response
+ from src.application.dto.ticket_dto import (
+     TicketUserDTO,
+@@ -116,4 +119,6 @@ def to_user_ticket_responses(
+ )
+ def create_ticket(
++    http_request: Request,
++    idempotency_key: IdempotencyKey,
+     request: UserTicketCreateRequest,
+     user_id: int = Depends(
+@@ -123,5 +128,6 @@ def create_ticket(
+         get_application_ticket_user_service
+     ),
+-)->TicketUserResponse:
++) -> TicketUserResponse | Response:
++
+     try:
+         dto = TicketUserDTO(
+@@ -129,13 +135,13 @@ def create_ticket(
+             **request.model_dump(),
+         )
+-
+-        response_dto = service.create_from_user(
+-            ticket_user_dto=dto,
+-        )
+-
+-        return TicketUserResponse.from_dto(
+-            response_dto
++        return create_response(
++            request=http_request, idempotency_key=idempotency_key, uow=service.uow,
++            subject_type="user", subject_id=user_id, command="ticket.user.create",
++            payload=request, status_code=201,
++            authorize=lambda: service.require_create_access(dto),
++            execute=lambda join: TicketUserResponse.from_dto(
++                service.create_from_user(ticket_user_dto=dto, join_transaction=join),
++            ),
+         )
+-
+     except (DomainError, PermissionError) as exc:
+         raise _domain_error(exc) from exc
+@@ -305,4 +311,6 @@ def get_ticket(
+ )
+ def add_comment(
++    http_request: Request,
++    idempotency_key: IdempotencyKey,
+     ticket_user_id: int,
+     request: UserTicketCommentRequest,
+@@ -313,23 +321,27 @@ def add_comment(
+         get_application_ticket_user_service
+     ),
+-)->TicketUserResponse:
+-    try:
++) -> TicketUserResponse | Response:
+ 
++    try:
+         dto = TicketUserDTO(
+             actor_user_id=user_id,
+             ticket_user_id=ticket_user_id,
+-            **request.model_dump()
++            **request.model_dump(),
+         )
+-
+-        response_dto = service.add_comment(
+-            ticket_user_dto=dto,
++        return create_response(
++            request=http_request, idempotency_key=idempotency_key, uow=service.uow,
++            subject_type="user", subject_id=user_id, command="ticket.user.comment",
++            payload=request, status_code=200,
++            target_id=ticket_user_id,
++            authorize=lambda: service.require_comment_access(dto),
++            execute=lambda join: TicketUserResponse.from_dto(
++                service.add_comment(ticket_user_dto=dto, join_transaction=join),
++            ),
+         )
+-
+-        return TicketUserResponse.from_dto(response_dto)
+-
+     except (DomainError, PermissionError) as exc:
+         raise _domain_error(exc) from exc
+ 
+ 
++
+ @router.patch(
+     "/{ticket_user_id}/description",

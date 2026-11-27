@@ -6,12 +6,12 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import StrEnum
 
 from typing import TypeVar
 
-
-
-from src.domain.value_objects import CommonComment
+from src.domain.datetime_check import validate_utc_datetime
+from src.domain.value_objects import CommonComment, Empty
 
 S = TypeVar("S")  # status enum type
 R = TypeVar("R")  # status record type
@@ -26,11 +26,20 @@ class Comment:
     comment: CommonComment
     date_created: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
+
+    def __post_init__(self):
+        validate_utc_datetime(
+            value=self.date_created,
+        field_name="date_created",
+        )
+
     def is_new(self) -> bool:
         return not bool(self.comment_id)
 
 
 
+def create_comment(comment:str)->CommonComment|Empty:
+    return CommonComment(comment) if comment.strip() else Empty()
 
 
 @dataclass
@@ -41,3 +50,20 @@ class CommentThread:
         self.comments.append(comment)
 
 
+class TicketUrgency(StrEnum):
+    """
+    Urgency of an internal Ticket.
+
+    NORMAL:
+        Normal request.
+
+    URGENT:
+        Request requiring increased priority.
+
+    MAINTENANCE:
+        Maintenance-related request.
+    """
+
+    NORMAL = "normal"
+    URGENT = "urgent"
+    MAINTENANCE = "maintenance"

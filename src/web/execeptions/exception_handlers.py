@@ -96,6 +96,7 @@ class ExceptionHandlerRegistry:
         *,
         exception_type: type[Exception],
         status_code: int,
+        public_detail: str | None = None,
     ) -> None:
         """
         Add standard JSON handler for expected exceptions.
@@ -128,8 +129,10 @@ class ExceptionHandlerRegistry:
                 status_code=status_code,
                 content=self._make_error_content(
                     exc=exc,
-                    detail=str(exc),
+                    detail=str(exc) if public_detail is None else public_detail,
+                    include_error_type=public_detail is None,
                 ),
+                headers={"WWW-Authenticate": "Bearer"} if status_code == 401 else None,
             )
 
         self._handlers[exception_type] = handler
@@ -325,6 +328,7 @@ class ExceptionHandlerRegistry:
         *,
         exc: Exception,
         detail: str,
+        include_error_type: bool = True,
     ) -> dict[str, Any]:
         """
         Build JSON response body.
@@ -340,7 +344,7 @@ class ExceptionHandlerRegistry:
             "detail": detail,
         }
 
-        if self.expose_error_type:
+        if self.expose_error_type and include_error_type:
             content["error_type"] = exc.__class__.__name__
 
         if self.expose_traceback:
