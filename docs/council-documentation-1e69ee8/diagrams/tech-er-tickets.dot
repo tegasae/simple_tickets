@@ -1,0 +1,33 @@
+digraph schedule {
+
+graph [fontname="DejaVu Sans", rankdir=TB, nodesep=0.23, ranksep=0.36, pad=0.16, bgcolor="white"]
+node [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled",
+      fillcolor="#eff6f6", color="#458181", fontcolor="#123844", margin="0.11,0.075"]
+edge [fontname="DejaVu Sans", fontsize=9, color="#345960", fontcolor="#17414a", arrowsize=0.68]
+label="Карточки и история: стрелка от внешнего ключа к цели"; labelloc="t"; fontsize=13;
+node [shape=box, fontsize=10];
+clients [label="clients\nPK client_id"];
+departments [label="departments\nPK department_id"];
+employees [label="employees\nPK employee_id"];
+ticket_comments [label="ticket_comments\nPK ticket_comment_id"];
+ticket_status_records [label="ticket_status_records\nPK status_id"];
+tickets [label="tickets\nPK ticket_id"];
+user_tickets [label="user_tickets\nPK user_ticket_id"];
+user_tickets_comment [label="user_tickets_comment\nPK user_comment_ticket_id"];
+user_tickets_status_record [label="user_tickets_status_record\nPK user_ticket_status_record_id"];
+clients -> employees [label="admin_id"];
+ticket_comments -> employees [label="employee_id"];
+ticket_comments -> tickets [label="ticket_id"];
+ticket_status_records -> employees [label="actor_employee_id"];
+ticket_status_records -> tickets [label="ticket_id"];
+tickets -> departments [label="department_id"];
+tickets -> user_tickets [label="user_ticket_id"];
+tickets -> clients [label="client_id"];
+user_tickets -> employees [label="contact_user_id"];
+user_tickets -> clients [label="client_id"];
+user_tickets -> employees [label="user_id"];
+user_tickets_comment -> user_tickets [label="user_ticket_id"];
+user_tickets_comment -> employees [label="employee_id"];
+user_tickets_status_record -> employees [label="actor_employee_id"];
+user_tickets_status_record -> user_tickets [label="user_ticket_id"];
+}

@@ -1,0 +1,52 @@
+{
+  "documents": {
+    "markdown_files": 21,
+    "relative_links": 451,
+    "pinned_source_links": 2010,
+    "other_external_links": 0,
+    "svg_images": 12,
+    "user_profiles": 6,
+    "user_pdf_rebuilt_after_move": true
+  },
+  "pdf": {
+    "backend": {
+      "pages": 202,
+      "source_headings_found": 432,
+      "links": {
+        "in-document": 305,
+        "relative": 13,
+        "external": 2284
+      },
+      "outlines": 433,
+      "tagged": true,
+      "pdf_version": "%PDF-1.7",
+      "figure_captions": 6,
+      "sha256": "c23be417eb70263c62f860b12cd7707626bd5e2041415dab499f01c4aa253e5c"
+    },
+    "user-guide": {
+      "pages": 16,
+      "source_headings_found": 25,
+      "links": {
+        "in-document": 78,
+        "other-pdf": 2
+      },
+      "outlines": 26,
+      "tagged": true,
+      "pdf_version": "%PDF-1.7",
+      "figure_captions": 6,
+      "sha256": "4000cbd2d51f5d5dcecf4b82a47b4eeb643e575e40373573cc9bd7f9611e3c06"
+    }
+  },
+  "git": {
+    "head": "d497e75d4937e8edea98783a5af924c247622e06",
+    "branch": "api-new-client-scheme",
+    "index_unchanged": true,
+    "index_sha256": "c0293f747f5813879afd8b04a41ffed0df4f50cffc53fc1f21f264b37572d1ff",
+    "stage_unchanged": true,
+    "original_worktree_unchanged": true,
+    "original_status_unchanged": true,
+    "worktree_sha256": "9b84001743d181d1cf4db69f4cd70d6a6aed673fba2899dbf6bbb5ea748eb58d",
+    "new_files": 71,
+    "new_files_prefix": "docs/council-documentation-1e69ee8/"
+  }
+}

@@ -1,0 +1,18 @@
+digraph schedule {
+
+graph [fontname="DejaVu Sans", rankdir=TB, nodesep=0.23, ranksep=0.36, pad=0.16, bgcolor="white"]
+node [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled",
+      fillcolor="#eff6f6", color="#458181", fontcolor="#123844", margin="0.11,0.075"]
+edge [fontname="DejaVu Sans", fontsize=9, color="#345960", fontcolor="#17414a", arrowsize=0.68]
+req [label="1. POST …/refresh"]
+    find [label="2. SharedSessionAuthManager\nнайти хеш и проверить срок и область"]
+    auth [label="3. Проверить активность и привязку аккаунта"]
+    deny [label="401; ротации нет", fillcolor="#fff0d9"]
+    rotate [label="4. UoW: заменить запись refresh\nс прежним абсолютным окончанием"]
+    commit [label="5. COMMIT → новая пара токенов", fillcolor="#dff3e6"]
+    req -> find
+    find -> auth
+    find -> deny [label="нет действующей записи"]
+    auth -> deny [label="не прошёл проверку"]
+    auth -> rotate -> commit
+}

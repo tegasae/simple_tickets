@@ -1,0 +1,27 @@
+digraph schedule {
+
+graph [fontname="DejaVu Sans", rankdir=TB, nodesep=0.23, ranksep=0.36, pad=0.16, bgcolor="white"]
+node [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled",
+      fillcolor="#eff6f6", color="#458181", fontcolor="#123844", margin="0.11,0.075"]
+edge [fontname="DejaVu Sans", fontsize=9, color="#345960", fontcolor="#17414a", arrowsize=0.68]
+node [fontsize=11]
+    start [label="Новая заявка"]
+    accepted [label="Принята"]
+    assigned [label="Назначена"]
+    work [label="Работа выполняется"]
+    paused [label="Пауза"]
+    review [label="На проверке"]
+    done [label="Выполнена", fillcolor="#dff3e6"]
+    clientdone [label="Подтверждена пользователем", fillcolor="#dff3e6"]
+    start -> accepted [label="Приём"]
+    accepted -> assigned [label="Назначение"]
+    assigned -> work [label="Инженер начинает"]
+    work -> paused [label="Перерыв"]
+    paused -> work [label="Продолжение"]
+    work -> review [label="Инженер передаёт результат"]
+    review -> assigned [label="Назначение на доработку", constraint=false]
+    review -> done [label="Ведущий инженер или менеджер\nс правом подтверждения"]
+    review -> clientdone [label="Уполномоченный\nсотрудник клиента"]
+    {rank=same; work; paused}
+    {rank=same; done; clientdone}
+}

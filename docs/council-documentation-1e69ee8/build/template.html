@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="$lang$">
+<head>
+  <meta charset="utf-8">
+  <meta name="dcterms.date" content="2026-11-28">
+  <title>$pagetitle$</title>
+$for(css)$
+  <link rel="stylesheet" href="$css$">
+$endfor$
+</head>
+<body>
+<section class="document-title">
+  <p class="label">Simple Tickets</p>
+  <h1>$title$</h1>
+  <p class="audience">$audience$</p>
+  <dl>
+    <dt>Снимок</dt>
+    <dd><code>$snapshot$</code></dd>
+    <dt>Ветка</dt>
+    <dd><code>api-new-client-scheme</code></dd>
+    <dt>Подготовлено</dt>
+    <dd>$date$</dd>
+  </dl>
+</section>
+$if(toc)$
+<nav id="TOC" class="contents">
+  <h1>Оглавление</h1>
+  $table-of-contents$
+</nav>
+$endif$
+<main>
+$body$
+</main>
+</body>
+</html>

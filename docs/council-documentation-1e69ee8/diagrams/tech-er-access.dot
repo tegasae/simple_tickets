@@ -1,0 +1,31 @@
+digraph schedule {
+
+graph [fontname="DejaVu Sans", rankdir=TB, nodesep=0.23, ranksep=0.36, pad=0.16, bgcolor="white"]
+node [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled",
+      fillcolor="#eff6f6", color="#458181", fontcolor="#123844", margin="0.11,0.075"]
+edge [fontname="DejaVu Sans", fontsize=9, color="#345960", fontcolor="#17414a", arrowsize=0.68]
+label="Учётные данные и доступ: физические внешние ключи"; labelloc="t"; fontsize=13;
+node [shape=box, fontsize=10];
+accounts [label="accounts\nPK account_id"];
+admins [label="admins\nPK employee_id"];
+admins_roles [label="admins_roles\nPK employee_id, role_id"];
+auth_refresh_sessions [label="auth_refresh_sessions\nPK token_hash"];
+clients [label="clients\nPK client_id"];
+creation_results [label="creation_results\nPK employee_id, idempotency_key"];
+departments [label="departments\nPK department_id"];
+employees [label="employees\nPK employee_id"];
+roles [label="roles\nPK role_id"];
+users [label="users\nPK employee_id"];
+users_roles [label="users_roles\nPK employee_id, role_id"];
+accounts -> employees [label="employee_id"];
+admins -> departments [label="department_id"];
+admins -> employees [label="employee_id"];
+admins_roles -> roles [label="role_id"];
+admins_roles -> employees [label="employee_id"];
+auth_refresh_sessions -> accounts [label="account_id"];
+clients -> employees [label="admin_id"];
+users -> clients [label="client_id"];
+users -> employees [label="employee_id"];
+users_roles -> roles [label="role_id"];
+users_roles -> employees [label="employee_id"];
+}

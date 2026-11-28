@@ -1,0 +1,129 @@
+{
+  "ticket": {
+    "created": {
+      "accepted": [],
+      "rejected": [],
+      "suspended": []
+    },
+    "created_from_ticket_user": {
+      "accepted": [],
+      "rejected": [],
+      "cancelled_by_user": [
+        "validate_user_cancellation"
+      ],
+      "suspended": []
+    },
+    "created_from_request_user": {
+      "accepted": [],
+      "rejected": [],
+      "cancelled_by_user": [
+        "validate_user_cancellation"
+      ],
+      "suspended": []
+    },
+    "rejected": {},
+    "accepted": {
+      "assigned": [],
+      "deferred": [],
+      "suspended": [],
+      "cancelled": []
+    },
+    "deferred": {
+      "accepted": [],
+      "assigned": [],
+      "suspended": [],
+      "cancelled": []
+    },
+    "assigned": {
+      "accepted": [],
+      "assigned": [],
+      "at_work": [
+        "validate_start_work"
+      ],
+      "deferred": [],
+      "suspended": [],
+      "cancelled": []
+    },
+    "at_work": {
+      "assigned": [
+        "validate_not_current_executor"
+      ],
+      "paused": [
+        "validate_pause_work"
+      ],
+      "deferred": [
+        "validate_not_current_executor"
+      ],
+      "ready_for_review": [
+        "validate_submit_for_review"
+      ],
+      "cancelled": [
+        "validate_not_current_executor"
+      ]
+    },
+    "paused": {
+      "at_work": [
+        "validate_no_retrospective_work",
+        "validate_current_executor"
+      ],
+      "assigned": [],
+      "deferred": [],
+      "suspended": [],
+      "cancelled": []
+    },
+    "ready_for_review": {
+      "suspended": [],
+      "assigned": [],
+      "confirmed_by_user": [],
+      "executed": [],
+      "cancelled": [],
+      "accepted": []
+    },
+    "confirmed_by_user": {},
+    "executed": {},
+    "cancelled": {},
+    "cancelled_by_user": {},
+    "suspended": {}
+  },
+  "ticket_user": {
+    "created": [
+      "cancelled_by_admin",
+      "cancelled_by_user",
+      "in_work",
+      "suspended"
+    ],
+    "in_work": [
+      "cancelled_by_admin",
+      "suspended",
+      "waiting_for_confirmation"
+    ],
+    "waiting_for_confirmation": [
+      "cancelled_by_admin",
+      "confirmed_by_admin",
+      "confirmed_by_user",
+      "in_work",
+      "suspended"
+    ],
+    "suspended": [],
+    "confirmed_by_user": [],
+    "confirmed_by_admin": [],
+    "cancelled_by_user": [],
+    "cancelled_by_admin": []
+  },
+  "mapping": {
+    "created_from_request_user": "created",
+    "created_from_ticket_user": "created",
+    "accepted": "in_work",
+    "deferred": "in_work",
+    "assigned": "in_work",
+    "at_work": "in_work",
+    "paused": "in_work",
+    "suspended": "suspended",
+    "ready_for_review": "waiting_for_confirmation",
+    "confirmed_by_user": "confirmed_by_user",
+    "executed": "confirmed_by_admin",
+    "rejected": "cancelled_by_admin",
+    "cancelled": "cancelled_by_admin",
+    "cancelled_by_user": "cancelled_by_user"
+  }
+}

@@ -1,0 +1,23 @@
+digraph schedule {
+
+graph [fontname="DejaVu Sans", rankdir=TB, nodesep=0.23, ranksep=0.36, pad=0.16, bgcolor="white"]
+node [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled",
+      fillcolor="#eff6f6", color="#458181", fontcolor="#123844", margin="0.11,0.075"]
+edge [fontname="DejaVu Sans", fontsize=9, color="#345960", fontcolor="#17414a", arrowsize=0.68]
+req [label="1. PATCH …/execute\nпроверить действующего Admin"]
+    perm [label="2. UoW + Authorizer\nticket.executed?"]
+    deny [label="403\nдо изменения агрегатов", fillcolor="#fff0d9"]
+    load [label="3. Загрузить Ticket и связанную TicketUser"]
+    step [label="4. Домен\nREADY_FOR_REVIEW → EXECUTED"]
+    bad [label="400\nоткат транзакции", fillcolor="#fff0d9"]
+    sync [label="5. TicketSyncService\nCONFIRMED_BY_ADMIN, если есть связанная карточка"]
+    store [label="6. Репозитории\nобе карточки, версии и история"]
+    commit [label="7. COMMIT → 200", fillcolor="#dff3e6"]
+    req -> perm
+    perm -> deny [label="отказ"]
+    perm -> load [label="разрешено"]
+    load -> step
+    step -> bad [label="переход запрещён"]
+    step -> sync -> store -> commit
+    {rank=same; step; bad}
+}

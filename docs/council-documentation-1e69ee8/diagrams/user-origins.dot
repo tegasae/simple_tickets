@@ -1,0 +1,17 @@
+digraph schedule {
+
+graph [fontname="DejaVu Sans", rankdir=TB, nodesep=0.23, ranksep=0.36, pad=0.16, bgcolor="white"]
+node [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled",
+      fillcolor="#eff6f6", color="#458181", fontcolor="#123844", margin="0.11,0.075"]
+edge [fontname="DejaVu Sans", fontsize=9, color="#345960", fontcolor="#17414a", arrowsize=0.68]
+user [label="Сотрудник клиента\nподаёт обращение"]
+    manager [label="Обычный сотрудник или менеджер\nрегистрирует обращение за заявителя"]
+    internal [label="Обычный сотрудник или менеджер\nрегистрирует внутреннюю задачу"]
+    pair [label="Две связанные карточки\nВнутренняя заявка и обращение клиента"]
+    only [label="Одна карточка\nВнутренняя заявка"]
+    {rank=same; user; manager; internal}
+    {rank=same; pair; only}
+    user -> pair
+    manager -> pair
+    internal -> only
+}

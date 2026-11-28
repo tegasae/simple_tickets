@@ -1,0 +1,29 @@
+/tmp/simple-tickets-confirmation-qa.Q2j8tn/venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:306: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session". Set it to "fixture-scope" to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+...................................                                      [100%]
+=============================== warnings summary ===============================
+../../../simple-tickets-confirmation-qa.Q2j8tn/venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /tmp/simple-tickets-confirmation-qa.Q2j8tn/venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_creation_and_refresh.py: 92 warnings
+tests/test_creation_operation.py: 8 warnings
+tests/test_departments.py: 20 warnings
+tests/test_role_creation.py: 12 warnings
+tests/test_ticket_deletion_permission.py: 30 warnings
+tests/test_ticket_workflows.py: 75 warnings
+  /tmp/simple-tickets-doc-council.orXLaM/qa-run/source/utils/db/query.py:24: DeprecationWarning: The default datetime adapter is deprecated as of Python 3.12; see the sqlite3 documentation for suggested replacement recipes
+    self.cur.execute(self.sql, self.params)
+
+tests/test_creation_and_refresh.py::test_one_employee_key_cannot_create_two_types_of_role
+  /tmp/simple-tickets-doc-council.orXLaM/qa-run/source/src/web/config.py:11: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.14/migration/
+    class Settings(BaseSettings):
+
+tests/test_creation_and_refresh.py::test_one_employee_key_cannot_create_two_types_of_role
+  /tmp/simple-tickets-doc-council.orXLaM/qa-run/source/src/web/config.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.14/migration/
+    class TestSettings(Settings):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+35 passed, 240 warnings in 16.75s

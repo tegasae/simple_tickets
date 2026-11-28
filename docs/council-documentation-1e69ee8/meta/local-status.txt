@@ -1,0 +1,179 @@
+## api-new-client-scheme...origin/api-new-client-scheme [behind 16]
+ A docs/notes/production_sessions_idempotency_observability.md
+ A reviews/python-backend/recheck-5288dea/README.md
+ A reviews/python-backend/recheck-5288dea/artifact-manifest.json
+ A reviews/python-backend/recheck-5288dea/decisions-full.md
+ A reviews/python-backend/recheck-5288dea/experts/arbiter-final.md
+ A reviews/python-backend/recheck-5288dea/experts/arbiter-initial.md
+ A reviews/python-backend/recheck-5288dea/experts/initial-report-hashes.json
+ A reviews/python-backend/recheck-5288dea/experts/round-01/analyst.md
+ A reviews/python-backend/recheck-5288dea/experts/round-01/python.md
+ A reviews/python-backend/recheck-5288dea/experts/round-01/qa.md
+ A reviews/python-backend/recheck-5288dea/experts/round-02/analyst.md
+ A reviews/python-backend/recheck-5288dea/experts/round-02/python.md
+ A reviews/python-backend/recheck-5288dea/experts/round-02/qa.md
+ A reviews/python-backend/recheck-5288dea/experts/round-03/analyst.md
+ A reviews/python-backend/recheck-5288dea/experts/round-03/python.md
+ A reviews/python-backend/recheck-5288dea/experts/round-03/qa.md
+ A reviews/python-backend/recheck-5288dea/git-verification.md
+ A reviews/python-backend/recheck-5288dea/initial-git-state.json
+ A reviews/python-backend/recheck-5288dea/input-manifest.json
+ A reviews/python-backend/recheck-5288dea/input-notes.md
+ A reviews/python-backend/recheck-5288dea/input-state.md
+ A reviews/python-backend/recheck-5288dea/owner-confirmation.md
+ A reviews/python-backend/recheck-5288dea/patches/01-created-actor.patch
+ A reviews/python-backend/recheck-5288dea/patches/02-admin-comment-json.patch
+ A reviews/python-backend/recheck-5288dea/patches/03-session-lifetime.patch
+ A reviews/python-backend/recheck-5288dea/patches/04-executor-version-guard.patch
+ A reviews/python-backend/recheck-5288dea/patches/05-refresh-revocation-plan.md
+ A reviews/python-backend/recheck-5288dea/patches/06-idempotency-plan.md
+ A reviews/python-backend/recheck-5288dea/patches/README.md
+ A reviews/python-backend/recheck-5288dea/previous-findings.md
+ A reviews/python-backend/recheck-5288dea/requirements-manifest.json
+ A reviews/python-backend/recheck-5288dea/results/artifact-checks.json
+ A reviews/python-backend/recheck-5288dea/results/entrypoint-results.json
+ A reviews/python-backend/recheck-5288dea/results/existing-results.json
+ A reviews/python-backend/recheck-5288dea/results/new-baseline.json
+ A reviews/python-backend/recheck-5288dea/results/patched-results.json
+ A reviews/python-backend/recheck-5288dea/results/qa-creation-admin-before.json
+ A reviews/python-backend/recheck-5288dea/results/smoke-results.json
+ A reviews/python-backend/recheck-5288dea/tests/README.md
+ A reviews/python-backend/recheck-5288dea/tests/check_backend.py
+ A reviews/python-backend/recheck-5288dea/tests/conftest.py
+ A reviews/python-backend/recheck-5288dea/tests/environment.json
+ A reviews/python-backend/recheck-5288dea/tests/requirements-lock.txt
+ A reviews/python-backend/recheck-5288dea/tests/test_admin_refresh_revocation.py
+ A reviews/python-backend/recheck-5288dea/tests/test_creation_idempotency.py
+ A reviews/python-backend/recheck-5288dea/tests/test_current_contracts.py
+ A reviews/python-backend/recheck-5288dea/tests/test_executor_guard.py
+ A reviews/python-backend/recheck-5288dea/tests/test_history_and_json.py
+ A reviews/python-backend/recheck-5288dea/tests/test_session_lifetime.py
+ A reviews/python-backend/recheck-bbf7a39/PROGRESS.md
+ A reviews/python-backend/recheck-bbf7a39/README.md
+ A reviews/python-backend/recheck-bbf7a39/experts/arbiter-final.md
+ A reviews/python-backend/recheck-bbf7a39/experts/arbiter-initial.md
+ A reviews/python-backend/recheck-bbf7a39/experts/coordinator-notes.md
+ A reviews/python-backend/recheck-bbf7a39/experts/initial-report-hashes.json
+ A reviews/python-backend/recheck-bbf7a39/experts/round-01/analyst.md
+ A reviews/python-backend/recheck-bbf7a39/experts/round-01/python.md
+ A reviews/python-backend/recheck-bbf7a39/experts/round-01/qa.md
+ A reviews/python-backend/recheck-bbf7a39/experts/round-02/analyst.md
+ A reviews/python-backend/recheck-bbf7a39/experts/round-02/python.md
+ A reviews/python-backend/recheck-bbf7a39/experts/round-02/qa.md
+ A reviews/python-backend/recheck-bbf7a39/experts/round-03/analyst.md
+ A reviews/python-backend/recheck-bbf7a39/experts/round-03/python.md
+ A reviews/python-backend/recheck-bbf7a39/experts/round-03/qa.md
+ A reviews/python-backend/recheck-bbf7a39/experts/support/previous-recheck-helper.md
+ A reviews/python-backend/recheck-bbf7a39/findings.md
+ A reviews/python-backend/recheck-bbf7a39/git-verification.md
+ A reviews/python-backend/recheck-bbf7a39/input-manifest.json
+ A reviews/python-backend/recheck-bbf7a39/patches/01-user-role-permissions.patch
+ A reviews/python-backend/recheck-bbf7a39/patches/02-expected-input-errors.patch
+ A reviews/python-backend/recheck-bbf7a39/patches/03-role-assignment-query.patch
+ A reviews/python-backend/recheck-bbf7a39/patches/04-staff-comment-author.patch
+ A reviews/python-backend/recheck-bbf7a39/patches/05-paired-contact-edit.patch
+ A reviews/python-backend/recheck-bbf7a39/patches/06-refresh-subject-identity.patch
+ A reviews/python-backend/recheck-bbf7a39/patches/07-utc-dates.patch
+ A reviews/python-backend/recheck-bbf7a39/patches/08-database-error-classification.patch
+ A reviews/python-backend/recheck-bbf7a39/patches/09-admin-enable-department.patch
+ A reviews/python-backend/recheck-bbf7a39/patches/10-current-test-launchers.patch
+ A reviews/python-backend/recheck-bbf7a39/patches/README.md
+ A reviews/python-backend/recheck-bbf7a39/previous-findings.md
+ A reviews/python-backend/recheck-bbf7a39/requirements.md
+ A reviews/python-backend/recheck-bbf7a39/snapshot.md
+ A reviews/python-backend/recheck-bbf7a39/tests/README.md
+ A reviews/python-backend/recheck-bbf7a39/tests/conftest.py
+ A reviews/python-backend/recheck-bbf7a39/tests/environment.json
+ A reviews/python-backend/recheck-bbf7a39/tests/results.json
+ A reviews/python-backend/recheck-bbf7a39/tests/test_atomicity_and_contention.py
+ A reviews/python-backend/recheck-bbf7a39/tests/test_contact_and_department.py
+ A reviews/python-backend/recheck-bbf7a39/tests/test_current_workflows.py
+ A reviews/python-backend/recheck-bbf7a39/tests/test_database_error_classification.py
+ A reviews/python-backend/recheck-bbf7a39/tests/test_persistence_and_dates.py
+ A reviews/python-backend/recheck-bbf7a39/tests/test_rbac_and_validation.py
+?? reviews/python-backend/recheck-869cd42/README.md
+?? reviews/python-backend/recheck-869cd42/artifact-manifest.json
+?? reviews/python-backend/recheck-869cd42/docs/new-functionality.md
+?? reviews/python-backend/recheck-869cd42/docs/owner-scope.md
+?? reviews/python-backend/recheck-869cd42/docs/requirements.md
+?? reviews/python-backend/recheck-869cd42/experts/arbiter-final.md
+?? reviews/python-backend/recheck-869cd42/experts/arbiter-initial.md
+?? reviews/python-backend/recheck-869cd42/experts/implementation-analyst.md
+?? reviews/python-backend/recheck-869cd42/experts/implementation-python.md
+?? reviews/python-backend/recheck-869cd42/experts/implementation-qa.md
+?? reviews/python-backend/recheck-869cd42/experts/initial-report-hashes.json
+?? reviews/python-backend/recheck-869cd42/experts/round-01/analyst.md
+?? reviews/python-backend/recheck-869cd42/experts/round-01/python.md
+?? reviews/python-backend/recheck-869cd42/experts/round-01/qa.md
+?? reviews/python-backend/recheck-869cd42/experts/round-02/analyst.md
+?? reviews/python-backend/recheck-869cd42/experts/round-02/python.md
+?? reviews/python-backend/recheck-869cd42/experts/round-02/qa.md
+?? reviews/python-backend/recheck-869cd42/experts/round-03/analyst.md
+?? reviews/python-backend/recheck-869cd42/experts/round-03/python.md
+?? reviews/python-backend/recheck-869cd42/experts/round-03/qa.md
+?? reviews/python-backend/recheck-869cd42/features.md
+?? reviews/python-backend/recheck-869cd42/git-verification.md
+?? reviews/python-backend/recheck-869cd42/input-manifest.json
+?? reviews/python-backend/recheck-869cd42/input-state.json
+?? reviews/python-backend/recheck-869cd42/input-state.md
+?? reviews/python-backend/recheck-869cd42/patches/05-shared-refresh-and-versions.patch
+?? reviews/python-backend/recheck-869cd42/patches/06-creation-idempotency.patch
+?? reviews/python-backend/recheck-869cd42/patches/07-department-initial-state.patch
+?? reviews/python-backend/recheck-869cd42/patches/08-preserve-admin-department.patch
+?? reviews/python-backend/recheck-869cd42/patches/09-normalize-login-check.patch
+?? reviews/python-backend/recheck-869cd42/patches/10-preserve-work-mode-null.patch
+?? reviews/python-backend/recheck-869cd42/patches/README.md
+?? reviews/python-backend/recheck-869cd42/previous-findings.md
+?? reviews/python-backend/recheck-869cd42/tests/README.md
+?? reviews/python-backend/recheck-869cd42/tests/conftest.py
+?? reviews/python-backend/recheck-869cd42/tests/environment.json
+?? reviews/python-backend/recheck-869cd42/tests/reproduce.sh
+?? reviews/python-backend/recheck-869cd42/tests/requirements-lock.txt
+?? reviews/python-backend/recheck-869cd42/tests/results.md
+?? reviews/python-backend/recheck-869cd42/tests/run-data.json
+?? reviews/python-backend/recheck-869cd42/tests/smoke-results.json
+?? reviews/python-backend/recheck-869cd42/tests/test_account_creation_input.py
+?? reviews/python-backend/recheck-869cd42/tests/test_admin_profile_department.py
+?? reviews/python-backend/recheck-869cd42/tests/test_client_session_order.py
+?? reviews/python-backend/recheck-869cd42/tests/test_comment_api.py
+?? reviews/python-backend/recheck-869cd42/tests/test_contact_policy.py
+?? reviews/python-backend/recheck-869cd42/tests/test_creation_storage_rules.py
+?? reviews/python-backend/recheck-869cd42/tests/test_department_initial_state.py
+?? reviews/python-backend/recheck-869cd42/tests/test_executor_guard.py
+?? reviews/python-backend/recheck-869cd42/tests/test_full_workflow.py
+?? reviews/python-backend/recheck-869cd42/tests/test_http_roles.py
+?? reviews/python-backend/recheck-869cd42/tests/test_idempotency_commit_boundary.py
+?? reviews/python-backend/recheck-869cd42/tests/test_idempotency_normalized_input.py
+?? reviews/python-backend/recheck-869cd42/tests/test_idempotency_transactions.py
+?? reviews/python-backend/recheck-869cd42/tests/test_idempotent_creations.py
+?? reviews/python-backend/recheck-869cd42/tests/test_lifetime.py
+?? reviews/python-backend/recheck-869cd42/tests/test_migration.py
+?? reviews/python-backend/recheck-869cd42/tests/test_refresh_attach_replacement.py
+?? reviews/python-backend/recheck-869cd42/tests/test_shared_sessions.py
+?? reviews/python-backend/recheck-869cd42/tests/test_ticket_work_mode_roundtrip.py
+?? reviews/python-backend/recheck-d497e75/README.md
+?? reviews/python-backend/recheck-d497e75/TESTING.md
+?? reviews/python-backend/recheck-d497e75/experts/arbiter-final.md
+?? reviews/python-backend/recheck-d497e75/experts/arbiter-initial.md
+?? reviews/python-backend/recheck-d497e75/experts/round-01/analyst.md
+?? reviews/python-backend/recheck-d497e75/experts/round-01/python.md
+?? reviews/python-backend/recheck-d497e75/experts/round-01/qa.md
+?? reviews/python-backend/recheck-d497e75/experts/round-02/analyst.md
+?? reviews/python-backend/recheck-d497e75/experts/round-02/python.md
+?? reviews/python-backend/recheck-d497e75/experts/round-02/qa.md
+?? reviews/python-backend/recheck-d497e75/experts/round-03/analyst.md
+?? reviews/python-backend/recheck-d497e75/experts/round-03/python.md
+?? reviews/python-backend/recheck-d497e75/experts/round-03/qa.md
+?? reviews/python-backend/recheck-d497e75/findings.md
+?? reviews/python-backend/recheck-d497e75/git-snapshot.md
+?? reviews/python-backend/recheck-d497e75/idempotency.md
+?? reviews/python-backend/recheck-d497e75/patches/01-disable-cascade.patch
+?? reviews/python-backend/recheck-d497e75/patches/02-finish-work-documentation.patch
+?? reviews/python-backend/recheck-d497e75/patches/03-refresh-token-storage.patch
+?? reviews/python-backend/recheck-d497e75/patches/04-request-validation.patch
+?? reviews/python-backend/recheck-d497e75/patches/05-workflow-error-details.patch
+?? reviews/python-backend/recheck-d497e75/patches/06-sqlite-schema-compatibility.patch
+?? reviews/python-backend/recheck-d497e75/patches/07-comment-author.patch
+?? reviews/python-backend/recheck-d497e75/tests/test_recheck_workflows.py
+?? reviews/python-backend/recheck-d497e75/tests/test_refresh_storage.py
+?? reviews/python-backend/recheck-d497e75/transactions-and-sessions.md

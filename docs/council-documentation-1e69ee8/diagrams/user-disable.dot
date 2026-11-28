@@ -1,0 +1,24 @@
+digraph schedule {
+
+graph [fontname="DejaVu Sans", rankdir=TB, nodesep=0.23, ranksep=0.36, pad=0.16, bgcolor="white"]
+node [fontname="DejaVu Sans", fontsize=11, shape=box, style="rounded,filled",
+      fillcolor="#eff6f6", color="#458181", fontcolor="#123844", margin="0.11,0.075"]
+edge [fontname="DejaVu Sans", fontsize=9, color="#345960", fontcolor="#17414a", arrowsize=0.68]
+request [label="Менеджер или руководитель отдела\nограничивает доступ по полномочиям"]
+    account [label="Только учётная запись"]
+    client [label="Клиент, заявитель или контакт"]
+    staff [label="Внутренний сотрудник"]
+    accounts [label="Вход закрыт.\nЗаявки сохраняют статус."]
+    active [label="Работа выполняется"]
+    open [label="Открыта вне выполнения"]
+    blocked [label="Сначала завершить или снять\nдействующие назначения", fillcolor="#fff0d9"]
+    keep [label="Работа может продолжиться"]
+    suspend [label="Приостановлена", fillcolor="#fff0d9"]
+    request -> account -> accounts
+    request -> client
+    request -> staff
+    staff -> blocked [label="при назначениях"]
+    client -> active -> keep
+    client -> open -> suspend
+    {rank=same; account; client; staff}
+}
