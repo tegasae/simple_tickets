@@ -1,0 +1,8 @@
+# Project-scoped Codex settings. Cloud may apply its own managed defaults.
+# Do not pin a model: inherit the one selected in the Codex session.
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 6
+# No sandbox or network overrides. Cloud settings control actual permissions.
+# Repository scope is defined in AGENTS.md: test-deploy only, including reads.
+# This comment is not a technical branch access restriction.
