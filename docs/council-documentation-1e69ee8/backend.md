@@ -8,7 +8,7 @@
 
 [HTTP-каталог](#api-reference) · [таблицы SQLite](#schema-reference) · [модули](#code-reference) · [покрытие](meta/coverage.md)
 
-## 5.1. Назначение, границы и обзор системы {#backend-01}
+## 1. Назначение, границы и обзор системы {#backend-01}
 
 Simple Tickets регистрирует обращения клиентов и ведёт внутреннюю обработку работ. Клиентский `User` видит обращение `TicketUser` и его историю, сотрудник `Admin` работает с внутренней карточкой `Ticket` и может зарегистрировать обращение со слов пользователя. Внутренние заявки также можно создавать самостоятельно. Клиентская и административная части используют раздельные входы и права. Отделы, сотрудники, клиенты, аккаунты и роли обслуживаются административным API. В опубликованной версии эта функциональность доступна через синхронное приложение FastAPI с SQLite. [src/web/main.py::create_app](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/web/main.py#L37) · [src/application/services/ticket_service.py::create_ticket](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/application/services/ticket_service.py#L79) · [src/application/services/ticket_user_service.py::create_from_user](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/application/services/ticket_user_service.py#L84)
 
@@ -28,7 +28,7 @@ Simple Tickets регистрирует обращения клиентов и �
 
 Групповые суффиксы в таблице продолжают первый префикс. Точные HTTP-схемы приведены в инвентаре OpenAPI. Списки заявок отдают карточки с историями и комментариями. Для административных фильтров сервис проверяет одно и то же право `ticket.view`, поэтому фильтр по отделу сам по себе область прав не задаёт. [src/web/routers/admin/tickets.py::get_all_tickets](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/web/routers/admin/tickets.py#L123) · [src/application/services/ticket_service.py::get_by_id](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/application/services/ticket_service.py#L1047) · [src/adapters/repositories/gateways/ticket_gateway.py::TicketGateway](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/adapters/repositories/gateways/ticket_gateway.py#L36) · [src/web/routers/user/tickets.py::get_my_tickets](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/web/routers/user/tickets.py#L170) · [src/application/services/ticket_user_service.py::get_all](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/application/services/ticket_user_service.py#L516) · [src/web/routers/admin/admins.py::get_permissions](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/web/routers/admin/admins.py#L117) · [src/web/routers/admin/roles.py::get_admin_permissions](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/web/routers/admin/roles.py#L64)
 
-## 5.2. Архитектура {#backend-02}
+## 2. Архитектура {#backend-02}
 
 ### Слои и ресурсы запроса
 
@@ -58,7 +58,7 @@ FastAPI разрешает зависимость `get_uow` и передаёт 
 
 Один HTTP-запрос получает SQLite-соединение через `get_uow`. Все репозитории этого UoW используют одно соединение, а фабрика создаёт прикладной сервис при каждом вызове своего метода. Соединение закрывается в `finally`. `EmployeeActorHelper` хранит загруженные `Admin` и `User` в словарях конкретного экземпляра помощника и повторяет проверку активности при обращении. `Authorizer.permissions_of` каждый раз заново объединяет разрешения из ролей. Завершение транзакции автоматически не очищает словари помощника. Зависимости HTTP ограничивают штатный срок жизни объектов запросом. [src/web/dependencies/services.py::get_uow](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/web/dependencies/services.py#L22) · [src/application/factory.py::ApplicationServiceFactory](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/application/factory.py#L15) · [src/application/helper/actor_helper.py::_get_admin](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/application/helper/actor_helper.py#L239) · [src/application/helper/actor_helper.py::clear](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/application/helper/actor_helper.py#L279) · [src/domain/rbac/role.py::Authorizer.permissions_of](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/domain/rbac/role.py#L17)
 
-## 5.3. Справочник архитектурных узлов {#backend-03}
+## 3. Справочник архитектурных узлов {#backend-03}
 
 Начните с конкретного действия и его пункта в списке маршрутов. Обработчик и вызванный прикладной метод указаны в приложении A. Приложение C описывает зависимости и входы/выходы 178 модулей, включая старые точки входа и несовместимые с современной сборкой модули. Сгенерированный список прямых вызовов показывает, где читать реализацию, а следующие группы объясняют, как эти вызовы работают вместе.
 
@@ -78,7 +78,7 @@ FastAPI разрешает зависимость `get_uow` и передаёт 
 
 
 
-## 5.4. Модель сущностей и полей {#backend-04}
+## 4. Модель сущностей и полей {#backend-04}
 
 ### Справочники, доступ и служебные записи
 
@@ -109,7 +109,7 @@ FastAPI разрешает зависимость `get_uow` и передаёт 
 
 ### Каталог бизнес-правил {#br-catalog}
 
-Источник **К** означает проверенное по коду состояние основного снимка. **В** означает подтверждённое решение владельца из [реестра](meta/sources.md). Если правила расходятся, обе стороны отмечены явно. Названия профилей употребляются в смысле настроек ролей из раздела 5.8.
+Источник **К** означает проверенное по коду состояние основного снимка. **В** означает подтверждённое решение владельца из [реестра](meta/sources.md). Если правила расходятся, обе стороны отмечены явно. Названия профилей употребляются в смысле настроек ролей из раздела 8.
 
 | ID и область | Условие и действующее правило | Последствие, исключение и доказательство |
 |---|---|---|
@@ -141,7 +141,7 @@ FastAPI разрешает зависимость `get_uow` и передаёт 
 
 Сценарии и ID связаны с основными проверками в [матрице покрытия](meta/coverage.md). Реализация будущего права `ticket.executed.department` и `ticket.executed.own` описана в проекте [ограничения подтверждения](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/docs/futher/ticket_execution_permissions.md). В текущем коде используется глобальное право.
 
-## 5.5. Жизненные циклы и прикладные сценарии {#backend-05}
+## 5. Жизненные циклы и прикладные сценарии {#backend-05}
 
 Поведение определяют начальные статусы, таблицы переходов и доступные команды. Реальный переход требует одновременно допустимого исходного статуса, полномочия и валидных данных. Если правило меняет пару, внутренний и внешний статусы сохраняются вместе. Повтор команды выполняет проверку заново по актуальному статусу. Например, после `EXECUTED` повтор `execute` возвращает 400. Повтор записи создания через ключ следует другому контракту BR-022.
 
@@ -240,7 +240,7 @@ FastAPI разрешает зависимость `get_uow` и передаёт 
 
 [Граф Ticket](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/domain/statuses/rules/ticket_status_transition.py#L21-L147) · [Граф TicketUser](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/domain/statuses/ticket_user_status_transitions.py#L41-L82) · [Отображение статусов](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/domain/statuses/mapping_statuses.py#L29-L78)
 
-## 5.6. Контракты API и примеры проверки {#backend-06}
+## 6. Контракты API и примеры проверки {#backend-06}
 
 Приложение A содержит полный список 107 собственных операций. Для чтения конкретной формы найдите метод и путь, затем её схему. Входные модели FastAPI ограничивают форму, типы и отдельные значения. Приложение собирает DTO с ID из контекста авторизации, а домен проверяет смысл операции, допустимость статуса, совместимость участников и времени. Например, разрешённый тип `int` ещё не гарантирует существование отдела.
 
@@ -340,7 +340,7 @@ Admin с `ticket.executed` отправляет тот же PATCH с `{"comment"
 
 :::
 
-## 5.7. SQLite, доступ к данным и транзакции {#backend-07}
+## 7. SQLite, доступ к данным и транзакции {#backend-07}
 
 ### Схема и работа репозиториев
 
@@ -383,7 +383,7 @@ Admin с `ticket.executed` отправляет тот же PATCH с `{"comment"
 
 Синхронизация `Ticket` и `TicketUser` входит в штатную бизнес-команду. Служебного маршрута отдельного восстановления пары в подключённых роутерах нет. На синтетической копии проверен откат приёма. Отказ записи внутреннего корня произошёл после сохранения внешнего, но до коммита. Новое SQLite-соединение показало прежние версии и истории обеих карточек. После устранения причины и повторного запроса появились по одной записи `ACCEPTED` и `IN_WORK`. Так можно проверять восстановление процесса после отказа с согласованного состояния. [src/web/main.py::create_app](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/web/main.py#L44) · [src/application/services/ticket_service.py::_save_and_to_dto](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/application/services/ticket_service.py#L1236) · [src/adapters/uow/sqlite_unit_of_work.py::__exit__](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/adapters/uow/sqlite_unit_of_work.py#L96)
 
-## 5.8. Аутентификация, полномочия и профили {#backend-08}
+## 8. Аутентификация, полномочия и профили {#backend-08}
 
 ### Вход и жизненный цикл сессии
 
@@ -432,7 +432,7 @@ C-02 связывает рекомендованный дистанционны�
 
 Выдачу `ticket.delete` определяет владелец отдельно для ограниченного круга. Профили в таблице относятся к области Admin. Клиентские профили настраиваются отдельно. Например, для создания и чтения своих обращений достаточно `ticket.operation` и `ticket.view`. Чтобы главный пользователь также видел и обрабатывал обращения коллег своего клиента, его назначения должны включать соответствующие `*.all`; для собственного создания по-прежнему требуется `ticket.operation`. [docs/steps/steps.md — базовая и инженерная роли](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/docs/steps/steps.md#L3) · [Ведущий инженер и горячая линия](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/docs/steps/steps.md#L60) · [Менеджер и управление сотрудниками](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/docs/steps/steps.md#L104) · [Клиентские роли](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/docs/steps/steps.md#L179) · [src/domain/rbac/permissions.py::AdminPermission](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/domain/rbac/permissions.py#L25)
 
-## 5.9. Установка, запуск и сопровождение {#backend-09}
+## 9. Установка, запуск и сопровождение {#backend-09}
 
 ### Требования и рабочая конфигурация
 
@@ -502,7 +502,7 @@ uvicorn src.web.main:app --host 127.0.0.1 --port 8000
 
 ### Обслуживание существующей SQLite
 
-В окно установки остановить процессы записи. Создать резервную копию SQLite и проверить обновление на копии файла. Миграционный скрипт принимает путь к существующей базе, выполняет обновление раздела 5.7 и выводит число исправленных `NULL` по трём таблицам. Схема разворачивается из `db/schema.sql` только для новой БД. Проверка старой схемы включает также неприменяемые скриптом изменения и возможность входа на обновлённой копии. После переключения со старого refresh-хранилища пользователи входят заново. На синтетической копии схемы d497e75 проверены сохранение числовых версий, замена `NULL`, появление двух служебных таблиц, прохождение `foreign_key_check` и повторное выполнение. [scripts/migrate_backend_storage.py::main](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/scripts/migrate_backend_storage.py#L135) · [scripts/migrate_backend_storage.py::migrate](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/scripts/migrate_backend_storage.py#L96) · [docs/notes/production_sessions_idempotency_observability.md](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/docs/notes/production_sessions_idempotency_observability.md#L31)
+В окно установки остановить процессы записи. Создать резервную копию SQLite и проверить обновление на копии файла. Миграционный скрипт принимает путь к существующей базе, выполняет обновление раздела 7 и выводит число исправленных `NULL` по трём таблицам. Схема разворачивается из `db/schema.sql` только для новой БД. Проверка старой схемы включает также неприменяемые скриптом изменения и возможность входа на обновлённой копии. После переключения со старого refresh-хранилища пользователи входят заново. На синтетической копии схемы d497e75 проверены сохранение числовых версий, замена `NULL`, появление двух служебных таблиц, прохождение `foreign_key_check` и повторное выполнение. [scripts/migrate_backend_storage.py::main](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/scripts/migrate_backend_storage.py#L135) · [scripts/migrate_backend_storage.py::migrate](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/scripts/migrate_backend_storage.py#L96) · [docs/notes/production_sessions_idempotency_observability.md](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/docs/notes/production_sessions_idempotency_observability.md#L31)
 
 ```bash
 python scripts/migrate_backend_storage.py /path/to/offline-test-copy.sqlite3
@@ -518,7 +518,7 @@ Dockerfile кладёт тестовую БД в `/app/bootstrap/admins.db`, а 
 
 Локальный d497e75 использует прежний порядок разрешений для назначения исполнителя, рекомендации и удаления. Первые два действия проверяют `ticket.operation`, удаление проверяет `ticket.canceled`. В опубликованной версии для них используются отдельные коды. При переносе настройки ролей проверять реальные разрешения этих действий, актуальную схему БД, жизненный цикл refresh и наличие идемпотентных маршрутов. [Назначение в d497e75](https://github.com/tegasae/simple_tickets/blob/d497e75d4937e8edea98783a5af924c247622e06/src/application/services/ticket_service.py#L581) · [Удаление в d497e75](https://github.com/tegasae/simple_tickets/blob/d497e75d4937e8edea98783a5af924c247622e06/src/application/services/ticket_service.py#L968) · [Опубликованные разрешения](https://github.com/tegasae/simple_tickets/blob/1e69ee8a6368d8bd1bf9971e4a7501f879e2cf69/src/domain/rbac/permissions.py#L25)
 
-## 5.10. Тестирование и ограничения {#backend-10}
+## 10. Тестирование и ограничения {#backend-10}
 
 Штатная конфигурация `pytest.ini` запускает только `tests/`. Подготовка выполнения в этой задаче и фактические результаты описаны в [валидации](meta/validation.md). Входы тестов и дополнительных сценариев создают синтетических сотрудников, роли, клиента и пару заявок. Они используют отдельный файл SQLite, реальное приложение и `TestClient`. Ниже перечислено, за что отвечают текущие наборы.
 
@@ -546,7 +546,7 @@ Dockerfile кладёт тестовую БД в `/app/bootstrap/admins.db`, а 
 
 Зафиксированные в прошлых обзорах замечания имеют статус только для их исходных коммитов. Приоритеты этой документации — действующие несовпадения с подтверждёнными решениями и вопросы, влияющие на работу. [Вопросы и разрывы](meta/questions-and-gaps.md)
 
-## 5.11. Каталог решений {#backend-11}
+## 11. Каталог решений {#backend-11}
 
 | Решение | Контекст, основание и результат в текущей версии |
 |---|---|
@@ -564,7 +564,7 @@ Dockerfile кладёт тестовую БД в `/app/bootstrap/admins.db`, а 
 
 Каталог сверяется с [реестром источников](meta/sources.md). Полный источник решения используется там, где он доступен. Устные подтверждения представлены краткими идентификаторами C-01–C-13 по этому диалогу.
 
-## 5.12. Развитие системы {#backend-12}
+## 12. Развитие системы {#backend-12}
 
 Инициативы сгруппированы по зависимостям. Сначала удобно устранить расхождения, которые затрагивают действующие рабочие данные. Следующие шаги зависят от подтверждения границ доступа и процесса первого запуска.
 

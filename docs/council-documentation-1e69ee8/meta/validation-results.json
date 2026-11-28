@@ -21,7 +21,7 @@
       "tagged": true,
       "pdf_version": "%PDF-1.7",
       "figure_captions": 6,
-      "sha256": "c23be417eb70263c62f860b12cd7707626bd5e2041415dab499f01c4aa253e5c"
+      "sha256": "05396d469fd6e00cc7bf6843ca82a45606162dc226b289af56fb878195ca36a4"
     },
     "user-guide": {
       "pages": 16,
@@ -34,7 +34,7 @@
       "tagged": true,
       "pdf_version": "%PDF-1.7",
       "figure_captions": 6,
-      "sha256": "4000cbd2d51f5d5dcecf4b82a47b4eeb643e575e40373573cc9bd7f9611e3c06"
+      "sha256": "baa6a34bd28e1a4026ac41eaa3ddcedd9563ddc821c2fac9c6423a9367ef94e0"
     }
   },
   "git": {

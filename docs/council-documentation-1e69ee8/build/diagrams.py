@@ -93,7 +93,8 @@ def main():
     work -> paused [label="Перерыв"]
     paused -> work [label="Продолжение"]
     work -> review [label="Инженер передаёт результат"]
-    review -> assigned [label="Назначение на доработку", constraint=false]
+    review -> assigned [label="Назначить\\nна доработку", tailport=ne, headport=e, constraint=false]
+    review -> accepted [label="Вернуть к обработке\\nи снять назначение", tailport=e, headport=e, constraint=false, style=dashed, color="#955a20", fontcolor="#77451a"]
     review -> done [label="Ведущий инженер или менеджер\\nс правом подтверждения"]
     review -> clientdone [label="Уполномоченный\\nсотрудник клиента"]
     {rank=same; work; paused}
